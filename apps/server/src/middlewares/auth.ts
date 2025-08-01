@@ -1,25 +1,22 @@
-import { db } from '~/lib/db'
-import { getPermissionByUserId, Permission } from '~/services/permissions'
-import dayjs from 'dayjs'
-import { type Context } from 'hono'
-import { getCookie } from 'hono/cookie'
+import { auth } from '~/lib/auth'
 import { createMiddleware } from 'hono/factory'
 import { ServerError } from '../lib/error'
-import { env } from '~/env'
-import { isUserSuspended } from '~/services/users'
 
 interface AuthMiddlewareOptions {
-  permission?: string | ((permissions: Permission[]) => boolean)
+  permission?: string
 }
 
 export const authMiddleware = (options: AuthMiddlewareOptions = {}) =>
   createMiddleware<{
     Variables: {
-      userId: number
+      userId: string
     }
     Bindings: any
   }>(async (c, next) => {
-    const session = await checkSession(c)
+    // Use better-auth's session management
+    const session = await auth.api.getSession({
+      headers: c.req.raw.headers,
+    })
 
     if (!session) {
       throw new ServerError({
@@ -28,79 +25,29 @@ export const authMiddleware = (options: AuthMiddlewareOptions = {}) =>
       })
     }
 
-    if (await isUserSuspended(session.userId)) {
-      throw new ServerError({
-        statusCode: 403,
-        message: 'Access forbidden',
-        description: 'Your account is suspended',
-      })
-    }
-
-    if (options.permission) {
-      const isGranted = await checkPermission(
-        options.permission,
-        session.userId,
-      )
-
-      if (!isGranted) {
-        throw new ServerError({
-          statusCode: 401,
-          message: 'User is not authenticated',
-        })
-      }
-    }
-
-    c.set('userId', session.userId)
-
     return await next()
   })
 
-export async function checkSession(c: Context) {
-  const sessionToken = getCookie(c, env.SESSION_COOKIE_NAME)
+// async function checkPermission(
+//   permission: string | ((permissions: Permission[]) => boolean),
+//   userId: number,
+// ) {
+//   const userPermissions = await getPermissionByUserId(userId)
 
-  if (!sessionToken) {
-    return null
-  }
+//   const defaultOrgPermission = userPermissions.find(
+//     ({ isDefaultOrg }) => isDefaultOrg,
+//   )
 
-  return checkSessionBySessionToken(sessionToken)
-}
+//   if (!defaultOrgPermission) {
+//     return false
+//   }
 
-export async function checkSessionBySessionToken(sessionToken: string) {
-  const session = await db.query.sessions.findFirst({
-    where: (session, { eq }) => eq(session.sessionToken, sessionToken),
-  })
+//   if (typeof permission === 'string') {
+//     const isGranted = defaultOrgPermission.permissions.some((perm: any) => {
+//       return perm.key === permission
+//     })
+//     return isGranted
+//   }
 
-  if (!session) {
-    return null
-  }
-
-  if (dayjs(session.expiresAt.split(' ').join('T') + 'Z').isBefore(dayjs())) {
-    return null
-  }
-
-  return session
-}
-
-async function checkPermission(
-  permission: string | ((permissions: Permission[]) => boolean),
-  userId: number,
-) {
-  const userPermissions = await getPermissionByUserId(userId)
-
-  const defaultOrgPermission = userPermissions.find(
-    ({ isDefaultOrg }) => isDefaultOrg,
-  )
-
-  if (!defaultOrgPermission) {
-    return false
-  }
-
-  if (typeof permission === 'string') {
-    const isGranted = defaultOrgPermission.permissions.some(({ key }) => {
-      return key === permission
-    })
-    return isGranted
-  }
-
-  return permission(defaultOrgPermission.permissions)
-}
+//   return permission(defaultOrgPermission.permissions)
+// }

@@ -5,6 +5,8 @@ export default {
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || '',
+    url:
+      process.env.DATABASE_URL ||
+      'postgresql://admin:admin@localhost:5431/csdr-dev',
   },
 } satisfies Config

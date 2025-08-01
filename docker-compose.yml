@@ -5,7 +5,6 @@ services:
       context: .
       dockerfile: ./docker/server.Dockerfile
     environment:
-      - SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME}
       - DEFAULT_ORG_ID=${DEFAULT_ORG_ID}
       - DATABASE_URL=${DATABASE_URL}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
@@ -28,7 +27,6 @@ services:
       context: .
       dockerfile: ./docker/web.Dockerfile
     environment:
-      - SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME}
       - NODE_ENV=production
   nginx:
     image: nginx:alpine
