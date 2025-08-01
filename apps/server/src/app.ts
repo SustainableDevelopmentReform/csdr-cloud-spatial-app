@@ -1,52 +1,61 @@
 import { Hono } from 'hono'
 import { compress } from 'hono/compress'
-import user from './routes/user'
-import role from './routes/role'
-import permission from './routes/permission'
-import organization from './routes/organization'
+// import user from './routes/user'
+// import role from './routes/role'
+// import permission from './routes/permission'
+// import organization from './routes/organization'
 import file from './routes/file'
-import auth from './routes/auth'
-import featureFlag from './routes/feature-flag'
+import authRoutes from './routes/auth'
+// import featureFlag from './routes/feature-flag'
 import { logger } from './middlewares/logger'
 import { ServerError } from './lib/error'
 import { secureHeaders } from 'hono/secure-headers'
 import { rateLimiter } from './middlewares/rate-limiter'
 import { env } from './env'
+import { ContentfulStatusCode } from 'hono/utils/http-status'
+import { auth, AuthType } from './lib/auth'
 
 const isProduction = env.NODE_ENV === 'production'
 
-const app = new Hono()
-// NOTE: Compress doesn't work with Bun for now
+const app = new Hono<{ Variables: AuthType }>({
+  strict: false,
+})
+
 app.use(compress())
 app.use(logger())
-
-// NOTE: Enable this on production and add origin as an option for extra security
-// example:
-// app.use(csrf({ origin: ['mydomain.com'] }))
-
-// if (isProduction) {
-//   app.use(csrf())
-// }
 
 app.use('*', secureHeaders())
 app.use('*', rateLimiter())
 
+app.use('*', async (c, next) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers })
+
+  if (!session) {
+    c.set('user', null)
+    c.set('session', null)
+    return next()
+  }
+
+  c.set('user', session.user)
+  c.set('session', session.session)
+  return next()
+})
+
 const apiRoutes = app
   .basePath('/api/v1/')
-  .route('/user', user)
-  .route('/role', role)
-  .route('/permission', permission)
-  .route('/organization', organization)
   .route('/file', file)
-  .route('/auth', auth)
-  .route('/feature-flag', featureFlag)
+  // Note: auth routes are handled by better-auth - they won't have types - but you should use better-auth/react client for this
+  .route('/auth', authRoutes)
 
 app.get('/api/v1/healthcheck', (c) => c.json({ message: 'OK' }))
 
 app.onError(async (err, c) => {
   if (err instanceof ServerError) {
     const error = err as InstanceType<typeof ServerError>
-    return c.json(error.response, error.response.statusCode)
+    return c.json(
+      error.response,
+      error.response.statusCode as ContentfulStatusCode,
+    )
   }
 
   console.error(err)

@@ -7,6 +7,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { s3Client } from '~/lib/s3'
 import { generateJsonResponse } from '../lib/response'
 import { env } from '~/env'
+import { ServerError } from '../lib/error'
 
 const app = new Hono().post(
   '/get-presigned-url',
@@ -15,6 +16,13 @@ const app = new Hono().post(
     permission: 'write:files',
   }),
   async (c) => {
+    if (!s3Client) {
+      throw new ServerError({
+        statusCode: 500,
+        message: 'S3 client not initialized',
+      })
+    }
+
     const { fileKey } = c.req.valid('json')
 
     const putObjectCommand = new PutObjectCommand({

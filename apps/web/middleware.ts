@@ -1,8 +1,5 @@
-import { NextResponse } from 'next/server'
-import { type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { env } from './env'
-import { ofetch } from 'ofetch'
-import { type User } from '@repo/server'
 
 const isProtectedRoute = (pathname: string) => {
   return pathname.startsWith('/admin')
@@ -30,7 +27,7 @@ function getProtocol(port: string | undefined) {
 }
 
 export async function middleware(request: NextRequest) {
-  const session = request.cookies.get(env.SESSION_COOKIE_NAME)
+  const session = request.cookies.get('session_token')
   const host = request.headers.get('host')!
   const { pathname } = request.nextUrl
 
@@ -74,21 +71,11 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const res = await ofetch(
-      new URL('/api/v1/user/me', backendUrl).toString(),
-      {
-        headers,
-      },
-    )
-
-    const user = res.data as User
-
     if (AUTH_PAGES_PATH.includes(pathname)) {
       return NextResponse.redirect(new URL('/', redirectBaseUrl))
     }
 
     const nextFn = NextResponse.next()
-    nextFn.headers.set('User-Object', JSON.stringify(user))
 
     return nextFn
   } catch (error) {

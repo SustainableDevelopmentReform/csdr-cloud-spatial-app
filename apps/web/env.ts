@@ -8,11 +8,9 @@ export const env = createEnv({
       .default('development'),
   },
   server: {
-    SESSION_COOKIE_NAME: z.string(),
     BACKEND_URL: z.string().url().default('http://localhost:4000'),
   },
   runtimeEnv: {
-    SESSION_COOKIE_NAME: process.env.SESSION_COOKIE_NAME,
     BACKEND_URL: process.env.BACKEND_URL,
     NODE_ENV: process.env.NODE_ENV,
   },

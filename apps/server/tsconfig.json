@@ -2,18 +2,21 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": [
+        "./src/*"
+      ]
     },
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "composite": true,
     "incremental": true,
     "strict": true
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
+    "**/*.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

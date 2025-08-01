@@ -1,88 +1,75 @@
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { db } from './lib/db'
-import {
-  authMethods,
-  organizations,
-  otpTokens,
-  permissionsToRoles,
-  permissions as permissionTable,
-  roles,
-  rolesToUsers,
-  sessions,
-  users,
-  usersToOrganizations,
-} from './schemas'
-import { fileURLToPath } from 'url'
-import type { GlobalSetupContext } from 'vitest/node'
-import { DEFAULT_PERMISSIONS } from './services/permissions'
-import { createUserWithRole } from './utils/test-utils'
-import { env } from './env'
+// import { migrate } from 'drizzle-orm/node-postgres/migrator'
+// import { db } from './lib/db'
 
-async function cleanUpDatabase() {
-  await db.delete(users)
-  await db.delete(organizations)
-  await db.delete(roles)
-  await db.delete(permissionTable)
-  await db.delete(usersToOrganizations)
-  await db.delete(rolesToUsers)
-  await db.delete(permissionsToRoles)
-  await db.delete(sessions)
-  await db.delete(otpTokens)
-  await db.delete(authMethods)
-}
+// import { fileURLToPath } from 'url'
+// import type { GlobalSetupContext } from 'vitest/node'
+// import { env } from './env'
 
-export default async function setup({ provide }: GlobalSetupContext) {
-  await migrate(db, {
-    migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)),
-  })
+// async function cleanUpDatabase() {
+//   await db.delete(users)
+//   await db.delete(organizations)
+//   await db.delete(roles)
+//   await db.delete(permissionTable)
+//   await db.delete(usersToOrganizations)
+//   await db.delete(rolesToUsers)
+//   await db.delete(permissionsToRoles)
+//   await db.delete(sessions)
+//   await db.delete(otpTokens)
+//   await db.delete(authMethods)
+// }
 
-  await cleanUpDatabase()
+// export default async function setup({ provide }: GlobalSetupContext) {
+//   await migrate(db, {
+//     migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)),
+//   })
 
-  await db.insert(organizations).values({
-    name: 'Default Organization',
-    isDefault: true,
-  })
+//   await cleanUpDatabase()
 
-  const role = await db
-    .insert(roles)
-    .values({
-      key: 'admin',
-      name: 'Admin',
-    })
-    .onConflictDoNothing()
-    .returning()
+//   await db.insert(organizations).values({
+//     name: 'Default Organization',
+//     isDefault: true,
+//   })
 
-  const roleId = role[0]!.id
+//   const role = await db
+//     .insert(roles)
+//     .values({
+//       key: 'admin',
+//       name: 'Admin',
+//     })
+//     .onConflictDoNothing()
+//     .returning()
 
-  const permissions = await db
-    .insert(permissionTable)
-    .values(DEFAULT_PERMISSIONS)
-    .onConflictDoNothing()
-    .returning()
+//   const roleId = role[0]!.id
 
-  await db
-    .insert(permissionsToRoles)
-    .values(
-      permissions.map(({ id }) => ({
-        roleId,
-        permissionId: id,
-      })),
-    )
-    .onConflictDoNothing()
+//   const permissions = await db
+//     .insert(permissionTable)
+//     .values(DEFAULT_PERMISSIONS)
+//     .onConflictDoNothing()
+//     .returning()
 
-  const { sessionToken } = await createUserWithRole(
-    'Admin',
-    'admin@sidrstudio.com',
-    'admin',
-  )
-  const headers: Record<string, string> = {}
-  headers['Cookie'] = `${env.SESSION_COOKIE_NAME}=${sessionToken}`
+//   await db
+//     .insert(permissionsToRoles)
+//     .values(
+//       permissions.map(({ id }) => ({
+//         roleId,
+//         permissionId: id,
+//       })),
+//     )
+//     .onConflictDoNothing()
 
-  provide('adminUserHeaders', headers)
-}
+//   const { sessionToken } = await createUserWithRole(
+//     'Admin',
+//     'admin@sidrstudio.com',
+//     'admin',
+//   )
+//   const headers: Record<string, string> = {}
+//   headers['Cookie'] = `${env.SESSION_COOKIE_NAME}=${sessionToken}`
 
-declare module 'vitest' {
-  export interface ProvidedContext {
-    adminUserHeaders: Record<string, string>
-  }
-}
+//   provide('adminUserHeaders', headers)
+// }
+
+// declare module 'vitest' {
+//   export interface ProvidedContext {
+//     adminUserHeaders: Record<string, string>
+//   }
+// }

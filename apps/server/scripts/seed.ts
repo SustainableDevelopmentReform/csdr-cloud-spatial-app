@@ -1,11 +1,11 @@
 /* NOTE: this script should run one-time only, when first time create the app */
 
-import { drizzle } from 'drizzle-orm/node-postgres'
-import * as schema from '~/schemas'
-import pg from 'pg'
 import { eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import pg from 'pg'
+import * as schema from '~/schemas'
 import { isEmail } from '~/utils'
-import { DEFAULT_PERMISSIONS } from '~/services/permissions'
+import { hashPassword } from 'better-auth/crypto'
 
 export const client = new pg.Client(process.env.DATABASE_URL)
 console.log('Connect to DB')
@@ -13,10 +13,9 @@ await client.connect()
 export const db = drizzle(client, { schema })
 console.log('Start seeding')
 
-let isDbSeeded = true
-
 const initialUserEmail = process.env.INITIAL_USER_EMAIL
 const initialUserName = process.env.INITIAL_USER_NAME
+const initialUserPassword = process.env.INITIAL_USER_PASSWORD
 
 if (!initialUserEmail) {
   throw new Error('Please add INITIAL_USER_EMAIL on .env file')
@@ -24,6 +23,10 @@ if (!initialUserEmail) {
 
 if (!initialUserName) {
   throw new Error('Please add INITIAL_USER_NAME on .env file')
+}
+
+if (!initialUserPassword) {
+  throw new Error('Please add INITIAL_USER_PASSWORD on .env file')
 }
 
 if (!isEmail(initialUserEmail)) {
@@ -34,88 +37,66 @@ if (!isEmail(initialUserEmail)) {
 
 let defaultOrg = await db
   .select()
-  .from(schema.organizations)
-  .where(eq(schema.organizations.isDefault, true))
+  .from(schema.organization)
+  .where(eq(schema.organization.slug, 'default-organization'))
 
-if (defaultOrg.length === 0) {
-  isDbSeeded = false
-  defaultOrg = await db
-    .insert(schema.organizations)
-    .values({
-      name: 'Default Organization',
-      isDefault: true,
-    })
-    .returning()
+if (defaultOrg.length > 0) {
+  console.log('Default Organization already seeded, exiting...')
+  process.exit(0)
 }
+
+defaultOrg = await db
+  .insert(schema.organization)
+  .values({
+    id: 'default-organization',
+    name: 'Default Organization',
+    slug: 'default-organization',
+    createdAt: new Date(),
+    metadata: '{}',
+  })
+  .returning()
 
 console.log(`Default Organization ID: ${defaultOrg[0]!.id}`)
 
 let superAdmin = await db
-  .insert(schema.users)
+  .insert(schema.user)
   .values({
+    id: 'super-admin',
     email: initialUserEmail,
     name: initialUserName,
-    isEmailVerified: true,
+    emailVerified: true,
+    createdAt: new Date(),
+    role: 'admin',
+    banned: false,
+    banReason: null,
+    banExpires: null,
+    twoFactorEnabled: false,
   })
   .onConflictDoNothing()
   .returning()
 
-if (isDbSeeded) {
-  superAdmin = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.email, initialUserEmail))
-}
-let superAdminRole = await db
-  .insert(schema.roles)
-  .values({
-    name: 'Super Admin',
-    key: 'super-admin',
-  })
-  .onConflictDoNothing()
-  .returning()
+console.log(`Super Admin ID: ${superAdmin[0]!.id}`)
 
-if (isDbSeeded) {
-  superAdminRole = await db
-    .select()
-    .from(schema.roles)
-    .where(eq(schema.roles.key, 'super-admin'))
-}
-
-await db
-  .insert(schema.usersToOrganizations)
+// create account for super admin
+const account = await db
+  .insert(schema.account)
   .values({
-    organizationId: defaultOrg[0]!.id,
+    id: 'super-admin-account',
     userId: superAdmin[0]!.id,
+    providerId: 'email',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    accountId: 'super-admin',
+    accessToken: null,
+    refreshToken: null,
+    idToken: null,
+    accessTokenExpiresAt: null,
+    password: await hashPassword(initialUserPassword),
   })
-  .onConflictDoNothing()
-
-await db
-  .insert(schema.rolesToUsers)
-  .values({
-    roleId: superAdminRole[0]!.id,
-    userId: superAdmin[0]!.id,
-    organizationId: defaultOrg[0]!.id,
-  })
-  .onConflictDoNothing()
-
-const permissions = await db
-  .insert(schema.permissions)
-  .values(DEFAULT_PERMISSIONS)
   .onConflictDoNothing()
   .returning()
 
-const promises = permissions.map(async (permission) => {
-  await db
-    .insert(schema.permissionsToRoles)
-    .values({
-      roleId: superAdminRole[0]!.id,
-      permissionId: permission.id,
-    })
-    .onConflictDoNothing()
-})
-
-await Promise.all(promises)
+console.log(`Account ID: ${account[0]!.id}`)
 
 console.log('Seeding end')
 await client.end()

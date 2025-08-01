@@ -1,170 +1,115 @@
-import { sql } from 'drizzle-orm'
-import {
-  boolean,
-  check,
-  integer,
-  pgTable,
-  primaryKey,
-  serial,
-  text,
-  timestamp,
-  unique,
-  varchar,
-} from 'drizzle-orm/pg-core'
+import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 256 }).notNull(),
-  email: text('email').unique().notNull(),
-  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-  suspendedAt: timestamp('suspended_at', { mode: 'string' }),
-  image: text('image'),
-  isEmailVerified: boolean('is_email_verified').default(false),
-})
+import {} from 'drizzle-orm/pg-core'
 
-export const organizations = pgTable('organizations', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 256 }).notNull(),
-  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-  isDefault: boolean('is_default').default(false),
-})
-
-export const roles = pgTable('roles', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 256 }).notNull(),
-  key: varchar('key', { length: 256 }).unique().notNull(),
-  description: text('description'),
-  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-  assignedOnSignUp: boolean('assigned_on_signup').default(false),
-})
-
-export const permissions = pgTable('permissions', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 256 }).notNull(),
-  key: varchar('key', { length: 256 }).unique().notNull(),
-  description: text('description'),
-  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-})
-
-export const usersToOrganizations = pgTable(
-  'users_to_organizations',
-  {
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    organizationId: integer('organization_id')
-      .notNull()
-      .references(() => organizations.id, { onDelete: 'cascade' }),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.organizationId] })],
-)
-
-export const rolesToUsers = pgTable(
-  'roles_to_users',
-  {
-    roleId: integer('role_id')
-      .notNull()
-      .references(() => roles.id, { onDelete: 'cascade' }),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    organizationId: integer('organization_id')
-      .notNull()
-      .references(() => organizations.id, { onDelete: 'cascade' }),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.roleId, t.organizationId] })],
-)
-
-export const permissionsToRoles = pgTable(
-  'permissions_to_roles',
-  {
-    roleId: integer('role_id')
-      .notNull()
-      .references(() => roles.id, { onDelete: 'cascade' }),
-    permissionId: integer('permission_id')
-      .notNull()
-      .references(() => permissions.id, { onDelete: 'cascade' }),
-  },
-  (t) => [primaryKey({ columns: [t.roleId, t.permissionId] })],
-)
-
-export const sessions = pgTable('sessions', {
-  id: serial('id').primaryKey(),
-  sessionToken: text('session_token').unique(),
-  userId: integer('user_id')
-    .references(() => users.id, { onDelete: 'cascade' })
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified')
+    .$defaultFn(() => false)
     .notNull(),
-  expiresAt: timestamp('expires_at', { mode: 'string' }).notNull(),
-  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  image: text('image'),
+  createdAt: timestamp('created_at')
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp('updated_at')
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  isAnonymous: boolean('is_anonymous'),
+  role: text('role'),
+  banned: boolean('banned'),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires'),
+  twoFactorEnabled: boolean('two_factor_enabled'),
+})
+
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expires_at').notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+  ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
-  ipAddress: varchar('ip_address', { length: 255 }),
-})
-
-export const otpTokens = pgTable('otp_tokens', {
-  id: serial('id').primaryKey(),
-  token: text('token').unique().notNull(),
-  userId: integer('user_id')
+  userId: text('user_id')
     .notNull()
-    .references(() => users.id, {
-      onDelete: 'cascade',
-    }),
-  expiredAt: timestamp('expired_at', {
-    mode: 'string',
-  }).notNull(),
-  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
-  otp: varchar('otp', { length: 6 }).notNull(),
+    .references(() => user.id, { onDelete: 'cascade' }),
+  impersonatedBy: text('impersonated_by'),
+  activeOrganizationId: text('active_organization_id'),
 })
 
-export const authMethods = pgTable('auth_methods', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id')
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id')
     .notNull()
-    .references(() => users.id, {
-      onDelete: 'cascade',
-    }),
-  provider: varchar('provider', { length: 50 }).notNull(),
-  providerId: varchar('provider_id', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+    .references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at'),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
 })
 
-export const featureFlags = pgTable('feature_flags', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  key: varchar('key', { length: 255 }).notNull().unique(),
-  defaultValue: boolean().default(false).notNull(),
-  allowOverride: varchar('allow_override', { enum: ['user', 'organization'] }),
-  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').$defaultFn(
+    () => /* @__PURE__ */ new Date(),
+  ),
+  updatedAt: timestamp('updated_at').$defaultFn(
+    () => /* @__PURE__ */ new Date(),
+  ),
 })
 
-export const featureFlagAssignments = pgTable(
-  'feature_flag_assignments',
-  {
-    id: serial('id').primaryKey(), // Surrogate primary key
-    featureFlagId: integer('feature_flag_id')
-      .references(() => featureFlags.id, { onDelete: 'cascade' })
-      .notNull(),
-    userId: integer('user_id').references(() => users.id, {
-      onDelete: 'cascade',
-    }),
-    organizationId: integer('organization_id').references(
-      () => organizations.id,
-      { onDelete: 'cascade' },
-    ),
-    value: boolean('value'),
-  },
-  (table) => [
-    unique('feature_flag_assignments_unique').on(
-      table.featureFlagId,
-      table.userId,
-      table.organizationId,
-    ),
-    check(
-      'valid_user_or_org',
-      sql`
-        (${table.userId} IS NOT NULL AND ${table.organizationId} IS NULL) OR
-        (${table.userId} IS NULL AND ${table.organizationId} IS NOT NULL)
-      `,
-    ),
-  ],
-)
+export const organization = pgTable('organization', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').unique(),
+  logo: text('logo'),
+  createdAt: timestamp('created_at').notNull(),
+  metadata: text('metadata'),
+})
+
+export const member = pgTable('member', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organization.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  role: text('role').default('member').notNull(),
+  createdAt: timestamp('created_at').notNull(),
+})
+
+export const invitation = pgTable('invitation', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organization.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: text('role'),
+  status: text('status').default('pending').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  inviterId: text('inviter_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+})
+
+export const twoFactor = pgTable('two_factor', {
+  id: text('id').primaryKey(),
+  secret: text('secret').notNull(),
+  backupCodes: text('backup_codes').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+})
