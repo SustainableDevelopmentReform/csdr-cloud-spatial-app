@@ -1,11 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { env } from './env'
 
 const isProtectedRoute = (pathname: string) => {
   return pathname.startsWith('/admin')
 }
-
-const AUTH_PAGES_PATH = ['/login', '/sign-up', '/verify-otp']
 
 function isRunningDockerCompose(): boolean {
   return process.env.IS_DOCKER_COMPOSE === 'true'
@@ -71,10 +68,6 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    if (AUTH_PAGES_PATH.includes(pathname)) {
-      return NextResponse.redirect(new URL('/', redirectBaseUrl))
-    }
-
     const nextFn = NextResponse.next()
 
     return nextFn
