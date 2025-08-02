@@ -1,39 +1,42 @@
-import { client, QueryKey } from '~/utils/fetcher'
-import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'next/navigation'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { QueryKey } from '~/utils/fetcher'
+import { authClient } from '../../../../utils/auth'
 
-export const useGetUserById = () => {
-  const params = useParams<{ id: string }>()
-  const id = params?.id
+export const useGetUserById = (id: string | undefined) => {
   return useQuery({
     queryKey: [QueryKey.UserProfile, id],
     queryFn: async () => {
-      const res = await client.api.v1.user[':id'].$get({
-        param: {
-          id: id ?? '1',
+      if (!id) return null
+      const res = await authClient.admin.listUsers({
+        query: {
+          filterValue: id,
+          filterField: 'id',
+          filterOperator: 'eq',
         },
       })
 
-      const json = await res.json()
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
 
-      return json.data
+      return res.data.users[0]
     },
-    enabled: !!id,
+    placeholderData: keepPreviousData,
   })
 }
 
-export const useGetAllOrganizations = () =>
-  useQuery({
-    queryKey: [QueryKey.Organizations, QueryKey.AllOrganizations],
-    queryFn: async () => {
-      const res = await client.api.v1.organization.$get({
-        query: {
-          size: '99999',
-        },
-      })
+// export const useGetAllOrganizations = () =>
+//   useQuery({
+//     queryKey: [QueryKey.Organizations, QueryKey.AllOrganizations],
+//     queryFn: async () => {
+//       const res = await client.api.v1.organization.$get({
+//         query: {
+//           size: '99999',
+//         },
+//       })
 
-      const json = await res.json()
+//       const json = await res.json()
 
-      return json.data.data
-    },
-  })
+//       return json.data.data
+//     },
+//   })

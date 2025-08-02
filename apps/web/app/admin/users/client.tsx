@@ -1,58 +1,55 @@
 'use client'
 
-import Pagination from '~/components/pagination'
 import { Button } from '@repo/ui/components/ui/button'
-import { useState } from 'react'
-import UsersTable from './_components/table'
-import UserForm from './_components/form'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 import { Input } from '@repo/ui/components/ui/input'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
-import { useGetAllOrganizations } from './_hooks'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/ui/components/ui/select'
+import { useState } from 'react'
+import Pagination from '~/components/pagination'
+import { QueryKey } from '~/utils/fetcher'
+import { authClient } from '../../../utils/auth'
 import AdminLayout from '../_components/admin-layout'
+import UserForm from './_components/form'
+import UsersTable from './_components/table'
 
 const UserFeature = () => {
   const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const pageSize = 10
   const [search, setSearch] = useState('')
-  const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(
-    undefined,
-  )
+  // const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(
+  //   undefined,
+  // )
 
   const { data } = useQuery({
-    queryKey: [QueryKey.Users, page, search, selectedOrgId],
+    queryKey: [QueryKey.Users, page, search],
     queryFn: async () => {
-      const res = client.api.v1.user.$get({
+      const res = await authClient.admin.listUsers({
         query: {
-          page: page.toString(),
-          search,
-          organizationId: selectedOrgId,
+          searchValue: search,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          // organizationId: selectedOrgId,
         },
       })
 
-      const json = await unwrapResponse(res)
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
 
-      return json.data
+      return res.data
     },
     placeholderData: keepPreviousData,
   })
 
-  const { data: organizations } = useGetAllOrganizations()
+  // const { data: organizations } = useGetAllOrganizations()
 
   return (
     <AdminLayout>
       <div className="p-10">
         <div className="flex justify-between">
           <h1 className="text-3xl font-medium mb-2">
-            Users ({data?.totalCount ?? 0})
+            Users ({data?.total ?? 0})
           </h1>
           <UserForm
             key={`add-organization-form-${isOpen}`}
@@ -76,7 +73,7 @@ const UserFeature = () => {
               <Search className="absolute top-1/2 -translate-y-1/2 left-2 w-[18px] h-[18px] text-gray-600" />
               <Input name="search" className="pl-8" placeholder="Search" />
             </form>
-            <Select
+            {/* <Select
               value={
                 selectedOrgId ??
                 organizations?.find((org) => org.isDefault)?.id?.toString()
@@ -96,12 +93,12 @@ const UserFeature = () => {
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
           </div>
-          <UsersTable data={data?.data || []} />
+          <UsersTable data={data?.users || []} />
           <Pagination
             className="justify-end mt-4"
-            totalPages={data?.pageCount ?? 1}
+            totalPages={Math.ceil((data?.total ?? 0) / pageSize)}
             currentPage={page}
             onPageChange={setPage}
           />

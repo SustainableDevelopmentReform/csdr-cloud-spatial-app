@@ -1,9 +1,9 @@
 {
-  "name": "omnigate",
+  "name": "csdr-cloud-spatial-app",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
-  "author": "Azhar Ali Fauzi",
+  "license": "Apache-2.0",
+  "author": "Nick Forbes-Smith",
   "scripts": {
     "build": "dotenvx run -- turbo build",
     "dev": "dotenvx run -- turbo dev",

@@ -1,20 +1,17 @@
-import { getUserServerSession } from '~/utils/server'
-import UserRoleManagement from './client'
-import { AUTH_ROUTE_CONFIG } from '~/configs/auth'
 import { notFound } from 'next/navigation'
+// import UserRoleManagement from './client'
 
 const Page = async () => {
-  const { getPermission } = await getUserServerSession()
+  return notFound()
+  // const { user } = await getUserServerSession()
 
-  const isGranted = getPermission(
-    AUTH_ROUTE_CONFIG['/admin/users/[id]/roles'].permissions,
-  )
+  // const isGranted = user?.role === 'admin'
 
-  if (!isGranted) {
-    return notFound()
-  }
+  // if (!isGranted) {
 
-  return <UserRoleManagement />
+  // }
+
+  // return <UserRoleManagement />
 }
 
 export default Page

@@ -1,13 +1,12 @@
 import React from 'react'
 import UserFeature from './client'
-import { getUserServerSession } from '~/utils/server'
+import { getUserServerSession } from '~/utils/getUserServerSession'
 import { notFound } from 'next/navigation'
-import { AUTH_ROUTE_CONFIG } from '~/configs/auth'
 
 const Page = async () => {
-  const { getPermission } = await getUserServerSession()
+  const { user } = await getUserServerSession()
 
-  const isGranted = getPermission(AUTH_ROUTE_CONFIG['/admin/users'].permissions)
+  const isGranted = user?.role === 'admin'
 
   if (!isGranted) {
     return notFound()

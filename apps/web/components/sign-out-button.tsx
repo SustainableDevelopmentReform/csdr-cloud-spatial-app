@@ -10,11 +10,10 @@ export const SignOutButton = () => {
 
   return (
     <Button
-      onClick={() =>
-        authClient.signOut({
-          fetchOptions: { onSuccess: () => router.push('/') },
-        })
-      }
+      onClick={async () => {
+        await authClient.signOut()
+        router.push('/')
+      }}
     >
       <LogOutIcon className="w-4 h-4" />
       Logout

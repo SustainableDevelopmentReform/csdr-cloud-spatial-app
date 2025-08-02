@@ -1,13 +1,11 @@
-import React from 'react'
-import AdminLayout from './_components/admin-layout'
-import { getUserServerSession } from '~/utils/server'
-import { AUTH_ROUTE_CONFIG } from '~/configs/auth'
 import { notFound } from 'next/navigation'
+import { getUserServerSession } from '~/utils/getUserServerSession'
+import AdminLayout from './_components/admin-layout'
 
 const Page = async () => {
-  const { user, getPermission } = await getUserServerSession()
+  const { user } = await getUserServerSession()
 
-  const isGranted = getPermission(AUTH_ROUTE_CONFIG['/admin'].permissions)
+  const isGranted = user?.role === 'admin'
 
   if (!isGranted) {
     return notFound()

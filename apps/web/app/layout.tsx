@@ -6,8 +6,8 @@ import Providers from '~/components/providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Omnigate',
-  description: 'Build Faster, Secure Smarter.',
+  title: 'CSDR Cloud Spatial App',
+  description: 'Data Explorer',
   icons: '/favicon.svg',
 }
 
