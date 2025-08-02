@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { authClient } from './utils/auth'
 
 const isProtectedRoute = (pathname: string) => {
-  return pathname.startsWith('/admin')
+  return pathname.startsWith('/console')
 }
 
 function isRunningDockerCompose(): boolean {

@@ -150,14 +150,14 @@
 //         <DropdownMenuContent className="w-40" align="end">
 //           <DropdownMenuItem
 //             onSelect={() => {
-//               router.push(`/admin/organizations/${data.id}`)
+//               router.push(`/console/organizations/${data.id}`)
 //             }}
 //           >
 //             View details
 //           </DropdownMenuItem>
 //           <DropdownMenuItem
 //             onSelect={() => {
-//               router.push(`/admin/organizations/${data.id}/users`)
+//               router.push(`/console/organizations/${data.id}/users`)
 //             }}
 //           >
 //             View users

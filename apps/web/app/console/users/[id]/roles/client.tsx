@@ -77,7 +77,7 @@
 
 //   return (
 //     <UserDetailLayout name={data?.name ?? ''}>
-//       <div className="p-10 max-w-2xl">
+//       <div className="max-w-2xl">
 //         <div className="mb-8">
 //           <div className="text-2xl font-medium">Roles</div>
 //           <div>Immediately give the role to the user</div>

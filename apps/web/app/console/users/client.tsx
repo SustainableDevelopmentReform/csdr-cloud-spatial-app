@@ -8,7 +8,6 @@ import { useState } from 'react'
 import Pagination from '~/components/pagination'
 import { QueryKey } from '~/utils/fetcher'
 import { authClient } from '../../../utils/auth'
-import AdminLayout from '../_components/admin-layout'
 import UserForm from './_components/form'
 import UsersTable from './_components/table'
 
@@ -45,35 +44,34 @@ const UserFeature = () => {
   // const { data: organizations } = useGetAllOrganizations()
 
   return (
-    <AdminLayout>
-      <div className="p-10">
-        <div className="flex justify-between">
-          <h1 className="text-3xl font-medium mb-2">
-            Users ({data?.total ?? 0})
-          </h1>
-          <UserForm
-            key={`add-organization-form-${isOpen}`}
-            isOpen={isOpen}
-            onOpen={() => setOpen(true)}
-            onClose={() => setOpen(false)}
+    <div>
+      <div className="flex justify-between">
+        <h1 className="text-3xl font-medium mb-2">
+          Users ({data?.total ?? 0})
+        </h1>
+        <UserForm
+          key={`add-organization-form-${isOpen}`}
+          isOpen={isOpen}
+          onOpen={() => setOpen(true)}
+          onClose={() => setOpen(false)}
+        >
+          <Button>Add user</Button>
+        </UserForm>
+      </div>
+      <div className="mt-8">
+        <div className="flex items-center mb-4 gap-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              const elements = new FormData(e.currentTarget)
+              setSearch(elements.get('search')?.toString() ?? '')
+            }}
+            className="max-w-sm relative w-full"
           >
-            <Button>Add user</Button>
-          </UserForm>
-        </div>
-        <div className="mt-8">
-          <div className="flex items-center mb-4 gap-4">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const elements = new FormData(e.currentTarget)
-                setSearch(elements.get('search')?.toString() ?? '')
-              }}
-              className="max-w-sm relative w-full"
-            >
-              <Search className="absolute top-1/2 -translate-y-1/2 left-2 w-[18px] h-[18px] text-gray-600" />
-              <Input name="search" className="pl-8" placeholder="Search" />
-            </form>
-            {/* <Select
+            <Search className="absolute top-1/2 -translate-y-1/2 left-2 w-[18px] h-[18px] text-gray-600" />
+            <Input name="search" className="pl-8" placeholder="Search" />
+          </form>
+          {/* <Select
               value={
                 selectedOrgId ??
                 organizations?.find((org) => org.isDefault)?.id?.toString()
@@ -94,17 +92,16 @@ const UserFeature = () => {
                 ))}
               </SelectContent>
             </Select> */}
-          </div>
-          <UsersTable data={data?.users || []} />
-          <Pagination
-            className="justify-end mt-4"
-            totalPages={Math.ceil((data?.total ?? 0) / pageSize)}
-            currentPage={page}
-            onPageChange={setPage}
-          />
         </div>
+        <UsersTable data={data?.users || []} />
+        <Pagination
+          className="justify-end mt-4"
+          totalPages={Math.ceil((data?.total ?? 0) / pageSize)}
+          currentPage={page}
+          onPageChange={setPage}
+        />
       </div>
-    </AdminLayout>
+    </div>
   )
 }
 

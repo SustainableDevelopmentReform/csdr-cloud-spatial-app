@@ -44,7 +44,7 @@
 //     header: () => <span></span>,
 //     cell: (info) => (
 //       <Link
-//         href={`/admin/users/${info.getValue()}`}
+//         href={`/console/users/${info.getValue()}`}
 //         className="hover:underline"
 //       >
 //         View details
