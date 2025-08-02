@@ -2,7 +2,6 @@
 
 import { Trash2, Upload, User2 } from 'lucide-react'
 import { Dialog, DialogContent } from '@repo/ui/components/ui/dialog'
-import { useUser } from '~/hooks/user'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,6 +21,7 @@ import React from 'react'
 import { browseFile } from '~/utils'
 import { ofetch } from 'ofetch'
 import { toast } from '@repo/ui/components/ui/sonner'
+import { authClient } from '../../../utils/auth'
 
 interface AccountSettingsProps {
   isOpen: boolean
@@ -39,7 +39,9 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { user } = useUser()
+  const { data } = authClient.useSession()
+  const user = data?.user
+
   const profileForm = useForm<Profile>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -50,14 +52,11 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({
 
   const handleUpdateProfile = useMutation({
     mutationFn: async (data: Profile) => {
-      const res = client.api.v1.user.me.$put({
-        json: {
-          name: data.name,
-          image: data.image ?? null,
-        },
+      const res = await authClient.updateUser({
+        name: data.name,
+        image: data.image ?? null,
       })
 
-      await unwrapResponse(res)
       window.location.reload()
     },
   })

@@ -32,7 +32,7 @@ const UserDetailLayout: React.FC<{
           >
             Profile
           </Link>
-          <Link
+          {/* <Link
             className="text-lg hover:underline data-[active=true]:underline"
             href={`/admin/users/${id}/roles`}
           >
@@ -43,7 +43,7 @@ const UserDetailLayout: React.FC<{
             href={`/admin/users/${id}/feature-flags`}
           >
             Feature Flags
-          </Link>
+          </Link> */}
         </div>
       </aside>
       <div className="fixed top-0 left-72 bottom-0 right-0 overflow-auto">

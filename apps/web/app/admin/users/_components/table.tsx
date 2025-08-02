@@ -7,20 +7,13 @@ import {
 } from '@tanstack/react-table'
 import dayjs from 'dayjs'
 import React from 'react'
-
-interface User {
-  id: number
-  name: string
-  createdAt: string
-  image: string | null
-  email: string
-}
+import { User } from '../../../../utils/auth'
 
 interface UsersTableProps {
-  data: User[]
+  data: Partial<User>[]
 }
 
-const columnHelper = createColumnHelper<User>()
+const columnHelper = createColumnHelper<Partial<User>>()
 
 const columns = [
   columnHelper.accessor('name', {
@@ -30,6 +23,11 @@ const columns = [
   }),
   columnHelper.accessor('email', {
     header: () => <span>Email</span>,
+    cell: (info) => info.getValue(),
+    minSize: 160,
+  }),
+  columnHelper.accessor('role', {
+    header: () => <span>Role</span>,
     cell: (info) => info.getValue(),
     minSize: 160,
   }),

@@ -39,18 +39,18 @@ WORKDIR /app
 
 # Don't run production as root
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 omnigate
+RUN adduser --system --uid 1001 csdr-cloud-spatial-app
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=omnigate:nodejs /app/apps/web/.next/standalone ./frontend/standalone
-COPY --from=builder --chown=omnigate:nodejs /app/apps/web/.next/static ./frontend/standalone/apps/web/.next/static
-COPY --from=builder --chown=omnigate:nodejs /app/apps/web/public ./frontend/standalone/apps/web/public
-COPY --from=builder --chown=omnigate:nodejs /app/apps/server/dist ./backend
-COPY --from=builder --chown=omnigate:nodejs /app/apps/server/drizzle ./backend/migrate/drizzle
-COPY --from=builder --chown=omnigate:nodejs /app/apps/server/drizzle ./backend/seed/drizzle
+COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/web/.next/standalone ./frontend/standalone
+COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/web/.next/static ./frontend/standalone/apps/web/.next/static
+COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/web/public ./frontend/standalone/apps/web/public
+COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/server/dist ./backend
+COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/server/drizzle ./backend/migrate/drizzle
+COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/server/drizzle ./backend/seed/drizzle
 
-USER omnigate
+USER csdr-cloud-spatial-app
 
 # Expose necessary ports
 EXPOSE 3000

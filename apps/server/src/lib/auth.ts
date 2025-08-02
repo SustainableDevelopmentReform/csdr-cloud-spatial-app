@@ -14,7 +14,6 @@ import { env } from '~/env'
 // import { oidcProvider } from 'better-auth/plugins'
 
 const authConfig = {
-  basePath: '/api/v1/auth',
   baseURL: 'http://localhost:4000',
   trustedOrigins: ['http://localhost:3000'],
   database: drizzleAdapter(db, {

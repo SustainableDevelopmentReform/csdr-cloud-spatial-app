@@ -1,29 +1,6 @@
 'use client'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
-import { Input } from '@repo/ui/components/ui/input'
-import { Button } from '@repo/ui/components/ui/button'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
-import { z } from 'zod'
-import { useGetUserById } from '../_hooks'
-import UserDetailLayout from './_components/detail-layout'
-import AssignOrgForm from './_components/assign-org-form'
-import Link from '~/components/link'
-import { toast } from '@repo/ui/components/ui/sonner'
-import { useParams, useRouter } from 'next/navigation'
-import { useUser } from '~/hooks/user'
-import { match } from 'ts-pattern'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,22 +12,51 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@repo/ui/components/ui/alert-dialog'
+import { Button } from '@repo/ui/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
+import { toast } from '@repo/ui/components/ui/sonner'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useParams, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { match } from 'ts-pattern'
+import { z } from 'zod'
+import { QueryKey } from '~/utils/fetcher'
+import { authClient } from '../../../../utils/auth'
+import { useGetUserById } from '../_hooks'
+// import AssignOrgForm from './_components/assign-org-form'
+import UserDetailLayout from './_components/detail-layout'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/ui/components/ui/select'
 
 const formSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
+  role: z.enum(['admin', 'user']),
 })
 
 type Data = z.infer<typeof formSchema>
 
 const UserProfile = () => {
   const params = useParams<{ id: string }>()
-  const router = useRouter()
   const id = params?.id
+  const router = useRouter()
 
-  const { data } = useGetUserById()
-  const { user } = useUser()
+  const { data: user } = useGetUserById(id)
 
-  const isSuspended = !!data?.suspendedAt
+  const isSuspended = !!user?.banned
 
   const form = useForm<Data>({
     resolver: zodResolver(formSchema),
@@ -60,20 +66,25 @@ const UserProfile = () => {
   const { control, handleSubmit, setValue } = form
 
   useEffect(() => {
-    setValue('name', data?.name ?? '')
-  }, [data])
+    setValue('name', user?.name ?? '')
+    setValue('role', (user?.role ?? 'user') as 'admin' | 'user')
+  }, [user])
 
   const updateUser = useMutation({
     mutationFn: async (data: Data) => {
-      if (!id) return
-      const res = client.api.v1.user[':id'].$put({
-        json: data,
-        param: {
-          id: id,
+      console.log(data)
+      const res = await authClient.admin.updateUser({
+        userId: id,
+        data: {
+          name: data.name,
+          role: data.role,
         },
       })
 
-      await unwrapResponse(res)
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
+
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, id],
       })
@@ -91,13 +102,14 @@ const UserProfile = () => {
     mutationFn: async () => {
       if (!id) return
 
-      const res = client.api.v1.auth.impersonate.$post({
-        json: {
-          userId: Number(id),
-        },
+      const res = await authClient.admin.impersonateUser({
+        userId: id,
       })
 
-      await unwrapResponse(res)
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
+
       window.open('/', '_self')
     },
   })
@@ -106,14 +118,15 @@ const UserProfile = () => {
     mutationFn: async () => {
       if (!id) return
 
-      const res = client.api.v1.user[':id'].suspend.$post({
-        param: {
-          id,
-        },
+      const res = await authClient.admin.banUser({
+        userId: id,
       })
 
-      await unwrapResponse(res)
-      toast(`User: ${data?.name} is suspended`)
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
+
+      toast(`User: ${user?.name} is suspended`)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, id],
       })
@@ -124,14 +137,15 @@ const UserProfile = () => {
     mutationFn: async () => {
       if (!id) return
 
-      const res = client.api.v1.user[':id'].restore.$post({
-        param: {
-          id,
-        },
+      const res = await authClient.admin.unbanUser({
+        userId: id,
       })
 
-      await unwrapResponse(res)
-      toast(`User: ${data?.name} is restored`)
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
+
+      toast(`User: ${user?.name} is restored`)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, id],
       })
@@ -142,14 +156,15 @@ const UserProfile = () => {
     mutationFn: async () => {
       if (!id) return
 
-      const res = client.api.v1.user[':id'].$delete({
-        param: {
-          id,
-        },
+      const res = await authClient.admin.removeUser({
+        userId: id,
       })
 
-      await unwrapResponse(res)
-      toast(`User: ${data?.name} is deleted`)
+      if (res.error) {
+        throw new Error(res.error.message)
+      }
+
+      toast(`User: ${user?.name} is deleted`)
       router.replace('/admin/users')
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, id],
@@ -164,11 +179,12 @@ const UserProfile = () => {
   })
 
   function onSubmit(data: Data) {
+    console.log(data)
     updateUser.mutate(data)
   }
 
   return (
-    <UserDetailLayout name={data?.name ?? ''}>
+    <UserDetailLayout name={user?.name ?? ''}>
       <div className="p-10 max-w-2xl">
         <div className="text-2xl font-medium mb-8">Profile</div>
         <Form {...form}>
@@ -178,7 +194,7 @@ const UserProfile = () => {
           >
             <FormItem>
               <FormLabel>User ID</FormLabel>
-              <Input disabled value={data?.id} className="bg-gray-100" />
+              <Input disabled value={user?.id} className="bg-gray-100" />
             </FormItem>
             <FormField
               control={control}
@@ -195,8 +211,29 @@ const UserProfile = () => {
             />
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <Input disabled value={data?.email} className="bg-gray-100" />
+              <Input disabled value={user?.email} className="bg-gray-100" />
             </FormItem>
+
+            <FormField
+              control={control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <Select {...field} onValueChange={field.onChange}>
+                    <SelectTrigger className="max-w-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div>
               <Button className="mt-4" disabled={updateUser.isPending}>
                 {updateUser.isPending ? 'Loading...' : 'Save'}
@@ -204,7 +241,7 @@ const UserProfile = () => {
             </div>
           </form>
         </Form>
-        <div className="flex justify-between mt-8 border-b border-gray-200 pb-8">
+        {/* <div className="flex justify-between mt-8 border-b border-gray-200 pb-8">
           <div>
             <div className="text-xl mb-1 font-medium">Organizations</div>
             <div>Choose which organizations this user belongs to</div>
@@ -212,8 +249,8 @@ const UserProfile = () => {
           <AssignOrgForm>
             <button className="hover:underline">Edit organizations</button>
           </AssignOrgForm>
-        </div>
-        <div className="border-b border-gray-200 pb-8 pt-4 grid gap-5">
+        </div> */}
+        {/* <div className="border-b border-gray-200 pb-8 pt-4 grid gap-5">
           {data?.organizations.map(({ id, name }) => (
             <div key={`user-orgs-${id}`} className="flex justify-between">
               <div>{name}</div>
@@ -225,109 +262,98 @@ const UserProfile = () => {
               </Link>
             </div>
           ))}
-        </div>
-        {user?.id.toString() !== id && (
-          <div className="mt-8 border-b border-gray-200 pb-8">
-            <div className="text-xl mb-6 font-medium">Admin actions</div>
-            <div className="mb-6">
-              <div className="font-medium">Impersonate user</div>
-              <div className="mb-3">
-                Temporarily login as the user. Use this carefully, all the
-                actions that is taken will be permanent
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => impersonateUser.mutate()}
-              >
-                {match(impersonateUser)
-                  .with({ isPending: true }, () => 'Loading...')
-                  .otherwise(() => 'Impersonate user')}
-              </Button>
+        </div> */}
+
+        <div className="mt-8 border-b border-gray-200 pb-8">
+          <div className="text-xl mb-6 font-medium">Admin actions</div>
+          <div className="mb-6">
+            <div className="font-medium">Impersonate user</div>
+            <div className="mb-3">
+              Temporarily login as the user. Use this carefully, all the actions
+              that is taken will be permanent
             </div>
-            <div className="mb-6">
-              <div className="font-medium">Suspend and restore user</div>
-              <div className="mb-3">
-                {match(isSuspended)
-                  .with(
-                    true,
-                    () =>
-                      "Give the user back their access to all apps and organizations after they've been suspended.",
-                  )
-                  .otherwise(
-                    () =>
-                      "Temporarily revoke the user's access to all applications until restored.",
-                  )}
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    {match(isSuspended)
-                      .with(true, () => 'Restore user')
-                      .otherwise(() => 'Suspend user')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will{' '}
-                      {isSuspended ? 'restore' : 'suspend'} {data?.name}{' '}
-                      account.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() =>
-                        isSuspended
-                          ? restoreUser.mutate()
-                          : suspendUser.mutate()
-                      }
-                    >
-                      {match(suspendUser.isPending || restoreUser.isPending)
-                        .with(true, () => 'Loading...')
-                        .otherwise(() => 'Continue')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-            <div className="mb-6">
-              <div className="font-medium">Delete user</div>
-              <div className="mb-3">
-                Permanently remove the user from all organizations and
-                applications.
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">Delete user</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete{' '}
-                      {data?.name} account and remove {data?.name} data from our
-                      servers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteUser.mutate()}>
-                      {match(deleteUser)
-                        .with({ isPending: true }, () => 'Loading...')
-                        .otherwise(() => 'Continue')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            <Button variant="outline" onClick={() => impersonateUser.mutate()}>
+              {match(impersonateUser)
+                .with({ isPending: true }, () => 'Loading...')
+                .otherwise(() => 'Impersonate user')}
+            </Button>
           </div>
-        )}
+          <div className="mb-6">
+            <div className="font-medium">Suspend and restore user</div>
+            <div className="mb-3">
+              {match(isSuspended)
+                .with(
+                  true,
+                  () =>
+                    "Give the user back their access to all apps and organizations after they've been suspended.",
+                )
+                .otherwise(
+                  () =>
+                    "Temporarily revoke the user's access to all applications until restored.",
+                )}
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  {match(isSuspended)
+                    .with(true, () => 'Restore user')
+                    .otherwise(() => 'Suspend user')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will {isSuspended ? 'restore' : 'suspend'} {user?.name}{' '}
+                    account.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() =>
+                      isSuspended ? restoreUser.mutate() : suspendUser.mutate()
+                    }
+                  >
+                    {match(suspendUser.isPending || restoreUser.isPending)
+                      .with(true, () => 'Loading...')
+                      .otherwise(() => 'Continue')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+          <div className="mb-6">
+            <div className="font-medium">Delete user</div>
+            <div className="mb-3">
+              Permanently remove the user from all organizations and
+              applications.
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">Delete user</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete{' '}
+                    {user?.name} account and remove {user?.name} data from our
+                    servers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteUser.mutate()}>
+                    {match(deleteUser)
+                      .with({ isPending: true }, () => 'Loading...')
+                      .otherwise(() => 'Continue')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
       </div>
     </UserDetailLayout>
   )

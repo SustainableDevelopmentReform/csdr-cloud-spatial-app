@@ -2,7 +2,7 @@ import { Button } from '@repo/ui/components/ui/button'
 import { match } from 'ts-pattern'
 import Link from '~/components/link'
 import { getUserServerSession } from '~/utils/getUserServerSession'
-import { SignOutButton } from './_components/sign-out-button'
+import { SignOutButton } from '../components/sign-out-button'
 
 export default async function Page() {
   const data = await getUserServerSession()

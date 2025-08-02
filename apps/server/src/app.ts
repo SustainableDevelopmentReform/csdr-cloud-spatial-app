@@ -5,7 +5,6 @@ import { compress } from 'hono/compress'
 // import permission from './routes/permission'
 // import organization from './routes/organization'
 import file from './routes/file'
-import authRoutes from './routes/auth'
 // import featureFlag from './routes/feature-flag'
 import { logger } from './middlewares/logger'
 import { ServerError } from './lib/error'
@@ -52,11 +51,13 @@ app.use('*', async (c, next) => {
   return next()
 })
 
-const apiRoutes = app
-  .basePath('/api/v1/')
-  .route('/file', file)
-  // Note: auth routes are handled by better-auth - they won't have types - but you should use better-auth/react client for this
-  .route('/auth', authRoutes)
+// Mount the better-auth handler for all auth endpoints
+// This will handle all authentication routes like sign-in, sign-up, etc.
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+  return auth.handler(c.req.raw)
+})
+
+const apiRoutes = app.basePath('/api/v1/').route('/file', file)
 
 app.get('/api/v1/healthcheck', (c) => c.json({ message: 'OK' }))
 

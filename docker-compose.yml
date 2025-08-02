@@ -1,6 +1,6 @@
 services:
   server:
-    container_name: omnigate-server
+    container_name: csdr-cloud-spatial-app-server
     build:
       context: .
       dockerfile: ./docker/server.Dockerfile
@@ -22,7 +22,7 @@ services:
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
       - NODE_ENV=production
   web:
-    container_name: omnigate-web
+    container_name: csdr-cloud-spatial-app-web
     build:
       context: .
       dockerfile: ./docker/web.Dockerfile

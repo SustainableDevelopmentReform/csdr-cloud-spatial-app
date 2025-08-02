@@ -1,21 +1,20 @@
 'use client'
 
-import { useUser } from '~/hooks/user'
-import React, { useState } from 'react'
-import Link from '~/components/link'
 import {
-  AvatarImage,
   Avatar,
   AvatarFallback,
+  AvatarImage,
 } from '@repo/ui/components/ui/avatar'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@repo/ui/components/ui/popover'
-import { client } from '~/utils/fetcher'
+import React, { useState } from 'react'
+import Link from '~/components/link'
+import { authClient, somePermissions } from '~/utils/auth'
+import { SignOutButton } from '../../../components/sign-out-button'
 import AccountSettings from './account-settings'
-import { somePermissions } from '~/utils/auth'
 
 const SIDEBAR_CONFIG = [
   {
@@ -23,30 +22,31 @@ const SIDEBAR_CONFIG = [
     href: '/admin/users',
     permissions: somePermissions(['read:users', 'write:users']),
   },
-  {
-    text: 'Organizations',
-    href: '/admin/organizations',
-    permissions: somePermissions(['read:organizations', 'write:organizations']),
-  },
-  {
-    text: 'Roles',
-    href: '/admin/roles',
-    permissions: somePermissions(['read:roles', 'write:roles']),
-  },
-  {
-    text: 'Permissions',
-    href: '/admin/permissions',
-    permissions: somePermissions(['read:permissions', 'write:permissions']),
-  },
-  {
-    text: 'Feature Flags',
-    href: '/admin/feature-flags',
-    permissions: somePermissions(['read:feature-flags', 'write:feature-flags']),
-  },
+  // {
+  //   text: 'Organizations',
+  //   href: '/admin/organizations',
+  //   permissions: somePermissions(['read:organizations', 'write:organizations']),
+  // },
+  // {
+  //   text: 'Roles',
+  //   href: '/admin/roles',
+  //   permissions: somePermissions(['read:roles', 'write:roles']),
+  // },
+  // {
+  //   text: 'Permissions',
+  //   href: '/admin/permissions',
+  //   permissions: somePermissions(['read:permissions', 'write:permissions']),
+  // },
+  // {
+  //   text: 'Feature Flags',
+  //   href: '/admin/feature-flags',
+  //   permissions: somePermissions(['read:feature-flags', 'write:feature-flags']),
+  // },
 ]
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, getPermission } = useUser()
+  const { data } = authClient.useSession()
+  const user = data?.user
   const [isOpen, setOpen] = useState(false)
 
   return (
@@ -59,7 +59,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <main>
         <nav className="flex items-center justify-between px-10 h-20 top-0 left-0 right-0">
           <Link href="/admin" className="text-2xl font-semibold block">
-            Omnigate
+            CSDR Cloud Spatial App
           </Link>
           <Popover>
             <PopoverTrigger asChild>
@@ -91,23 +91,15 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 >
                   Account details
                 </button>
-                <button
-                  className="block w-full text-left"
-                  onClick={async () => {
-                    await client.api.v1.auth.logout.$post()
-                    window.open('/', '_self')
-                  }}
-                >
-                  Sign out
-                </button>
+                <SignOutButton />
               </div>
             </PopoverContent>
           </Popover>
         </nav>
         <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">
           <div className="grid gap-3">
-            {SIDEBAR_CONFIG.map(({ href, permissions, text }) =>
-              getPermission(permissions) ? (
+            {SIDEBAR_CONFIG.map(({ href, text }) =>
+              user?.role === 'admin' ? (
                 <Link
                   key={href}
                   className="text-lg hover:underline data-[active=true]:underline"

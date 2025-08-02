@@ -21,5 +21,5 @@ export const getUserServerSession = async () => {
     },
   })
 
-  return res.data
+  return { user: res.data?.user, session: res.data?.session }
 }

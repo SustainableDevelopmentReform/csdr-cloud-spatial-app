@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { authClient } from './utils/auth'
 
 const isProtectedRoute = (pathname: string) => {
   return pathname.startsWith('/admin')
@@ -24,7 +25,10 @@ function getProtocol(port: string | undefined) {
 }
 
 export async function middleware(request: NextRequest) {
-  const session = request.cookies.get('session_token')
+  const session =
+    request.cookies.get('session_token') ??
+    request.cookies.get('__Secure-better-auth.session_token')
+
   const host = request.headers.get('host')!
   const { pathname } = request.nextUrl
 
@@ -49,6 +53,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!session && isProtectedRoute(pathname)) {
+    console.log('protected route')
     return NextResponse.rewrite(new URL('/not-found', rewriteBaseUrl))
   }
 
@@ -72,6 +77,7 @@ export async function middleware(request: NextRequest) {
 
     return nextFn
   } catch (error) {
+    console.log('error', error)
     if (isProtectedRoute(pathname)) {
       return NextResponse.rewrite(new URL('/not-found', rewriteBaseUrl))
     }

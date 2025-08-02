@@ -44,12 +44,8 @@ const LoginForm = () => {
         email: data.email,
         password: data.password,
         rememberMe: data.remember,
-        fetchOptions: {
-          onSuccess: () => {
-            router.push('/')
-          },
-        },
       })
+      router.push('/')
     },
   })
 

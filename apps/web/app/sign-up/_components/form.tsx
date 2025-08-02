@@ -11,13 +11,13 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { useMutation } from '@tanstack/react-query'
+import { MutationFunction, useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { authClient } from '../../../utils/auth'
 import { useRouter } from 'next/navigation'
 
-const formSchema = z
+const createUserSchema = z
   .object({
     email: z.string({ message: 'Email is required' }).email('Email is invalid'),
     name: z.string({ message: 'Full name is required' }),
@@ -31,12 +31,15 @@ const formSchema = z
     path: ['passwordConfirmation'],
   })
 
-type Data = z.infer<typeof formSchema>
+type CreateUserData = z.infer<typeof createUserSchema>
 
-const SignupForm = () => {
-  const router = useRouter()
-  const form = useForm<Data>({
-    resolver: zodResolver(formSchema),
+const SignupForm = ({
+  mutationFn,
+}: {
+  mutationFn: (data: CreateUserData) => Promise<void>
+}) => {
+  const form = useForm<CreateUserData>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
       email: '',
       name: '',
@@ -47,21 +50,10 @@ const SignupForm = () => {
   const { control, handleSubmit } = form
 
   const submitMutation = useMutation({
-    mutationFn: async (data: Data) => {
-      await authClient.signUp.email({
-        email: data.email,
-        password: data.password,
-        name: data.name,
-        fetchOptions: {
-          onSuccess: () => {
-            router.push('/login')
-          },
-        },
-      })
-    },
+    mutationFn,
   })
 
-  async function onSubmit(data: Data) {
+  async function onSubmit(data: CreateUserData) {
     submitMutation.mutate(data)
   }
 

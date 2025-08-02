@@ -1,28 +1,27 @@
-import { createAuthClient as createReactAuthClient } from 'better-auth/react'
+import { InferSessionFromClient, InferUserFromClient } from 'better-auth'
 import {
-  anonymousClient,
   adminClient,
+  anonymousClient,
   organizationClient,
   twoFactorClient,
 } from 'better-auth/client/plugins'
-import { cookies, headers } from 'next/headers'
+import { createAuthClient as createReactAuthClient } from 'better-auth/react'
 
 const authConfig = {
   baseURL: 'http://localhost:4000',
-  basePath: '/api/v1/auth',
-  fetchOptions: {
-    throw: true,
-  },
   plugins: [
-    anonymousClient(),
     adminClient(),
-    organizationClient(),
     twoFactorClient(),
+    anonymousClient(),
+    organizationClient(),
   ],
 }
 
 /** Better auth client to use in React/client components */
 export const authClient = createReactAuthClient(authConfig)
+
+export type User = InferUserFromClient<typeof authConfig>
+export type Session = InferSessionFromClient<typeof authConfig>
 
 export interface Permission {
   key: string
