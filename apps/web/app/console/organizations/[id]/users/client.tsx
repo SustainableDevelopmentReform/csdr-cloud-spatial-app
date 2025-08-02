@@ -34,7 +34,7 @@
 
 //   return (
 //     <OrganizationDetailLayout>
-//       <div className="p-10">
+//       <div >
 //         <h1 className="text-3xl font-medium mb-2">Users</h1>
 //         <div className="mt-8">
 //           <UsersTable data={data?.data ?? []} />

@@ -30,7 +30,7 @@
 //     <main>
 //       <aside className="fixed top-0 bottom-0 left-0 w-72 px-10 py-6">
 //         <Link
-//           href="/admin/organizations"
+//           href="/console/organizations"
 //           className="font-medium mb-8 flex items-center -ml-4"
 //         >
 //           <ChevronLeft className="mr-1 h-5 w-5" />
@@ -43,20 +43,20 @@
 //         <div className="grid gap-3">
 //           <Link
 //             className="text-lg hover:underline data-[active=true]:underline"
-//             href={`/admin/organizations/${id}`}
+//             href={`/console/organizations/${id}`}
 //             end
 //           >
 //             Details
 //           </Link>
 //           <Link
 //             className="text-lg hover:underline data-[active=true]:underline"
-//             href={`/admin/organizations/${id}/users`}
+//             href={`/console/organizations/${id}/users`}
 //           >
 //             Users
 //           </Link>
 //           <Link
 //             className="text-lg hover:underline data-[active=true]:underline"
-//             href={`/admin/organizations/${id}/feature-flags`}
+//             href={`/console/organizations/${id}/feature-flags`}
 //           >
 //             Feature Flags
 //           </Link>

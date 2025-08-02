@@ -1,5 +1,3 @@
-'use client'
-
 import {
   Avatar,
   AvatarFallback,
@@ -10,55 +8,70 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@repo/ui/components/ui/popover'
-import React, { useState } from 'react'
+import React from 'react'
 import Link from '~/components/link'
-import { authClient, somePermissions } from '~/utils/auth'
-import { SignOutButton } from '../../../components/sign-out-button'
-import AccountSettings from './account-settings'
+import { somePermissions } from '~/utils/auth'
+import { SignOutButton } from '../../components/sign-out-button'
+import { getUserServerSession } from '../../utils/getUserServerSession'
+import AccountSettingsButton from './_components/account-settings-button'
 
 const SIDEBAR_CONFIG = [
   {
     text: 'Users',
-    href: '/admin/users',
-    permissions: somePermissions(['read:users', 'write:users']),
+    href: '/console/users',
+    roles: ['admin'],
   },
+  {
+    text: 'Datasets',
+    href: '/console/datasets',
+    roles: ['admin', 'user'],
+  },
+  {
+    text: 'Geometries',
+    href: '/console/geometries',
+    roles: ['admin', 'user'],
+  },
+  {
+    text: 'Products',
+    href: '/console/products',
+    roles: ['admin', 'user'],
+  },
+
   // {
   //   text: 'Organizations',
-  //   href: '/admin/organizations',
+  //   href: '/console/organizations',
   //   permissions: somePermissions(['read:organizations', 'write:organizations']),
   // },
   // {
   //   text: 'Roles',
-  //   href: '/admin/roles',
+  //   href: '/console/roles',
   //   permissions: somePermissions(['read:roles', 'write:roles']),
   // },
   // {
   //   text: 'Permissions',
-  //   href: '/admin/permissions',
+  //   href: '/console/permissions',
   //   permissions: somePermissions(['read:permissions', 'write:permissions']),
   // },
   // {
   //   text: 'Feature Flags',
-  //   href: '/admin/feature-flags',
+  //   href: '/console/feature-flags',
   //   permissions: somePermissions(['read:feature-flags', 'write:feature-flags']),
   // },
 ]
 
-const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data } = authClient.useSession()
-  const user = data?.user
-  const [isOpen, setOpen] = useState(false)
+const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
+  children,
+}) => {
+  const { user } = await getUserServerSession()
 
   return (
     <>
-      <AccountSettings
-        key={`account-${isOpen}`}
-        isOpen={isOpen}
-        onClose={() => setOpen(false)}
-      />
       <main>
         <nav className="flex items-center justify-between px-10 h-20 top-0 left-0 right-0">
-          <Link href="/admin" className="text-2xl font-semibold block">
+          <Link
+            href="/console"
+            className="text-2xl font-mono font-semibold block"
+          >
             CSDR Cloud Spatial App
           </Link>
           <Popover>
@@ -85,12 +98,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </div>
               </div>
               <div className="pt-2 mt-2 border-t border-gray-200 px-4">
-                <button
-                  className="mb-2 block w-full text-left"
-                  onClick={() => setOpen(true)}
-                >
-                  Account details
-                </button>
+                <AccountSettingsButton />
                 <SignOutButton />
               </div>
             </PopoverContent>
@@ -98,8 +106,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </nav>
         <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">
           <div className="grid gap-3">
-            {SIDEBAR_CONFIG.map(({ href, text }) =>
-              user?.role === 'admin' ? (
+            {SIDEBAR_CONFIG.map(({ href, text, roles }) =>
+              roles.includes(user?.role ?? 'user') ? (
                 <Link
                   key={href}
                   className="text-lg hover:underline data-[active=true]:underline"
@@ -111,7 +119,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             )}
           </div>
         </aside>
-        <div className="fixed top-20 left-60 bottom-0 right-0 overflow-auto">
+        <div className="fixed top-20 left-60 bottom-0 right-0 overflow-auto py-6 px-10">
           {children}
         </div>
       </main>
@@ -119,4 +127,4 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   )
 }
 
-export default AdminLayout
+export default ConsoleLayout

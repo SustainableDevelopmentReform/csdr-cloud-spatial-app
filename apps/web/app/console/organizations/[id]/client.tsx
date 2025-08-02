@@ -85,7 +85,7 @@
 
 //   return (
 //     <OrganizationDetailLayout>
-//       <div className="p-10">
+//       <div >
 //         <div className="text-2xl font-medium">Details</div>
 //         {data?.isDefault && (
 //           <div className="max-w-lg mt-8 bg-blue-100 p-4 rounded-md flex gap-2">
