@@ -25,6 +25,10 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().optional(),
+    AUTH_REQUIRE_EMAIL_VERIFICATION: z
+      .string()
+      .optional()
+      .transform((val) => val === 'true'),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
@@ -43,5 +47,7 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    AUTH_REQUIRE_EMAIL_VERIFICATION:
+      process.env.AUTH_REQUIRE_EMAIL_VERIFICATION,
   },
 })

@@ -1,11 +1,11 @@
 import { flexRender, type Table as TableType } from '@tanstack/react-table'
 import React from 'react'
 
-interface Props {
-  table: TableType<any>
+interface Props<T> {
+  table: TableType<T>
 }
 
-const Table: React.FC<Props> = ({ table }) => {
+const Table = <T,>({ table }: Props<T>) => {
   return (
     <table className="w-full">
       <thead>
@@ -19,7 +19,7 @@ const Table: React.FC<Props> = ({ table }) => {
               >
                 {flexRender(
                   header.column.columnDef.header,
-                  header.getContext()
+                  header.getContext(),
                 )}
               </th>
             ))}

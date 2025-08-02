@@ -14,6 +14,7 @@ import { rateLimiter } from './middlewares/rate-limiter'
 import { env } from './env'
 import { ContentfulStatusCode } from 'hono/utils/http-status'
 import { auth, AuthType } from './lib/auth'
+import { cors } from 'hono/cors'
 
 const isProduction = env.NODE_ENV === 'production'
 
@@ -23,6 +24,15 @@ const app = new Hono<{ Variables: AuthType }>({
 
 app.use(compress())
 app.use(logger())
+app.use(
+  cors({
+    origin: ['http://localhost:3000'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    exposeHeaders: ['Content-Type', 'Authorization'],
+  }),
+)
 
 app.use('*', secureHeaders())
 app.use('*', rateLimiter())
@@ -38,6 +48,7 @@ app.use('*', async (c, next) => {
 
   c.set('user', session.user)
   c.set('session', session.session)
+
   return next()
 })
 

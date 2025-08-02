@@ -10,6 +10,36 @@ import {
 } from '@tanstack/react-query'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
+function handleError(data: any) {
+  if ('statusCode' in data) {
+    const err = data as InstanceType<typeof ServerError>['response']
+    toast.error(err.message, {
+      description: err.description,
+    })
+    return
+  }
+
+  if (data instanceof Error) {
+    // Handle better-auth error
+    if (
+      'error' in data &&
+      typeof data.error === 'object' &&
+      data.error &&
+      'message' in data.error &&
+      typeof data.error.message === 'string'
+    ) {
+      toast.error(data.message, {
+        description: data.error.message,
+      })
+      return
+    }
+
+    toast.error(data.message, {
+      description: data.cause?.toString() ?? 'Unknown error',
+    })
+  }
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -17,38 +47,10 @@ export const queryClient = new QueryClient({
     },
   },
   queryCache: new QueryCache({
-    onError: (data: any) => {
-      if ('statusCode' in data) {
-        const err = data as InstanceType<typeof ServerError>['response']
-        toast.error(err.message, {
-          description: err.description,
-        })
-        return
-      }
-
-      if (data instanceof Error) {
-        toast.error('Opps unknown error is happened', {
-          description: 'Please contact our support to solve the issue',
-        })
-      }
-    },
+    onError: handleError,
   }),
   mutationCache: new MutationCache({
-    onError: (data: any) => {
-      if ('statusCode' in data) {
-        const err = data as InstanceType<typeof ServerError>['response']
-        toast.error(err.message, {
-          description: err.description,
-        })
-        return
-      }
-
-      if (data instanceof Error) {
-        toast.error('Opps unknown error is happened', {
-          description: 'Please contact our support to solve the issue',
-        })
-      }
-    },
+    onError: handleError,
   }),
 })
 

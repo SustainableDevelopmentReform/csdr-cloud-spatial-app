@@ -2,17 +2,21 @@ import { betterAuth, BetterAuthOptions } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from './db'
 // import { env } from '~/env'
-import * as schema from '~/schemas'
 import {
   admin,
-  twoFactor,
+  anonymous,
   openAPI,
   organization,
-  anonymous,
+  twoFactor,
 } from 'better-auth/plugins'
+import * as schema from '~/schemas'
+import { env } from '~/env'
 // import { oidcProvider } from 'better-auth/plugins'
 
 const authConfig = {
+  basePath: '/api/v1/auth',
+  baseURL: 'http://localhost:4000',
+  trustedOrigins: ['http://localhost:3000'],
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema,
@@ -28,7 +32,7 @@ const authConfig = {
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
     minPasswordLength: 8,
   },
   // socialProviders: {
