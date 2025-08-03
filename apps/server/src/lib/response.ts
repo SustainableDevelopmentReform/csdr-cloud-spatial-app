@@ -1,7 +1,5 @@
 import { type Context } from 'hono'
-import { ContentfulStatusCode } from 'hono/utils/http-status'
-
-type Data<T> = T extends null | undefined ? null : T
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
 export const generateJsonResponse = <T>(
   c: Context,
@@ -13,7 +11,7 @@ export const generateJsonResponse = <T>(
     {
       statusCode,
       message,
-      data: (data ?? null) as Data<T>,
+      data,
     },
     statusCode,
   )

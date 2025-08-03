@@ -16,16 +16,7 @@ export function unwrapResponse<T>(f: Promise<ClientResponse<T>>): Promise<T> {
 }
 
 export enum QueryKey {
-  OrganizationDetail = 'organization-detail',
-  Organizations = 'organizations',
-  OrganizationUserList = 'organization-user-list',
-  Permissions = 'permissions',
-  Roles = 'roles',
-  PermissionsToRoles = 'permissions-to-roles',
+  Datasets = 'datasets',
   Users = 'users',
   UserProfile = 'user-profile',
-  UserRoles = 'user-roles',
-  AllRoles = 'all-roles',
-  AllOrganizations = 'all-organizations',
-  FeatureFlags = 'feature-flags',
 }
