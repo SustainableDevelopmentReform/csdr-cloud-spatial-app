@@ -31,7 +31,7 @@ const Table = <T,>({ table }: Props<T>) => {
           <tr key={row.id}>
             {row.getVisibleCells().map((cell) => (
               <td
-                className="py-3 px-2 text-sm"
+                className="py-3 px-2 text-sm border-b border-gray-200"
                 key={cell.id}
                 style={{ width: cell.column.getSize() }}
               >
