@@ -16,7 +16,7 @@ export const useGetUserById = (id: string | undefined) => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       return res.data.users[0]

@@ -85,7 +85,7 @@ const UserProfile = () => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       queryClient.invalidateQueries({
@@ -110,7 +110,7 @@ const UserProfile = () => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       window.open('/', '_self')
@@ -126,7 +126,7 @@ const UserProfile = () => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       toast(`User: ${user?.name} is suspended`)
@@ -145,7 +145,7 @@ const UserProfile = () => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       toast(`User: ${user?.name} is restored`)
@@ -164,7 +164,7 @@ const UserProfile = () => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       toast(`User: ${user?.name} is deleted`)

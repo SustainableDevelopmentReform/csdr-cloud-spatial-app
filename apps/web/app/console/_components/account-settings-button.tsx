@@ -51,6 +51,10 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
         image: data.image ?? null,
       })
 
+      if (res.error) {
+        throw res.error
+      }
+
       window.location.reload()
     },
   })

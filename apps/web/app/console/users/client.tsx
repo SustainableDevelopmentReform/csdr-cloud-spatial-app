@@ -33,7 +33,7 @@ const UserFeature = () => {
       })
 
       if (res.error) {
-        throw new Error(res.error.message)
+        throw res.error
       }
 
       return res.data
