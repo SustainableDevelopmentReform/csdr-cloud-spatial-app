@@ -1,9 +1,10 @@
 'use client'
 
+import { toast } from '@repo/ui/components/ui/sonner'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { authClient } from '../../utils/auth'
 import SignupForm from './_components/form'
-import { useRouter } from 'next/navigation'
 
 const Page = () => {
   const router = useRouter()
@@ -14,12 +15,16 @@ const Page = () => {
       </div>
       <SignupForm
         mutationFn={async (data) => {
-          await authClient.signUp.email({
+          const res = await authClient.signUp.email({
             email: data.email,
             password: data.password,
             name: data.name,
           })
-          router.push('/login')
+          if (res.error) {
+            throw res.error
+          } else {
+            router.push('/login')
+          }
         }}
       />
       <div className="text-sm mt-12">

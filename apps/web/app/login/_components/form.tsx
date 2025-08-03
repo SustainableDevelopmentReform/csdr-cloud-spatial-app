@@ -17,6 +17,7 @@ import { z } from 'zod'
 import { authClient } from '../../../utils/auth'
 import { Switch } from '@repo/ui/components/ui/switch'
 import { useRouter } from 'next/navigation'
+import { toast } from '@repo/ui/components/ui/sonner'
 
 const formSchema = z.object({
   email: z.string({ message: 'Email is required' }).email('Email is invalid'),
@@ -40,12 +41,17 @@ const LoginForm = () => {
 
   const submitMutation = useMutation({
     mutationFn: async (data: Data) => {
-      await authClient.signIn.email({
+      const res = await authClient.signIn.email({
         email: data.email,
         password: data.password,
         rememberMe: data.remember,
       })
-      router.push('/')
+      console.log(res)
+      if (res.error) {
+        throw res.error
+      } else {
+        router.push('/')
+      }
     },
   })
 

@@ -5,6 +5,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@repo/ui/components/ui/dialog'
+import { toast } from '@repo/ui/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import { QueryKey } from '~/utils/fetcher'
@@ -45,17 +46,21 @@ const UserForm: React.FC<UserFormProps> = ({
         <div>
           <SignupForm
             mutationFn={async (data) => {
-              await authClient.admin.createUser({
+              const res = await authClient.admin.createUser({
                 name: data.name,
                 email: data.email,
                 role: 'user',
                 password: '123456',
               })
 
-              queryClient.invalidateQueries({
-                queryKey: [QueryKey.Users],
-              })
-              onClose && onClose()
+              if (res.error) {
+                throw res.error
+              } else {
+                queryClient.invalidateQueries({
+                  queryKey: [QueryKey.Users],
+                })
+                onClose && onClose()
+              }
             }}
           />
         </div>

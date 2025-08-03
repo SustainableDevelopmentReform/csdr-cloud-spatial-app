@@ -38,6 +38,22 @@ function handleError(data: any) {
       description: data.cause?.toString() ?? 'Unknown error',
     })
   }
+
+  if (typeof data === 'string') {
+    toast.error(data)
+    return
+  }
+
+  // If object with message string
+  if (
+    typeof data === 'object' &&
+    data &&
+    'message' in data &&
+    typeof data.message === 'string'
+  ) {
+    toast.error(data.message)
+    return
+  }
 }
 
 export const queryClient = new QueryClient({
