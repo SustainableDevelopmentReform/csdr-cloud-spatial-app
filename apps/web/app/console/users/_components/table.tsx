@@ -1,12 +1,12 @@
-import Link from '~/components/link'
 import {
   createColumnHelper,
-  flexRender,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import dayjs from 'dayjs'
 import React from 'react'
+import Link from '~/components/link'
+import Table from '../../../../components/table'
 import { User } from '../../../../utils/auth'
 
 interface UsersTableProps {
@@ -59,43 +59,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ data }) => {
     getCoreRowModel: getCoreRowModel(),
   })
 
-  return (
-    <table className="w-full">
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <th
-                className="text-left py-3 px-2 font-normal border-b border-gray-200"
-                key={header.id}
-                style={{ width: header.getSize() }}
-              >
-                {flexRender(
-                  header.column.columnDef.header,
-                  header.getContext(),
-                )}
-              </th>
-            ))}
-          </tr>
-        ))}
-      </thead>
-      <tbody>
-        {table.getRowModel().rows.map((row) => (
-          <tr key={row.id}>
-            {row.getVisibleCells().map((cell) => (
-              <td
-                className="py-3 px-2 text-sm border-b border-gray-200"
-                key={cell.id}
-                style={{ width: cell.column.getSize() }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
+  return <Table table={table} />
 }
 
 export default UsersTable
