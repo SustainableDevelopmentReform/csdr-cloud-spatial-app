@@ -2,10 +2,8 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Default",
   "compilerOptions": {
-    "declaration": false,
-    "declarationMap": false,
     "esModuleInterop": true,
-    "incremental": false,
+    "incremental": true,
     "isolatedModules": true,
     "lib": [
       "es2022",
@@ -19,6 +17,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2022"
+    "target": "ES2022",
+    "composite": true
   }
 }

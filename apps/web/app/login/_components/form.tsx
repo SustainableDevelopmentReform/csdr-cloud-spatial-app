@@ -46,7 +46,7 @@ const LoginForm = () => {
         password: data.password,
         rememberMe: data.remember,
       })
-      console.log(res)
+
       if (res.error) {
         throw res.error
       } else {

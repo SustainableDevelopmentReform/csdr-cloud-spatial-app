@@ -14,6 +14,7 @@ import { env } from './env'
 import { ContentfulStatusCode } from 'hono/utils/http-status'
 import { auth, AuthType } from './lib/auth'
 import { cors } from 'hono/cors'
+import dataset from './routes/dataset'
 
 const isProduction = env.NODE_ENV === 'production'
 
@@ -57,7 +58,10 @@ app.on(['POST', 'GET'], '/api/auth/*', (c) => {
   return auth.handler(c.req.raw)
 })
 
-const apiRoutes = app.basePath('/api/v1/').route('/file', file)
+const apiRoutes = app
+  .basePath('/api/v1/')
+  .route('/file', file)
+  .route('/dataset', dataset)
 
 app.get('/api/v1/healthcheck', (c) => c.json({ message: 'OK' }))
 

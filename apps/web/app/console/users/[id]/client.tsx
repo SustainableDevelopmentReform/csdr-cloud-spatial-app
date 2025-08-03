@@ -94,9 +94,6 @@ const UserProfile = () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Users],
       })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.OrganizationUserList],
-      })
       toast('Success update user')
     },
   })
@@ -174,9 +171,6 @@ const UserProfile = () => {
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Users],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.OrganizationUserList],
       })
     },
   })

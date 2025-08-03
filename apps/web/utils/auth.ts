@@ -2,23 +2,19 @@ import { InferSessionFromClient, InferUserFromClient } from 'better-auth'
 import {
   adminClient,
   anonymousClient,
-  organizationClient,
   twoFactorClient,
 } from 'better-auth/client/plugins'
 import { createAuthClient as createReactAuthClient } from 'better-auth/react'
 
 const authConfig = {
   baseURL: 'http://localhost:4000',
-  plugins: [
-    adminClient(),
-    twoFactorClient(),
-    anonymousClient(),
-    organizationClient(),
-  ],
+  plugins: [adminClient(), twoFactorClient(), anonymousClient()],
 }
 
 /** Better auth client to use in React/client components */
-export const authClient = createReactAuthClient(authConfig)
+export const authClient: ReturnType<
+  typeof createReactAuthClient<typeof authConfig>
+> = createReactAuthClient(authConfig)
 
 export type User = InferUserFromClient<typeof authConfig>
 export type Session = InferSessionFromClient<typeof authConfig>
