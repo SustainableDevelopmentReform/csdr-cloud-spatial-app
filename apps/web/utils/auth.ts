@@ -8,7 +8,13 @@ import { createAuthClient as createReactAuthClient } from 'better-auth/react'
 
 const authConfig = {
   baseURL: 'http://localhost:4000',
-  plugins: [adminClient(), twoFactorClient(), anonymousClient()],
+  plugins: [
+    adminClient(),
+    twoFactorClient(),
+    anonymousClient(),
+    // Note there are issues with typing with organization plugin (we don't need it yet)
+    // organization(),
+  ],
 }
 
 /** Better auth client to use in React/client components */
