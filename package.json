@@ -12,6 +12,7 @@
     "ui": "pnpm --filter @repo/ui ui",
     "create:migration": "dotenvx run -- turbo --filter @repo/server create:migration",
     "migrate": "dotenvx run -- turbo migrate",
+    "drizzle-studio": "dotenvx run -- turbo --filter @repo/server drizzle-studio",
     "seed": "dotenvx run -- turbo seed",
     "test:unit": "dotenvx run -- turbo test:unit",
     "prepare": "husky",

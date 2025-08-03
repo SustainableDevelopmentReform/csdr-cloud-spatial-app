@@ -1,4 +1,4 @@
-# CSDR Cloud Spatial App
+# 🌏 CSDR Cloud Spatial App
 
 This repository is based on https://github.com/azharalifauzi/omnigate/ (MIT License - see LICENSE file)
 
@@ -125,4 +125,26 @@ cd seed
 
 # Run migration or seed
 node index.js
+```
+
+## 💽 Database Schema (Drizzle)
+
+Drizzle schema is located in [`apps/server/src/schemas` folder](./apps/server/src/schemas)
+
+To generate a new migration, run:
+
+```bash
+pnpm create:migration
+```
+
+To run the migration, run:
+
+```bash
+pnpm migrate
+```
+
+To start Drizzle Studio, run:
+
+```bash
+pnpm drizzle-studio
 ```
