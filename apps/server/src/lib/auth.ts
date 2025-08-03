@@ -2,7 +2,13 @@ import { betterAuth, BetterAuthOptions } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from './db'
 // import { env } from '~/env'
-import { admin, anonymous, openAPI, twoFactor } from 'better-auth/plugins'
+import {
+  admin,
+  anonymous,
+  openAPI,
+  organization,
+  twoFactor,
+} from 'better-auth/plugins'
 import { env } from '~/env'
 import * as schema from '~/schemas'
 // import { oidcProvider } from 'better-auth/plugins'
@@ -14,7 +20,14 @@ const authConfig = {
     provider: 'pg',
     schema,
   }),
-  plugins: [admin(), twoFactor(), openAPI(), anonymous()],
+  plugins: [
+    admin(),
+    twoFactor(),
+    openAPI(),
+    anonymous(),
+    // Note there are issues with typing with organization plugin (we don't need it yet)
+    // organization(),
+  ],
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days in seconds
     updateAge: 60 * 60 * 24, // Update session every 24 hours
