@@ -8,6 +8,13 @@
       "when": 1754208293653,
       "tag": "0000_blushing_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1755327792519,
+      "tag": "0001_flippant_skullbuster",
+      "breakpoints": true
     }
   ]
 }
