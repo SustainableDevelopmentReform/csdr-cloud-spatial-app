@@ -148,3 +148,9 @@ To start Drizzle Studio, run:
 ```bash
 pnpm drizzle-studio
 ```
+
+To seed the database, run:
+
+```bash
+pnpm seed
+```

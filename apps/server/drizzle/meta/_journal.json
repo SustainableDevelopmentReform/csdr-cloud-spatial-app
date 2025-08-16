@@ -15,6 +15,13 @@
       "when": 1755327792519,
       "tag": "0001_flippant_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755328113816,
+      "tag": "0002_tearful_penance",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,7 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset } from '../schemas'
+import { geometries } from '../schemas'
 
 const app = new Hono()
   .get(
@@ -19,7 +19,7 @@ const app = new Hono()
       }),
     ),
     authMiddleware({
-      permission: 'read:dataset',
+      permission: 'read:geometries',
     }),
     async (c) => {
       const { page = 1, size = 10 } = c.req.valid('query')
@@ -29,24 +29,24 @@ const app = new Hono()
         .select({
           count: count(),
         })
-        .from(dataset)
+        .from(geometries)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db
         .select({
-          id: dataset.id,
-          name: dataset.name,
-          slug: dataset.slug,
-          description: dataset.description,
-          createdAt: dataset.createdAt,
-          updatedAt: dataset.updatedAt,
-          metadata: dataset.metadata,
+          id: geometries.id,
+          name: geometries.name,
+          slug: geometries.slug,
+          description: geometries.description,
+          createdAt: geometries.createdAt,
+          updatedAt: geometries.updatedAt,
+          metadata: geometries.metadata,
         })
-        .from(dataset)
-        .groupBy(dataset.id)
+        .from(geometries)
+        .groupBy(geometries.id)
         .limit(size)
         .offset(skip)
-        .orderBy(desc(dataset.createdAt))
+        .orderBy(desc(geometries.createdAt))
 
       return generateJsonResponse(c, {
         pageCount,
@@ -55,21 +55,21 @@ const app = new Hono()
       })
     },
   )
-  .get('/:id', authMiddleware({ permission: 'read:dataset' }), async (c) => {
+  .get('/:id', authMiddleware({ permission: 'read:geometries' }), async (c) => {
     const id = c.req.param('id')
-    const dataset = await db.query.dataset.findFirst({
-      where: (dataset, { eq }) => eq(dataset.id, id),
+    const geometries = await db.query.geometries.findFirst({
+      where: (geometries, { eq }) => eq(geometries.id, id),
     })
 
-    if (!dataset) {
+    if (!geometries) {
       throw new ServerError({
         statusCode: 404,
-        message: 'Failed to get dataset',
-        description: "Dataset you're looking for is not found",
+        message: 'Failed to get geometries',
+        description: "Geometries you're looking for is not found",
       })
     }
 
-    return generateJsonResponse(c, dataset)
+    return generateJsonResponse(c, geometries)
   })
 
   .post(
@@ -84,17 +84,17 @@ const app = new Hono()
       }),
     ),
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:geometries',
     }),
     async (c) => {
       const data = c.req.valid('json')
       const id = crypto.randomUUID()
-      const newDataset = await db
-        .insert(dataset)
+      const newGeometries = await db
+        .insert(geometries)
         .values({ ...data, id })
         .returning()
 
-      return generateJsonResponse(c, newDataset[0], 201)
+      return generateJsonResponse(c, newGeometries[0], 201)
     },
   )
   .patch(
@@ -105,19 +105,18 @@ const app = new Hono()
         name: z.string().optional(),
         slug: z.string().optional(),
         description: z.string().optional(),
-        metadata: z.any().optional(),
       }),
     ),
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:geometries',
     }),
     async (c) => {
       const id = c.req.param('id')
       const data = c.req.valid('json')
       const role = await db
-        .update(dataset)
+        .update(geometries)
         .set(data)
-        .where(eq(dataset.id, id))
+        .where(eq(geometries.id, id))
         .returning()
 
       return generateJsonResponse(c, role[0])
@@ -126,11 +125,11 @@ const app = new Hono()
   .delete(
     '/:id',
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:geometries',
     }),
     async (c) => {
       const id = c.req.param('id')
-      await db.delete(dataset).where(eq(dataset.id, id))
+      await db.delete(geometries).where(eq(geometries.id, id))
 
       return generateJsonResponse(c)
     },
