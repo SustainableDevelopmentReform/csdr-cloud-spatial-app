@@ -31,7 +31,7 @@ import { match } from 'ts-pattern'
 import { z } from 'zod'
 import { QueryKey } from '~/utils/fetcher'
 import { authClient } from '../../../../utils/auth'
-import { useGetUserById } from '../_hooks'
+import { useUser } from '../_hooks'
 // import AssignOrgForm from './_components/assign-org-form'
 import {
   Select,
@@ -53,7 +53,7 @@ const UserProfile = () => {
   const id = params?.id
   const router = useRouter()
 
-  const { data: user } = useGetUserById(id)
+  const { data: user } = useUser(id)
 
   const isSuspended = !!user?.banned
 

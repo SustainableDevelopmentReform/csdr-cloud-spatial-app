@@ -3,7 +3,6 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import dayjs from 'dayjs'
 import React from 'react'
 import Link from '~/components/link'
 import Table from '../../../../components/table'
@@ -34,7 +33,11 @@ const columns = [
 
   columnHelper.accessor('createdAt', {
     header: () => <span>Date added</span>,
-    cell: (info) => dayjs(info.getValue()).format('DD MMM YYYY'),
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return new Date(value).toLocaleDateString()
+    },
     size: 120,
   }),
   columnHelper.accessor('id', {

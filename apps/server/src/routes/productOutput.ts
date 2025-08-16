@@ -6,7 +6,29 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { productOutput, variable } from '../schemas'
+import { productOutput } from '../schemas'
+
+// Define shared query configuration
+const productOutputQuery = {
+  columns: {
+    id: true,
+    createdAt: true,
+    value: true,
+    timePoint: true,
+    productRunId: true,
+    geometryOutputId: true,
+    variableId: true,
+  },
+  with: {
+    variable: {
+      columns: {
+        id: true,
+        name: true,
+        unit: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -32,26 +54,12 @@ const app = new Hono()
         .from(productOutput)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: productOutput.id,
-          createdAt: productOutput.createdAt,
-          value: productOutput.value,
-          variable: {
-            id: variable.id,
-            name: variable.name,
-            unit: variable.unit,
-          },
-          timePoint: productOutput.timePoint,
-          productRunId: productOutput.productRunId,
-          geometryOutputId: productOutput.geometryOutputId,
-        })
-        .from(productOutput)
-        .leftJoin(variable, eq(productOutput.variableId, variable.id))
-        .groupBy(productOutput.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(productOutput.createdAt))
+      const data = await db.query.productOutput.findMany({
+        ...productOutputQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(productOutput.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -67,6 +75,7 @@ const app = new Hono()
       const id = c.req.param('id')
       const productOutput = await db.query.productOutput.findFirst({
         where: (productOutput, { eq }) => eq(productOutput.id, id),
+        ...productOutputQuery,
       })
 
       if (!productOutput) {

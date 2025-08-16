@@ -15,6 +15,15 @@ import { ContentfulStatusCode } from 'hono/utils/http-status'
 import { auth, AuthType } from './lib/auth'
 import { cors } from 'hono/cors'
 import dataset from './routes/dataset'
+import geometries from './routes/geometries'
+import product from './routes/product'
+import productRun from './routes/productRun'
+import geometryOutput from './routes/geometryOutput'
+import productOutput from './routes/productOutput'
+import datasetRun from './routes/datasetRun'
+import geometriesRun from './routes/geometriesRun'
+import variable from './routes/variable'
+import variableCategory from './routes/variableCategory'
 
 const isProduction = env.NODE_ENV === 'production'
 
@@ -62,6 +71,15 @@ const apiRoutes = app
   .basePath('/api/v1/')
   .route('/file', file)
   .route('/dataset', dataset)
+  .route('/dataset-run', datasetRun)
+  .route('/geometries', geometries)
+  .route('/geometries-run', geometriesRun)
+  .route('/geometry-output', geometryOutput)
+  .route('/product', product)
+  .route('/product-run', productRun)
+  .route('/product-output', productOutput)
+  .route('/variable', variable)
+  .route('/variable-category', variableCategory)
 
 app.get('/api/v1/healthcheck', (c) => c.json({ message: 'OK' }))
 

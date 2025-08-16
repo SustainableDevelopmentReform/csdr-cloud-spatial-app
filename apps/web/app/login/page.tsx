@@ -1,6 +1,5 @@
-import React from 'react'
+import Link from '../../components/link'
 import LoginForm from './_components/form'
-import Link from 'next/link'
 
 const Page = () => {
   console.log('h')

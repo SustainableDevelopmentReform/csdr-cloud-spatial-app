@@ -10,36 +10,11 @@ import { QueryKey } from '~/utils/fetcher'
 import { authClient } from '../../../utils/auth'
 import UserForm from './_components/form'
 import UsersTable from './_components/table'
+import { useUsers } from './_hooks'
 
 const UserFeature = () => {
-  const [isOpen, setOpen] = useState(false)
-  const [page, setPage] = useState(1)
-  const pageSize = 10
-  const [search, setSearch] = useState('')
-  // const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(
-  //   undefined,
-  // )
-
-  const { data } = useQuery({
-    queryKey: [QueryKey.Users, page, search],
-    queryFn: async () => {
-      const res = await authClient.admin.listUsers({
-        query: {
-          searchValue: search,
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
-          // organizationId: selectedOrgId,
-        },
-      })
-
-      if (res.error) {
-        throw res.error
-      }
-
-      return res.data
-    },
-    placeholderData: keepPreviousData,
-  })
+  const { data, isOpen, setOpen, page, setPage, search, setSearch, pageSize } =
+    useUsers()
 
   // const { data: organizations } = useGetAllOrganizations()
 

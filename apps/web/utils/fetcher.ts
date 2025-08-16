@@ -16,7 +16,14 @@ export function unwrapResponse<T>(f: Promise<ClientResponse<T>>): Promise<T> {
 }
 
 export enum QueryKey {
-  Datasets = 'datasets',
+  Dataset = 'dataset',
+  DatasetRun = 'dataset-run',
+  Geometries = 'geometries',
+  GeometriesRun = 'geometries-run',
+  GeometryOutput = 'geometry-output',
+  Product = 'product',
+  ProductOutput = 'product-output',
+  ProductRun = 'product-run',
   Users = 'users',
   UserProfile = 'user-profile',
 }

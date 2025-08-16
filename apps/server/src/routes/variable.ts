@@ -1,12 +1,34 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, getTableColumns } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { variable, variableCategory } from '../schemas'
+import { variable } from '../schemas'
+
+// Define shared query configuration
+const variableQuery = {
+  columns: {
+    id: true,
+    name: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    displayOrder: true,
+    unit: true,
+    categoryId: true,
+  },
+  with: {
+    category: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -32,29 +54,12 @@ const app = new Hono()
         .from(variable)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: variable.id,
-          name: variable.name,
-          description: variable.description,
-          createdAt: variable.createdAt,
-          updatedAt: variable.updatedAt,
-          category: {
-            id: variableCategory.id,
-            name: variableCategory.name,
-          },
-          displayOrder: variable.displayOrder,
-          unit: variable.unit,
-        })
-        .from(variable)
-        .leftJoin(
-          variableCategory,
-          eq(variable.categoryId, variableCategory.id),
-        )
-        .groupBy(variable.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(variable.createdAt))
+      const data = await db.query.variable.findMany({
+        ...variableQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(variable.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -67,6 +72,7 @@ const app = new Hono()
     const id = c.req.param('id')
     const variable = await db.query.variable.findFirst({
       where: (variable, { eq }) => eq(variable.id, id),
+      ...variableQuery,
     })
 
     if (!variable) {

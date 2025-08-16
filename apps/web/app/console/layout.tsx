@@ -10,7 +10,6 @@ import {
 } from '@repo/ui/components/ui/popover'
 import React from 'react'
 import Link from '~/components/link'
-import { somePermissions } from '~/utils/auth'
 import { SignOutButton } from '../../components/sign-out-button'
 import { getUserServerSession } from '../../utils/getUserServerSession'
 import AccountSettingsButton from './_components/account-settings-button'
@@ -34,6 +33,11 @@ const SIDEBAR_CONFIG = [
   {
     text: 'Products',
     href: '/console/products',
+    roles: ['admin', 'user'],
+  },
+  {
+    text: 'Variables',
+    href: '/console/variables',
     roles: ['admin', 'user'],
   },
 

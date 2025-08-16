@@ -1,12 +1,32 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, getTableColumns } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometries, geometriesRun } from '../schemas'
+import { geometriesRun } from '../schemas'
+
+// Define shared query configuration
+const geometriesRunQuery = {
+  columns: {
+    id: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    parameters: true,
+    geometriesId: true,
+  },
+  with: {
+    geometries: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -32,25 +52,12 @@ const app = new Hono()
         .from(geometriesRun)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: geometriesRun.id,
-          description: geometriesRun.description,
-          createdAt: geometriesRun.createdAt,
-          updatedAt: geometriesRun.updatedAt,
-          parameters: geometriesRun.parameters,
-          geometries: {
-            id: geometries.id,
-            name: geometries.name,
-            slug: geometries.slug,
-          },
-        })
-        .from(geometriesRun)
-        .leftJoin(geometries, eq(geometriesRun.geometriesId, geometries.id))
-        .groupBy(geometriesRun.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(geometriesRun.createdAt))
+      const data = await db.query.geometriesRun.findMany({
+        ...geometriesRunQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(geometriesRun.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -66,6 +73,7 @@ const app = new Hono()
       const id = c.req.param('id')
       const geometriesRun = await db.query.geometriesRun.findFirst({
         where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
+        ...geometriesRunQuery,
       })
 
       if (!geometriesRun) {

@@ -1,12 +1,32 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, getTableColumns } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset, datasetRun } from '../schemas'
+import { datasetRun } from '../schemas'
+
+// Define shared query configuration
+const datasetRunQuery = {
+  columns: {
+    id: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    parameters: true,
+    datasetId: true,
+  },
+  with: {
+    dataset: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -32,21 +52,12 @@ const app = new Hono()
         .from(datasetRun)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: datasetRun.id,
-          description: datasetRun.description,
-          createdAt: datasetRun.createdAt,
-          updatedAt: datasetRun.updatedAt,
-          parameters: datasetRun.parameters,
-          dataset: { id: dataset.id, name: dataset.name, slug: dataset.slug },
-        })
-        .from(datasetRun)
-        .leftJoin(dataset, eq(datasetRun.datasetId, dataset.id))
-        .groupBy(datasetRun.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(datasetRun.createdAt))
+      const data = await db.query.datasetRun.findMany({
+        ...datasetRunQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(datasetRun.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -59,6 +70,7 @@ const app = new Hono()
     const id = c.req.param('id')
     const datasetRun = await db.query.datasetRun.findFirst({
       where: (datasetRun, { eq }) => eq(datasetRun.id, id),
+      ...datasetRunQuery,
     })
 
     if (!datasetRun) {

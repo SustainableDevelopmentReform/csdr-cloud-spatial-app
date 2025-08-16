@@ -23,7 +23,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import slugify from 'slugify'
 
-interface DatasetFormProps {
+interface ProductFormProps {
   children?: React.ReactNode
   isOpen?: boolean
   onClose?: () => void
@@ -33,6 +33,9 @@ interface DatasetFormProps {
 const formSchema = z
   .object({
     name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
+    timePrecision: z.enum(['hour', 'day', 'month', 'year']),
+    datasetId: z.string(),
+    geometriesId: z.string(),
   })
   .transform((data) => ({
     ...data,
@@ -40,7 +43,7 @@ const formSchema = z
 
 type Data = z.infer<typeof formSchema>
 
-const DatasetForm: React.FC<DatasetFormProps> = ({
+const ProductForm: React.FC<ProductFormProps> = ({
   children,
   isOpen,
   onClose,
@@ -53,22 +56,22 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
 
   const queryClient = useQueryClient()
 
-  const createDataset = useMutation({
+  const createProduct = useMutation({
     mutationFn: async (data: Data) => {
-      const res = client.api.v1.dataset.$post({
+      const res = client.api.v1.product.$post({
         json: data,
       })
       await unwrapResponse(res)
 
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset],
+        queryKey: [QueryKey.Product],
       })
       onClose && onClose()
     },
   })
 
   function onSubmit(data: Data) {
-    createDataset.mutate(data)
+    createProduct.mutate(data)
   }
 
   return (
@@ -85,7 +88,7 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="w-full max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Add Dataset</DialogTitle>
+          <DialogTitle className="text-3xl">Add Product</DialogTitle>
         </DialogHeader>
         <div>
           <Form {...form}>
@@ -104,8 +107,8 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
                   </FormItem>
                 )}
               />
-              <Button className="mt-4" disabled={createDataset.isPending}>
-                {createDataset.isPending ? 'Loading...' : 'Save'}
+              <Button className="mt-4" disabled={createProduct.isPending}>
+                {createProduct.isPending ? 'Loading...' : 'Save'}
               </Button>
             </form>
           </Form>
@@ -115,4 +118,4 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
   )
 }
 
-export default DatasetForm
+export default ProductForm

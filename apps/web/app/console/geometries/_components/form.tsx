@@ -23,7 +23,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import slugify from 'slugify'
 
-interface DatasetFormProps {
+interface GeometriesFormProps {
   children?: React.ReactNode
   isOpen?: boolean
   onClose?: () => void
@@ -40,7 +40,7 @@ const formSchema = z
 
 type Data = z.infer<typeof formSchema>
 
-const DatasetForm: React.FC<DatasetFormProps> = ({
+const GeometriesForm: React.FC<GeometriesFormProps> = ({
   children,
   isOpen,
   onClose,
@@ -53,22 +53,22 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
 
   const queryClient = useQueryClient()
 
-  const createDataset = useMutation({
+  const createGeometries = useMutation({
     mutationFn: async (data: Data) => {
-      const res = client.api.v1.dataset.$post({
+      const res = client.api.v1.geometries.$post({
         json: data,
       })
       await unwrapResponse(res)
 
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset],
+        queryKey: [QueryKey.Geometries],
       })
       onClose && onClose()
     },
   })
 
   function onSubmit(data: Data) {
-    createDataset.mutate(data)
+    createGeometries.mutate(data)
   }
 
   return (
@@ -85,7 +85,7 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="w-full max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Add Dataset</DialogTitle>
+          <DialogTitle className="text-3xl">Add Geometries</DialogTitle>
         </DialogHeader>
         <div>
           <Form {...form}>
@@ -104,8 +104,8 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
                   </FormItem>
                 )}
               />
-              <Button className="mt-4" disabled={createDataset.isPending}>
-                {createDataset.isPending ? 'Loading...' : 'Save'}
+              <Button className="mt-4" disabled={createGeometries.isPending}>
+                {createGeometries.isPending ? 'Loading...' : 'Save'}
               </Button>
             </form>
           </Form>
@@ -115,4 +115,4 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
   )
 }
 
-export default DatasetForm
+export default GeometriesForm
