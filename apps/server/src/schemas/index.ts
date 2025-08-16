@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -180,6 +181,14 @@ export const geometries = pgTable(
   ],
 )
 
+export const timePrecision = pgEnum('time_precision', [
+  'hour',
+  'day',
+  'month',
+  'year',
+  // 'custom', // TODO: add custom time precision (see productOutput.timeInterval)
+])
+
 export const product = pgTable(
   'product',
   {
@@ -196,6 +205,8 @@ export const product = pgTable(
     geometriesId: text('geometries_id')
       .notNull()
       .references(() => geometries.id, { onDelete: 'cascade' }),
+
+    timePrecision: timePrecision('time_precision').notNull(),
   },
   (table) => [
     index('product_name_idx').on(table.name),
@@ -301,6 +312,13 @@ export const productOutput = pgTable(
     variableId: text('variable_id')
       .notNull()
       .references(() => variable.id),
+
+    timePoint: timestamp('time_point', {
+      mode: 'date',
+      withTimezone: false,
+    }).notNull(),
+    // Will stick to timePoint with timePrecision (see product.timePrecision) for now
+    // timeInterval: tstzrange('time_interval'),
   },
   (table) => [
     index('product_output_product_run_idx').on(table.productRunId),
