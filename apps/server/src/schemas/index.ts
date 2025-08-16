@@ -156,6 +156,7 @@ export const dataset = pgTable(
     name: text('name').notNull(),
     slug: text('slug').unique(),
     description: text('description'),
+    metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -172,6 +173,7 @@ export const geometries = pgTable(
     name: text('name').notNull(),
     slug: text('slug').unique(),
     description: text('description'),
+    metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -196,6 +198,7 @@ export const product = pgTable(
     name: text('name').notNull(),
     slug: text('slug').unique(),
     description: text('description'),
+    metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 
@@ -371,7 +374,7 @@ export const variable = pgTable(
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     description: text('description'),
-    unit: text('unit'),
+    unit: text('unit').notNull(),
     displayOrder: integer('display_order').default(0),
     // Link to category
     categoryId: text('category_id')

@@ -6,7 +6,7 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset } from '../schemas'
+import { dataset, datasetRun } from '../schemas'
 
 const app = new Hono()
   .get(
@@ -19,7 +19,7 @@ const app = new Hono()
       }),
     ),
     authMiddleware({
-      permission: 'read:dataset',
+      permission: 'read:datasetRun',
     }),
     async (c) => {
       const { page = 1, size = 10 } = c.req.valid('query')
@@ -29,24 +29,24 @@ const app = new Hono()
         .select({
           count: count(),
         })
-        .from(dataset)
+        .from(datasetRun)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db
         .select({
-          id: dataset.id,
-          name: dataset.name,
-          slug: dataset.slug,
-          description: dataset.description,
-          createdAt: dataset.createdAt,
-          updatedAt: dataset.updatedAt,
-          metadata: dataset.metadata,
+          id: datasetRun.id,
+          description: datasetRun.description,
+          createdAt: datasetRun.createdAt,
+          updatedAt: datasetRun.updatedAt,
+          parameters: datasetRun.parameters,
+          dataset: { id: dataset.id, name: dataset.name, slug: dataset.slug },
         })
-        .from(dataset)
-        .groupBy(dataset.id)
+        .from(datasetRun)
+        .leftJoin(dataset, eq(datasetRun.datasetId, dataset.id))
+        .groupBy(datasetRun.id)
         .limit(size)
         .offset(skip)
-        .orderBy(desc(dataset.createdAt))
+        .orderBy(desc(datasetRun.createdAt))
 
       return generateJsonResponse(c, {
         pageCount,
@@ -55,21 +55,21 @@ const app = new Hono()
       })
     },
   )
-  .get('/:id', authMiddleware({ permission: 'read:dataset' }), async (c) => {
+  .get('/:id', authMiddleware({ permission: 'read:datasetRun' }), async (c) => {
     const id = c.req.param('id')
-    const dataset = await db.query.dataset.findFirst({
-      where: (dataset, { eq }) => eq(dataset.id, id),
+    const datasetRun = await db.query.datasetRun.findFirst({
+      where: (datasetRun, { eq }) => eq(datasetRun.id, id),
     })
 
-    if (!dataset) {
+    if (!datasetRun) {
       throw new ServerError({
         statusCode: 404,
-        message: 'Failed to get dataset',
-        description: "Dataset you're looking for is not found",
+        message: 'Failed to get datasetRun',
+        description: "datasetRun you're looking for is not found",
       })
     }
 
-    return generateJsonResponse(c, dataset)
+    return generateJsonResponse(c, datasetRun)
   })
 
   .post(
@@ -77,24 +77,23 @@ const app = new Hono()
     zValidator(
       'json',
       z.object({
-        name: z.string(),
-        slug: z.string(),
         description: z.string().optional(),
-        metadata: z.any().optional(),
+        parameters: z.any().optional(),
+        datasetId: z.string(),
       }),
     ),
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:datasetRun',
     }),
     async (c) => {
       const data = c.req.valid('json')
       const id = crypto.randomUUID()
-      const newDataset = await db
-        .insert(dataset)
+      const newdatasetRun = await db
+        .insert(datasetRun)
         .values({ ...data, id })
         .returning()
 
-      return generateJsonResponse(c, newDataset[0], 201)
+      return generateJsonResponse(c, newdatasetRun[0], 201)
     },
   )
   .patch(
@@ -102,22 +101,19 @@ const app = new Hono()
     zValidator(
       'json',
       z.object({
-        name: z.string().optional(),
-        slug: z.string().optional(),
         description: z.string().optional(),
-        metadata: z.any().optional(),
       }),
     ),
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:datasetRun',
     }),
     async (c) => {
       const id = c.req.param('id')
       const data = c.req.valid('json')
       const role = await db
-        .update(dataset)
+        .update(datasetRun)
         .set(data)
-        .where(eq(dataset.id, id))
+        .where(eq(datasetRun.id, id))
         .returning()
 
       return generateJsonResponse(c, role[0])
@@ -126,11 +122,11 @@ const app = new Hono()
   .delete(
     '/:id',
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:datasetRun',
     }),
     async (c) => {
       const id = c.req.param('id')
-      await db.delete(dataset).where(eq(dataset.id, id))
+      await db.delete(datasetRun).where(eq(datasetRun.id, id))
 
       return generateJsonResponse(c)
     },

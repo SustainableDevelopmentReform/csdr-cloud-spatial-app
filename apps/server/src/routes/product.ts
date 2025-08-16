@@ -6,7 +6,7 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset } from '../schemas'
+import { dataset, geometries, product } from '../schemas'
 
 const app = new Hono()
   .get(
@@ -19,7 +19,7 @@ const app = new Hono()
       }),
     ),
     authMiddleware({
-      permission: 'read:dataset',
+      permission: 'read:product',
     }),
     async (c) => {
       const { page = 1, size = 10 } = c.req.valid('query')
@@ -29,24 +29,33 @@ const app = new Hono()
         .select({
           count: count(),
         })
-        .from(dataset)
+        .from(product)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db
         .select({
-          id: dataset.id,
-          name: dataset.name,
-          slug: dataset.slug,
-          description: dataset.description,
-          createdAt: dataset.createdAt,
-          updatedAt: dataset.updatedAt,
-          metadata: dataset.metadata,
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          description: product.description,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+          metadata: product.metadata,
+          dataset: { id: dataset.id, name: dataset.name, slug: dataset.slug },
+          geometries: {
+            id: geometries.id,
+            name: geometries.name,
+            slug: geometries.slug,
+          },
+          timePrecision: product.timePrecision,
         })
-        .from(dataset)
-        .groupBy(dataset.id)
+        .from(product)
+        .leftJoin(dataset, eq(product.datasetId, dataset.id))
+        .leftJoin(geometries, eq(product.geometriesId, geometries.id))
+        .groupBy(product.id)
         .limit(size)
         .offset(skip)
-        .orderBy(desc(dataset.createdAt))
+        .orderBy(desc(product.createdAt))
 
       return generateJsonResponse(c, {
         pageCount,
@@ -55,21 +64,21 @@ const app = new Hono()
       })
     },
   )
-  .get('/:id', authMiddleware({ permission: 'read:dataset' }), async (c) => {
+  .get('/:id', authMiddleware({ permission: 'read:product' }), async (c) => {
     const id = c.req.param('id')
-    const dataset = await db.query.dataset.findFirst({
-      where: (dataset, { eq }) => eq(dataset.id, id),
+    const product = await db.query.product.findFirst({
+      where: (product, { eq }) => eq(product.id, id),
     })
 
-    if (!dataset) {
+    if (!product) {
       throw new ServerError({
         statusCode: 404,
-        message: 'Failed to get dataset',
-        description: "Dataset you're looking for is not found",
+        message: 'Failed to get product',
+        description: "Product you're looking for is not found",
       })
     }
 
-    return generateJsonResponse(c, dataset)
+    return generateJsonResponse(c, product)
   })
 
   .post(
@@ -81,20 +90,23 @@ const app = new Hono()
         slug: z.string(),
         description: z.string().optional(),
         metadata: z.any().optional(),
+        datasetId: z.string(),
+        geometriesId: z.string(),
+        timePrecision: z.enum(['hour', 'day', 'month', 'year']),
       }),
     ),
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:product',
     }),
     async (c) => {
       const data = c.req.valid('json')
       const id = crypto.randomUUID()
-      const newDataset = await db
-        .insert(dataset)
+      const newProduct = await db
+        .insert(product)
         .values({ ...data, id })
         .returning()
 
-      return generateJsonResponse(c, newDataset[0], 201)
+      return generateJsonResponse(c, newProduct[0], 201)
     },
   )
   .patch(
@@ -106,18 +118,21 @@ const app = new Hono()
         slug: z.string().optional(),
         description: z.string().optional(),
         metadata: z.any().optional(),
+        datasetId: z.string().optional(),
+        geometriesId: z.string().optional(),
+        timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
       }),
     ),
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:product',
     }),
     async (c) => {
       const id = c.req.param('id')
       const data = c.req.valid('json')
       const role = await db
-        .update(dataset)
+        .update(product)
         .set(data)
-        .where(eq(dataset.id, id))
+        .where(eq(product.id, id))
         .returning()
 
       return generateJsonResponse(c, role[0])
@@ -126,11 +141,11 @@ const app = new Hono()
   .delete(
     '/:id',
     authMiddleware({
-      permission: 'write:dataset',
+      permission: 'write:product',
     }),
     async (c) => {
       const id = c.req.param('id')
-      await db.delete(dataset).where(eq(dataset.id, id))
+      await db.delete(product).where(eq(product.id, id))
 
       return generateJsonResponse(c)
     },
