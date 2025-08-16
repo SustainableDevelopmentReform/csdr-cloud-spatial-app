@@ -1,6 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
 import { count, desc, eq } from 'drizzle-orm'
-import { alias } from 'drizzle-orm/pg-core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -9,7 +8,26 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas'
 
-const parent = alias(variableCategory, 'parent')
+// Define shared query configuration
+const variableCategoryQuery = {
+  columns: {
+    id: true,
+    name: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    parentId: true,
+    displayOrder: true,
+  },
+  with: {
+    parent: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -35,26 +53,12 @@ const app = new Hono()
         .from(variableCategory)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: variableCategory.id,
-          name: variableCategory.name,
-          description: variableCategory.description,
-          createdAt: variableCategory.createdAt,
-          updatedAt: variableCategory.updatedAt,
-          parentId: variableCategory.parentId,
-          displayOrder: variableCategory.displayOrder,
-          parent: {
-            id: parent.id,
-            name: parent.name,
-          },
-        })
-        .from(variableCategory)
-        .leftJoin(parent, eq(variableCategory.parentId, parent.id))
-        .groupBy(variableCategory.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(variableCategory.createdAt))
+      const data = await db.query.variableCategory.findMany({
+        ...variableCategoryQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(variableCategory.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -70,6 +74,7 @@ const app = new Hono()
       const id = c.req.param('id')
       const variableCategory = await db.query.variableCategory.findFirst({
         where: (variableCategory, { eq }) => eq(variableCategory.id, id),
+        ...variableCategoryQuery,
       })
 
       if (!variableCategory) {

@@ -38,7 +38,7 @@ if (!isEmail(initialUserEmail)) {
 let defaultOrg = await db
   .select()
   .from(schema.organization)
-  .where(eq(schema.organization.slug, 'default-organization'))
+  .where(eq(schema.organization.id, 'default-organization'))
 
 if (defaultOrg.length > 0) {
   console.log('Default Organization already seeded, exiting...')
@@ -50,7 +50,6 @@ defaultOrg = await db
   .values({
     id: 'default-organization',
     name: 'Default Organization',
-    slug: 'default-organization',
     createdAt: new Date(),
     metadata: '{}',
   })
@@ -139,7 +138,6 @@ const dataset = await db
   .values({
     id: 'default-dataset',
     name: 'Default Dataset',
-    slug: 'default-dataset',
     description: 'Default Dataset',
     metadata: '{ "source": "https://example.com" }',
   })
@@ -160,7 +158,6 @@ const geometries = await db
   .values({
     id: 'default-geometries',
     name: 'Default Geometries',
-    slug: 'default-geometries',
     description: 'Default Geometries',
     metadata: '{ "source": "https://example.com" }',
   })
@@ -230,7 +227,6 @@ const product = await db
   .values({
     id: 'default-product',
     name: 'Default Product',
-    slug: 'default-product',
     timePrecision: 'hour',
     datasetId: dataset[0]!.id,
     geometriesId: geometries[0]!.id,

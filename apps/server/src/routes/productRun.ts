@@ -6,7 +6,29 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { product, productRun } from '../schemas'
+import { productRun } from '../schemas'
+
+// Define shared query configuration
+const productRunQuery = {
+  columns: {
+    id: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    parameters: true,
+    productId: true,
+    datasetRunId: true,
+    geometriesRunId: true,
+  },
+  with: {
+    product: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -32,26 +54,12 @@ const app = new Hono()
         .from(productRun)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: productRun.id,
-          description: productRun.description,
-          createdAt: productRun.createdAt,
-          updatedAt: productRun.updatedAt,
-          parameters: productRun.parameters,
-          product: {
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-          },
-          datasetRunId: productRun.datasetRunId,
-          geometriesRunId: productRun.geometriesRunId,
-        })
-        .from(productRun)
-        .groupBy(productRun.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(productRun.createdAt))
+      const data = await db.query.productRun.findMany({
+        ...productRunQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(productRun.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -64,6 +72,7 @@ const app = new Hono()
     const id = c.req.param('id')
     const productRun = await db.query.productRun.findFirst({
       where: (productRun, { eq }) => eq(productRun.id, id),
+      ...productRunQuery,
     })
 
     if (!productRun) {

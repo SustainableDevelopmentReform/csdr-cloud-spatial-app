@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, getTableColumns } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -7,6 +7,19 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometries } from '../schemas'
+
+// Define shared query configuration
+const geometriesQuery = {
+  columns: {
+    id: true,
+    name: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    metadata: true,
+  },
+  with: {}, // No relations for basic geometries GET
+} as const
 
 const app = new Hono()
   .get(
@@ -32,21 +45,12 @@ const app = new Hono()
         .from(geometries)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: geometries.id,
-          name: geometries.name,
-          slug: geometries.slug,
-          description: geometries.description,
-          createdAt: geometries.createdAt,
-          updatedAt: geometries.updatedAt,
-          metadata: geometries.metadata,
-        })
-        .from(geometries)
-        .groupBy(geometries.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(geometries.createdAt))
+      const data = await db.query.geometries.findMany({
+        ...geometriesQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(geometries.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -59,6 +63,7 @@ const app = new Hono()
     const id = c.req.param('id')
     const geometries = await db.query.geometries.findFirst({
       where: (geometries, { eq }) => eq(geometries.id, id),
+      ...geometriesQuery,
     })
 
     if (!geometries) {
@@ -78,7 +83,6 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string(),
-        slug: z.string(),
         description: z.string().optional(),
         metadata: z.any().optional(),
       }),
@@ -103,7 +107,6 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string().optional(),
-        slug: z.string().optional(),
         description: z.string().optional(),
       }),
     ),

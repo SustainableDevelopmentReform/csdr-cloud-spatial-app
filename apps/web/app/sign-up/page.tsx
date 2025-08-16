@@ -1,8 +1,7 @@
 'use client'
 
-import { toast } from '@repo/ui/components/ui/sonner'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Link from '../../components/link'
 import { authClient } from '../../utils/auth'
 import SignupForm from './_components/form'
 

@@ -1,10 +1,10 @@
 import PageAuthGuard from '~/components/page-auth-guard'
-import UserFeature from './client'
+import ClientPage from './client'
 
 export default () => {
   return (
     <PageAuthGuard roles={['admin']}>
-      <UserFeature />
+      <ClientPage />
     </PageAuthGuard>
   )
 }

@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, getTableColumns } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -7,6 +7,18 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset } from '../schemas'
+
+const datasetQuery = {
+  columns: {
+    id: true,
+    name: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    metadata: true,
+  },
+  with: {},
+} as const
 
 const app = new Hono()
   .get(
@@ -32,21 +44,12 @@ const app = new Hono()
         .from(dataset)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: dataset.id,
-          name: dataset.name,
-          slug: dataset.slug,
-          description: dataset.description,
-          createdAt: dataset.createdAt,
-          updatedAt: dataset.updatedAt,
-          metadata: dataset.metadata,
-        })
-        .from(dataset)
-        .groupBy(dataset.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(dataset.createdAt))
+      const data = await db.query.dataset.findMany({
+        ...datasetQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(dataset.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -59,6 +62,7 @@ const app = new Hono()
     const id = c.req.param('id')
     const dataset = await db.query.dataset.findFirst({
       where: (dataset, { eq }) => eq(dataset.id, id),
+      ...datasetQuery,
     })
 
     if (!dataset) {
@@ -78,8 +82,7 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string(),
-        slug: z.string(),
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
         metadata: z.any().optional(),
       }),
     ),
@@ -103,8 +106,7 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string().optional(),
-        slug: z.string().optional(),
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
         metadata: z.any().optional(),
       }),
     ),

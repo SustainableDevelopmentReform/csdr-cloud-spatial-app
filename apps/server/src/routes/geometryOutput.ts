@@ -7,7 +7,19 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas'
-import { GeoJSONMultiPolygonSchema, GeoJSONPolygonSchema } from 'zod-geojson'
+
+// Define shared query configuration
+const geometryOutputQuery = {
+  columns: {
+    id: true,
+    createdAt: true,
+    name: true,
+    properties: true,
+    geometry: true,
+    geometriesRunId: true,
+  },
+  with: {}, // No relations for basic geometryOutput GET
+} as const
 
 const app = new Hono()
   .get(
@@ -33,20 +45,12 @@ const app = new Hono()
         .from(geometryOutput)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: geometryOutput.id,
-          createdAt: geometryOutput.createdAt,
-          name: geometryOutput.name,
-          properties: geometryOutput.properties,
-          geometry: geometryOutput.geometry,
-          geometriesRunId: geometryOutput.geometriesRunId,
-        })
-        .from(geometryOutput)
-        .groupBy(geometryOutput.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(geometryOutput.createdAt))
+      const data = await db.query.geometryOutput.findMany({
+        ...geometryOutputQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(geometryOutput.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -62,6 +66,7 @@ const app = new Hono()
       const id = c.req.param('id')
       const geometryOutput = await db.query.geometryOutput.findFirst({
         where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
+        ...geometryOutputQuery,
       })
 
       if (!geometryOutput) {
@@ -92,10 +97,15 @@ const app = new Hono()
     }),
     async (c) => {
       const data = c.req.valid('json')
+      const geometry = data.geometry
       // TODO figure out why this doesn't work in the validator
-      const geometry = z
-        .union([GeoJSONPolygonSchema, GeoJSONMultiPolygonSchema])
-        .parse(data.geometry)
+      if (!geometry) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to create geometryOutput',
+          description: 'Geometry is required',
+        })
+      }
       const id = crypto.randomUUID()
       const newGeometryOutput = await db
         .insert(geometryOutput)

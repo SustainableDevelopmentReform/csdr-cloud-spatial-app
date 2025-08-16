@@ -1,12 +1,41 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, getTableColumns } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset, geometries, product } from '../schemas'
+import { product } from '../schemas'
+
+const productQuery = {
+  columns: {
+    id: true,
+    name: true,
+
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    metadata: true,
+    timePrecision: true,
+    datasetId: true,
+    geometriesId: true,
+  },
+  with: {
+    dataset: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+    geometries: {
+      columns: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+} as const
 
 const app = new Hono()
   .get(
@@ -32,30 +61,12 @@ const app = new Hono()
         .from(product)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
-      const data = await db
-        .select({
-          id: product.id,
-          name: product.name,
-          slug: product.slug,
-          description: product.description,
-          createdAt: product.createdAt,
-          updatedAt: product.updatedAt,
-          metadata: product.metadata,
-          dataset: { id: dataset.id, name: dataset.name, slug: dataset.slug },
-          geometries: {
-            id: geometries.id,
-            name: geometries.name,
-            slug: geometries.slug,
-          },
-          timePrecision: product.timePrecision,
-        })
-        .from(product)
-        .leftJoin(dataset, eq(product.datasetId, dataset.id))
-        .leftJoin(geometries, eq(product.geometriesId, geometries.id))
-        .groupBy(product.id)
-        .limit(size)
-        .offset(skip)
-        .orderBy(desc(product.createdAt))
+      const data = await db.query.product.findMany({
+        ...productQuery,
+        limit: size,
+        offset: skip,
+        orderBy: desc(product.createdAt),
+      })
 
       return generateJsonResponse(c, {
         pageCount,
@@ -68,6 +79,7 @@ const app = new Hono()
     const id = c.req.param('id')
     const product = await db.query.product.findFirst({
       where: (product, { eq }) => eq(product.id, id),
+      ...productQuery,
     })
 
     if (!product) {
@@ -87,7 +99,6 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string(),
-        slug: z.string(),
         description: z.string().optional(),
         metadata: z.any().optional(),
         datasetId: z.string(),
@@ -115,7 +126,6 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string().optional(),
-        slug: z.string().optional(),
         description: z.string().optional(),
         metadata: z.any().optional(),
         datasetId: z.string().optional(),

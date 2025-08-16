@@ -88,7 +88,7 @@ export const verification = pgTable(
 export const organization = pgTable('organization', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  slug: text('slug').unique(),
+
   logo: text('logo'),
   createdAt: timestamp('created_at').notNull(),
   metadata: text('metadata'),
@@ -154,7 +154,7 @@ export const dataset = pgTable(
   {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
-    slug: text('slug').unique(),
+
     description: text('description'),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -171,7 +171,7 @@ export const geometries = pgTable(
   {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
-    slug: text('slug').unique(),
+
     description: text('description'),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -196,7 +196,7 @@ export const product = pgTable(
   {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
-    slug: text('slug').unique(),
+
     description: text('description'),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),

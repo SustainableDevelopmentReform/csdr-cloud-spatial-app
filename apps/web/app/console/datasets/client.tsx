@@ -1,32 +1,22 @@
 'use client'
 
 import { Button } from '@repo/ui/components/ui/button'
-import DatasetTable from './_components/table'
-import DatasetForm from './_components/form'
-import { useState } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
+import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
+import { QueryKey } from '~/utils/fetcher'
+import BaseCrudTable from '../../../components/crud-table'
+import DatasetForm from './_components/form'
+import { useDatasetLink, useDeleteDataset, useGetDatasets } from './_hooks'
 
 const DatasetFeature = () => {
-  const [isOpen, setOpen] = useState(false)
-  const [page, setPage] = useState(1)
+  const { data, isOpen, setOpen, page, setPage } = useGetDatasets()
 
-  const { data } = useQuery({
-    queryKey: [QueryKey.Datasets, page],
-    queryFn: async () => {
-      const res = client.api.v1.dataset.$get({
-        query: {
-          page: page.toString(),
-        },
-      })
+  const deleteDataset = useDeleteDataset()
+  const datasetLink = useDatasetLink()
 
-      const json = await unwrapResponse(res)
-
-      return json.data
-    },
-    placeholderData: keepPreviousData,
-  })
+  const baseColumns = useMemo(() => {
+    return ['name', 'description', 'createdAt', 'updatedAt'] as const
+  }, [])
 
   return (
     <div>
@@ -42,7 +32,13 @@ const DatasetFeature = () => {
         </DatasetForm>
       </div>
       <div className="mt-8">
-        <DatasetTable data={data?.data || []} />
+        <BaseCrudTable
+          data={data?.data || []}
+          baseColumns={baseColumns}
+          title="Dataset"
+          deleteItem={deleteDataset}
+          itemLink={datasetLink}
+        />
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
