@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Dialog,
@@ -15,13 +16,10 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import slugify from 'slugify'
+import { useCreateDataset } from '../_hooks'
 
 interface DatasetFormProps {
   children?: React.ReactNode
@@ -51,24 +49,14 @@ const DatasetForm: React.FC<DatasetFormProps> = ({
   })
   const { control, handleSubmit } = form
 
-  const queryClient = useQueryClient()
-
-  const createDataset = useMutation({
-    mutationFn: async (data: Data) => {
-      const res = client.api.v1.dataset.$post({
-        json: data,
-      })
-      await unwrapResponse(res)
-
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset],
-      })
-      onClose && onClose()
-    },
-  })
+  const createDataset = useCreateDataset()
 
   function onSubmit(data: Data) {
-    createDataset.mutate(data)
+    createDataset.mutate(data, {
+      onSuccess: () => {
+        onClose && onClose()
+      },
+    })
   }
 
   return (

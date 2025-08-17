@@ -7,6 +7,7 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset } from '../schemas'
+import { QueryForTable } from '../schemas/util'
 
 const datasetQuery = {
   columns: {
@@ -18,7 +19,7 @@ const datasetQuery = {
     metadata: true,
   },
   with: {},
-} as const
+} satisfies QueryForTable<'dataset'>
 
 const app = new Hono()
   .get(

@@ -7,6 +7,7 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometriesRun } from '../schemas'
+import { QueryForTable } from '../schemas/util'
 
 // Define shared query configuration
 const geometriesRunQuery = {
@@ -26,7 +27,7 @@ const geometriesRunQuery = {
       },
     },
   },
-} as const
+} satisfies QueryForTable<'geometriesRun'>
 
 const app = new Hono()
   .get(
@@ -93,7 +94,7 @@ const app = new Hono()
     zValidator(
       'json',
       z.object({
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
         parameters: z.any().optional(),
         geometriesId: z.string(),
       }),
@@ -117,7 +118,7 @@ const app = new Hono()
     zValidator(
       'json',
       z.object({
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
       }),
     ),
     authMiddleware({

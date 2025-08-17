@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Dialog,
@@ -15,13 +16,11 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import slugify from 'slugify'
+import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 
 interface GeometriesFormProps {
   children?: React.ReactNode

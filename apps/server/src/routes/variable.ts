@@ -7,6 +7,7 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variable } from '../schemas'
+import { QueryForTable } from '../schemas/util'
 
 // Define shared query configuration
 const variableQuery = {
@@ -28,7 +29,7 @@ const variableQuery = {
       },
     },
   },
-} as const
+} satisfies QueryForTable<'variable'>
 
 const app = new Hono()
   .get(
@@ -92,7 +93,7 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string(),
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
         unit: z.string(),
         categoryId: z.string(),
         displayOrder: z.number().optional(),
@@ -118,7 +119,7 @@ const app = new Hono()
       'json',
       z.object({
         name: z.string().optional(),
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
         unit: z.string().optional(),
         categoryId: z.string().optional(),
         displayOrder: z.number().optional(),

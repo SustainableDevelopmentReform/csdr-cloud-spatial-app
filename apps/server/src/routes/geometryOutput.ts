@@ -7,6 +7,7 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas'
+import { QueryForTable } from '../schemas/util'
 
 // Define shared query configuration
 const geometryOutputQuery = {
@@ -19,7 +20,7 @@ const geometryOutputQuery = {
     geometriesRunId: true,
   },
   with: {}, // No relations for basic geometryOutput GET
-} as const
+} satisfies QueryForTable<'geometryOutput'>
 
 const app = new Hono()
   .get(

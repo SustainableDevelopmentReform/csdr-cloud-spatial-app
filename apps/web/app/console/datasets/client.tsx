@@ -3,13 +3,12 @@
 import { Button } from '@repo/ui/components/ui/button'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
-import { QueryKey } from '~/utils/fetcher'
 import BaseCrudTable from '../../../components/crud-table'
 import DatasetForm from './_components/form'
-import { useDatasetLink, useDeleteDataset, useGetDatasets } from './_hooks'
+import { useDatasetLink, useDeleteDataset, useDatasets } from './_hooks'
 
 const DatasetFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useGetDatasets()
+  const { data, isOpen, setOpen, page, setPage } = useDatasets()
 
   const deleteDataset = useDeleteDataset()
   const datasetLink = useDatasetLink()

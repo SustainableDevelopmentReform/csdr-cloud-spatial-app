@@ -53,6 +53,7 @@ defaultOrg = await db
     createdAt: new Date(),
     metadata: '{}',
   })
+  .onConflictDoNothing()
   .returning()
 
 console.log(`Default Organization ID: ${defaultOrg[0]!.id}`)
@@ -82,7 +83,7 @@ const account = await db
   .values({
     id: 'super-admin-account',
     userId: superAdmin[0]!.id,
-    providerId: 'email',
+    providerId: 'credential',
     createdAt: new Date(),
     updatedAt: new Date(),
     accountId: 'super-admin',
@@ -107,6 +108,8 @@ const variableCategory = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Variable Category ID: ${variableCategory[0]!.id}`)
+
 const variable1 = await db
   .insert(schema.variable)
   .values({
@@ -119,6 +122,8 @@ const variable1 = await db
   })
   .onConflictDoNothing()
   .returning()
+
+console.log(`Variable ID: ${variable1[0]!.id}`)
 
 const variable2 = await db
   .insert(schema.variable)
@@ -133,6 +138,8 @@ const variable2 = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Variable ID: ${variable2[0]!.id}`)
+
 const dataset = await db
   .insert(schema.dataset)
   .values({
@@ -144,6 +151,7 @@ const dataset = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Dataset ID: ${dataset[0]!.id}`)
 const datasetRun = await db
   .insert(schema.datasetRun)
   .values({
@@ -152,6 +160,8 @@ const datasetRun = await db
   })
   .onConflictDoNothing()
   .returning()
+
+console.log(`Dataset Run ID: ${datasetRun[0]!.id}`)
 
 const geometries = await db
   .insert(schema.geometries)
@@ -164,6 +174,8 @@ const geometries = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Geometries ID: ${geometries[0]!.id}`)
+
 const geometriesRun = await db
   .insert(schema.geometriesRun)
   .values({
@@ -172,6 +184,8 @@ const geometriesRun = await db
   })
   .onConflictDoNothing()
   .returning()
+
+console.log(`Geometries Run ID: ${geometriesRun[0]!.id}`)
 
 const geometryOutput1 = await db
   .insert(schema.geometryOutput)
@@ -194,6 +208,8 @@ const geometryOutput1 = await db
   })
   .onConflictDoNothing()
   .returning()
+
+console.log(`Geometry Output ID: ${geometryOutput1[0]!.id}`)
 
 const geometryOutput2 = await db
   .insert(schema.geometryOutput)
@@ -222,6 +238,8 @@ const geometryOutput2 = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Geometry Output ID: ${geometryOutput2[0]!.id}`)
+
 const product = await db
   .insert(schema.product)
   .values({
@@ -236,6 +254,8 @@ const product = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Product ID: ${product[0]!.id}`)
+
 const productRun = await db
   .insert(schema.productRun)
   .values({
@@ -248,6 +268,14 @@ const productRun = await db
   })
   .onConflictDoNothing()
   .returning()
+
+// Update mainRunId in product
+await db
+  .update(schema.product)
+  .set({ mainRunId: productRun[0]!.id })
+  .where(eq(schema.product.id, product[0]!.id))
+
+console.log(`Product Run ID: ${productRun[0]!.id}`)
 
 const productOutput1 = await db
   .insert(schema.productOutput)
@@ -262,6 +290,8 @@ const productOutput1 = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Product Output ID: ${productOutput1[0]!.id}`)
+
 const productOutput2 = await db
   .insert(schema.productOutput)
   .values({
@@ -275,10 +305,12 @@ const productOutput2 = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Product Output ID: ${productOutput2[0]!.id}`)
+
 const productOutput3 = await db
   .insert(schema.productOutput)
   .values({
-    id: 'default-product-output-0',
+    id: 'default-product-output-2',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
@@ -288,10 +320,12 @@ const productOutput3 = await db
   .onConflictDoNothing()
   .returning()
 
+console.log(`Product Output ID: ${productOutput3[0]!.id}`)
+
 const productOutput4 = await db
   .insert(schema.productOutput)
   .values({
-    id: 'default-product-output-1',
+    id: 'default-product-output-3',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
@@ -300,6 +334,8 @@ const productOutput4 = await db
   })
   .onConflictDoNothing()
   .returning()
+
+console.log(`Product Output ID: ${productOutput4[0]!.id}`)
 
 console.log('Seeding end')
 await client.end()
