@@ -1,5 +1,4 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -7,9 +6,10 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { productOutput } from '../schemas'
+import { QueryForTable } from '../schemas/util'
 
 // Define shared query configuration
-const productOutputQuery = {
+export const productOutputQuery = {
   columns: {
     id: true,
     createdAt: true,
@@ -17,7 +17,6 @@ const productOutputQuery = {
     timePoint: true,
     productRunId: true,
     geometryOutputId: true,
-    variableId: true,
   },
   with: {
     variable: {
@@ -27,47 +26,28 @@ const productOutputQuery = {
         unit: true,
       },
     },
+    geometryOutput: {
+      columns: {
+        id: true,
+        name: true,
+      },
+      with: {
+        geometriesRun: {
+          with: {
+            geometries: {
+              columns: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    },
   },
-} as const
+} satisfies QueryForTable<'productOutput'>
 
 const app = new Hono()
-  .get(
-    '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:productOutput',
-    }),
-    async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(productOutput)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
-
-      const data = await db.query.productOutput.findMany({
-        ...productOutputQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(productOutput.createdAt),
-      })
-
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
-    },
-  )
   .get(
     '/:id',
     authMiddleware({ permission: 'read:productOutput' }),
@@ -114,18 +94,6 @@ const app = new Hono()
         .returning()
 
       return generateJsonResponse(c, newProductOutput[0], 201)
-    },
-  )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:productOutput',
-    }),
-    async (c) => {
-      const id = c.req.param('id')
-      await db.delete(productOutput).where(eq(productOutput.id, id))
-
-      return generateJsonResponse(c)
     },
   )
 

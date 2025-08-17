@@ -1,0 +1,121 @@
+'use client'
+
+import { Button } from '@repo/ui/components/ui/button'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { useMemo } from 'react'
+import Pagination from '~/components/pagination'
+import BaseCrudTable from '../../../../../../../components/crud-table'
+import { formatDateTime } from '../../../../../../../utils/date'
+import ProductOutputForm from '../../../../_components/form'
+import {
+  ProductOutput,
+  useProductOutputLink,
+  useProductOutputs,
+} from '../../../../_hooks'
+import { Badge } from '@repo/ui/components/ui/badge'
+import { ArrowUpRightIcon } from 'lucide-react'
+import Link from '../../../../../../../components/link'
+import { useGeometriesLink } from '../../../../../geometries/_hooks'
+import { VariableButton } from '../../../../../variables/_components/variable-button'
+
+const columnHelper = createColumnHelper<ProductOutput>()
+
+const ProductOutputFeature = () => {
+  const { data, isOpen, setOpen, page, setPage } = useProductOutputs()
+
+  const productLink = useProductOutputLink()
+  const geometriesLink = useGeometriesLink()
+
+  const baseColumns = useMemo(() => {
+    return ['id', 'createdAt'] as const
+  }, [])
+
+  const columns = useMemo(
+    () =>
+      [
+        columnHelper.accessor((row) => row.variable.name, {
+          id: 'variable',
+          header: () => <span>Variable</span>,
+          cell: (info) => {
+            return <VariableButton variable={info.row.original.variable} />
+          },
+          size: 20,
+        }),
+        columnHelper.accessor((row) => row.value, {
+          id: 'value',
+          header: () => <span>Value</span>,
+          cell: (info) => {
+            return info.getValue()
+          },
+          size: 120,
+        }),
+        columnHelper.accessor((row) => row.timePoint, {
+          id: 'timePoint',
+          header: () => <span>Time Point</span>,
+          cell: (info) => {
+            return formatDateTime(info.getValue())
+          },
+          size: 120,
+        }),
+        columnHelper.accessor((row) => row.geometryOutput.name, {
+          id: 'geometryOutput',
+          header: () => <span>Geometry</span>,
+          cell: (info) => {
+            return (
+              <div className="flex items-center gap-2">
+                {info.getValue()}
+                <Link
+                  href={geometriesLink(
+                    info.row.original.geometryOutput.geometriesRun.geometries,
+                  )}
+                >
+                  <Badge color="primary" variant="outline">
+                    {
+                      info.row.original.geometryOutput.geometriesRun.geometries
+                        .name
+                    }
+                    <ArrowUpRightIcon className="size-4" />
+                  </Badge>
+                </Link>
+              </div>
+            )
+          },
+          size: 120,
+        }),
+      ] as ColumnDef<ProductOutput>[],
+    [geometriesLink],
+  )
+
+  return (
+    <div>
+      <div className="flex justify-between">
+        <h1 className="text-3xl font-medium mb-2">Product Runs</h1>
+        <ProductOutputForm
+          key={`add-product-form-${isOpen}`}
+          isOpen={isOpen}
+          onOpen={() => setOpen(true)}
+          onClose={() => setOpen(false)}
+        >
+          <Button>Add Product Run</Button>
+        </ProductOutputForm>
+      </div>
+      <div className="mt-8">
+        <BaseCrudTable
+          data={data?.data || []}
+          baseColumns={baseColumns}
+          extraColumns={columns}
+          title="ProductOutput"
+          itemLink={productLink}
+        />
+        <Pagination
+          className="justify-end mt-4"
+          totalPages={data?.pageCount ?? 1}
+          currentPage={page}
+          onPageChange={setPage}
+        />
+      </div>
+    </div>
+  )
+}
+
+export default ProductOutputFeature

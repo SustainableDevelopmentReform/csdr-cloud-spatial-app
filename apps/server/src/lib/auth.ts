@@ -2,13 +2,7 @@ import { betterAuth, BetterAuthOptions } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from './db'
 // import { env } from '~/env'
-import {
-  admin,
-  anonymous,
-  openAPI,
-  organization,
-  twoFactor,
-} from 'better-auth/plugins'
+import { admin, anonymous, openAPI, twoFactor } from 'better-auth/plugins'
 import { env } from '~/env'
 import * as schema from '~/schemas'
 // import { oidcProvider } from 'better-auth/plugins'

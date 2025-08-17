@@ -1,15 +1,22 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq, min, max, avg } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { productRun } from '../schemas'
+import {
+  productOutput,
+  productOutputSummary,
+  productOutputSummaryVariable,
+  productRun,
+} from '../schemas'
+import { QueryForTable } from '../schemas/util'
+import { productOutputQuery } from './productOutput'
 
 // Define shared query configuration
-const productRunQuery = {
+export const productRunQuery = {
   columns: {
     id: true,
     description: true,
@@ -17,57 +24,71 @@ const productRunQuery = {
     updatedAt: true,
     parameters: true,
     productId: true,
-    datasetRunId: true,
-    geometriesRunId: true,
   },
   with: {
+    outputSummary: {
+      columns: {
+        lastUpdated: true,
+        startTime: true,
+        endTime: true,
+        outputCount: true,
+      },
+    },
+    outputSummaryVariables: {
+      columns: {
+        minValue: true,
+        maxValue: true,
+        avgValue: true,
+        count: true,
+        lastUpdated: true,
+      },
+      with: {
+        variable: {
+          columns: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
     product: {
       columns: {
         id: true,
         name: true,
       },
     },
+    datasetRun: {
+      columns: {
+        id: true,
+        createdAt: true,
+      },
+      with: {
+        dataset: {
+          columns: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
+    geometriesRun: {
+      columns: {
+        id: true,
+        createdAt: true,
+      },
+      with: {
+        geometries: {
+          columns: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
   },
-} as const
+} satisfies QueryForTable<'productRun'>
 
 const app = new Hono()
-  .get(
-    '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:productRun',
-    }),
-    async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(productRun)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
-
-      const data = await db.query.productRun.findMany({
-        ...productRunQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(productRun.createdAt),
-      })
-
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
-    },
-  )
   .get('/:id', authMiddleware({ permission: 'read:productRun' }), async (c) => {
     const id = c.req.param('id')
     const productRun = await db.query.productRun.findFirst({
@@ -85,13 +106,52 @@ const app = new Hono()
 
     return generateJsonResponse(c, productRun)
   })
+  .get(
+    '/:id/outputs',
+    zValidator(
+      'query',
+      z.object({
+        page: z.number({ coerce: true }).positive().optional(),
+        size: z.number({ coerce: true }).optional(),
+      }),
+    ),
+    authMiddleware({
+      permission: 'read:productOutput',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+      const { page = 1, size = 10 } = c.req.valid('query')
+      const skip = (page - 1) * size
+
+      const totalCount = await db
+        .select({
+          count: count(),
+        })
+        .from(productOutput)
+      const pageCount = Math.ceil(totalCount[0]!.count / size)
+
+      const data = await db.query.productOutput.findMany({
+        ...productOutputQuery,
+        where: (productOutput, { eq }) => eq(productOutput.productRunId, id),
+        limit: size,
+        offset: skip,
+        orderBy: desc(productOutput.createdAt),
+      })
+
+      return generateJsonResponse(c, {
+        pageCount,
+        data,
+        totalCount: totalCount[0]!.count,
+      })
+    },
+  )
 
   .post(
     '/',
     zValidator(
       'json',
       z.object({
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
         parameters: z.any().optional(),
         productId: z.string(),
         datasetRunId: z.string(),
@@ -117,7 +177,7 @@ const app = new Hono()
     zValidator(
       'json',
       z.object({
-        description: z.string().optional(),
+        description: z.string().nullable().optional(),
       }),
     ),
     authMiddleware({
@@ -145,6 +205,127 @@ const app = new Hono()
       await db.delete(productRun).where(eq(productRun.id, id))
 
       return generateJsonResponse(c)
+    },
+  )
+  .post(
+    '/:id/refresh-summary',
+    authMiddleware({
+      permission: 'write:productRun',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+
+      // Check if the product run exists
+      const run = await db.query.productRun.findFirst({
+        where: (productRun, { eq }) => eq(productRun.id, id),
+      })
+
+      if (!run) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Product run not found',
+          description: `Product run with ID ${id} does not exist`,
+        })
+      }
+
+      // Use a transaction to ensure consistency
+      await db.transaction(async (tx) => {
+        // 1. Calculate overall summary statistics
+        const summaryStats = await tx
+          .select({
+            startTime: min(productOutput.timePoint),
+            endTime: max(productOutput.timePoint),
+            outputCount: count(),
+          })
+          .from(productOutput)
+          .where(eq(productOutput.productRunId, id))
+
+        const stats = summaryStats[0]
+
+        // 2. Update or insert into productOutputSummary
+        if (stats && stats.outputCount > 0) {
+          await tx
+            .insert(productOutputSummary)
+            .values({
+              productRunId: id,
+              startTime: stats.startTime,
+              endTime: stats.endTime,
+              outputCount: stats.outputCount,
+              lastUpdated: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: productOutputSummary.productRunId,
+              set: {
+                startTime: stats.startTime,
+                endTime: stats.endTime,
+                outputCount: stats.outputCount,
+                lastUpdated: new Date(),
+              },
+            })
+
+          // 3. Calculate per-variable statistics
+          const variableStats = await tx
+            .select({
+              variableId: productOutput.variableId,
+              minValue: min(productOutput.value),
+              maxValue: max(productOutput.value),
+              avgValue: avg(productOutput.value),
+              count: count(),
+            })
+            .from(productOutput)
+            .where(eq(productOutput.productRunId, id))
+            .groupBy(productOutput.variableId)
+
+          // 4. Delete existing variable summaries for this run
+          await tx
+            .delete(productOutputSummaryVariable)
+            .where(eq(productOutputSummaryVariable.productRunId, id))
+
+          // 5. Insert new variable summaries
+          if (variableStats.length > 0) {
+            await tx.insert(productOutputSummaryVariable).values(
+              variableStats.map((stat) => ({
+                productRunId: id,
+                variableId: stat.variableId,
+                minValue: stat.minValue,
+                maxValue: stat.maxValue,
+                avgValue: stat.avgValue,
+                count: stat.count,
+                lastUpdated: new Date(),
+              })),
+            )
+          }
+        } else {
+          // No outputs found, remove any existing summary
+          await tx
+            .delete(productOutputSummary)
+            .where(eq(productOutputSummary.productRunId, id))
+        }
+      })
+
+      // Fetch the updated summary to return
+      const updatedRun = await db.query.productRun.findFirst({
+        where: (productRun, { eq }) => eq(productRun.id, id),
+        with: {
+          outputSummary: true,
+          outputSummaryVariables: {
+            with: {
+              variable: {
+                columns: {
+                  id: true,
+                  name: true,
+                  unit: true,
+                },
+              },
+            },
+          },
+        },
+      })
+
+      return generateJsonResponse(c, {
+        message: 'Summary refreshed successfully',
+        data: updatedRun,
+      })
     },
   )
 

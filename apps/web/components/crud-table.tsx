@@ -27,13 +27,21 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import Table from '~/components/table'
 
-interface BaseActionProps<T extends { name: string; id: string }> {
+export interface BaseItem {
+  name?: string | null
+  id: string
+  description?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+interface BaseActionProps<T extends BaseItem> {
   title: string
   itemLink?: (item: T) => string
   deleteItem?: UseMutationResult<T, Error, T>
 }
 
-const Action = <T extends { name: string; id: string }>({
+const Action = <T extends BaseItem>({
   data,
   deleteItem,
   title,
@@ -118,8 +126,7 @@ const Action = <T extends { name: string; id: string }>({
   )
 }
 
-interface BaseCrudTableProps<T extends { name: string; id: string }>
-  extends BaseActionProps<T> {
+interface BaseCrudTableProps<T extends BaseItem> extends BaseActionProps<T> {
   data: T[]
   baseColumns: readonly (keyof T)[]
   extraColumns?: ColumnDef<T>[]
@@ -127,7 +134,7 @@ interface BaseCrudTableProps<T extends { name: string; id: string }>
 
 const BaseCrudTable = <
   T extends {
-    name: string
+    name?: string | null
     id: string
     description?: string | null
     createdAt?: string | null
@@ -148,7 +155,7 @@ const BaseCrudTable = <
       baseColumns.includes('name') &&
         columnHelper.accessor((row) => row.name, {
           id: 'name',
-          header: () => <span>Dataset</span>,
+          header: () => <span>{title}</span>,
           cell: (info) => info.getValue(),
           minSize: 120,
         }),
@@ -162,7 +169,7 @@ const BaseCrudTable = <
       baseColumns.includes('id') &&
         columnHelper.accessor((row) => row.id, {
           id: 'id',
-          header: () => <span>Dataset ID</span>,
+          header: () => <span>{title} ID</span>,
           cell: (info) => (
             <span className="text-gray-500">
               <code>{info.getValue()}</code>

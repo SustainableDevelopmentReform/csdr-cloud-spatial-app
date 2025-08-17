@@ -1,61 +1,67 @@
 'use client'
 
 import { Button } from '@repo/ui/components/ui/button'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 import BaseCrudTable from '../../../components/crud-table'
 import ProductForm from './_components/form'
-import { InferResponseType } from 'hono/client'
+import {
+  useProductLink,
+  useDeleteProduct,
+  useProducts,
+  Product,
+} from './_hooks'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 
-type Product = NonNullable<
-  InferResponseType<typeof client.api.v1.product.$get, 200>['data']
->['data'][0]
+const columnHelper = createColumnHelper<Product>()
+
+const columns = [
+  columnHelper.accessor((row) => row.mainRun?.outputSummary?.startTime, {
+    id: 'startTime',
+    header: () => <span>Start Time</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return new Date(value).toLocaleDateString()
+    },
+    size: 120,
+  }),
+  columnHelper.accessor((row) => row.mainRun?.outputSummary?.endTime, {
+    id: 'endTime',
+    header: () => <span>End Time</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return new Date(value).toLocaleDateString()
+    },
+    size: 120,
+  }),
+  columnHelper.accessor((row) => row.mainRun?.outputSummary?.variables, {
+    id: 'variables',
+    header: () => <span>Variables</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return value.map((v) => v.variable.name).join(', ')
+    },
+    size: 120,
+  }),
+] as ColumnDef<Product>[]
 
 const ProductFeature = () => {
-  const [isOpen, setOpen] = useState(false)
-  const [page, setPage] = useState(1)
+  const { data, isOpen, setOpen, page, setPage } = useProducts()
 
-  const { data } = useQuery({
-    queryKey: [QueryKey.Product],
-    queryFn: async () => {
-      const res = client.api.v1.product.$get({
-        query: {
-          page: page.toString(),
-        },
-      })
-
-      const json = await unwrapResponse(res)
-
-      return json.data
-    },
-    placeholderData: keepPreviousData,
-  })
-
-  const deleteProduct = useCallback(async (product: Product) => {
-    const res = client.api.v1.product[':id'].$delete({
-      param: {
-        id: product.id,
-      },
-    })
-
-    await unwrapResponse(res)
-  }, [])
-
-  const productLink = useCallback(
-    (product: Product) => `/console/product/${product.id}`,
-    [],
-  )
+  const deleteProduct = useDeleteProduct()
+  const productLink = useProductLink()
 
   const baseColumns = useMemo(() => {
-    return ['name', 'description', 'createdAt', 'updatedAt'] as const
+    return ['name', 'createdAt', 'updatedAt'] as const
   }, [])
 
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Product</h1>
+        <h1 className="text-3xl font-medium mb-2">Products</h1>
         <ProductForm
           key={`add-product-form-${isOpen}`}
           isOpen={isOpen}
@@ -69,7 +75,7 @@ const ProductFeature = () => {
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
-          queryKey={QueryKey.Product}
+          extraColumns={columns}
           title="Product"
           deleteItem={deleteProduct}
           itemLink={productLink}

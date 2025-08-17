@@ -159,10 +159,18 @@ export const dataset = pgTable(
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+
+    mainRunId: text('main_run_id').references(
+      (): AnyPgColumn => datasetRun.id,
+      {
+        onDelete: 'cascade',
+      },
+    ),
   },
   (table) => [
     index('dataset_name_idx').on(table.name),
     index('dataset_created_at_idx').on(table.createdAt),
+    index('dataset_main_run_id_idx').on(table.mainRunId),
   ],
 )
 
@@ -176,10 +184,18 @@ export const geometries = pgTable(
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+
+    mainRunId: text('main_run_id').references(
+      (): AnyPgColumn => geometriesRun.id,
+      {
+        onDelete: 'cascade',
+      },
+    ),
   },
   (table) => [
     index('geometries_name_idx').on(table.name),
     index('geometries_created_at_idx').on(table.createdAt),
+    index('geometries_main_run_id_idx').on(table.mainRunId),
   ],
 )
 
@@ -210,12 +226,20 @@ export const product = pgTable(
       .references(() => geometries.id, { onDelete: 'cascade' }),
 
     timePrecision: timePrecision('time_precision').notNull(),
+
+    mainRunId: text('main_run_id').references(
+      (): AnyPgColumn => productRun.id,
+      {
+        onDelete: 'cascade',
+      },
+    ),
   },
   (table) => [
     index('product_name_idx').on(table.name),
     index('product_dataset_id_idx').on(table.datasetId),
     index('product_geometries_id_idx').on(table.geometriesId),
     index('product_created_at_idx').on(table.createdAt),
+    index('product_main_run_id_idx').on(table.mainRunId),
   ],
 )
 
@@ -336,6 +360,60 @@ export const productOutput = pgTable(
   ],
 )
 
+// Table for product output summaries - automatically maintained via triggers
+// This table aggregates product outputs from each product's runs
+// to provide temporal ranges and variable lists for browsing products
+export const productOutputSummary = pgTable(
+  'product_output_summary',
+  {
+    productRunId: text('product_run_id')
+      .primaryKey()
+      .references(() => productRun.id, { onDelete: 'cascade' }),
+    startTime: timestamp('start_time', {
+      mode: 'date',
+      withTimezone: false,
+    }),
+    endTime: timestamp('end_time', {
+      mode: 'date',
+      withTimezone: false,
+    }),
+    outputCount: integer('output_count').notNull().default(0),
+    lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  },
+  (table) => [
+    index('product_output_summary_start_time_idx').on(table.startTime),
+    index('product_output_summary_end_time_idx').on(table.endTime),
+    index('product_output_summary_last_updated_idx').on(table.lastUpdated),
+  ],
+)
+
+// Junction table for many-to-many relationship between productOutputSummary and variables
+export const productOutputSummaryVariable = pgTable(
+  'product_output_summary_variable',
+  {
+    productRunId: text('product_run_id')
+      .notNull()
+      .references(() => productOutputSummary.productRunId, {
+        onDelete: 'cascade',
+      }),
+    variableId: text('variable_id')
+      .notNull()
+      .references(() => variable.id, { onDelete: 'cascade' }),
+    // Optional: track aggregated stats per variable
+    minValue: numeric('min_value'),
+    maxValue: numeric('max_value'),
+    avgValue: numeric('avg_value'),
+    count: integer('count').notNull().default(0),
+    lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  },
+  (table) => [
+    index('summary_variable_product_run_idx').on(table.productRunId),
+    index('summary_variable_variable_idx').on(table.variableId),
+    // Composite primary key for the junction table
+    unique('summary_variable_pk').on(table.productRunId, table.variableId),
+  ],
+)
+
 // Taxonomy/category tree structure
 export const variableCategory = pgTable(
   'variable_category',
@@ -397,8 +475,12 @@ export const variable = pgTable(
 )
 
 // Relations
-export const datasetRelations = relations(dataset, ({ many }) => ({
+export const datasetRelations = relations(dataset, ({ many, one }) => ({
   runs: many(datasetRun),
+  mainRun: one(datasetRun, {
+    fields: [dataset.mainRunId],
+    references: [datasetRun.id],
+  }),
   products: many(product),
 }))
 
@@ -410,8 +492,12 @@ export const datasetRunRelations = relations(datasetRun, ({ one, many }) => ({
   productRuns: many(productRun),
 }))
 
-export const geometriesRelations = relations(geometries, ({ many }) => ({
+export const geometriesRelations = relations(geometries, ({ many, one }) => ({
   runs: many(geometriesRun),
+  mainRun: one(geometriesRun, {
+    fields: [geometries.mainRunId],
+    references: [geometriesRun.id],
+  }),
   products: many(product),
 }))
 
@@ -440,6 +526,10 @@ export const geometryOutputRelations = relations(
 
 export const productRelations = relations(product, ({ many, one }) => ({
   runs: many(productRun),
+  mainRun: one(productRun, {
+    fields: [product.mainRunId],
+    references: [productRun.id],
+  }),
   dataset: one(dataset, {
     fields: [product.datasetId],
     references: [dataset.id],
@@ -464,6 +554,11 @@ export const productRunRelations = relations(productRun, ({ one, many }) => ({
     references: [geometriesRun.id],
   }),
   productOutputs: many(productOutput),
+  outputSummary: one(productOutputSummary, {
+    fields: [productRun.id],
+    references: [productOutputSummary.productRunId],
+  }),
+  outputSummaryVariables: many(productOutputSummaryVariable),
 }))
 
 export const productOutputRelations = relations(productOutput, ({ one }) => ({
@@ -502,4 +597,34 @@ export const variableRelations = relations(variable, ({ one, many }) => ({
     references: [variableCategory.id],
   }),
   productOutputs: many(productOutput),
+  productSummaries: many(productOutputSummaryVariable),
 }))
+
+export const productOutputSummaryRelations = relations(
+  productOutputSummary,
+  ({ one, many }) => ({
+    productRun: one(productRun, {
+      fields: [productOutputSummary.productRunId],
+      references: [productRun.id],
+    }),
+    variables: many(productOutputSummaryVariable),
+  }),
+)
+
+export const productOutputSummaryVariableRelations = relations(
+  productOutputSummaryVariable,
+  ({ one }) => ({
+    productRun: one(productRun, {
+      fields: [productOutputSummaryVariable.productRunId],
+      references: [productRun.id],
+    }),
+    productOutputSummary: one(productOutputSummary, {
+      fields: [productOutputSummaryVariable.productRunId],
+      references: [productOutputSummary.productRunId],
+    }),
+    variable: one(variable, {
+      fields: [productOutputSummaryVariable.variableId],
+      references: [variable.id],
+    }),
+  }),
+)
