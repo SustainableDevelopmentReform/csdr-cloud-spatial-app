@@ -403,7 +403,7 @@ export const useProductRunLink = () =>
 
 export const useProductOutputLink = () =>
   useCallback(
-    (productOutput: Pick<ProductOutput, 'id' | 'productRunId'>) =>
-      `/console/products/${productOutput.productRunId}/outputs/${productOutput.id}`,
+    (productOutput: Pick<ProductOutput, 'id' | 'productRun'>) =>
+      `/console/products/${productOutput.productRun.product.id}/runs/${productOutput.productRun.id}/outputs/${productOutput.id}`,
     [],
   )

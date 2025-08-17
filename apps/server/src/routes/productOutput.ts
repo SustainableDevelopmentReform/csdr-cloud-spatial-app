@@ -19,6 +19,19 @@ export const productOutputQuery = {
     geometryOutputId: true,
   },
   with: {
+    productRun: {
+      columns: {
+        id: true,
+      },
+      with: {
+        product: {
+          columns: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
     variable: {
       columns: {
         id: true,
@@ -30,6 +43,7 @@ export const productOutputQuery = {
       columns: {
         id: true,
         name: true,
+        geometry: true,
       },
       with: {
         geometriesRun: {

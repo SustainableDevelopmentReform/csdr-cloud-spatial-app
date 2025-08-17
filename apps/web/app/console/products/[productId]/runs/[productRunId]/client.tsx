@@ -134,7 +134,7 @@ const ProductRunDetails = () => {
               </CardHeader>
               <CardFooter className="flex-col items-start gap-1.5 text-sm">
                 <div className="line-clamp-1 flex gap-2 font-medium">
-                  Run on: {formatDateTime(productRun?.datasetRun?.createdAt)}
+                  Created: {formatDateTime(productRun?.datasetRun?.createdAt)}
                 </div>
                 <div className="text-muted-foreground font-mono">
                   {productRun?.datasetRun?.id}
@@ -163,7 +163,8 @@ const ProductRunDetails = () => {
               </CardHeader>
               <CardFooter className="flex-col items-start gap-1.5 text-sm">
                 <div className="line-clamp-1 flex gap-2 font-medium">
-                  Run on: {formatDateTime(productRun?.geometriesRun?.createdAt)}
+                  Created:{' '}
+                  {formatDateTime(productRun?.geometriesRun?.createdAt)}
                 </div>
                 <div className="text-muted-foreground font-mono">
                   {productRun?.geometriesRun?.id}
