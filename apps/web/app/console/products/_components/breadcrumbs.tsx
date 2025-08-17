@@ -16,6 +16,7 @@ import {
   useProductRunLink,
 } from '../_hooks'
 import { usePathname } from 'next/navigation'
+import { Badge } from '@repo/ui/components/ui/badge'
 
 export const ProductsBreadcrumbs = () => {
   const pathname = usePathname()
@@ -67,7 +68,20 @@ export const ProductsBreadcrumbs = () => {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={productRunLink(productRun)}>{productRun.id}</Link>
+                <Link
+                  href={productRunLink(productRun)}
+                  className="flex items-center gap-1"
+                >
+                  {productRun.id}
+                  {productRun.id === product?.mainRun?.id && (
+                    <Badge
+                      color="primary"
+                      className="text-[10px] h-4 py-1 px-1 rounded-sm"
+                    >
+                      Main Run
+                    </Badge>
+                  )}
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
