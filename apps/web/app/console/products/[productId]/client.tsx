@@ -14,13 +14,6 @@ import {
 } from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
 import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@repo/ui/components/ui/card'
-import {
   Form,
   FormControl,
   FormField,
@@ -30,20 +23,20 @@ import {
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
+import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
-import Link from '../../../../components/link'
-import { useDatasetLink } from '../../datasets/_hooks'
-import { useGeometriesLink } from '../../geometries/_hooks'
+import { DetailCard } from '../../_components/detail-cards'
+import { DatasetButton } from '../../datasets/_components/dataset-button'
+import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
 import {
   useDeleteProduct,
   useProduct,
-  useProductLink,
-  useProductRunLink,
+  useProductRunsLink,
   useUpdateProduct,
 } from '../_hooks'
 
@@ -60,10 +53,7 @@ const ProductDetails = () => {
   const { data: product } = useProduct()
   const updateProduct = useUpdateProduct()
   const deleteProduct = useDeleteProduct('/console/products')
-  const productLink = useProductLink()
-  const productRunLink = useProductRunLink()
-  const datasetLink = useDatasetLink()
-  const geometriesLink = useGeometriesLink()
+  const productRunsLink = useProductRunsLink()
   const form = useForm<Data>({
     defaultValues: {
       id: '',
@@ -88,82 +78,24 @@ const ProductDetails = () => {
         <ProductRunSummaryCard product={product} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
           {product && (
-            <Card className="@container/card">
-              <CardHeader>
-                <CardDescription>Product Runs</CardDescription>
-                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                  {`${product?.runCount} run${product?.runCount === 1 ? '' : 's'}`}
-                </CardTitle>
-                <CardAction>
-                  <Button size="sm" asChild>
-                    <Link href={`${productLink(product)}/runs`}>
-                      Open <ArrowUpRightIcon />
-                    </Link>
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              {/* <CardFooter className="flex-col items-start gap-1.5 text-sm">
-              <div className="line-clamp-1 flex gap-2 font-medium">
-                Data range: {formatDate(product?.outputSummary?.startTime)} to{' '}
-                {formatDate(product?.outputSummary?.endTime)}
-              </div>
-              <div className="text-muted-foreground">
-                {product?.outputSummary?.outputCount} outputs
-              </div>
-            </CardFooter> */}
-            </Card>
+            <DetailCard
+              title={'Dependencies'}
+              footer={
+                <div className="flex gap-2">
+                  <DatasetButton dataset={product?.dataset} />
+                  <GeometriesButton geometries={product?.geometries} />
+                </div>
+              }
+            />
           )}
-          {product?.dataset && (
-            <Card className="@container/card">
-              <CardHeader>
-                <CardDescription>Dataset</CardDescription>
-                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                  {product?.dataset?.name}
-                </CardTitle>
-                <CardAction>
-                  <Button size="sm" asChild>
-                    <Link href={datasetLink(product?.dataset)}>
-                      Open <ArrowUpRightIcon />
-                    </Link>
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              {/* <CardFooter className="flex-col items-start gap-1.5 text-sm">
-              <div className="line-clamp-1 flex gap-2 font-medium">
-                Data range: {formatDate(product?.outputSummary?.startTime)} to{' '}
-                {formatDate(product?.outputSummary?.endTime)}
-              </div>
-              <div className="text-muted-foreground">
-                {product?.outputSummary?.outputCount} outputs
-              </div>
-            </CardFooter> */}
-            </Card>
-          )}
-          {product?.geometries && (
-            <Card className="@container/card">
-              <CardHeader>
-                <CardDescription>Geometries</CardDescription>
-                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                  {product?.geometries?.name}
-                </CardTitle>
-                <CardAction>
-                  <Button size="sm" asChild>
-                    <Link href={geometriesLink(product?.geometries)}>
-                      Open <ArrowUpRightIcon />
-                    </Link>
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              {/* <CardFooter className="flex-col items-start gap-1.5 text-sm">
-              <div className="line-clamp-1 flex gap-2 font-medium">
-                Data range: {formatDate(product?.outputSummary?.startTime)} to{' '}
-                {formatDate(product?.outputSummary?.endTime)}
-              </div>
-              <div className="text-muted-foreground">
-                {product?.outputSummary?.outputCount} outputs
-              </div>
-            </CardFooter> */}
-            </Card>
+          {product && (
+            <DetailCard
+              title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
+              description="Product Runs"
+              actionText="Open"
+              actionLink={productRunsLink(product)}
+              actionIcon={<ArrowUpRightIcon />}
+            />
           )}
         </div>
       </div>

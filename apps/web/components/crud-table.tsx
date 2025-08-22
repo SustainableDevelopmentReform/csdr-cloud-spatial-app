@@ -1,21 +1,10 @@
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/ui/components/ui/dropdown-menu'
-import { UseMutationResult } from '@tanstack/react-query'
 import {
   ColumnDef,
   createColumnHelper,
@@ -24,7 +13,7 @@ import {
 } from '@tanstack/react-table'
 import { Ellipsis } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import Table from '~/components/table'
 
 export interface BaseItem {
@@ -38,58 +27,24 @@ export interface BaseItem {
 interface BaseActionProps<T extends BaseItem> {
   title: string
   itemLink?: (item: T) => string
-  deleteItem?: UseMutationResult<T, Error, T>
+  itemButton?: (item: T) => React.ReactNode
 }
 
 const Action = <T extends BaseItem>({
   data,
-  deleteItem,
-  title,
   itemLink,
+  itemButton,
 }: {
   data: T
 } & BaseActionProps<T>) => {
-  const [modalState, setModalState] = useState<'idle' | 'delete'>('idle')
-
   const router = useRouter()
+
+  if (!itemLink || itemButton) {
+    return null
+  }
 
   return (
     <>
-      <AlertDialog
-        open={modalState === 'delete'}
-        onOpenChange={(open) =>
-          open ? setModalState('delete') : setModalState('idle')
-        }
-      >
-        <AlertDialogContent className="w-full max-w-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl mb-4">
-              Delete {title}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-800">
-              You&apos;re about to delete the {data.name} {title}.
-              <br />
-              <br />
-              This action can&apos;t be reversed
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                await deleteItem?.mutateAsync(data, {
-                  onSuccess: () => {
-                    setModalState('idle')
-                  },
-                })
-              }}
-            >
-              {deleteItem?.isPending ? 'Loading...' : `Delete ${title}`}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -100,26 +55,15 @@ const Action = <T extends BaseItem>({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-40" align="end">
-          {itemLink && (
-            <DropdownMenuItem
-              onSelect={() => {
+          <DropdownMenuItem
+            onSelect={() => {
+              if (itemLink) {
                 router.push(itemLink(data))
-              }}
-            >
-              View details
-            </DropdownMenuItem>
-          )}
-          {deleteItem && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setModalState('delete')}
-                className="text-red-500"
-              >
-                Delete {title}
-              </DropdownMenuItem>
-            </>
-          )}
+              }
+            }}
+          >
+            View details
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
@@ -139,19 +83,27 @@ const BaseCrudTable = <
     description?: string | null
     createdAt?: string | null
     updatedAt?: string | null
+    itemButton?: (item: T) => React.ReactNode
   },
 >({
   data,
   baseColumns,
   extraColumns,
   title,
-  deleteItem,
   itemLink,
+  itemButton,
 }: BaseCrudTableProps<T>) => {
   const columns = useMemo(() => {
     const columnHelper = createColumnHelper<T>()
 
     return [
+      itemButton &&
+        columnHelper.accessor((row) => row, {
+          id: 'itemButton',
+          header: () => <span></span>,
+          cell: (info) => itemButton(info.row.original),
+          size: 120,
+        }),
       baseColumns.includes('name') &&
         columnHelper.accessor((row) => row.name, {
           id: 'name',
@@ -210,8 +162,8 @@ const BaseCrudTable = <
           <Action
             data={info.row.original}
             title={title}
-            deleteItem={deleteItem}
             itemLink={itemLink}
+            itemButton={itemButton}
           />
         ),
         size: 80,

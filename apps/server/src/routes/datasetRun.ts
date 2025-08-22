@@ -1,16 +1,16 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { datasetRun } from '../schemas'
+import { datasetRun, productRun } from '../schemas'
 import { QueryForTable } from '../schemas/util'
 
 // Define shared query configuration
-const datasetRunQuery = {
+export const datasetRunQuery = {
   columns: {
     id: true,
     description: true,
@@ -27,54 +27,30 @@ const datasetRunQuery = {
       },
     },
   },
+  // This doesn't work for some reason
+  // extras: {
+  //   productRunCount: db
+  //     .$count(productRun, eq(productRun.datasetRunId, datasetRun.id))
+  //     .as('product_run_count'),
+  // },
 } satisfies QueryForTable<'datasetRun'>
 
+// There is an entry for the table datasetRun, but it cannot be referenced from this part of the query
+
 const app = new Hono()
-  .get(
-    '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:datasetRun',
-    }),
-    async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(datasetRun)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
-
-      const data = await db.query.datasetRun.findMany({
-        ...datasetRunQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(datasetRun.createdAt),
-      })
-
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
-    },
-  )
   .get('/:id', authMiddleware({ permission: 'read:datasetRun' }), async (c) => {
     const id = c.req.param('id')
-    const datasetRun = await db.query.datasetRun.findFirst({
+    const results = await db.query.datasetRun.findFirst({
       where: (datasetRun, { eq }) => eq(datasetRun.id, id),
       ...datasetRunQuery,
     })
 
-    if (!datasetRun) {
+    const productRunCount = await db.$count(
+      productRun,
+      eq(productRun.datasetRunId, id),
+    )
+
+    if (!results) {
       throw new ServerError({
         statusCode: 404,
         message: 'Failed to get datasetRun',
@@ -82,7 +58,7 @@ const app = new Hono()
       })
     }
 
-    return generateJsonResponse(c, datasetRun)
+    return generateJsonResponse(c, { ...results, productRunCount })
   })
 
   .post(

@@ -31,6 +31,21 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    --dataset: 204 71% 41%;
+    --dataset-foreground: 0 0% 98%;
+    --dataset-run: 201 52% 77%;
+    --dataset-run-foreground: 240 5.9% 10%;
+    --geometry: 359 79% 50%;
+    --geometry-foreground: 0 0% 98%;
+    --geometries-run: 1, 92%, 79%;
+    --geometries-run-foreground: 240 5.9% 10%;
+    --product: 269, 43%, 42%;
+    --product-foreground: 0 0% 98%;
+    --product-run: 280 31% 77%;
+    --product-run-foreground: 240 5.9% 10%;
+    --variable: 0 0% 90%;
+    --variable-foreground: 240 5.9% 10%;
   }
 
   .dark {
@@ -58,6 +73,14 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    --dataset-run: #a6cee3;
+    --dataset: #1f78b4;
+    --geometry: #e31a1c;
+    --geometries-run: #fb9a99;
+    --product: #6a3d9a;
+    --product-run: #cab2d6;
+    --variable: #33a02c;
   }
 }
 

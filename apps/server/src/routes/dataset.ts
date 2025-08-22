@@ -1,13 +1,14 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset } from '../schemas'
+import { dataset, datasetRun } from '../schemas'
 import { QueryForTable } from '../schemas/util'
+import { datasetRunQuery } from './datasetRun'
 
 const datasetQuery = {
   columns: {
@@ -17,8 +18,29 @@ const datasetQuery = {
     createdAt: true,
     updatedAt: true,
     metadata: true,
+    mainRunId: true,
   },
-  with: {},
+  with: {
+    mainRun: {
+      columns: {
+        id: true,
+        createdAt: true,
+        datasetId: true,
+      },
+    },
+  },
+  extras: {
+    runCount: sql<number>`(
+      SELECT COUNT(*)::int
+      FROM dataset_run dr
+      WHERE dr.dataset_id = ${dataset}.id
+    )`.as('run_count'),
+    productCount: sql<number>`(
+      SELECT COUNT(*)::int
+      FROM product p
+      WHERE p.dataset_id = ${dataset}.id
+    )`.as('product_count'),
+  },
 } satisfies QueryForTable<'dataset'>
 
 const app = new Hono()
@@ -76,7 +98,48 @@ const app = new Hono()
 
     return generateJsonResponse(c, dataset)
   })
+  // GET ALL PRODUCT RUNS FOR A PRODUCT
+  .get(
+    '/:id/runs',
+    zValidator(
+      'query',
+      z.object({
+        page: z.number({ coerce: true }).positive().optional(),
+        size: z.number({ coerce: true }).optional(),
+      }),
+    ),
+    authMiddleware({
+      permission: 'read:productRun',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
 
+      const { page = 1, size = 10 } = c.req.valid('query')
+      const skip = (page - 1) * size
+
+      const totalCount = await db
+        .select({
+          count: count(),
+        })
+        .from(datasetRun)
+        .where(eq(datasetRun.datasetId, id))
+      const pageCount = Math.ceil(totalCount[0]!.count / size)
+
+      const data = await db.query.datasetRun.findMany({
+        ...datasetRunQuery,
+        where: (datasetRun, { eq }) => eq(datasetRun.datasetId, id),
+        limit: size,
+        offset: skip,
+        orderBy: desc(datasetRun.createdAt),
+      })
+
+      return generateJsonResponse(c, {
+        pageCount,
+        data,
+        totalCount: totalCount[0]!.count,
+      })
+    },
+  )
   .post(
     '/',
     zValidator(

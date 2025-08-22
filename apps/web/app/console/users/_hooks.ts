@@ -10,7 +10,8 @@ const userIdSchema = z.object({
 })
 
 export const useUser = (id?: string) => {
-  const { userId } = id ? { userId: id } : userIdSchema.parse(useParams())
+  const params = useParams()
+  const { userId } = id ? { userId: id } : userIdSchema.parse(params)
 
   return useQuery({
     queryKey: [QueryKey.UserProfile, userId],

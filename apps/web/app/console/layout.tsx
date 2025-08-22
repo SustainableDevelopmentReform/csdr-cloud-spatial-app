@@ -8,6 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@repo/ui/components/ui/popover'
+import { DotIcon, TriangleIcon } from 'lucide-react'
 import React from 'react'
 import Link from '~/components/link'
 import { SignOutButton } from '../../components/sign-out-button'
@@ -17,26 +18,31 @@ import AccountSettingsButton from './_components/account-settings-button'
 const SIDEBAR_CONFIG = [
   {
     text: 'Users',
+    icon: <TriangleIcon className="fill-gray-300 stroke-none size-2" />,
     href: '/console/users',
     roles: ['admin'],
   },
   {
     text: 'Datasets',
+    icon: <TriangleIcon className="fill-dataset stroke-none size-2" />,
     href: '/console/datasets',
     roles: ['admin', 'user'],
   },
   {
     text: 'Geometries',
+    icon: <TriangleIcon className="fill-geometry stroke-none size-2" />,
     href: '/console/geometries',
     roles: ['admin', 'user'],
   },
   {
     text: 'Products',
+    icon: <TriangleIcon className="fill-product stroke-none size-2" />,
     href: '/console/products',
     roles: ['admin', 'user'],
   },
   {
     text: 'Variables',
+    icon: <TriangleIcon className="fill-variable stroke-none size-2" />,
     href: '/console/variables',
     roles: ['admin', 'user'],
   },
@@ -110,14 +116,17 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
         </nav>
         <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">
           <div className="grid gap-3">
-            {SIDEBAR_CONFIG.map(({ href, text, roles }) =>
+            {SIDEBAR_CONFIG.map(({ href, text, roles, icon }) =>
               roles.includes(user?.role ?? 'user') ? (
                 <Link
                   key={href}
                   className="text-lg hover:underline data-[active=true]:underline"
                   href={href}
                 >
-                  {text}
+                  <div className="flex items-center gap-2">
+                    {icon}
+                    {text}
+                  </div>
                 </Link>
               ) : null,
             )}

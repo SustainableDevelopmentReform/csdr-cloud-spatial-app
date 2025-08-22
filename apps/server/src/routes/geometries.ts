@@ -1,13 +1,14 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq, sql, SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometries } from '../schemas'
+import { geometries, geometriesRun } from '../schemas'
 import { QueryForTable } from '../schemas/util'
+import { geometriesRunQuery } from './geometriesRun'
 
 // Define shared query configuration
 const geometriesQuery = {
@@ -19,7 +20,27 @@ const geometriesQuery = {
     updatedAt: true,
     metadata: true,
   },
-  with: {}, // No relations for basic geometries GET
+  with: {
+    mainRun: {
+      columns: {
+        id: true,
+        createdAt: true,
+        geometriesId: true,
+      },
+    },
+  },
+  extras: {
+    runCount: sql<number>`(
+      SELECT COUNT(*)::int
+      FROM geometries_run dr
+      WHERE dr.geometries_id = ${geometries}.id
+    )`.as('run_count'),
+    productCount: sql<number>`(
+      SELECT COUNT(*)::int
+      FROM product p
+      WHERE p.geometries_id = ${geometries}.id
+    )`.as('product_count'),
+  },
 } satisfies QueryForTable<'geometries'>
 
 const app = new Hono()
@@ -77,6 +98,48 @@ const app = new Hono()
 
     return generateJsonResponse(c, geometries)
   })
+  // GET ALL PRODUCT RUNS FOR A PRODUCT
+  .get(
+    '/:id/runs',
+    zValidator(
+      'query',
+      z.object({
+        page: z.number({ coerce: true }).positive().optional(),
+        size: z.number({ coerce: true }).optional(),
+      }),
+    ),
+    authMiddleware({
+      permission: 'read:productRun',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+
+      const { page = 1, size = 10 } = c.req.valid('query')
+      const skip = (page - 1) * size
+
+      const totalCount = await db
+        .select({
+          count: count(),
+        })
+        .from(geometriesRun)
+        .where(eq(geometriesRun.geometriesId, id))
+      const pageCount = Math.ceil(totalCount[0]!.count / size)
+
+      const data = await db.query.geometriesRun.findMany({
+        ...geometriesRunQuery,
+        where: (geometriesRun, { eq }) => eq(geometriesRun.geometriesId, id),
+        limit: size,
+        offset: skip,
+        orderBy: desc(geometriesRun.createdAt),
+      })
+
+      return generateJsonResponse(c, {
+        pageCount,
+        data,
+        totalCount: totalCount[0]!.count,
+      })
+    },
+  )
 
   .post(
     '/',

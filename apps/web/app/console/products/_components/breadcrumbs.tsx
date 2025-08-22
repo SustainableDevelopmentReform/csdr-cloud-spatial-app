@@ -6,17 +6,18 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
+import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
 import {
   useProduct,
-  useProductLink,
   useProductOutput,
   useProductOutputLink,
   useProductRun,
   useProductRunLink,
+  useProductRunsLink,
 } from '../_hooks'
-import { usePathname } from 'next/navigation'
-import { Badge } from '@repo/ui/components/ui/badge'
+import { ProductButton } from './product-button'
+import { ProductRunButton } from './product-run-button'
 
 export const ProductsBreadcrumbs = () => {
   const pathname = usePathname()
@@ -24,10 +25,10 @@ export const ProductsBreadcrumbs = () => {
   const { data: product } = useProduct()
   const { data: productRun } = useProductRun()
   const { data: productOutput } = useProductOutput()
-  const productLink = useProductLink()
+
   const productRunLink = useProductRunLink()
   const productOutputLink = useProductOutputLink()
-
+  const productRunsLink = useProductRunsLink()
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -47,17 +48,17 @@ export const ProductsBreadcrumbs = () => {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={productLink(product)}>{product.name}</Link>
+                <ProductButton product={product} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
         )}
-        {product && pathname?.includes('runs') && (
+        {pathname?.includes('runs') && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={`${productLink(product)}/runs`}>Runs</Link>
+                <Link href={productRunsLink(product ?? null)}>Runs</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
@@ -68,20 +69,17 @@ export const ProductsBreadcrumbs = () => {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link
-                  href={productRunLink(productRun)}
-                  className="flex items-center gap-1"
-                >
-                  {productRun.id}
-                  {productRun.id === product?.mainRun?.id && (
-                    <Badge
-                      color="primary"
-                      className="text-[10px] h-4 py-1 px-1 rounded-sm"
-                    >
-                      Main Run
-                    </Badge>
-                  )}
-                </Link>
+                <div className="flex items-center gap-1">
+                  <ProductRunButton
+                    productRun={productRun}
+                    isMainRun={
+                      !!(
+                        product?.mainRun &&
+                        product?.mainRun?.id === productRun.id
+                      )
+                    }
+                  />
+                </div>
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
@@ -103,7 +101,10 @@ export const ProductsBreadcrumbs = () => {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={productOutputLink(productOutput)}>
+                <Link
+                  href={productOutputLink(productOutput)}
+                  className="font-mono"
+                >
                   {productOutput.id}
                 </Link>
               </BreadcrumbLink>

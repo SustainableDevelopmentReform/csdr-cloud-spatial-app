@@ -101,9 +101,9 @@ console.log(`Account ID: ${account[0]!.id}`)
 const variableCategory = await db
   .insert(schema.variableCategory)
   .values({
-    id: 'default-variable-category',
-    name: 'Default Variable Category',
-    description: 'Default Variable Category',
+    id: 'forest',
+    name: 'Forest Data',
+    description: 'Forest Data',
   })
   .onConflictDoNothing()
   .returning()
@@ -113,11 +113,11 @@ console.log(`Variable Category ID: ${variableCategory[0]!.id}`)
 const variable1 = await db
   .insert(schema.variable)
   .values({
-    id: 'default-variable-1',
-    name: 'Default Variable',
+    id: 'forest-cover-area',
+    name: 'Forest Land Area',
     categoryId: variableCategory[0]!.id,
-    description: 'Default Variable',
-    unit: 'm',
+    description: 'Forest Land Area',
+    unit: 'm^2',
     displayOrder: 1,
   })
   .onConflictDoNothing()
@@ -128,11 +128,11 @@ console.log(`Variable ID: ${variable1[0]!.id}`)
 const variable2 = await db
   .insert(schema.variable)
   .values({
-    id: 'default-variable-2',
-    name: 'Default Variable 2',
+    id: 'forest-cover-percentage',
+    name: 'Forest Cover Percentage',
     categoryId: variableCategory[0]!.id,
-    description: 'Another Variable',
-    unit: 'm/s',
+    description: 'Forest Cover Percentage',
+    unit: '%',
     displayOrder: 2,
   })
   .onConflictDoNothing()
@@ -143,9 +143,9 @@ console.log(`Variable ID: ${variable2[0]!.id}`)
 const dataset = await db
   .insert(schema.dataset)
   .values({
-    id: 'default-dataset',
-    name: 'Default Dataset',
-    description: 'Default Dataset',
+    id: 'forest-cover',
+    name: 'Forest Cover',
+    description: 'Some Forest Cover Data',
     metadata: '{ "source": "https://example.com" }',
   })
   .onConflictDoNothing()
@@ -155,7 +155,7 @@ console.log(`Dataset ID: ${dataset[0]!.id}`)
 const datasetRun = await db
   .insert(schema.datasetRun)
   .values({
-    id: 'default-dataset-run',
+    id: 'forest-cover-run',
     datasetId: dataset[0]!.id,
   })
   .onConflictDoNothing()
@@ -166,9 +166,9 @@ console.log(`Dataset Run ID: ${datasetRun[0]!.id}`)
 const geometries = await db
   .insert(schema.geometries)
   .values({
-    id: 'default-geometries',
-    name: 'Default Geometries',
-    description: 'Default Geometries',
+    id: 'australia-geometries',
+    name: 'Australia Geometries',
+    description: 'Australia Geometries',
     metadata: '{ "source": "https://example.com" }',
   })
   .onConflictDoNothing()
@@ -179,7 +179,7 @@ console.log(`Geometries ID: ${geometries[0]!.id}`)
 const geometriesRun = await db
   .insert(schema.geometriesRun)
   .values({
-    id: 'default-geometries-run',
+    id: 'australia-geometries-run',
     geometriesId: geometries[0]!.id,
   })
   .onConflictDoNothing()
@@ -190,7 +190,7 @@ console.log(`Geometries Run ID: ${geometriesRun[0]!.id}`)
 const geometryOutput1 = await db
   .insert(schema.geometryOutput)
   .values({
-    id: 'default-geometry-output-0',
+    id: 'australia-geometry-output-0-tasmania',
     geometriesRunId: geometriesRun[0]!.id,
     geometry: {
       coordinates: [
@@ -203,7 +203,7 @@ const geometryOutput1 = await db
       ],
       type: 'Polygon',
     },
-    name: 'Default Geometry Output',
+    name: 'Tasmania',
     properties: '{ "some": "properties" }',
   })
   .onConflictDoNothing()
@@ -214,9 +214,9 @@ console.log(`Geometry Output ID: ${geometryOutput1[0]!.id}`)
 const geometryOutput2 = await db
   .insert(schema.geometryOutput)
   .values({
-    id: 'default-geometry-output-1',
+    id: 'australia-geometry-output-1-mainland',
     geometriesRunId: geometriesRun[0]!.id,
-    name: 'Another Geometry Output',
+    name: 'Mainland',
     properties: '{ "some": "more", "properties": "here" }',
     geometry: {
       coordinates: [
@@ -243,12 +243,12 @@ console.log(`Geometry Output ID: ${geometryOutput2[0]!.id}`)
 const product = await db
   .insert(schema.product)
   .values({
-    id: 'default-product',
-    name: 'Default Product',
-    timePrecision: 'hour',
+    id: 'forest-cover-product',
+    name: 'Forest Cover Product in Australia',
+    timePrecision: 'year',
     datasetId: dataset[0]!.id,
     geometriesId: geometries[0]!.id,
-    description: 'Default Product',
+    description: 'Forest Cover Product in Australia',
     metadata: '{ "source": "https://example.com" }',
   })
   .onConflictDoNothing()
@@ -259,8 +259,8 @@ console.log(`Product ID: ${product[0]!.id}`)
 const productRun = await db
   .insert(schema.productRun)
   .values({
-    id: 'default-product-run',
-    description: 'Default Product Run',
+    id: 'forest-cover-product-run',
+    description: 'Forest Cover Product Run in Australia',
     productId: product[0]!.id,
     datasetRunId: datasetRun[0]!.id,
     geometriesRunId: geometriesRun[0]!.id,
@@ -280,7 +280,7 @@ console.log(`Product Run ID: ${productRun[0]!.id}`)
 const productOutput1 = await db
   .insert(schema.productOutput)
   .values({
-    id: 'default-product-output-0',
+    id: 'forest-cover-product-output-0',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput1[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
@@ -295,10 +295,10 @@ console.log(`Product Output ID: ${productOutput1[0]!.id}`)
 const productOutput2 = await db
   .insert(schema.productOutput)
   .values({
-    id: 'default-product-output-1',
+    id: 'forest-cover-product-output-1',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput1[0]!.id,
-    timePoint: new Date('2021-01-01T00:00:00Z'),
+    timePoint: new Date('2022-01-01T00:00:00Z'),
     value: '200',
     variableId: variable1[0]!.id,
   })
@@ -310,7 +310,7 @@ console.log(`Product Output ID: ${productOutput2[0]!.id}`)
 const productOutput3 = await db
   .insert(schema.productOutput)
   .values({
-    id: 'default-product-output-2',
+    id: 'forest-cover-product-output-2',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
@@ -325,10 +325,10 @@ console.log(`Product Output ID: ${productOutput3[0]!.id}`)
 const productOutput4 = await db
   .insert(schema.productOutput)
   .values({
-    id: 'default-product-output-3',
+    id: 'forest-cover-product-output-3',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
-    timePoint: new Date('2021-01-01T00:00:00Z'),
+    timePoint: new Date('2022-01-01T00:00:00Z'),
     value: '400',
     variableId: variable1[0]!.id,
   })

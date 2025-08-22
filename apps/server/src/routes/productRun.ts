@@ -15,27 +15,18 @@ import {
 import { QueryForTable } from '../schemas/util'
 import { productOutputQuery } from './productOutput'
 
-// Define shared query configuration
-export const productRunQuery = {
+export const productRunOutputSummaryQuery = {
   columns: {
-    id: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
-    parameters: true,
-    productId: true,
+    lastUpdated: true,
+    startTime: true,
+    endTime: true,
+    outputCount: true,
   },
   with: {
-    outputSummary: {
+    variables: {
       columns: {
-        lastUpdated: true,
-        startTime: true,
-        endTime: true,
-        outputCount: true,
-      },
-    },
-    outputSummaryVariables: {
-      columns: {
+        productRunId: true,
+        variableId: true,
         minValue: true,
         maxValue: true,
         avgValue: true,
@@ -47,10 +38,28 @@ export const productRunQuery = {
           columns: {
             id: true,
             name: true,
+            description: true,
+            unit: true,
+            categoryId: true,
           },
         },
       },
     },
+  },
+} satisfies QueryForTable<'productOutputSummary'>
+
+// Define shared query configuration
+export const productRunQuery = {
+  columns: {
+    id: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
+    parameters: true,
+    productId: true,
+  },
+  with: {
+    outputSummary: productRunOutputSummaryQuery,
     product: {
       columns: {
         id: true,
@@ -307,18 +316,7 @@ const app = new Hono()
       const updatedRun = await db.query.productRun.findFirst({
         where: (productRun, { eq }) => eq(productRun.id, id),
         with: {
-          outputSummary: true,
-          outputSummaryVariables: {
-            with: {
-              variable: {
-                columns: {
-                  id: true,
-                  name: true,
-                  unit: true,
-                },
-              },
-            },
-          },
+          outputSummary: productRunOutputSummaryQuery,
         },
       })
 

@@ -207,6 +207,9 @@ export const timePrecision = pgEnum('time_precision', [
   // 'custom', // TODO: add custom time precision (see productOutput.timeInterval)
 ])
 
+/** This need more though...
+ * For example - how could this be used to run generic workflows for
+ */
 export const product = pgTable(
   'product',
   {
@@ -315,6 +318,8 @@ export const productRun = pgTable(
     geometriesRunId: text('geometries_run_id')
       .notNull()
       .references(() => geometriesRun.id, { onDelete: 'cascade' }),
+
+    //Store product output here, as JSON - and then publish to output
   },
   (table) => [
     index('product_run_dataset_idx').on(table.datasetRunId),
