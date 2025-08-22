@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { GeometryOutput, useGeometryOutputLink } from '../_hooks'
+import { GeometryOutputLinkParams, useGeometryOutputLink } from '../_hooks'
 
 export const GeometryOutputButtons = ({
   geometryOutputs,
 }: {
-  geometryOutputs: GeometryOutput[]
+  geometryOutputs: GeometryOutputLinkParams[]
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -22,7 +22,7 @@ export const GeometryOutputButtons = ({
 export const GeometryOutputButton = ({
   geometryOutput,
 }: {
-  geometryOutput: GeometryOutput
+  geometryOutput: GeometryOutputLinkParams
 }) => {
   const geometriesRunLink = useGeometryOutputLink()
 

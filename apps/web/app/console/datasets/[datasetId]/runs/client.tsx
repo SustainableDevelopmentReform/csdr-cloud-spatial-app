@@ -6,23 +6,21 @@ import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../components/crud-table'
 import { MainRunBadge } from '../../../_components/main-run-badge'
+import { DatasetRunButton } from '../../_components/dataset-run-button'
 import DatasetRunForm from '../../_components/form'
 import {
-  DatasetRun,
+  DatasetRunListItem,
   useDataset,
   useDatasetRunLink,
   useDatasetRuns,
-  useDeleteDatasetRun,
 } from '../../_hooks'
-import { DatasetRunButton } from '../../_components/dataset-run-button'
 
-const columnHelper = createColumnHelper<DatasetRun>()
+const columnHelper = createColumnHelper<DatasetRunListItem>()
 
 const DatasetRunFeature = () => {
   const { data, isOpen, setOpen, page, setPage } = useDatasetRuns()
   const { data: dataset } = useDataset()
 
-  const deleteDatasetRun = useDeleteDatasetRun()
   const datasetLink = useDatasetRunLink()
 
   const baseColumns = useMemo(() => {
@@ -44,7 +42,7 @@ const DatasetRunFeature = () => {
           )
         },
       },
-    ] satisfies ColumnDef<DatasetRun>[]
+    ] satisfies ColumnDef<DatasetRunListItem>[]
   }, [dataset?.mainRun?.id])
 
   return (

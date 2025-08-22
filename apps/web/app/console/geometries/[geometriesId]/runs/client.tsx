@@ -8,7 +8,7 @@ import BaseCrudTable from '../../../../../components/crud-table'
 import { MainRunBadge } from '../../../_components/main-run-badge'
 import GeometriesRunForm from '../../_components/form'
 import {
-  GeometriesRun,
+  GeometriesRunListItem,
   useGeometries,
   useGeometriesRunLink,
   useGeometriesRuns,
@@ -16,7 +16,7 @@ import {
 } from '../../_hooks'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
 
-const columnHelper = createColumnHelper<GeometriesRun>()
+const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
 const GeometriesRunFeature = () => {
   const { data, isOpen, setOpen, page, setPage } = useGeometriesRuns()
@@ -51,7 +51,7 @@ const GeometriesRunFeature = () => {
           )
         },
       },
-    ] satisfies ColumnDef<GeometriesRun>[]
+    ] satisfies ColumnDef<GeometriesRunListItem>[]
   }, [geometries?.mainRun?.id])
 
   return (

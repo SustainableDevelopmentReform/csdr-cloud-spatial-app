@@ -1,13 +1,12 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { DatasetRun } from '../_hooks'
-import { useDatasetRunLink } from '../../datasets/_hooks'
 import { MainRunBadge } from '../../_components/main-run-badge'
+import { DatasetRunLinkParams, useDatasetRunLink } from '../_hooks'
 
 export const DatasetRunButtons = ({
   datasetRuns,
 }: {
-  datasetRuns: DatasetRun[]
+  datasetRuns: DatasetRunLinkParams[]
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -22,7 +21,7 @@ export const DatasetRunButton = ({
   datasetRun,
   isMainRun,
 }: {
-  datasetRun: DatasetRun
+  datasetRun: DatasetRunLinkParams
   isMainRun?: boolean
 }) => {
   const datasetRunLink = useDatasetRunLink()

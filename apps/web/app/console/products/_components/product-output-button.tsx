@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { ProductOutput, useProductOutputLink } from '../_hooks'
+import { ProductOutputLinkParams, useProductOutputLink } from '../_hooks'
 
 export const ProductOutputButtons = ({
   productOutputs,
 }: {
-  productOutputs: ProductOutput[]
+  productOutputs: ProductOutputLinkParams[]
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -22,7 +22,7 @@ export const ProductOutputButtons = ({
 export const ProductOutputButton = ({
   productOutput,
 }: {
-  productOutput: ProductOutput
+  productOutput: ProductOutputLinkParams
 }) => {
   const productOutputLink = useProductOutputLink()
 

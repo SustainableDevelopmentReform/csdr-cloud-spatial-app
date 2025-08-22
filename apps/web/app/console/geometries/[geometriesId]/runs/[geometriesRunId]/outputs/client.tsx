@@ -7,14 +7,14 @@ import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../../../components/crud-table'
 import GeometryOutputForm from '../../../../_components/form'
 import {
-  GeometryOutput,
+  GeometryOutputListItem,
   useGeometriesLink,
   useGeometryOutputLink,
   useGeometryOutputs,
 } from '../../../../_hooks'
 import { GeometryOutputButton } from '../../../../_components/geometries-output-button'
 
-const columnHelper = createColumnHelper<GeometryOutput>()
+const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
 const GeometryOutputFeature = () => {
   const { data, isOpen, setOpen, page, setPage } = useGeometryOutputs()
@@ -27,7 +27,7 @@ const GeometryOutputFeature = () => {
   }, [])
 
   const columns = useMemo(
-    () => [] as ColumnDef<GeometryOutput>[],
+    () => [] as ColumnDef<GeometryOutputListItem>[],
     [geometriesLink],
   )
 

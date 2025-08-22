@@ -9,7 +9,7 @@ import { MainRunBadge } from '../../../_components/main-run-badge'
 import { VariableButtons } from '../../../variables/_components/variable-button'
 import ProductRunForm from '../../_components/form'
 import {
-  ProductRun,
+  ProductRunListItem,
   useDeleteProductRun,
   useProduct,
   useProductRunLink,
@@ -17,7 +17,7 @@ import {
 } from '../../_hooks'
 import { ProductRunButton } from '../../_components/product-run-button'
 
-const columnHelper = createColumnHelper<ProductRun>()
+const columnHelper = createColumnHelper<ProductRunListItem>()
 
 const ProductRunFeature = () => {
   const { data, isOpen, setOpen, page, setPage, filters } = useProductRuns()
@@ -63,7 +63,7 @@ const ProductRunFeature = () => {
           )
         },
       },
-    ] satisfies ColumnDef<ProductRun>[]
+    ] satisfies ColumnDef<ProductRunListItem>[]
   }, [product?.mainRun?.id])
 
   return (

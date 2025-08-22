@@ -10,14 +10,14 @@ import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { VariableButtons } from '../variables/_components/variable-button'
 import ProductForm from './_components/form'
 import {
-  Product,
+  ProductListItem,
   useDeleteProduct,
   useProductLink,
   useProducts,
 } from './_hooks'
 import { ProductButton } from './_components/product-button'
 
-const columnHelper = createColumnHelper<Product>()
+const columnHelper = createColumnHelper<ProductListItem>()
 
 const columns = [
   columnHelper.accessor((row) => row.mainRun?.outputSummary?.startTime, {
@@ -70,7 +70,7 @@ const columns = [
     },
     size: 120,
   }),
-] as ColumnDef<Product>[]
+] as ColumnDef<ProductListItem>[]
 
 const ProductFeature = () => {
   const { data, isOpen, setOpen, page, setPage, filters } = useProducts()

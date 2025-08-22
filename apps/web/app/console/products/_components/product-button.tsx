@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { useProductLink } from '../_hooks'
+import { ProductLinkParams, useProductLink } from '../_hooks'
 
 export const ProductButtons = ({
   products,
 }: {
-  products: { id: string; name: string }[] | undefined
+  products: ProductLinkParams[] | undefined
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -16,11 +16,7 @@ export const ProductButtons = ({
   )
 }
 
-export const ProductButton = ({
-  product,
-}: {
-  product: { id: string; name: string }
-}) => {
+export const ProductButton = ({ product }: { product: ProductLinkParams }) => {
   const productLink = useProductLink()
 
   return (
