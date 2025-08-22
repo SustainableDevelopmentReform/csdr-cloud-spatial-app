@@ -10,6 +10,7 @@ import {
   useDeleteGeometries,
   useAllGeometries,
 } from './_hooks'
+import { GeometriesButton } from './_components/geometries-button'
 
 const GeometriesFeature = () => {
   const { data, isOpen, setOpen, page, setPage } = useAllGeometries()
@@ -18,7 +19,7 @@ const GeometriesFeature = () => {
   const geometriesLink = useGeometriesLink()
 
   const baseColumns = useMemo(() => {
-    return ['name', 'description', 'createdAt', 'updatedAt'] as const
+    return ['description', 'createdAt', 'updatedAt'] as const
   }, [])
 
   return (
@@ -39,8 +40,10 @@ const GeometriesFeature = () => {
           data={data?.data || []}
           baseColumns={baseColumns}
           title="Geometries"
-          deleteItem={deleteGeometries}
           itemLink={geometriesLink}
+          itemButton={(geometries) => (
+            <GeometriesButton geometries={geometries} />
+          )}
         />
         <Pagination
           className="justify-end mt-4"

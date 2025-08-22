@@ -1,9 +1,12 @@
 'use client'
 
 import { Button } from '@repo/ui/components/ui/button'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../components/crud-table'
+import { MainRunBadge } from '../../../_components/main-run-badge'
+import { VariableButtons } from '../../../variables/_components/variable-button'
 import ProductRunForm from '../../_components/form'
 import {
   ProductRun,
@@ -12,21 +15,19 @@ import {
   useProductRunLink,
   useProductRuns,
 } from '../../_hooks'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { VariableButton } from '../../../variables/_components/variable-button'
+import { ProductRunButton } from '../../_components/product-run-button'
 
 const columnHelper = createColumnHelper<ProductRun>()
 
 const ProductRunFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useProductRuns()
+  const { data, isOpen, setOpen, page, setPage, filters } = useProductRuns()
   const { data: product } = useProduct()
 
   const deleteProductRun = useDeleteProductRun()
   const productLink = useProductRunLink()
 
   const baseColumns = useMemo(() => {
-    return ['id', 'createdAt', 'updatedAt'] as const
+    return ['createdAt', 'updatedAt'] as const
   }, [])
 
   // Add column to show mainfile badge if product.mainRunId === productRun.id
@@ -36,15 +37,18 @@ const ProductRunFeature = () => {
         header: 'Variables',
         cell: ({ row }) => {
           return (
-            <div className="flex flex-wrap gap-2">
-              {row.original.outputSummaryVariables.map((variable) => (
-                <VariableButton
-                  variable={variable.variable}
-                  key={variable.variable.id}
-                />
-              ))}
-            </div>
+            <VariableButtons
+              variables={row.original.outputSummary.variables.map(
+                (v) => v.variable,
+              )}
+            />
           )
+        },
+      },
+      {
+        header: 'Number of outputs',
+        cell: ({ row }) => {
+          return <div>{row.original.outputSummary.outputCount}</div>
         },
       },
       {
@@ -52,8 +56,8 @@ const ProductRunFeature = () => {
         cell: ({ row }) => {
           return (
             <div>
-              {row.original.id === product?.mainRun?.id ? (
-                <Badge color="primary">Main Run</Badge>
+              {product?.mainRun && row.original.id === product?.mainRun?.id ? (
+                <MainRunBadge variant="product" />
               ) : null}
             </div>
           )
@@ -65,7 +69,12 @@ const ProductRunFeature = () => {
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Product Runs</h1>
+        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
+          Product Runs
+          <div className="flex gap-2 items-center justify-center align-middle">
+            {filters}
+          </div>
+        </h1>
         <ProductRunForm
           key={`add-product-form-${isOpen}`}
           isOpen={isOpen}
@@ -81,8 +90,10 @@ const ProductRunFeature = () => {
           baseColumns={baseColumns}
           extraColumns={columns}
           title="ProductRun"
-          deleteItem={deleteProductRun}
           itemLink={productLink}
+          itemButton={(productRun) => (
+            <ProductRunButton productRun={productRun} />
+          )}
         />
         <Pagination
           className="justify-end mt-4"

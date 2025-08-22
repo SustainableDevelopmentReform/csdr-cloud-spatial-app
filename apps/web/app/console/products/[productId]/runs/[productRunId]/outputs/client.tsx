@@ -6,17 +6,16 @@ import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../../../components/crud-table'
 import { formatDateTime } from '../../../../../../../utils/date'
+import { GeometriesButton } from '../../../../../geometries/_components/geometries-button'
+import { useGeometriesLink } from '../../../../../geometries/_hooks'
+import { VariableButton } from '../../../../../variables/_components/variable-button'
 import ProductOutputForm from '../../../../_components/form'
 import {
   ProductOutput,
   useProductOutputLink,
   useProductOutputs,
 } from '../../../../_hooks'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { ArrowUpRightIcon } from 'lucide-react'
-import Link from '../../../../../../../components/link'
-import { useGeometriesLink } from '../../../../../geometries/_hooks'
-import { VariableButton } from '../../../../../variables/_components/variable-button'
+import { ProductOutputButton } from '../../../../_components/product-output-button'
 
 const columnHelper = createColumnHelper<ProductOutput>()
 
@@ -27,7 +26,7 @@ const ProductOutputFeature = () => {
   const geometriesLink = useGeometriesLink()
 
   const baseColumns = useMemo(() => {
-    return ['id', 'createdAt'] as const
+    return ['createdAt'] as const
   }, [])
 
   const columns = useMemo(
@@ -64,19 +63,11 @@ const ProductOutputFeature = () => {
             return (
               <div className="flex items-center gap-2">
                 {info.getValue()}
-                <Link
-                  href={geometriesLink(
-                    info.row.original.geometryOutput.geometriesRun.geometries,
-                  )}
-                >
-                  <Badge color="primary" variant="outline">
-                    {
-                      info.row.original.geometryOutput.geometriesRun.geometries
-                        .name
-                    }
-                    <ArrowUpRightIcon className="size-4" />
-                  </Badge>
-                </Link>
+                <GeometriesButton
+                  geometries={
+                    info.row.original.geometryOutput.geometriesRun.geometries
+                  }
+                />
               </div>
             )
           },
@@ -106,6 +97,9 @@ const ProductOutputFeature = () => {
           extraColumns={columns}
           title="ProductOutput"
           itemLink={productLink}
+          itemButton={(productOutput) => (
+            <ProductOutputButton productOutput={productOutput} />
+          )}
         />
         <Pagination
           className="justify-end mt-4"

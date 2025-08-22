@@ -54,6 +54,38 @@ const config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        user: {
+          DEFAULT: 'hsl(var(--user))',
+          foreground: 'hsl(var(--user-foreground))',
+        },
+        dataset: {
+          DEFAULT: 'hsl(var(--dataset))',
+          foreground: 'hsl(var(--dataset-foreground))',
+        },
+        geometry: {
+          DEFAULT: 'hsl(var(--geometry))',
+          foreground: 'hsl(var(--geometry-foreground))',
+        },
+        product: {
+          DEFAULT: 'hsl(var(--product))',
+          foreground: 'hsl(var(--product-foreground))',
+        },
+        datasetRun: {
+          DEFAULT: 'hsl(var(--dataset-run))',
+          foreground: 'hsl(var(--dataset-run-foreground))',
+        },
+        geometriesRun: {
+          DEFAULT: 'hsl(var(--geometries-run))',
+          foreground: 'hsl(var(--geometries-run-foreground))',
+        },
+        productRun: {
+          DEFAULT: 'hsl(var(--product-run))',
+          foreground: 'hsl(var(--product-run-foreground))',
+        },
+        variable: {
+          DEFAULT: 'hsl(var(--variable))',
+          foreground: 'hsl(var(--variable-foreground))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

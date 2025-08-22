@@ -1,17 +1,21 @@
 'use client'
 
 import { Button } from '@repo/ui/components/ui/button'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../components/crud-table'
+import { DatasetButton } from '../datasets/_components/dataset-button'
+import { GeometriesButton } from '../geometries/_components/geometries-button'
+import { VariableButtons } from '../variables/_components/variable-button'
 import ProductForm from './_components/form'
 import {
-  useProductLink,
-  useDeleteProduct,
-  useProducts,
   Product,
+  useDeleteProduct,
+  useProductLink,
+  useProducts,
 } from './_hooks'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ProductButton } from './_components/product-button'
 
 const columnHelper = createColumnHelper<Product>()
 
@@ -36,32 +40,57 @@ const columns = [
     },
     size: 120,
   }),
-  columnHelper.accessor((row) => row.mainRun?.outputSummary?.variables, {
+  columnHelper.display({
     id: 'variables',
     header: () => <span>Variables</span>,
-    cell: (info) => {
-      const value = info.getValue()
-      if (!value) return null
-      return value.map((v) => v.variable.name).join(', ')
+    cell: ({ row }) => {
+      return (
+        <VariableButtons
+          variables={row.original.mainRun?.outputSummary?.variables.map(
+            (v) => v.variable,
+          )}
+        />
+      )
+    },
+    size: 120,
+  }),
+  columnHelper.display({
+    id: 'dataset',
+    header: () => <span>Dataset</span>,
+    cell: ({ row }) => {
+      return <DatasetButton dataset={row.original?.dataset} />
+    },
+    size: 120,
+  }),
+  columnHelper.display({
+    id: 'geometries',
+    header: () => <span>Geometries</span>,
+    cell: ({ row }) => {
+      return <GeometriesButton geometries={row.original?.geometries} />
     },
     size: 120,
   }),
 ] as ColumnDef<Product>[]
 
 const ProductFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useProducts()
+  const { data, isOpen, setOpen, page, setPage, filters } = useProducts()
 
   const deleteProduct = useDeleteProduct()
   const productLink = useProductLink()
 
   const baseColumns = useMemo(() => {
-    return ['name', 'createdAt', 'updatedAt'] as const
+    return ['createdAt', 'updatedAt'] as const
   }, [])
 
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Products</h1>
+        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
+          Products
+          <div className="flex gap-2 items-center justify-center align-middle">
+            {filters}
+          </div>
+        </h1>
         <ProductForm
           key={`add-product-form-${isOpen}`}
           isOpen={isOpen}
@@ -77,8 +106,8 @@ const ProductFeature = () => {
           baseColumns={baseColumns}
           extraColumns={columns}
           title="Product"
-          deleteItem={deleteProduct}
           itemLink={productLink}
+          itemButton={(product) => <ProductButton product={product} />}
         />
         <Pagination
           className="justify-end mt-4"

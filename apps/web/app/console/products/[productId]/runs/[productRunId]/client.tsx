@@ -14,14 +14,6 @@ import {
 } from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
 import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@repo/ui/components/ui/card'
-import {
   Form,
   FormControl,
   FormField,
@@ -31,14 +23,18 @@ import {
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
+import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
-import Link from '../../../../../../components/link'
-import { useDatasetLink } from '../../../../datasets/_hooks'
+import { formatDateTime } from '../../../../../../utils/date'
+import { DetailCard } from '../../../../_components/detail-cards'
+import { MainRunBadge } from '../../../../_components/main-run-badge'
+import { useDatasetRunLink } from '../../../../datasets/_hooks'
 import { useGeometriesLink } from '../../../../geometries/_hooks'
+import { ProductRunSummaryCard } from '../../../_components/product-run-summary-card'
 import {
   useDeleteProductRun,
   useProduct,
@@ -46,9 +42,6 @@ import {
   useProductRunLink,
   useUpdateProductRun,
 } from '../../../_hooks'
-import { formatDate, formatDateTime } from '../../../../../../utils/date'
-import { ProductRunSummaryCard } from '../../../_components/product-run-summary-card'
-import { Badge } from '@repo/ui/components/ui/badge'
 
 const formSchema = z.object({
   id: z.string().readonly(),
@@ -63,7 +56,7 @@ const ProductRunDetails = () => {
   const updateProductRun = useUpdateProductRun()
   const deleteProductRun = useDeleteProductRun('/console/productRuns')
   const productRunLink = useProductRunLink()
-  const datasetLink = useDatasetLink()
+  const datasetRunLink = useDatasetRunLink()
   const geometriesLink = useGeometriesLink()
   const { data: product } = useProduct()
   const form = useForm<Data>({
@@ -84,93 +77,43 @@ const ProductRunDetails = () => {
     <div className="max-w-2xl gap-8 flex flex-col">
       <div className="text-2xl font-medium flex items-center gap-2">
         ProductRun Details
-        {productRun?.id === product?.mainRun?.id && (
-          <Badge color="primary">Main Run</Badge>
+        {product?.mainRun && productRun?.id === product?.mainRun?.id && (
+          <MainRunBadge variant="product" />
         )}
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProductRunSummaryCard product={product} productRun={productRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
           {productRun && (
-            <Card className="@container/card">
-              <CardHeader>
-                <CardDescription>Outputs</CardDescription>
-                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                  {`${productRun?.outputSummary?.outputCount} output${productRun?.outputSummary?.outputCount === 1 ? '' : 's'}`}
-                </CardTitle>
-                <CardAction>
-                  <Button size="sm" asChild>
-                    <Link href={`${productRunLink(productRun)}/outputs`}>
-                      Open <ArrowUpRightIcon />
-                    </Link>
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              {/* <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Data range: {formatDate(product?.outputSummary?.startTime)} to{' '}
-              {formatDate(product?.outputSummary?.endTime)}
-            </div>
-            <div className="text-muted-foreground">
-              {product?.outputSummary?.outputCount} outputs
-            </div>
-          </CardFooter> */}
-            </Card>
+            <DetailCard
+              title={`${productRun?.outputSummary?.outputCount} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
+              description="Outputs"
+              actionText="Open"
+              actionLink={`${productRunLink(productRun)}/outputs`}
+              actionIcon={<ArrowUpRightIcon />}
+            />
           )}
           {productRun?.datasetRun && (
-            <Card className="@container/card">
-              <CardHeader>
-                <CardDescription>Dataset Run</CardDescription>
-                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                  {productRun?.datasetRun?.dataset?.name}
-                </CardTitle>
-                <CardAction>
-                  <Button size="sm" asChild>
-                    <Link href={datasetLink(productRun?.datasetRun?.dataset)}>
-                      Open <ArrowUpRightIcon />
-                    </Link>
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                <div className="line-clamp-1 flex gap-2 font-medium">
-                  Created: {formatDateTime(productRun?.datasetRun?.createdAt)}
-                </div>
-                <div className="text-muted-foreground font-mono">
-                  {productRun?.datasetRun?.id}
-                </div>
-              </CardFooter>
-            </Card>
+            <DetailCard
+              title={productRun?.datasetRun?.dataset?.name}
+              description="Dataset Run"
+              actionText="Open"
+              actionLink={datasetRunLink(productRun?.datasetRun)}
+              actionIcon={<ArrowUpRightIcon />}
+              footer={`Created: ${formatDateTime(productRun?.datasetRun?.createdAt)}`}
+              subFooter={productRun?.datasetRun?.id}
+            />
           )}
           {productRun?.geometriesRun && (
-            <Card className="@container/card">
-              <CardHeader>
-                <CardDescription>Geometries Run</CardDescription>
-                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                  {productRun?.geometriesRun?.geometries?.name}
-                </CardTitle>
-                <CardAction>
-                  <Button size="sm" asChild>
-                    <Link
-                      href={geometriesLink(
-                        productRun?.geometriesRun?.geometries,
-                      )}
-                    >
-                      Open <ArrowUpRightIcon />
-                    </Link>
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                <div className="line-clamp-1 flex gap-2 font-medium">
-                  Created:{' '}
-                  {formatDateTime(productRun?.geometriesRun?.createdAt)}
-                </div>
-                <div className="text-muted-foreground font-mono">
-                  {productRun?.geometriesRun?.id}
-                </div>
-              </CardFooter>
-            </Card>
+            <DetailCard
+              title={productRun?.geometriesRun?.geometries?.name}
+              description="Geometries Run"
+              actionText="Open"
+              actionLink={geometriesLink(productRun?.geometriesRun?.geometries)}
+              actionIcon={<ArrowUpRightIcon />}
+              footer={`Created: ${formatDateTime(productRun?.geometriesRun?.createdAt)}`}
+              subFooter={productRun?.geometriesRun?.id}
+            />
           )}
         </div>
       </div>

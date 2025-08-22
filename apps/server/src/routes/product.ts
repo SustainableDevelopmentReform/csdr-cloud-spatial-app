@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gt, SQL, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -8,7 +8,7 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { product, productRun } from '../schemas'
 import { QueryForTable } from '../schemas/util'
-import { productRunQuery } from './productRun'
+import { productRunOutputSummaryQuery, productRunQuery } from './productRun'
 
 // Common query configuration for products using Drizzle query API
 const productQuery = {
@@ -44,59 +44,21 @@ const productQuery = {
         productId: true,
       },
       with: {
-        outputSummary: {
-          columns: {
-            productRunId: true,
-            startTime: true,
-            endTime: true,
-            outputCount: true,
-            lastUpdated: true,
-          },
-          with: {
-            variables: {
-              columns: {
-                productRunId: true,
-                variableId: true,
-                minValue: true,
-                maxValue: true,
-                avgValue: true,
-                count: true,
-                lastUpdated: true,
-              },
-              with: {
-                variable: {
-                  columns: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    unit: true,
-                    categoryId: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    // Get all runs to calculate count on the client
-    runs: {
-      columns: {
-        id: true,
+        outputSummary: productRunOutputSummaryQuery,
       },
     },
   },
   extras: {
-    // Alternative: Use SQL for run count if you don't want to fetch all run IDs
     runCount: sql<number>`(
       SELECT COUNT(*)::int
       FROM product_run pr
-      WHERE pr.product_id = product.id
+      WHERE pr.product_id = ${product}.id
     )`.as('run_count'),
   },
 } satisfies QueryForTable<'product'>
 
 const app = new Hono()
+  // GET ALL PRODUCTS
   .get(
     '/',
     zValidator(
@@ -104,14 +66,29 @@ const app = new Hono()
       z.object({
         page: z.number({ coerce: true }).positive().optional(),
         size: z.number({ coerce: true }).optional(),
+        datasetId: z.string().optional(),
+        geometriesId: z.string().optional(),
       }),
     ),
     authMiddleware({
       permission: 'read:product',
     }),
     async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
+      const {
+        page = 1,
+        size = 10,
+        datasetId,
+        geometriesId,
+      } = c.req.valid('query')
       const skip = (page - 1) * size
+
+      const filters: SQL[] = []
+      if (datasetId) {
+        filters.push(eq(product.datasetId, datasetId))
+      }
+      if (geometriesId) {
+        filters.push(eq(product.geometriesId, geometriesId))
+      }
 
       // Get total count
       const totalCount = await db
@@ -119,30 +96,26 @@ const app = new Hono()
           count: count(),
         })
         .from(product)
+        .where(and(...filters))
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       // Get products with all related data using Drizzle query API
       const data = await db.query.product.findMany({
         ...productQuery,
+        where: and(...filters),
         limit: size,
         offset: skip,
         orderBy: desc(product.createdAt),
       })
 
-      // Transform data to include run count from the runs array
-      const transformedData = data.map((p) => ({
-        ...p,
-        runCount: p.runs?.length || 0,
-        runs: undefined, // Remove the runs array from response
-      }))
-
       return generateJsonResponse(c, {
         pageCount,
-        data: transformedData,
+        data,
         totalCount: totalCount[0]!.count,
       })
     },
   )
+  // GET A SINGLE PRODUCT
   .get('/:id', authMiddleware({ permission: 'read:product' }), async (c) => {
     const id = c.req.param('id')
 
@@ -160,20 +133,16 @@ const app = new Hono()
       })
     }
 
-    // Transform data to include run count from the runs array
-    const transformedProduct = {
-      ...result,
-      runCount: result.runs?.length || 0,
-      runs: undefined, // Remove the runs array from response
-    }
-
-    return generateJsonResponse(c, transformedProduct)
+    return generateJsonResponse(c, result)
   })
+  // GET ALL PRODUCT RUNS FOR A PRODUCT
   .get(
     '/:id/runs',
     zValidator(
       'query',
       z.object({
+        datasetRunId: z.string().optional(),
+        geometriesRunId: z.string().optional(),
         page: z.number({ coerce: true }).positive().optional(),
         size: z.number({ coerce: true }).optional(),
       }),
@@ -183,8 +152,15 @@ const app = new Hono()
     }),
     async (c) => {
       const id = c.req.param('id')
+      // Allow * to be used as a wildcard for the product id - to show all product runs
+      const productId = id === '*' ? undefined : id
 
-      const { page = 1, size = 10 } = c.req.valid('query')
+      const {
+        page = 1,
+        size = 10,
+        datasetRunId,
+        geometriesRunId,
+      } = c.req.valid('query')
       const skip = (page - 1) * size
 
       const totalCount = await db
@@ -194,9 +170,20 @@ const app = new Hono()
         .from(productRun)
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
+      const filters: SQL[] = []
+      if (productId) {
+        filters.push(eq(productRun.productId, id))
+      }
+      if (datasetRunId) {
+        filters.push(eq(productRun.datasetRunId, datasetRunId))
+      }
+      if (geometriesRunId) {
+        filters.push(eq(productRun.geometriesRunId, geometriesRunId))
+      }
+
       const data = await db.query.productRun.findMany({
         ...productRunQuery,
-        where: (productRun, { eq }) => eq(productRun.productId, id),
+        where: and(...filters),
         limit: size,
         offset: skip,
         orderBy: desc(productRun.createdAt),
@@ -210,6 +197,7 @@ const app = new Hono()
     },
   )
 
+  // CREATE A NEW PRODUCT
   .post(
     '/',
     zValidator(
@@ -237,6 +225,7 @@ const app = new Hono()
       return generateJsonResponse(c, newProduct[0], 201)
     },
   )
+  // UPDATE A PRODUCT
   .patch(
     '/:id',
     zValidator(
@@ -265,6 +254,7 @@ const app = new Hono()
       return generateJsonResponse(c, role[0])
     },
   )
+  // DELETE A PRODUCT
   .delete(
     '/:id',
     authMiddleware({

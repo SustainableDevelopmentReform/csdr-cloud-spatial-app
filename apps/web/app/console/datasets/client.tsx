@@ -5,16 +5,16 @@ import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../components/crud-table'
 import DatasetForm from './_components/form'
-import { useDatasetLink, useDeleteDataset, useDatasets } from './_hooks'
+import { useDatasetLink, useDatasets } from './_hooks'
+import { DatasetButton } from './_components/dataset-button'
 
 const DatasetFeature = () => {
   const { data, isOpen, setOpen, page, setPage } = useDatasets()
 
-  const deleteDataset = useDeleteDataset()
   const datasetLink = useDatasetLink()
 
   const baseColumns = useMemo(() => {
-    return ['name', 'description', 'createdAt', 'updatedAt'] as const
+    return ['description', 'createdAt', 'updatedAt'] as const
   }, [])
 
   return (
@@ -35,8 +35,8 @@ const DatasetFeature = () => {
           data={data?.data || []}
           baseColumns={baseColumns}
           title="Dataset"
-          deleteItem={deleteDataset}
           itemLink={datasetLink}
+          itemButton={(dataset) => <DatasetButton dataset={dataset} />}
         />
         <Pagination
           className="justify-end mt-4"
