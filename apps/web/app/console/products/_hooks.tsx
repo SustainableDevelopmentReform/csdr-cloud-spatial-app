@@ -16,16 +16,33 @@ import { useGeometries, useGeometriesRun } from '../geometries/_hooks'
 import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
 import { GeometriesRunButton } from '../geometries/_components/geometries-run-button'
 
-export type Product = NonNullable<
+export type ProductListItem = NonNullable<
   InferResponseType<typeof client.api.v1.product.$get, 200>['data']
 >['data'][0]
-export type ProductRun = NonNullable<
+export type ProductDetail = NonNullable<
+  InferResponseType<(typeof client.api.v1.product)[':id']['$get'], 200>['data']
+>
+
+export type ProductRunListItem = NonNullable<
+  InferResponseType<
+    (typeof client.api.v1.product)[':id']['runs']['$get'],
+    200
+  >['data']
+>['data'][0]
+export type ProductRunDetail = NonNullable<
   InferResponseType<
     (typeof client.api.v1)['product-run'][':id']['$get'],
     200
   >['data']
 >
-export type ProductOutput = NonNullable<
+
+export type ProductOutputListItem = NonNullable<
+  InferResponseType<
+    (typeof client.api.v1)['product-run'][':id']['outputs']['$get'],
+    200
+  >['data']
+>['data'][0]
+export type ProductOutputDetail = NonNullable<
   InferResponseType<
     (typeof client.api.v1)['product-output'][':id']['$get'],
     200
@@ -375,7 +392,7 @@ export const useRefreshProductRunSummary = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (productRun: Pick<ProductRun, 'id'>) => {
+    mutationFn: async (productRun: Pick<ProductRunDetail, 'id'>) => {
       const res = client.api.v1['product-run'][':id']['refresh-summary'].$post({
         param: { id: productRun.id },
       })
@@ -396,7 +413,7 @@ export const useDeleteProduct = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (product: Product) => {
+    mutationFn: async (product: ProductDetail) => {
       const res = client.api.v1.product[':id'].$delete({
         param: {
           id: product.id,
@@ -425,7 +442,7 @@ export const useDeleteProductRun = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (productRun: ProductRun) => {
+    mutationFn: async (productRun: ProductRunDetail) => {
       const res = client.api.v1['product-run'][':id'].$delete({
         param: {
           id: productRun.id,
@@ -456,32 +473,41 @@ export const useProductsLink = () =>
     [],
   )
 
+export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'>
+
 export const useProductLink = () =>
   useCallback(
-    (product: Pick<Product, 'id'>) => `/console/products/${product.id}`,
-    [],
-  )
-
-export const useProductRunLink = () =>
-  useCallback(
-    (productRun: Pick<ProductRun, 'id' | 'productId'>) =>
-      `/console/products/${productRun.productId}/runs/${productRun.id}`,
+    (product: ProductLinkParams) => `/console/products/${product.id}`,
     [],
   )
 
 export const useProductRunsLink = () =>
   useCallback(
     (
-      product: Pick<Product, 'id'> | null,
+      product: ProductLinkParams | null,
       query?: z.infer<typeof productRunQuerySchema>,
     ) =>
       `/console/products/${product?.id ?? '*'}/runs?${new URLSearchParams(query ?? {}).toString()}`,
     [],
   )
 
+export type ProductRunLinkParams = Pick<ProductRunDetail, 'id' | 'productId'>
+
+export const useProductRunLink = () =>
+  useCallback(
+    (productRun: ProductRunLinkParams) =>
+      `/console/products/${productRun.productId}/runs/${productRun.id}`,
+    [],
+  )
+
+export type ProductOutputLinkParams = Pick<
+  ProductOutputListItem,
+  'id' | 'productRun'
+>
+
 export const useProductOutputLink = () =>
   useCallback(
-    (productOutput: Pick<ProductOutput, 'id' | 'productRun'>) =>
+    (productOutput: ProductOutputLinkParams) =>
       `/console/products/${productOutput.productRun.product.id}/runs/${productOutput.productRun.id}/outputs/${productOutput.id}`,
     [],
   )

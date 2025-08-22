@@ -1,12 +1,12 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { GeometriesRun, useGeometriesRunLink } from '../_hooks'
+import { GeometriesRunLinkParams, useGeometriesRunLink } from '../_hooks'
 import { MainRunBadge } from '../../_components/main-run-badge'
 
 export const GeometriesRunButtons = ({
   geometriesRuns,
 }: {
-  geometriesRuns: GeometriesRun[]
+  geometriesRuns: GeometriesRunLinkParams[]
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -24,7 +24,7 @@ export const GeometriesRunButton = ({
   geometriesRun,
   isMainRun,
 }: {
-  geometriesRun: GeometriesRun
+  geometriesRun: GeometriesRunLinkParams
   isMainRun?: boolean
 }) => {
   const geometriesRunLink = useGeometriesRunLink()

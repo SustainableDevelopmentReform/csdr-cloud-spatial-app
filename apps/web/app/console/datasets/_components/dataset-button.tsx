@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { useDatasetLink } from '../_hooks'
+import { DatasetLinkParams, useDatasetLink } from '../_hooks'
 
 export const DatasetButtons = ({
   datasets,
 }: {
-  datasets: { id: string; name: string }[] | undefined
+  datasets: DatasetLinkParams[] | undefined
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -16,11 +16,7 @@ export const DatasetButtons = ({
   )
 }
 
-export const DatasetButton = ({
-  dataset,
-}: {
-  dataset: { id: string; name: string }
-}) => {
+export const DatasetButton = ({ dataset }: { dataset: DatasetLinkParams }) => {
   const datasetLink = useDatasetLink()
 
   return (

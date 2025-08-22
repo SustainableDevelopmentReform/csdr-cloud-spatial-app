@@ -11,13 +11,14 @@ import { useGeometriesLink } from '../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../variables/_components/variable-button'
 import ProductOutputForm from '../../../../_components/form'
 import {
-  ProductOutput,
+  ProductOutputDetail,
+  ProductOutputListItem,
   useProductOutputLink,
   useProductOutputs,
 } from '../../../../_hooks'
 import { ProductOutputButton } from '../../../../_components/product-output-button'
 
-const columnHelper = createColumnHelper<ProductOutput>()
+const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 const ProductOutputFeature = () => {
   const { data, isOpen, setOpen, page, setPage } = useProductOutputs()
@@ -73,7 +74,7 @@ const ProductOutputFeature = () => {
           },
           size: 120,
         }),
-      ] as ColumnDef<ProductOutput>[],
+      ] as ColumnDef<ProductOutputListItem>[],
     [geometriesLink],
   )
 

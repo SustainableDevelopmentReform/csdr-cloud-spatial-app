@@ -10,18 +10,36 @@ import { z } from 'zod'
 import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 import { useParams, useRouter } from 'next/navigation'
 
-export type Geometries = NonNullable<
+export type GeometriesListItem = NonNullable<
   InferResponseType<typeof client.api.v1.geometries.$get, 200>['data']
 >['data'][0]
+export type GeometriesDetail = NonNullable<
+  InferResponseType<
+    (typeof client.api.v1.geometries)[':id']['$get'],
+    200
+  >['data']
+>
 
-export type GeometriesRun = NonNullable<
+export type GeometriesRunListItem = NonNullable<
+  InferResponseType<
+    (typeof client.api.v1.geometries)[':id']['runs']['$get'],
+    200
+  >['data']
+>['data'][0]
+export type GeometriesRunDetail = NonNullable<
   InferResponseType<
     (typeof client.api.v1)['geometries-run'][':id']['$get'],
     200
   >['data']
 >
 
-export type GeometryOutput = NonNullable<
+export type GeometryOutputListItem = NonNullable<
+  InferResponseType<
+    (typeof client.api.v1)['geometries-run'][':id']['outputs']['$get'],
+    200
+  >['data']
+>['data'][0]
+export type GeometryOutputDetail = NonNullable<
   InferResponseType<
     (typeof client.api.v1)['geometry-output'][':id']['$get'],
     200
@@ -303,7 +321,7 @@ export const useDeleteGeometries = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (geometries: Geometries) => {
+    mutationFn: async (geometries: GeometriesListItem) => {
       const res = client.api.v1.geometries[':id'].$delete({
         param: {
           id: geometries.id,
@@ -332,7 +350,7 @@ export const useDeleteGeometriesRun = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (geometriesRun: GeometriesRun) => {
+    mutationFn: async (geometriesRun: GeometriesRunDetail) => {
       const res = client.api.v1['geometries-run'][':id'].$delete({
         param: {
           id: geometriesRun.id,
@@ -356,30 +374,42 @@ export const useDeleteGeometriesRun = (redirect: string | null = null) => {
   })
 }
 
+export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'>
+
 export const useGeometriesLink = () =>
   useCallback(
-    (geometries: Pick<Geometries, 'id'>) =>
+    (geometries: GeometriesLinkParams) =>
       `/console/geometries/${geometries.id}`,
     [],
   )
 
 export const useGeometriesRunsLink = () =>
   useCallback(
-    (geometries: Pick<Geometries, 'id'>) =>
+    (geometries: GeometriesLinkParams) =>
       `/console/geometries/${geometries.id}/runs`,
     [],
   )
 
+export type GeometriesRunLinkParams = Pick<
+  GeometriesRunDetail,
+  'id' | 'geometriesId'
+>
+
 export const useGeometriesRunLink = () =>
   useCallback(
-    (geometriesRun: Pick<GeometriesRun, 'id' | 'geometriesId'>) =>
+    (geometriesRun: GeometriesRunLinkParams) =>
       `/console/geometries/${geometriesRun.geometriesId}/runs/${geometriesRun.id}`,
     [],
   )
 
+export type GeometryOutputLinkParams = Pick<
+  GeometryOutputDetail,
+  'id' | 'geometriesRun' | 'name'
+>
+
 export const useGeometryOutputLink = () =>
   useCallback(
-    (geometryOutput: Pick<GeometryOutput, 'id' | 'geometriesRun'>) =>
+    (geometryOutput: GeometryOutputLinkParams) =>
       `/console/geometries/${geometryOutput.geometriesRun.geometriesId}/runs/${geometryOutput.geometriesRun.id}/outputs/${geometryOutput.id}`,
     [],
   )

@@ -1,14 +1,18 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { formatDateTime } from '../../../../utils/date'
 import { DetailCard } from '../../_components/detail-cards'
-import { Geometries, GeometriesRun, useGeometriesRunLink } from '../_hooks'
+import {
+  GeometriesListItem,
+  GeometriesRunDetail,
+  useGeometriesRunLink,
+} from '../_hooks'
 
 export const GeometriesRunSummaryCard = ({
   geometries,
   geometriesRun,
 }: {
-  geometries: Geometries | undefined | null
-  geometriesRun?: GeometriesRun | undefined | null
+  geometries: GeometriesListItem | undefined | null
+  geometriesRun?: GeometriesRunDetail | undefined | null
 }) => {
   const geometriesRunLink = useGeometriesRunLink()
 

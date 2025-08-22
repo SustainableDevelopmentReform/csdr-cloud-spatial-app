@@ -3,8 +3,8 @@ import { formatDate, formatDateTime } from '../../../../utils/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { VariableButton } from '../../variables/_components/variable-button'
 import {
-  Product,
-  ProductRun,
+  ProductDetail,
+  ProductRunDetail,
   useProductRunLink,
   useRefreshProductRunSummary,
 } from '../_hooks'
@@ -13,8 +13,8 @@ export const ProductRunSummaryCard = ({
   product,
   productRun,
 }: {
-  product: Product | undefined | null
-  productRun?: ProductRun | undefined | null
+  product: ProductDetail | undefined | null
+  productRun?: ProductRunDetail | undefined | null
 }) => {
   const productRunLink = useProductRunLink()
   const refreshProductRunSummary = useRefreshProductRunSummary()

@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { useGeometriesLink } from '../_hooks'
+import { GeometriesLinkParams, useGeometriesLink } from '../_hooks'
 
 export const GeometriesButtons = ({
   geometriesSets,
 }: {
-  geometriesSets: { id: string; name: string }[] | undefined
+  geometriesSets: GeometriesLinkParams[] | undefined
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -19,7 +19,7 @@ export const GeometriesButtons = ({
 export const GeometriesButton = ({
   geometries,
 }: {
-  geometries: { id: string; name: string }
+  geometries: GeometriesLinkParams
 }) => {
   const geometriesLink = useGeometriesLink()
 

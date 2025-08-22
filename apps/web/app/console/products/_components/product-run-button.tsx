@@ -1,13 +1,12 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { ProductRun } from '../_hooks'
-import { useProductRunLink } from '../_hooks'
 import { MainRunBadge } from '../../_components/main-run-badge'
+import { ProductRunLinkParams, useProductRunLink } from '../_hooks'
 
 export const ProductRunButtons = ({
   productRuns,
 }: {
-  productRuns: ProductRun[]
+  productRuns: ProductRunLinkParams[]
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -22,7 +21,7 @@ export const ProductRunButton = ({
   productRun,
   isMainRun,
 }: {
-  productRun: ProductRun
+  productRun: ProductRunLinkParams
   isMainRun?: boolean
 }) => {
   const productRunLink = useProductRunLink()
