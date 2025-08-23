@@ -4,7 +4,7 @@ import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import { ArrowUpRightIcon } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   baseFormSchema,
   CrudForm,
@@ -20,6 +20,8 @@ import {
   useProductRun,
   useUpdateProductOutput,
 } from '../../../../../_hooks'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const ProductRunDetails = () => {
   const { data: product } = useProduct()
@@ -42,6 +44,16 @@ const ProductRunDetails = () => {
       ? bbox(productOutput?.geometryOutput?.geometry as any)
       : undefined
   }, [productOutput?.geometryOutput?.geometry])
+
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
+  useEffect(() => {
+    if (productOutput) {
+      form.reset(productOutput)
+    }
+  }, [productOutput, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -102,18 +114,7 @@ const ProductRunDetails = () => {
         )}
       </div>
 
-      {productOutput && (
-        <CrudForm
-          data={productOutput}
-          defaultValues={{
-            name: productOutput?.name,
-            description: productOutput?.description ?? undefined,
-            metadata: productOutput?.metadata ?? undefined,
-          }}
-          formSchema={baseFormSchema}
-          updateMutation={updateProductOutput}
-        />
-      )}
+      <CrudForm form={form} mutation={updateProductOutput} />
     </div>
   )
 }

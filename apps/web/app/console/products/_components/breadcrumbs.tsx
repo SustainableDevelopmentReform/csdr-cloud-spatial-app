@@ -70,15 +70,7 @@ export const ProductsBreadcrumbs = () => {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <div className="flex items-center gap-1">
-                  <ProductRunButton
-                    productRun={productRun}
-                    isMainRun={
-                      !!(
-                        product?.mainRun &&
-                        product?.mainRun?.id === productRun.id
-                      )
-                    }
-                  />
+                  <ProductRunButton productRun={productRun} />
                 </div>
               </BreadcrumbLink>
             </BreadcrumbItem>

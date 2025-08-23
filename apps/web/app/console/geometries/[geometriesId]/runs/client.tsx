@@ -5,24 +5,31 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../components/crud-table'
-import { MainRunBadge } from '../../../_components/main-run-badge'
-import GeometriesRunForm from '../../_components/form'
+
+import { baseFormSchema } from '../../../../../components/crud-form'
+import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import { GeometriesRunButton } from '../../_components/geometries-run-button'
 import {
   GeometriesRunListItem,
+  useCreateGeometriesRun,
   useGeometries,
   useGeometriesRunLink,
   useGeometriesRuns,
-  useDeleteGeometriesRun,
 } from '../../_hooks'
-import { GeometriesRunButton } from '../../_components/geometries-run-button'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
-const GeometriesRunFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useGeometriesRuns()
-  const { data: geometries } = useGeometries()
+const createGeometriesRunSchema = baseFormSchema.extend({
+  geometriesId: z.string(),
+})
 
-  const deleteGeometriesRun = useDeleteGeometriesRun()
+const GeometriesRunFeature = () => {
+  const { data, page, setPage } = useGeometriesRuns()
+  const { data: geometries } = useGeometries()
+  const createGeometriesRun = useCreateGeometriesRun()
   const geometriesLink = useGeometriesRunLink()
 
   const baseColumns = useMemo(() => {
@@ -41,18 +48,19 @@ const GeometriesRunFeature = () => {
     ] satisfies ColumnDef<GeometriesRunListItem>[]
   }, [])
 
+  const form = useForm({
+    resolver: zodResolver(createGeometriesRunSchema),
+  })
+
   return (
     <div>
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Geometries Runs</h1>
-        <GeometriesRunForm
-          key={`add-geometries-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add Geometries Run</Button>
-        </GeometriesRunForm>
+        <CrudFormDialog
+          form={form}
+          mutation={createGeometriesRun}
+          buttonText="Add Geometries Run"
+        />
       </div>
       <div className="mt-8">
         <BaseCrudTable

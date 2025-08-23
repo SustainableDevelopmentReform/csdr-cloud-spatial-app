@@ -6,6 +6,7 @@ import {
   GeometriesRunDetail,
   useGeometriesRunLink,
 } from '../_hooks'
+import { NoMainRunCard } from '../../_components/no-main-run-card'
 
 export const GeometriesRunSummaryCard = ({
   geometries,
@@ -19,7 +20,7 @@ export const GeometriesRunSummaryCard = ({
   const run = geometriesRun ?? geometries?.mainRun
 
   if (!run) {
-    return null
+    return <NoMainRunCard />
   }
 
   return (

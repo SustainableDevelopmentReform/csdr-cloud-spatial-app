@@ -7,7 +7,6 @@ import {
   CrudForm,
 } from '../../../../../../components/crud-form'
 import { DetailCard } from '../../../../_components/detail-cards'
-import { MainRunBadge } from '../../../../_components/main-run-badge'
 import { useProductRunsLink } from '../../../../products/_hooks'
 import { DatasetRunSummaryCard } from '../../../_components/dataset-run-summary-card'
 import {
@@ -16,13 +15,29 @@ import {
   useDeleteDatasetRun,
   useUpdateDatasetRun,
 } from '../../../_hooks'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { useEffect } from 'react'
 
 const DatasetRunDetails = () => {
   const { data: datasetRun } = useDatasetRun()
   const updateDatasetRun = useUpdateDatasetRun()
-  const deleteDatasetRun = useDeleteDatasetRun('/console/datasetRuns')
+  const deleteDatasetRun = useDeleteDatasetRun(
+    undefined,
+    '/console/datasetRuns',
+  )
   const { data: dataset } = useDataset()
   const productRunsLink = useProductRunsLink()
+
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
+  useEffect(() => {
+    if (datasetRun) {
+      form.reset(datasetRun)
+    }
+  }, [datasetRun, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -43,19 +58,11 @@ const DatasetRunDetails = () => {
         </div>
       </div>
 
-      {datasetRun && (
-        <CrudForm
-          data={datasetRun}
-          defaultValues={{
-            name: datasetRun?.name,
-            description: datasetRun?.description ?? undefined,
-            metadata: datasetRun?.metadata ?? undefined,
-          }}
-          formSchema={baseFormSchema}
-          updateMutation={updateDatasetRun}
-          deleteMutation={deleteDatasetRun}
-        />
-      )}
+      <CrudForm
+        form={form}
+        mutation={updateDatasetRun}
+        deleteMutation={deleteDatasetRun}
+      />
     </div>
   )
 }

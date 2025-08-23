@@ -12,13 +12,26 @@ import {
   useGeometriesRunsLink,
   useUpdateGeometries,
 } from '../_hooks'
+import { useForm } from 'react-hook-form'
+import { useEffect } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const GeometriesDetails = () => {
   const { data: geometries } = useGeometries()
   const productsLink = useProductsLink()
   const updateGeometries = useUpdateGeometries()
-  const deleteGeometries = useDeleteGeometries('/console/geometries')
+  const deleteGeometries = useDeleteGeometries(undefined, '/console/geometries')
   const geometriesRunsLink = useGeometriesRunsLink()
+
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
+  useEffect(() => {
+    if (geometries) {
+      form.reset(geometries)
+    }
+  }, [geometries, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -45,19 +58,11 @@ const GeometriesDetails = () => {
           )}
         </div>
       </div>
-      {geometries && (
-        <CrudForm
-          data={geometries}
-          defaultValues={{
-            name: geometries?.name,
-            description: geometries?.description ?? undefined,
-            metadata: geometries?.metadata ?? undefined,
-          }}
-          formSchema={baseFormSchema}
-          updateMutation={updateGeometries}
-          deleteMutation={deleteGeometries}
-        />
-      )}
+      <CrudForm
+        form={form}
+        mutation={updateGeometries}
+        deleteMutation={deleteGeometries}
+      />
     </div>
   )
 }

@@ -3,27 +3,33 @@
 import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
+import { z } from 'zod'
 import Pagination from '~/components/pagination'
+import { baseFormSchema } from '../../../../../components/crud-form'
+import CrudFormDialog from '../../../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../../../components/crud-table'
-import { MainRunBadge } from '../../../_components/main-run-badge'
 import { VariableButtons } from '../../../variables/_components/variable-button'
-import ProductRunForm from '../../_components/form'
+import { ProductRunButton } from '../../_components/product-run-button'
 import {
   ProductRunListItem,
-  useDeleteProductRun,
-  useProduct,
+  useCreateProductRun,
   useProductRunLink,
   useProductRuns,
 } from '../../_hooks'
-import { ProductRunButton } from '../../_components/product-run-button'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const columnHelper = createColumnHelper<ProductRunListItem>()
 
-const ProductRunFeature = () => {
-  const { data, isOpen, setOpen, page, setPage, filters } = useProductRuns()
-  const { data: product } = useProduct()
+const createProductRunSchema = baseFormSchema.extend({
+  productId: z.string(),
+  datasetRunId: z.string(),
+  geometriesRunId: z.string(),
+})
 
-  const deleteProductRun = useDeleteProductRun()
+const ProductRunFeature = () => {
+  const { data, page, setPage, filters } = useProductRuns()
+  const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
 
   const baseColumns = useMemo(() => {
@@ -54,6 +60,10 @@ const ProductRunFeature = () => {
     ] satisfies ColumnDef<ProductRunListItem>[]
   }, [])
 
+  const form = useForm({
+    resolver: zodResolver(createProductRunSchema),
+  })
+
   return (
     <div>
       <div className="flex justify-between">
@@ -63,14 +73,11 @@ const ProductRunFeature = () => {
             {filters}
           </div>
         </h1>
-        <ProductRunForm
-          key={`add-product-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add Product Run</Button>
-        </ProductRunForm>
+        <CrudFormDialog
+          form={form}
+          mutation={createProductRun}
+          buttonText="Add Product Run"
+        />
       </div>
       <div className="mt-8">
         <BaseCrudTable

@@ -13,12 +13,25 @@ import {
   useProductRunsLink,
   useUpdateProduct,
 } from '../_hooks'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect } from 'react'
 
 const ProductDetails = () => {
   const { data: product } = useProduct()
   const updateProduct = useUpdateProduct()
-  const deleteProduct = useDeleteProduct('/console/products')
+  const deleteProduct = useDeleteProduct(undefined, '/console/products')
   const productRunsLink = useProductRunsLink()
+
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
+  useEffect(() => {
+    if (product) {
+      form.reset(product)
+    }
+  }, [product, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -50,14 +63,8 @@ const ProductDetails = () => {
 
       {product && (
         <CrudForm
-          data={product}
-          defaultValues={{
-            name: product?.name,
-            description: product?.description ?? undefined,
-            metadata: product?.metadata ?? undefined,
-          }}
-          formSchema={baseFormSchema}
-          updateMutation={updateProduct}
+          form={form}
+          mutation={updateProduct}
           deleteMutation={deleteProduct}
         />
       )}

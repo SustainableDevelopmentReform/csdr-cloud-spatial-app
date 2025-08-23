@@ -89,8 +89,24 @@ const productRunQuerySchema = z.object({
   geometriesRunId: z.string().optional(),
 })
 
+export const useProductParams = (
+  _productId?: string,
+  _productRunId?: string,
+  _productOutputId?: string,
+) => {
+  const params = useParams()
+
+  const { productId, productRunId, productOutputId } =
+    productParamsSchema.parse(params)
+
+  return {
+    productId: _productId ?? productId,
+    productRunId: _productRunId ?? productRunId,
+    productOutputId: _productOutputId ?? productOutputId,
+  }
+}
+
 export const useProducts = () => {
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const searchParams = useSearchParams()
@@ -103,7 +119,7 @@ export const useProducts = () => {
   const { data: geometries } = useGeometries(geometriesId)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.Product],
+    queryKey: [QueryKey.Product, datasetId, geometriesId],
     queryFn: async () => {
       const res = client.api.v1.product.$get({
         query: {
@@ -122,8 +138,6 @@ export const useProducts = () => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
     filters: [
@@ -137,7 +151,6 @@ export const useProducts = () => {
 
 export const useProductRuns = (_productId?: string) => {
   const params = useParams()
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { productId } = _productId
@@ -154,7 +167,7 @@ export const useProductRuns = (_productId?: string) => {
   const { data: geometriesRun } = useGeometriesRun(geometriesRunId)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.ProductRun],
+    queryKey: [QueryKey.ProductRun, productId, datasetRunId, geometriesRunId],
     queryFn: async () => {
       if (!productId) return null
       const res = client.api.v1['product'][':id']['runs'].$get({
@@ -177,8 +190,6 @@ export const useProductRuns = (_productId?: string) => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
     filters: [
@@ -213,7 +224,6 @@ export const useProductOutputs = (_productRunId?: string) => {
     ? { productRunId: _productRunId }
     : productParamsSchema.parse(params)
 
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -238,18 +248,13 @@ export const useProductOutputs = (_productRunId?: string) => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
   }
 }
 
 export const useProduct = (_productId?: string) => {
-  const params = useParams()
-  const { productId } = _productId
-    ? { productId: _productId }
-    : productParamsSchema.parse(params)
+  const { productId } = useProductParams(_productId)
 
   return useQuery({
     queryKey: [QueryKey.Product, productId],
@@ -270,10 +275,7 @@ export const useProduct = (_productId?: string) => {
 }
 
 export const useProductRun = (_productRunId?: string) => {
-  const params = useParams()
-  const { productRunId } = _productRunId
-    ? { productRunId: _productRunId }
-    : productParamsSchema.parse(params)
+  const { productRunId } = useProductParams(undefined, _productRunId)
 
   return useQuery({
     queryKey: [QueryKey.ProductRun, productRunId],
@@ -294,10 +296,11 @@ export const useProductRun = (_productRunId?: string) => {
 }
 
 export const useProductOutput = (_productOutputId?: string) => {
-  const params = useParams()
-  const { productOutputId } = _productOutputId
-    ? { productOutputId: _productOutputId }
-    : productParamsSchema.parse(params)
+  const { productOutputId } = useProductParams(
+    undefined,
+    undefined,
+    _productOutputId,
+  )
 
   return useQuery({
     queryKey: [QueryKey.ProductOutput, productOutputId],
@@ -355,23 +358,22 @@ export const useCreateProductRunOutput = () => {
   })
 }
 
-export const useUpdateProduct = () => {
+export const useUpdateProduct = (_productId?: string) => {
+  const { productId } = useProductParams(_productId)
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateProductPayload) => {
+    mutationFn: async (payload: UpdateProductPayload) => {
+      if (!productId) return
       const res = client.api.v1.product[':id'].$patch({
-        param: { id },
+        param: { id: productId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, id],
+        queryKey: [QueryKey.Product, productId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Product],
@@ -380,23 +382,22 @@ export const useUpdateProduct = () => {
   })
 }
 
-export const useUpdateProductRun = () => {
+export const useUpdateProductRun = (_productRunId?: string) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateProductRunPayload) => {
+    mutationFn: async (payload: UpdateProductRunPayload) => {
+      if (!productRunId) return
       const res = client.api.v1['product-run'][':id'].$patch({
-        param: { id },
+        param: { id: productRunId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun, id],
+        queryKey: [QueryKey.ProductRun, productRunId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductRun],
@@ -405,23 +406,26 @@ export const useUpdateProductRun = () => {
   })
 }
 
-export const useUpdateProductOutput = () => {
+export const useUpdateProductOutput = (_productOutputId?: string) => {
+  const { productOutputId } = useProductParams(
+    undefined,
+    undefined,
+    _productOutputId,
+  )
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateProductOutputPayload) => {
+    mutationFn: async (payload: UpdateProductOutputPayload) => {
+      if (!productOutputId) return
       const res = client.api.v1['product-output'][':id'].$patch({
-        param: { id },
+        param: { id: productOutputId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductOutput, id],
+        queryKey: [QueryKey.ProductOutput, productOutputId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductOutput],
@@ -456,26 +460,31 @@ export const useRefreshProductRunSummary = () => {
     },
   })
 }
-export const useDeleteProduct = (redirect: string | null = null) => {
+export const useDeleteProduct = (
+  _productId?: string,
+  redirect: string | null = null,
+) => {
+  const { productId } = useProductParams(_productId)
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async () => {
+      if (!productId) return
       const res = client.api.v1.product[':id'].$delete({
         param: {
-          id,
+          id: productId,
         },
       })
 
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Product],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, id],
+        queryKey: [QueryKey.Product, productId],
       })
       if (redirect) {
         router.push(redirect)
@@ -484,26 +493,31 @@ export const useDeleteProduct = (redirect: string | null = null) => {
   })
 }
 
-export const useDeleteProductRun = (redirect: string | null = null) => {
+export const useDeleteProductRun = (
+  _productRunId?: string,
+  redirect: string | null = null,
+) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async () => {
+      if (!productRunId) return
       const res = client.api.v1['product-run'][':id'].$delete({
         param: {
-          id,
+          id: productRunId,
         },
       })
 
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, id],
+        queryKey: [QueryKey.Product, productRunId],
       })
       if (redirect) {
         router.push(redirect)
