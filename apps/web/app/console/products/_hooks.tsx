@@ -337,23 +337,46 @@ export const useCreateProduct = () => {
 }
 
 export const useCreateProductRun = () => {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateProductRunPayload) => {
       const res = client.api.v1['product-run'].$post({
         json: data,
       })
       await unwrapResponse(res)
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductRun],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Product, data.productId],
+      })
     },
   })
 }
 
 export const useCreateProductRunOutput = () => {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateProductRunOutputPayload) => {
       const res = client.api.v1['product-output'].$post({
         json: data,
       })
       await unwrapResponse(res)
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductOutput],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductRun, data.productRunId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductRun],
+      })
+      // queryClient.invalidateQueries({
+      //   queryKey: [QueryKey.Product, data.productRun.productId],
+      // })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Product],
+      })
     },
   })
 }

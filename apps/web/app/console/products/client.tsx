@@ -149,19 +149,13 @@ const ProductFeature = () => {
             name="geometriesId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Geometries</FormLabel>
-                <Select {...field} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {geometries?.data?.map((geometries) => (
-                      <SelectItem key={geometries.id} value={geometries.id}>
-                        {geometries.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Dataset</FormLabel>
+                <SelectWithSearch
+                  options={geometries?.data}
+                  value={field.value}
+                  onSelect={field.onChange}
+                  onSearch={() => {}}
+                />
                 <FormMessage />
               </FormItem>
             )}

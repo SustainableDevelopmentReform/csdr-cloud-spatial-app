@@ -1,8 +1,20 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { CalendarSelect } from '@repo/ui/components/ui/calendar-select'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
+import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import Pagination from '~/components/pagination'
 import { baseFormSchema } from '../../../../../../../components/crud-form'
 import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
@@ -13,7 +25,10 @@ import { DatasetRunButton } from '../../../../../datasets/_components/dataset-ru
 import { GeometriesButton } from '../../../../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../../../../geometries/_components/geometries-run-button'
 import { GeometryOutputButton } from '../../../../../geometries/_components/geometry-output-button'
-import { useGeometriesLink } from '../../../../../geometries/_hooks'
+import {
+  useGeometriesLink,
+  useGeometryOutputs,
+} from '../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../variables/_components/variable-button'
 import { ProductOutputButton } from '../../../../_components/product-output-button'
 import {
@@ -21,10 +36,9 @@ import {
   useCreateProductRunOutput,
   useProductOutputLink,
   useProductOutputs,
+  useProductRun,
 } from '../../../../_hooks'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useVariables } from '../../../../../variables/_hooks'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -39,10 +53,13 @@ const createProductRunOutputSchema = baseFormSchema.extend({
 const ProductOutputFeature = () => {
   const { data, page, setPage } = useProductOutputs()
   const createProductOutput = useCreateProductRunOutput()
-
+  const { data: productRun } = useProductRun()
   const productLink = useProductOutputLink()
   const geometriesLink = useGeometriesLink()
-
+  const { data: geometryOutputs } = useGeometryOutputs(
+    productRun?.geometriesRun.id,
+  )
+  const { data: variables } = useVariables()
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
   }, [])
@@ -121,6 +138,12 @@ const ProductOutputFeature = () => {
     resolver: zodResolver(createProductRunOutputSchema),
   })
 
+  useEffect(() => {
+    if (productRun) {
+      form.setValue('productRunId', productRun.id)
+    }
+  }, [productRun])
+
   return (
     <div>
       <div className="flex justify-between">
@@ -129,7 +152,68 @@ const ProductOutputFeature = () => {
           form={form}
           mutation={createProductOutput}
           buttonText="Add Product Output"
-        />
+        >
+          <FormField
+            control={form.control}
+            name="geometryOutputId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Geometry Output</FormLabel>
+                <SelectWithSearch
+                  options={geometryOutputs?.data}
+                  value={field.value}
+                  onSelect={field.onChange}
+                  onSearch={() => {}}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="variableId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Variable</FormLabel>
+                <SelectWithSearch
+                  options={variables?.data}
+                  value={field.value}
+                  onSelect={field.onChange}
+                  onSearch={() => {}}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name={'value'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Value</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="timePoint"
+            render={({ field }) => (
+              <FormItem className="w-full relative">
+                <FormLabel>Time Point</FormLabel>
+                <CalendarSelect
+                  label="Time Point"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

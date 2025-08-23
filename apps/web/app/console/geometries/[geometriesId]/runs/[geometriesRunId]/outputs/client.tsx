@@ -2,12 +2,13 @@
 
 import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../../../components/crud-table'
 import {
   GeometryOutputListItem,
   useCreateGeometryOutput,
+  useGeometriesRun,
   useGeometriesLink,
   useGeometryOutputLink,
   useGeometryOutputs,
@@ -18,6 +19,15 @@ import { baseFormSchema } from '../../../../../../../components/crud-form'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormControl,
+  FormField,
+  FormLabel,
+  FormItem,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { cn } from '@repo/ui/lib/utils'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
@@ -30,7 +40,7 @@ const createGeometryOutputSchema = baseFormSchema.extend({
 const GeometryOutputFeature = () => {
   const { data, page, setPage } = useGeometryOutputs()
   const createGeometryOutput = useCreateGeometryOutput()
-
+  const { data: geometriesRun } = useGeometriesRun()
   const geometryOutputLink = useGeometryOutputLink()
   const geometriesLink = useGeometriesLink()
 
@@ -47,6 +57,12 @@ const GeometryOutputFeature = () => {
     resolver: zodResolver(createGeometryOutputSchema),
   })
 
+  useEffect(() => {
+    if (geometriesRun) {
+      form.setValue('geometriesRunId', geometriesRun.id)
+    }
+  }, [geometriesRun])
+
   return (
     <div>
       <div className="flex justify-between">
@@ -55,7 +71,40 @@ const GeometryOutputFeature = () => {
           form={form}
           mutation={createGeometryOutput}
           buttonText="Add Geometry Output"
-        />
+          hiddenFields={['id', 'createdAt', 'updatedAt']}
+        >
+          <FormField
+            control={form.control}
+            name={'geometry'}
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Geometry</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    className={cn('font-mono')}
+                    value={
+                      typeof field.value === 'object'
+                        ? JSON.stringify(field.value, null, 2)
+                        : field.value
+                    }
+                    onChange={(e) => {
+                      try {
+                        field.onChange(JSON.parse(e.target.value))
+                      } catch (error) {
+                        fieldState.error = {
+                          message: 'Invalid JSON',
+                          type: 'custom',
+                        }
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

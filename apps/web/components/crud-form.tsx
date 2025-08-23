@@ -39,7 +39,7 @@ export const baseFormSchema = z.object({
 export interface CrudFormConfig<Data extends z.infer<typeof baseFormSchema>> {
   entityName?: string // e.g., "Dataset", "Product", "Geometry"
   entityNamePlural?: string // e.g., "datasets", "products", "geometries"
-  readOnlyFields?: (keyof Data)[] // Fields that should be displayed but not editable
+  readOnlyFields?: (keyof Data | string)[] // Fields that should be displayed but not editable
   hiddenFields?: (keyof Data | string)[] // Fields that should not be displayed at all
   fieldLabels?: Partial<Record<keyof Data, string>> // Custom labels for fields
 }
@@ -63,8 +63,6 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
   hiddenFields,
   fieldLabels,
 }: CrudFormProps<Data>) => {
-  console.log(hiddenFields)
-
   // Helper function to get field label
   const getFieldLabel = (field: keyof Data): string => {
     if (fieldLabels) {

@@ -61,10 +61,19 @@ export const ProductRunSummaryCard = ({
           {`${run?.outputSummary?.outputCount} outputs`}
           <div className="flex gap-2">
             {run?.outputSummary?.variables?.map((variable) => (
-              <VariableButton
-                variable={variable.variable}
-                key={variable.variable.id}
-              />
+              <div className="flex flex-col gap-2">
+                <VariableButton
+                  variable={variable.variable}
+                  key={variable.variable.id}
+                />
+                <div className="flex flex-col gap-1">
+                  <div>
+                    Data range: {variable.minValue} to {variable.maxValue} over{' '}
+                    {variable.count} outputs
+                  </div>
+                  <div>Mean: {variable.avgValue}</div>
+                </div>
+              </div>
             ))}
           </div>
         </div>

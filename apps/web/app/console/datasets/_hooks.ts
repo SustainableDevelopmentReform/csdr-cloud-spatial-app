@@ -96,7 +96,7 @@ export const useDatasetRuns = (_datasetId?: string) => {
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.DatasetRun],
+    queryKey: [QueryKey.DatasetRun, datasetId],
     queryFn: async () => {
       if (!datasetId) return null
       const res = client.api.v1['dataset'][':id']['runs'].$get({
@@ -181,12 +181,20 @@ export const useCreateDataset = () => {
 }
 
 export const useCreateDatasetRun = () => {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateDatasetRunPayload) => {
       const res = client.api.v1['dataset-run'].$post({
         json: data,
       })
       await unwrapResponse(res)
+
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.DatasetRun],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Dataset, data.datasetId],
+      })
     },
   })
 }

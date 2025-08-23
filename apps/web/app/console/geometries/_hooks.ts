@@ -160,7 +160,7 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.GeometryOutput],
+    queryKey: [QueryKey.GeometryOutput, geometriesRunId],
     queryFn: async () => {
       if (!geometriesRunId) return null
       const res = client.api.v1['geometries-run'][':id']['outputs'].$get({
@@ -279,6 +279,9 @@ export const useCreateGeometriesRun = () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometriesRun],
       })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Geometries, data.geometriesId],
+      })
     },
   })
 }
@@ -294,6 +297,15 @@ export const useCreateGeometryOutput = () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometryOutput],
       })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometriesRun, data.geometriesRunId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometriesRun],
+      })
+      // queryClient.invalidateQueries({
+      //   queryKey: [QueryKey.Geometries, data.geom.geometriesId],
+      // })
     },
   })
 }
