@@ -1,37 +1,33 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@repo/ui/components/ui/card'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
-import { ArrowUpRightIcon } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useMemo } from 'react'
-import Link from '../../../../../../../../components/link'
+import {
+  baseFormSchema,
+  CrudForm,
+} from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
+import { DetailCard } from '../../../../../../_components/detail-cards'
 import { MainRunBadge } from '../../../../../../_components/main-run-badge'
-import { useGeometriesLink } from '../../../../../_hooks'
-import { VariableButton } from '../../../../../../variables/_components/variable-button'
 import {
   useGeometries,
-  useGeometryOutput,
   useGeometriesRun,
+  useGeometryOutput,
+  useUpdateGeometryOutput,
 } from '../../../../../_hooks'
-import { DetailCard } from '../../../../../../_components/detail-cards'
+import { z } from 'zod'
+
+const formSchema = baseFormSchema.extend({
+  name: z.undefined(),
+})
 
 const GeometriesRunDetails = () => {
   const { data: geometries } = useGeometries()
   const { data: geometriesRun } = useGeometriesRun()
   const { data: geometryOutput } = useGeometryOutput()
-
-  const geometriesLink = useGeometriesLink()
+  const updateGeometryOutput = useUpdateGeometryOutput()
 
   const geometry = useMemo(() => {
     return (
@@ -50,13 +46,6 @@ const GeometriesRunDetails = () => {
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
-      <div className="text-2xl font-medium flex items-center gap-2">
-        Geometries Run Output Details
-        {geometries?.mainRun &&
-          geometriesRun?.id === geometries?.mainRun?.id && (
-            <MainRunBadge variant="geometries" />
-          )}
-      </div>
       <div className="rounded-lg overflow-hidden">
         {geometryBbox && (
           <Map
@@ -100,6 +89,23 @@ const GeometriesRunDetails = () => {
           />
         )}
       </div>
+
+      {geometryOutput && (
+        <CrudForm
+          data={geometryOutput}
+          defaultValues={{
+            description: geometryOutput?.description ?? undefined,
+            metadata: geometryOutput?.metadata ?? undefined,
+          }}
+          formSchema={formSchema}
+          updateMutation={updateGeometryOutput}
+          config={{
+            entityName: 'Geometry Output',
+            entityNamePlural: 'Geometry Outputs',
+            readOnlyFields: ['id', 'createdAt', 'updatedAt', 'name'],
+          }}
+        />
+      )}
     </div>
   )
 }

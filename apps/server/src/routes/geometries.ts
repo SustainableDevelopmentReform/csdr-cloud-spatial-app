@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, sql, SQL } from 'drizzle-orm'
+import { count, desc, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -7,27 +7,19 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometries, geometriesRun } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
 import { geometriesRunQuery } from './geometriesRun'
+import { transformCreateResource, transformUpdateResource } from './util'
+import { baseCreateResourceSchema, baseUpdateResourceSchema } from './util'
 
 // Define shared query configuration
 const geometriesQuery = {
   columns: {
-    id: true,
-    name: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
+    ...baseColumns,
     metadata: true,
   },
   with: {
-    mainRun: {
-      columns: {
-        id: true,
-        createdAt: true,
-        geometriesId: true,
-      },
-    },
+    mainRun: geometriesRunQuery,
   },
   extras: {
     runCount: sql<number>`(
@@ -145,22 +137,19 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
-        name: z.string(),
-        description: z.string().nullable().optional(),
-        metadata: z.any().optional(),
-      }),
+      transformCreateResource(
+        baseCreateResourceSchema.extend({
+          datasetId: z.string(),
+          mainRunId: z.string(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:geometries',
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
-      const newGeometries = await db
-        .insert(geometries)
-        .values({ ...data, id })
-        .returning()
+      const newGeometries = await db.insert(geometries).values(data).returning()
 
       return generateJsonResponse(c, newGeometries[0], 201)
     },
@@ -169,10 +158,11 @@ const app = new Hono()
     '/:id',
     zValidator(
       'json',
-      z.object({
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
-      }),
+      transformUpdateResource(
+        baseUpdateResourceSchema.extend({
+          mainRunId: z.string().optional(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:geometries',

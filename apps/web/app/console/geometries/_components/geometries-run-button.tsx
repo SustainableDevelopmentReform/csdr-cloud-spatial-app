@@ -22,17 +22,17 @@ export const GeometriesRunButtons = ({
 
 export const GeometriesRunButton = ({
   geometriesRun,
-  isMainRun,
 }: {
   geometriesRun: GeometriesRunLinkParams
-  isMainRun?: boolean
 }) => {
   const geometriesRunLink = useGeometriesRunLink()
 
   return (
     <BadgeLink href={geometriesRunLink(geometriesRun)} variant="geometriesRun">
-      {geometriesRun.id}
-      {isMainRun && <MainRunBadge size="xs" variant="geometries" />}
+      {geometriesRun.name}
+      {geometriesRun.geometries.mainRunId === geometriesRun.id && (
+        <MainRunBadge size="xs" variant="geometries" />
+      )}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )

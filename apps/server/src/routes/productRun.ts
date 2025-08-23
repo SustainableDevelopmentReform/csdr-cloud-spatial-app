@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, min, max, avg } from 'drizzle-orm'
+import { avg, count, desc, eq, max, min } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -12,8 +12,14 @@ import {
   productOutputSummaryVariable,
   productRun,
 } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
 import { productOutputQuery } from './productOutput'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  transformCreateResource,
+  transformUpdateResource,
+} from './util'
 
 export const productRunOutputSummaryQuery = {
   columns: {
@@ -36,9 +42,7 @@ export const productRunOutputSummaryQuery = {
       with: {
         variable: {
           columns: {
-            id: true,
-            name: true,
-            description: true,
+            ...baseColumns,
             unit: true,
             categoryId: true,
           },
@@ -51,45 +55,36 @@ export const productRunOutputSummaryQuery = {
 // Define shared query configuration
 export const productRunQuery = {
   columns: {
-    id: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
-    parameters: true,
+    ...baseColumns,
+    metadata: true,
     productId: true,
   },
   with: {
     outputSummary: productRunOutputSummaryQuery,
     product: {
       columns: {
-        id: true,
-        name: true,
+        ...baseColumns,
+        mainRunId: true,
       },
     },
     datasetRun: {
-      columns: {
-        id: true,
-        createdAt: true,
-      },
+      columns: baseColumns,
       with: {
         dataset: {
           columns: {
-            id: true,
-            name: true,
+            ...baseColumns,
+            mainRunId: true,
           },
         },
       },
     },
     geometriesRun: {
-      columns: {
-        id: true,
-        createdAt: true,
-      },
+      columns: baseColumns,
       with: {
         geometries: {
           columns: {
-            id: true,
-            name: true,
+            ...baseColumns,
+            mainRunId: true,
           },
         },
       },
@@ -159,24 +154,20 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
-        description: z.string().nullable().optional(),
-        parameters: z.any().optional(),
-        productId: z.string(),
-        datasetRunId: z.string(),
-        geometriesRunId: z.string(),
-      }),
+      transformCreateResource(
+        baseCreateResourceSchema.extend({
+          productId: z.string(),
+          datasetRunId: z.string(),
+          geometriesRunId: z.string(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:productRun',
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
-      const newProductRun = await db
-        .insert(productRun)
-        .values({ ...data, id })
-        .returning()
+      const newProductRun = await db.insert(productRun).values(data).returning()
 
       return generateJsonResponse(c, newProductRun[0], 201)
     },
@@ -185,9 +176,12 @@ const app = new Hono()
     '/:id',
     zValidator(
       'json',
-      z.object({
-        description: z.string().nullable().optional(),
-      }),
+      transformUpdateResource(
+        baseUpdateResourceSchema.extend({
+          name: z.string().optional(),
+          description: z.string().optional(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:productRun',

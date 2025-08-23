@@ -38,7 +38,7 @@ const ProductRunFeature = () => {
         cell: ({ row }) => {
           return (
             <VariableButtons
-              variables={row.original.outputSummary.variables.map(
+              variables={row.original.outputSummary?.variables.map(
                 (v) => v.variable,
               )}
             />
@@ -48,23 +48,11 @@ const ProductRunFeature = () => {
       {
         header: 'Number of outputs',
         cell: ({ row }) => {
-          return <div>{row.original.outputSummary.outputCount}</div>
-        },
-      },
-      {
-        header: 'Main Run',
-        cell: ({ row }) => {
-          return (
-            <div>
-              {product?.mainRun && row.original.id === product?.mainRun?.id ? (
-                <MainRunBadge variant="product" />
-              ) : null}
-            </div>
-          )
+          return <div>{row.original.outputSummary?.outputCount}</div>
         },
       },
     ] satisfies ColumnDef<ProductRunListItem>[]
-  }, [product?.mainRun?.id])
+  }, [])
 
   return (
     <div>

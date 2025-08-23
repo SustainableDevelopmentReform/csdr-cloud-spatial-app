@@ -19,17 +19,17 @@ export const DatasetRunButtons = ({
 
 export const DatasetRunButton = ({
   datasetRun,
-  isMainRun,
 }: {
   datasetRun: DatasetRunLinkParams
-  isMainRun?: boolean
 }) => {
   const datasetRunLink = useDatasetRunLink()
 
   return (
     <BadgeLink href={datasetRunLink(datasetRun)} variant="datasetRun">
-      {datasetRun.id}
-      {isMainRun && <MainRunBadge size="xs" variant="dataset" />}
+      {datasetRun.name}
+      {datasetRun.dataset.mainRunId === datasetRun.id && (
+        <MainRunBadge size="xs" variant="dataset" />
+      )}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )

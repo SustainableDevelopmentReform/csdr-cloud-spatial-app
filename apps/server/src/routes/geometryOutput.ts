@@ -7,14 +7,18 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  transformCreateResource,
+  transformUpdateResource,
+} from './util'
 
 // Define shared query configuration
 export const geometryOutputQuery = {
   columns: {
-    id: true,
-    createdAt: true,
-    name: true,
+    ...baseColumns,
     properties: true,
     geometry: true,
   },
@@ -22,10 +26,7 @@ export const geometryOutputQuery = {
     geometriesRun: {
       with: {
         geometries: {
-          columns: {
-            id: true,
-            name: true,
-          },
+          columns: { ...baseColumns, mainRunId: true },
         },
       },
     },
@@ -59,12 +60,15 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
-        name: z.string(),
-        geometriesRunId: z.string(),
-        properties: z.any().optional(),
-        geometry: z.any(),
-      }),
+      transformCreateResource(
+        baseCreateResourceSchema.extend({
+          // Name is mandatory
+          name: z.string(),
+          geometriesRunId: z.string(),
+          geometry: z.any().optional(),
+          properties: z.any().optional(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:geometryOutput',
@@ -87,6 +91,32 @@ const app = new Hono()
         .returning()
 
       return generateJsonResponse(c, newGeometryOutput[0], 201)
+    },
+  )
+  .patch(
+    '/:id',
+    zValidator(
+      'json',
+      transformUpdateResource(
+        baseUpdateResourceSchema.extend({
+          // Don't allow name to be updated
+          name: z.undefined(),
+        }),
+      ),
+    ),
+    authMiddleware({
+      permission: 'write:geometryOutput',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+      const data = c.req.valid('json')
+      const role = await db
+        .update(geometryOutput)
+        .set(data)
+        .where(eq(geometryOutput.id, id))
+        .returning()
+
+      return generateJsonResponse(c, role[0])
     },
   )
   .delete(

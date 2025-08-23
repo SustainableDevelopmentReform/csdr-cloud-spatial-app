@@ -17,6 +17,10 @@ import {
   useProductOutputs,
 } from '../../../../_hooks'
 import { ProductOutputButton } from '../../../../_components/product-output-button'
+import { GeometryOutputButton } from '../../../../../geometries/_components/geometry-output-button'
+import { GeometriesRunButton } from '../../../../../geometries/_components/geometries-run-button'
+import { DatasetButton } from '../../../../../datasets/_components/dataset-button'
+import { DatasetRunButton } from '../../../../../datasets/_components/dataset-run-button'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -57,16 +61,47 @@ const ProductOutputFeature = () => {
           },
           size: 120,
         }),
-        columnHelper.accessor((row) => row.geometryOutput.name, {
-          id: 'geometryOutput',
+        columnHelper.display({
+          id: 'geometry',
           header: () => <span>Geometry</span>,
-          cell: (info) => {
+          cell: ({ row }) => {
             return (
               <div className="flex items-center gap-2">
-                {info.getValue()}
                 <GeometriesButton
                   geometries={
-                    info.row.original.geometryOutput.geometriesRun.geometries
+                    row.original.geometryOutput.geometriesRun.geometries
+                  }
+                />
+                <GeometriesRunButton
+                  geometriesRun={row.original.geometryOutput.geometriesRun}
+                  isMainRun={
+                    row.original.geometryOutput.geometriesRun.geometries
+                      .mainRunId ===
+                    row.original.geometryOutput.geometriesRun.id
+                  }
+                />
+                <GeometryOutputButton
+                  geometryOutput={row.original.geometryOutput}
+                />
+              </div>
+            )
+          },
+          size: 120,
+        }),
+        columnHelper.display({
+          id: 'dataset',
+          header: () => <span>Dataset</span>,
+          cell: ({ row }) => {
+            return (
+              <div className="flex items-center gap-2">
+                <DatasetButton
+                  dataset={row.original.productRun.datasetRun.dataset}
+                />
+                <DatasetRunButton
+                  datasetRun={row.original.productRun.datasetRun}
+                  isMainRun={
+                    row.original.productRun.datasetRun.dataset.mainRunId ===
+                    row.original.productRun.datasetRun.id
                   }
                 />
               </div>

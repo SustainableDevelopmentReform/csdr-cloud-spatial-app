@@ -10,14 +10,14 @@ import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
 import {
   useGeometries,
-  useGeometryOutput,
-  useGeometryOutputLink,
   useGeometriesRun,
   useGeometriesRunLink,
   useGeometriesRunsLink,
+  useGeometryOutput,
 } from '../_hooks'
 import { GeometriesButton } from './geometries-button'
 import { GeometriesRunButton } from './geometries-run-button'
+import { GeometryOutputButton } from './geometry-output-button'
 
 export const GeometriesBreadcrumbs = () => {
   const pathname = usePathname()
@@ -27,7 +27,6 @@ export const GeometriesBreadcrumbs = () => {
   const { data: geometryOutput } = useGeometryOutput()
 
   const geometriesRunLink = useGeometriesRunLink()
-  const geometryOutputLink = useGeometryOutputLink()
   const geometriesRunsLink = useGeometriesRunsLink()
   return (
     <Breadcrumb>
@@ -101,12 +100,7 @@ export const GeometriesBreadcrumbs = () => {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link
-                  href={geometryOutputLink(geometryOutput)}
-                  className="font-mono"
-                >
-                  {geometryOutput.name}
-                </Link>
+                <GeometryOutputButton geometryOutput={geometryOutput} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>

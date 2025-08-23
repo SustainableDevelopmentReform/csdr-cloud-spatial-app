@@ -17,17 +17,18 @@ import { useMemo } from 'react'
 import Table from '~/components/table'
 
 export interface BaseItem {
-  name?: string | null
+  name: string
   id: string
   description?: string | null
-  createdAt?: string | null
-  updatedAt?: string | null
+  createdAt: string
+  updatedAt: string
+  metadata?: any
 }
 
 interface BaseActionProps<T extends BaseItem> {
   title: string
   itemLink?: (item: T) => string
-  itemButton?: (item: T) => React.ReactNode
+  itemButton?: (item: T) => React.ReactNode | React.ReactNode[]
 }
 
 const Action = <T extends BaseItem>({
@@ -77,12 +78,7 @@ interface BaseCrudTableProps<T extends BaseItem> extends BaseActionProps<T> {
 }
 
 const BaseCrudTable = <
-  T extends {
-    name?: string | null
-    id: string
-    description?: string | null
-    createdAt?: string | null
-    updatedAt?: string | null
+  T extends BaseItem & {
     itemButton?: (item: T) => React.ReactNode
   },
 >({
@@ -100,23 +96,9 @@ const BaseCrudTable = <
       itemButton &&
         columnHelper.accessor((row) => row, {
           id: 'itemButton',
-          header: () => <span></span>,
+          header: () => <span>{title}</span>,
           cell: (info) => itemButton(info.row.original),
           size: 120,
-        }),
-      baseColumns.includes('name') &&
-        columnHelper.accessor((row) => row.name, {
-          id: 'name',
-          header: () => <span>{title}</span>,
-          cell: (info) => info.getValue(),
-          minSize: 120,
-        }),
-      baseColumns.includes('description') &&
-        columnHelper.accessor((row) => row.description, {
-          id: 'description',
-          header: () => <span>Description</span>,
-          cell: (info) => info.getValue(),
-          minSize: 120,
         }),
       baseColumns.includes('id') &&
         columnHelper.accessor((row) => row.id, {
@@ -129,6 +111,21 @@ const BaseCrudTable = <
           ),
           size: 120,
         }),
+      baseColumns.includes('name') &&
+        columnHelper.accessor((row) => row.name, {
+          id: 'name',
+          header: () => <span>{title} Name</span>,
+          cell: (info) => info.getValue(),
+          minSize: 120,
+        }),
+      baseColumns.includes('description') &&
+        columnHelper.accessor((row) => row.description, {
+          id: 'description',
+          header: () => <span>Description</span>,
+          cell: (info) => info.getValue(),
+          minSize: 120,
+        }),
+
       baseColumns.includes('createdAt') &&
         columnHelper.accessor((row) => row.createdAt, {
           id: 'createdAt',
