@@ -80,8 +80,23 @@ const geometriesParamsSchema = z.object({
   geometryOutputId: z.string().optional(),
 })
 
+export const useGeometriesParams = (
+  _geometriesId?: string,
+  _geometriesRunId?: string,
+  _geometryOutputId?: string,
+) => {
+  const params = useParams()
+  const { geometriesId, geometriesRunId, geometryOutputId } =
+    geometriesParamsSchema.parse(params)
+
+  return {
+    geometriesId: _geometriesId ?? geometriesId,
+    geometriesRunId: _geometriesRunId ?? geometriesRunId,
+    geometryOutputId: _geometryOutputId ?? geometryOutputId,
+  }
+}
+
 export const useAllGeometries = () => {
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -102,20 +117,14 @@ export const useAllGeometries = () => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
   }
 }
 
 export const useGeometriesRuns = (_geometriesId?: string) => {
-  const params = useParams()
-  const { geometriesId } = _geometriesId
-    ? { geometriesId: _geometriesId }
-    : geometriesParamsSchema.parse(params)
+  const { geometriesId } = useGeometriesParams(_geometriesId)
 
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -140,20 +149,14 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
   }
 }
 
 export const useGeometryOutputs = (_geometriesRunId?: string) => {
-  const params = useParams()
-  const { geometriesRunId } = _geometriesRunId
-    ? { geometriesRunId: _geometriesRunId }
-    : geometriesParamsSchema.parse(params)
+  const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
 
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -178,18 +181,13 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
   }
 }
 
-export const useGeometries = (id?: string) => {
-  const params = useParams()
-  const { geometriesId } = id
-    ? { geometriesId: id }
-    : geometriesParamsSchema.parse(params)
+export const useGeometries = (_geometriesId?: string) => {
+  const { geometriesId } = useGeometriesParams(_geometriesId)
 
   return useQuery({
     queryKey: [QueryKey.Geometries, geometriesId],
@@ -210,10 +208,7 @@ export const useGeometries = (id?: string) => {
 }
 
 export const useGeometriesRun = (_geometriesRunId?: string) => {
-  const params = useParams()
-  const { geometriesRunId } = _geometriesRunId
-    ? { geometriesRunId: _geometriesRunId }
-    : geometriesParamsSchema.parse(params)
+  const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
 
   return useQuery({
     queryKey: [QueryKey.GeometriesRun, geometriesRunId],
@@ -234,10 +229,11 @@ export const useGeometriesRun = (_geometriesRunId?: string) => {
 }
 
 export const useGeometryOutput = (_geometryOutputId?: string) => {
-  const params = useParams()
-  const { geometryOutputId } = _geometryOutputId
-    ? { geometryOutputId: _geometryOutputId }
-    : geometriesParamsSchema.parse(params)
+  const { geometryOutputId } = useGeometriesParams(
+    undefined,
+    undefined,
+    _geometryOutputId,
+  )
 
   return useQuery({
     queryKey: [QueryKey.GeometryOutput, geometryOutputId],
@@ -272,23 +268,52 @@ export const useCreateGeometries = () => {
   })
 }
 
-export const useUpdateGeometries = () => {
+export const useCreateGeometriesRun = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: CreateGeometriesRunPayload) => {
+      const res = client.api.v1['geometries-run'].$post({
+        json: data,
+      })
+      await unwrapResponse(res)
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometriesRun],
+      })
+    },
+  })
+}
+
+export const useCreateGeometryOutput = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: CreateGeometryOutputPayload) => {
+      const res = client.api.v1['geometry-output'].$post({
+        json: data,
+      })
+      await unwrapResponse(res)
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometryOutput],
+      })
+    },
+  })
+}
+
+export const useUpdateGeometries = (_geometriesId?: string) => {
+  const { geometriesId } = useGeometriesParams(_geometriesId)
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateGeometriesPayload) => {
+    mutationFn: async (payload: UpdateGeometriesPayload) => {
+      if (!geometriesId) return
       const res = client.api.v1.geometries[':id'].$patch({
-        param: { id },
+        param: { id: geometriesId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Geometries, id],
+        queryKey: [QueryKey.Geometries, geometriesId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Geometries],
@@ -297,23 +322,22 @@ export const useUpdateGeometries = () => {
   })
 }
 
-export const useUpdateGeometriesRun = () => {
+export const useUpdateGeometriesRun = (_geometriesRunId?: string) => {
+  const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateGeometriesRunPayload) => {
+    mutationFn: async (payload: UpdateGeometriesRunPayload) => {
+      if (!geometriesRunId) return
       const res = client.api.v1['geometries-run'][':id'].$patch({
-        param: { id },
+        param: { id: geometriesRunId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.GeometriesRun, id],
+        queryKey: [QueryKey.GeometriesRun, geometriesRunId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometriesRun],
@@ -322,23 +346,26 @@ export const useUpdateGeometriesRun = () => {
   })
 }
 
-export const useUpdateGeometryOutput = () => {
+export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
+  const { geometryOutputId } = useGeometriesParams(
+    undefined,
+    undefined,
+    _geometryOutputId,
+  )
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateGeometryOutputPayload) => {
+    mutationFn: async (payload: UpdateGeometryOutputPayload) => {
+      if (!geometryOutputId) return
       const res = client.api.v1['geometry-output'][':id'].$patch({
-        param: { id },
+        param: { id: geometryOutputId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.GeometryOutput, id],
+        queryKey: [QueryKey.GeometryOutput, geometryOutputId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometryOutput],
@@ -347,26 +374,31 @@ export const useUpdateGeometryOutput = () => {
   })
 }
 
-export const useDeleteGeometries = (redirect: string | null = null) => {
+export const useDeleteGeometries = (
+  _geometriesId?: string,
+  redirect: string | null = null,
+) => {
+  const { geometriesId } = useGeometriesParams(_geometriesId)
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async () => {
+      if (!geometriesId) return
       const res = client.api.v1.geometries[':id'].$delete({
         param: {
-          id,
+          id: geometriesId,
         },
       })
 
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Geometries],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Geometries, id],
+        queryKey: [QueryKey.Geometries, geometriesId],
       })
       if (redirect) {
         router.push(redirect)
@@ -375,26 +407,31 @@ export const useDeleteGeometries = (redirect: string | null = null) => {
   })
 }
 
-export const useDeleteGeometriesRun = (redirect: string | null = null) => {
+export const useDeleteGeometriesRun = (
+  _geometriesRunId?: string,
+  redirect: string | null = null,
+) => {
+  const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async () => {
+      if (!geometriesRunId) return
       const res = client.api.v1['geometries-run'][':id'].$delete({
         param: {
-          id,
+          id: geometriesRunId,
         },
       })
 
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometriesRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Geometries, id],
+        queryKey: [QueryKey.Geometries, geometriesRunId],
       })
       if (redirect) {
         router.push(redirect)

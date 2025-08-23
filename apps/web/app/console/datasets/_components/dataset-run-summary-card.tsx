@@ -2,6 +2,7 @@ import { ArrowUpRightIcon } from 'lucide-react'
 import { formatDateTime } from '../../../../utils/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { DatasetListItem, DatasetRunDetail, useDatasetRunLink } from '../_hooks'
+import { NoMainRunCard } from '../../_components/no-main-run-card'
 
 export const DatasetRunSummaryCard = ({
   dataset,
@@ -15,7 +16,7 @@ export const DatasetRunSummaryCard = ({
   const run = datasetRun ?? dataset?.mainRun
 
   if (!run) {
-    return null
+    return <NoMainRunCard />
   }
 
   return (

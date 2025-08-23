@@ -174,15 +174,7 @@ const app = new Hono()
   )
   .patch(
     '/:id',
-    zValidator(
-      'json',
-      transformUpdateResource(
-        baseUpdateResourceSchema.extend({
-          name: z.string().optional(),
-          description: z.string().optional(),
-        }),
-      ),
-    ),
+    zValidator('json', transformUpdateResource(baseUpdateResourceSchema)),
     authMiddleware({
       permission: 'write:productRun',
     }),

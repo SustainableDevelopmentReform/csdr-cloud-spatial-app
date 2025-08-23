@@ -3,13 +3,17 @@
 import { Button } from '@repo/ui/components/ui/button'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
+import { baseFormSchema } from '../../../components/crud-form'
+import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
-import DatasetForm from './_components/form'
-import { useDatasetLink, useDatasets } from './_hooks'
 import { DatasetButton } from './_components/dataset-button'
+import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const DatasetFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useDatasets()
+  const { data, page, setPage } = useDatasets()
+  const createDataset = useCreateDataset()
 
   const datasetLink = useDatasetLink()
 
@@ -17,18 +21,19 @@ const DatasetFeature = () => {
     return ['description', 'createdAt', 'updatedAt'] as const
   }, [])
 
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
   return (
     <div>
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Datasets</h1>
-        <DatasetForm
-          key={`add-dataset-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add Dataset</Button>
-        </DatasetForm>
+        <CrudFormDialog
+          form={form}
+          mutation={createDataset}
+          buttonText="Add Dataset"
+        />
       </div>
       <div className="mt-8">
         <BaseCrudTable

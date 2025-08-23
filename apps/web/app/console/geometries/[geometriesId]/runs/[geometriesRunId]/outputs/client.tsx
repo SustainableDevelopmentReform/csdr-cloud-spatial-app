@@ -5,19 +5,31 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../../../components/crud-table'
-import GeometryOutputForm from '../../../../_components/form'
 import {
   GeometryOutputListItem,
+  useCreateGeometryOutput,
   useGeometriesLink,
   useGeometryOutputLink,
   useGeometryOutputs,
 } from '../../../../_hooks'
 import { GeometryOutputButton } from '../../../../_components/geometry-output-button'
+import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
+import { baseFormSchema } from '../../../../../../../components/crud-form'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
+const createGeometryOutputSchema = baseFormSchema.extend({
+  name: z.string(),
+  geometriesRunId: z.string(),
+  geometry: z.record(z.string(), z.any()),
+})
+
 const GeometryOutputFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useGeometryOutputs()
+  const { data, page, setPage } = useGeometryOutputs()
+  const createGeometryOutput = useCreateGeometryOutput()
 
   const geometryOutputLink = useGeometryOutputLink()
   const geometriesLink = useGeometriesLink()
@@ -31,18 +43,19 @@ const GeometryOutputFeature = () => {
     [geometriesLink],
   )
 
+  const form = useForm({
+    resolver: zodResolver(createGeometryOutputSchema),
+  })
+
   return (
     <div>
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Geometry Runs</h1>
-        <GeometryOutputForm
-          key={`add-geometry-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add Geometry Run</Button>
-        </GeometryOutputForm>
+        <CrudFormDialog
+          form={form}
+          mutation={createGeometryOutput}
+          buttonText="Add Geometry Output"
+        />
       </div>
       <div className="mt-8">
         <BaseCrudTable

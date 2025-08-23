@@ -8,6 +8,7 @@ import {
   useProductRunLink,
   useRefreshProductRunSummary,
 } from '../_hooks'
+import { NoMainRunCard } from '../../_components/no-main-run-card'
 
 export const ProductRunSummaryCard = ({
   product,
@@ -22,7 +23,7 @@ export const ProductRunSummaryCard = ({
   const run = productRun ?? product?.mainRun
 
   if (!run) {
-    return null
+    return <NoMainRunCard />
   }
 
   if (!run?.outputSummary) {

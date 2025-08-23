@@ -20,23 +20,31 @@ import {
   useProductRunLink,
   useUpdateProductRun,
 } from '../../../_hooks'
-
-const formSchema = z.object({
-  id: z.string().readonly(),
-  description: z.string().nullable().optional(),
-  parameters: z.any().optional().readonly(),
-})
-
-type Data = z.infer<typeof formSchema>
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect } from 'react'
 
 const ProductRunDetails = () => {
   const { data: productRun } = useProductRun()
   const updateProductRun = useUpdateProductRun()
-  const deleteProductRun = useDeleteProductRun('/console/productRuns')
+  const deleteProductRun = useDeleteProductRun(
+    undefined,
+    '/console/productRuns',
+  )
   const productRunLink = useProductRunLink()
   const datasetRunLink = useDatasetRunLink()
   const geometriesLink = useGeometriesLink()
   const { data: product } = useProduct()
+
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
+  useEffect(() => {
+    if (productRun) {
+      form.reset(productRun)
+    }
+  }, [productRun, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -70,14 +78,8 @@ const ProductRunDetails = () => {
 
       {productRun && (
         <CrudForm
-          data={productRun}
-          defaultValues={{
-            name: productRun?.name,
-            description: productRun?.description ?? undefined,
-            metadata: productRun?.metadata ?? undefined,
-          }}
-          formSchema={baseFormSchema}
-          updateMutation={updateProductRun}
+          form={form}
+          mutation={updateProductRun}
           deleteMutation={deleteProductRun}
         />
       )}

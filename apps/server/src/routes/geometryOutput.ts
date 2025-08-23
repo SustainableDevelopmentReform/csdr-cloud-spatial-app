@@ -65,7 +65,7 @@ const app = new Hono()
           // Name is mandatory
           name: z.string(),
           geometriesRunId: z.string(),
-          geometry: z.any().optional(),
+          geometry: z.record(z.string(), z.any()),
           properties: z.any().optional(),
         }),
       ),

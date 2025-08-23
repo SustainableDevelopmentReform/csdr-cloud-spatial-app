@@ -1,21 +1,40 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/ui/components/ui/select'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import Pagination from '~/components/pagination'
+import { baseFormSchema } from '../../../components/crud-form'
+import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { DatasetButton } from '../datasets/_components/dataset-button'
+import { useDatasets } from '../datasets/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
+import { useAllGeometries, useGeometries } from '../geometries/_hooks'
 import { VariableButtons } from '../variables/_components/variable-button'
-import ProductForm from './_components/form'
+import { ProductButton } from './_components/product-button'
 import {
   ProductListItem,
-  useDeleteProduct,
+  useCreateProduct,
   useProductLink,
   useProducts,
 } from './_hooks'
-import { ProductButton } from './_components/product-button'
+import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 
 const columnHelper = createColumnHelper<ProductListItem>()
 
@@ -72,15 +91,25 @@ const columns = [
   }),
 ] as ColumnDef<ProductListItem>[]
 
+const createProductSchema = baseFormSchema.extend({
+  datasetId: z.string(),
+  geometriesId: z.string(),
+  timePrecision: z.enum(['hour', 'day', 'month', 'year']),
+})
+
 const ProductFeature = () => {
-  const { data, isOpen, setOpen, page, setPage, filters } = useProducts()
-
-  const deleteProduct = useDeleteProduct()
+  const { data, page, setPage, filters } = useProducts()
+  const { data: datasets } = useDatasets()
+  const { data: geometries } = useAllGeometries()
   const productLink = useProductLink()
-
+  const createProduct = useCreateProduct()
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
   }, [])
+
+  const form = useForm({
+    resolver: zodResolver(createProductSchema),
+  })
 
   return (
     <div>
@@ -91,14 +120,74 @@ const ProductFeature = () => {
             {filters}
           </div>
         </h1>
-        <ProductForm
-          key={`add-product-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
+        <CrudFormDialog
+          form={form}
+          mutation={createProduct}
+          hiddenFields={['id', 'createdAt', 'updatedAt']}
+          entityName="Product"
+          entityNamePlural="Products"
+          buttonText="Add Product"
         >
-          <Button>Add Product</Button>
-        </ProductForm>
+          <FormField
+            control={form.control}
+            name="datasetId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Dataset</FormLabel>
+                <SelectWithSearch
+                  options={datasets?.data}
+                  value={field.value}
+                  onSelect={field.onChange}
+                  onSearch={() => {}}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="geometriesId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Geometries</FormLabel>
+                <Select {...field} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {geometries?.data?.map((geometries) => (
+                      <SelectItem key={geometries.id} value={geometries.id}>
+                        {geometries.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="timePrecision"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Time Precision</FormLabel>
+                <Select {...field} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hour">Hour</SelectItem>
+                    <SelectItem value="day">Day</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                    <SelectItem value="year">Year</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

@@ -51,8 +51,20 @@ const datasetParamsSchema = z.object({
   datasetRunId: z.string().optional(),
 })
 
+export const useDatasetParams = (
+  _datasetId?: string,
+  _datasetRunId?: string,
+) => {
+  const params = useParams()
+  const { datasetId, datasetRunId } = datasetParamsSchema.parse(params)
+
+  return {
+    datasetId: _datasetId ?? datasetId,
+    datasetRunId: _datasetRunId ?? datasetRunId,
+  }
+}
+
 export const useDatasets = () => {
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -73,20 +85,14 @@ export const useDatasets = () => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
   }
 }
 
 export const useDatasetRuns = (_datasetId?: string) => {
-  const params = useParams()
-  const { datasetId } = _datasetId
-    ? { datasetId: _datasetId }
-    : datasetParamsSchema.parse(params)
+  const { datasetId } = useDatasetParams(_datasetId)
 
-  const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -111,18 +117,13 @@ export const useDatasetRuns = (_datasetId?: string) => {
 
   return {
     data,
-    isOpen,
-    setOpen,
     page,
     setPage,
   }
 }
 
 export const useDataset = (id?: string) => {
-  const params = useParams()
-  const { datasetId } = id
-    ? { datasetId: id }
-    : datasetParamsSchema.parse(params)
+  const { datasetId } = useDatasetParams(id)
 
   return useQuery({
     queryKey: [QueryKey.Dataset, datasetId],
@@ -143,10 +144,7 @@ export const useDataset = (id?: string) => {
 }
 
 export const useDatasetRun = (_datasetRunId?: string) => {
-  const params = useParams()
-  const { datasetRunId } = _datasetRunId
-    ? { datasetRunId: _datasetRunId }
-    : datasetParamsSchema.parse(params)
+  const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
 
   return useQuery({
     queryKey: [QueryKey.DatasetRun, datasetRunId],
@@ -193,23 +191,22 @@ export const useCreateDatasetRun = () => {
   })
 }
 
-export const useUpdateDataset = () => {
+export const useUpdateDataset = (_datasetId?: string) => {
+  const { datasetId } = useDatasetParams(_datasetId)
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateDatasetPayload) => {
+    mutationFn: async (payload: UpdateDatasetPayload) => {
+      if (!datasetId) return
       const res = client.api.v1.dataset[':id'].$patch({
-        param: { id },
+        param: { id: datasetId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset, id],
+        queryKey: [QueryKey.Dataset, datasetId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Dataset],
@@ -218,23 +215,22 @@ export const useUpdateDataset = () => {
   })
 }
 
-export const useUpdateDatasetRun = () => {
+export const useUpdateDatasetRun = (_datasetRunId?: string) => {
+  const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: { id: string } & UpdateDatasetRunPayload) => {
+    mutationFn: async (payload: UpdateDatasetRunPayload) => {
+      if (!datasetRunId) return
       const res = client.api.v1['dataset-run'][':id'].$patch({
-        param: { id },
+        param: { id: datasetRunId },
         json: payload,
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.DatasetRun, id],
+        queryKey: [QueryKey.DatasetRun, datasetRunId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.DatasetRun],
@@ -243,26 +239,30 @@ export const useUpdateDatasetRun = () => {
   })
 }
 
-export const useDeleteDataset = (redirect: string | null = null) => {
+export const useDeleteDataset = (
+  _datasetId?: string,
+  redirect: string | null = null,
+) => {
+  const { datasetId } = useDatasetParams(_datasetId)
   const queryClient = useQueryClient()
   const router = useRouter()
-
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async () => {
+      if (!datasetId) return
       const res = client.api.v1.dataset[':id'].$delete({
         param: {
-          id,
+          id: datasetId,
         },
       })
 
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Dataset],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset, id],
+        queryKey: [QueryKey.Dataset, datasetId],
       })
       if (redirect) {
         router.push(redirect)
@@ -271,26 +271,31 @@ export const useDeleteDataset = (redirect: string | null = null) => {
   })
 }
 
-export const useDeleteDatasetRun = (redirect: string | null = null) => {
+export const useDeleteDatasetRun = (
+  _datasetRunId?: string,
+  redirect: string | null = null,
+) => {
+  const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async () => {
+      if (!datasetRunId) return
       const res = client.api.v1['dataset-run'][':id'].$delete({
         param: {
-          id,
+          id: datasetRunId,
         },
       })
 
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.DatasetRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset, id],
+        queryKey: [QueryKey.Dataset, datasetRunId],
       })
       if (redirect) {
         router.push(redirect)

@@ -4,28 +4,41 @@ import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
+import { baseFormSchema } from '../../../../../../../components/crud-form'
+import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../../../../../components/crud-table'
 import { formatDateTime } from '../../../../../../../utils/date'
+import { DatasetButton } from '../../../../../datasets/_components/dataset-button'
+import { DatasetRunButton } from '../../../../../datasets/_components/dataset-run-button'
 import { GeometriesButton } from '../../../../../geometries/_components/geometries-button'
+import { GeometriesRunButton } from '../../../../../geometries/_components/geometries-run-button'
+import { GeometryOutputButton } from '../../../../../geometries/_components/geometry-output-button'
 import { useGeometriesLink } from '../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../variables/_components/variable-button'
-import ProductOutputForm from '../../../../_components/form'
+import { ProductOutputButton } from '../../../../_components/product-output-button'
 import {
-  ProductOutputDetail,
   ProductOutputListItem,
+  useCreateProductRunOutput,
   useProductOutputLink,
   useProductOutputs,
 } from '../../../../_hooks'
-import { ProductOutputButton } from '../../../../_components/product-output-button'
-import { GeometryOutputButton } from '../../../../../geometries/_components/geometry-output-button'
-import { GeometriesRunButton } from '../../../../../geometries/_components/geometries-run-button'
-import { DatasetButton } from '../../../../../datasets/_components/dataset-button'
-import { DatasetRunButton } from '../../../../../datasets/_components/dataset-run-button'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
+const createProductRunOutputSchema = baseFormSchema.extend({
+  productRunId: z.string(),
+  value: z.string(),
+  geometryOutputId: z.string(),
+  variableId: z.string(),
+  timePoint: z.date(),
+})
+
 const ProductOutputFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useProductOutputs()
+  const { data, page, setPage } = useProductOutputs()
+  const createProductOutput = useCreateProductRunOutput()
 
   const productLink = useProductOutputLink()
   const geometriesLink = useGeometriesLink()
@@ -74,11 +87,6 @@ const ProductOutputFeature = () => {
                 />
                 <GeometriesRunButton
                   geometriesRun={row.original.geometryOutput.geometriesRun}
-                  isMainRun={
-                    row.original.geometryOutput.geometriesRun.geometries
-                      .mainRunId ===
-                    row.original.geometryOutput.geometriesRun.id
-                  }
                 />
                 <GeometryOutputButton
                   geometryOutput={row.original.geometryOutput}
@@ -99,10 +107,6 @@ const ProductOutputFeature = () => {
                 />
                 <DatasetRunButton
                   datasetRun={row.original.productRun.datasetRun}
-                  isMainRun={
-                    row.original.productRun.datasetRun.dataset.mainRunId ===
-                    row.original.productRun.datasetRun.id
-                  }
                 />
               </div>
             )
@@ -113,18 +117,19 @@ const ProductOutputFeature = () => {
     [geometriesLink],
   )
 
+  const form = useForm({
+    resolver: zodResolver(createProductRunOutputSchema),
+  })
+
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Product Runs</h1>
-        <ProductOutputForm
-          key={`add-product-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add Product Run</Button>
-        </ProductOutputForm>
+        <h1 className="text-3xl font-medium mb-2">Product Outputs</h1>
+        <CrudFormDialog
+          form={form}
+          mutation={createProductOutput}
+          buttonText="Add Product Output"
+        />
       </div>
       <div className="mt-8">
         <BaseCrudTable

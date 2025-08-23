@@ -1,8 +1,10 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
-import { z } from 'zod'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
 import { baseFormSchema, CrudForm } from '../../../../components/crud-form'
 import { DetailCard } from '../../_components/detail-cards'
 import { useProductsLink } from '../../products/_hooks'
@@ -18,8 +20,18 @@ const DatasetDetails = () => {
   const { data: dataset } = useDataset()
   const productsLink = useProductsLink()
   const updateDataset = useUpdateDataset()
-  const deleteDataset = useDeleteDataset('/console/datasets')
+  const deleteDataset = useDeleteDataset(undefined, '/console/datasets')
   const datasetRunsLink = useDatasetRunsLink()
+
+  const form = useForm({
+    resolver: zodResolver(baseFormSchema),
+  })
+
+  useEffect(() => {
+    if (dataset) {
+      form.reset(dataset)
+    }
+  }, [dataset, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -46,19 +58,12 @@ const DatasetDetails = () => {
           )}
         </div>
       </div>
-      {dataset && (
-        <CrudForm
-          data={dataset}
-          defaultValues={{
-            name: dataset?.name,
-            description: dataset?.description ?? undefined,
-            metadata: dataset?.metadata,
-          }}
-          formSchema={baseFormSchema}
-          updateMutation={updateDataset}
-          deleteMutation={deleteDataset}
-        />
-      )}
+
+      <CrudForm
+        form={form}
+        mutation={updateDataset}
+        deleteMutation={deleteDataset}
+      />
     </div>
   )
 }

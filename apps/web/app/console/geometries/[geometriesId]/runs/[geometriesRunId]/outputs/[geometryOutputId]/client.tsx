@@ -3,7 +3,7 @@
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   baseFormSchema,
   CrudForm,
@@ -18,10 +18,10 @@ import {
   useUpdateGeometryOutput,
 } from '../../../../../_hooks'
 import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
-const formSchema = baseFormSchema.extend({
-  name: z.undefined(),
-})
+const updateGeometryOutputSchema = baseFormSchema.omit({ name: true })
 
 const GeometriesRunDetails = () => {
   const { data: geometries } = useGeometries()
@@ -43,6 +43,20 @@ const GeometriesRunDetails = () => {
       ? bbox(geometryOutput?.geometry as any)
       : undefined
   }, [geometryOutput?.geometry])
+
+  const form = useForm({
+    resolver: zodResolver(updateGeometryOutputSchema),
+  })
+
+  useEffect(() => {
+    if (geometryOutput) {
+      form.reset({
+        // name: geometryOutput.name,
+        description: geometryOutput.description ?? undefined,
+        metadata: geometryOutput.metadata ?? undefined,
+      })
+    }
+  }, [geometryOutput, form])
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
@@ -90,22 +104,15 @@ const GeometriesRunDetails = () => {
         )}
       </div>
 
-      {geometryOutput && (
-        <CrudForm
-          data={geometryOutput}
-          defaultValues={{
-            description: geometryOutput?.description ?? undefined,
-            metadata: geometryOutput?.metadata ?? undefined,
-          }}
-          formSchema={formSchema}
-          updateMutation={updateGeometryOutput}
-          config={{
-            entityName: 'Geometry Output',
-            entityNamePlural: 'Geometry Outputs',
-            readOnlyFields: ['id', 'createdAt', 'updatedAt', 'name'],
-          }}
-        />
-      )}
+      <CrudForm
+        form={form}
+        mutation={updateGeometryOutput}
+        config={{
+          entityName: 'Geometry Output',
+          entityNamePlural: 'Geometry Outputs',
+          readOnlyFields: ['id', 'createdAt', 'updatedAt'],
+        }}
+      />
     </div>
   )
 }

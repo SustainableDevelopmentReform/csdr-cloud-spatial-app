@@ -135,15 +135,7 @@ const app = new Hono()
 
   .post(
     '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          datasetId: z.string(),
-          mainRunId: z.string(),
-        }),
-      ),
-    ),
+    zValidator('json', transformCreateResource(baseCreateResourceSchema)),
     authMiddleware({
       permission: 'write:geometries',
     }),

@@ -69,15 +69,7 @@ export const DatasetBreadcrumbs = () => {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <div className="flex items-center gap-1">
-                  <DatasetRunButton
-                    datasetRun={datasetRun}
-                    isMainRun={
-                      !!(
-                        dataset?.mainRun &&
-                        dataset?.mainRun?.id === datasetRun.id
-                      )
-                    }
-                  />
+                  <DatasetRunButton datasetRun={datasetRun} />
                 </div>
               </BreadcrumbLink>
             </BreadcrumbItem>

@@ -3,24 +3,30 @@
 import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
+import { z } from 'zod'
 import Pagination from '~/components/pagination'
+import { baseFormSchema } from '../../../../../components/crud-form'
+import CrudFormDialog from '../../../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../../../components/crud-table'
-import { MainRunBadge } from '../../../_components/main-run-badge'
 import { DatasetRunButton } from '../../_components/dataset-run-button'
-import DatasetRunForm from '../../_components/form'
 import {
   DatasetRunListItem,
-  useDataset,
+  useCreateDatasetRun,
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 
 const columnHelper = createColumnHelper<DatasetRunListItem>()
 
-const DatasetRunFeature = () => {
-  const { data, isOpen, setOpen, page, setPage } = useDatasetRuns()
-  const { data: dataset } = useDataset()
+const createDatasetRunSchema = baseFormSchema.extend({
+  datasetId: z.string(),
+})
 
+const DatasetRunFeature = () => {
+  const { data, page, setPage } = useDatasetRuns()
+  const createDatasetRun = useCreateDatasetRun()
   const datasetLink = useDatasetRunLink()
 
   const baseColumns = useMemo(() => {
@@ -31,18 +37,19 @@ const DatasetRunFeature = () => {
     return [] satisfies ColumnDef<DatasetRunListItem>[]
   }, [])
 
+  const form = useForm({
+    resolver: zodResolver(createDatasetRunSchema),
+  })
+
   return (
     <div>
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Dataset Runs</h1>
-        <DatasetRunForm
-          key={`add-dataset-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add Dataset Run</Button>
-        </DatasetRunForm>
+        <CrudFormDialog
+          form={form}
+          mutation={createDatasetRun}
+          buttonText="Add Dataset Run"
+        />
       </div>
       <div className="mt-8">
         <BaseCrudTable

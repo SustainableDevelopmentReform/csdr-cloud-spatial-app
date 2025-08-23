@@ -69,15 +69,7 @@ export const GeometriesBreadcrumbs = () => {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <div className="flex items-center gap-1">
-                  <GeometriesRunButton
-                    geometriesRun={geometriesRun}
-                    isMainRun={
-                      !!(
-                        geometries?.mainRun &&
-                        geometries?.mainRun?.id === geometriesRun.id
-                      )
-                    }
-                  />
+                  <GeometriesRunButton geometriesRun={geometriesRun} />
                 </div>
               </BreadcrumbLink>
             </BreadcrumbItem>

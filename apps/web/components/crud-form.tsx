@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,59 +21,49 @@ import {
 import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { UseMutationResult } from '@tanstack/react-query'
-import { DefaultValues, Path, useForm } from 'react-hook-form'
+import { Path, UseFormReturn } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
-import { BaseItem } from './crud-table'
 import { formatDateTime } from '../utils/date'
+import { cn } from '@repo/ui/lib/utils'
 
 export const baseFormSchema = z.object({
+  id: z.string().optional().readonly(),
+  createdAt: z.string().optional().readonly(),
+  updatedAt: z.string().optional().readonly(),
   name: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   metadata: z.any().optional(),
 })
 
-interface CrudFormConfig<T extends BaseItem> {
+export interface CrudFormConfig<Data extends z.infer<typeof baseFormSchema>> {
   entityName?: string // e.g., "Dataset", "Product", "Geometry"
   entityNamePlural?: string // e.g., "datasets", "products", "geometries"
-  readOnlyFields?: (keyof T)[] // Fields that should be displayed but not editable
-  hiddenFields?: (keyof T)[] // Fields that should not be displayed at all
-  fieldLabels?: Partial<Record<keyof T, string>> // Custom labels for fields
+  readOnlyFields?: (keyof Data)[] // Fields that should be displayed but not editable
+  hiddenFields?: (keyof Data | string)[] // Fields that should not be displayed at all
+  fieldLabels?: Partial<Record<keyof Data, string>> // Custom labels for fields
 }
 
-export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
-  data,
-  defaultValues,
-  formSchema,
-  updateMutation,
+export interface CrudFormProps<Data extends z.infer<typeof baseFormSchema>>
+  extends CrudFormConfig<Data> {
+  form: UseFormReturn<Data>
+  mutation: UseMutationResult<unknown, Error, Data>
+  deleteMutation?: UseMutationResult<unknown, Error, void>
+  children?: React.ReactNode | React.ReactNode[]
+}
+
+export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
+  form,
+  mutation,
   deleteMutation,
-  config = {},
-}: {
-  data: Data
-  defaultValues: DefaultValues<z.infer<Schema>>
-  formSchema: Schema
-  updateMutation: UseMutationResult<
-    unknown,
-    Error,
-    z.infer<Schema> & { id: string }
-  >
-  deleteMutation?: UseMutationResult<any, Error, { id: string }>
-  config?: CrudFormConfig<Data>
-}) => {
-  const {
-    entityName = 'Item',
-    entityNamePlural = 'items',
-    readOnlyFields = ['id', 'createdAt', 'updatedAt'],
-    hiddenFields = [],
-    fieldLabels = {},
-  } = config
-
-  const form = useForm<Data>({
-    defaultValues: defaultValues,
-    resolver: zodResolver(formSchema),
-  })
-
-  const { control, handleSubmit } = form
+  children,
+  entityName,
+  entityNamePlural,
+  readOnlyFields,
+  hiddenFields,
+  fieldLabels,
+}: CrudFormProps<Data>) => {
+  console.log(hiddenFields)
 
   // Helper function to get field label
   const getFieldLabel = (field: keyof Data): string => {
@@ -91,12 +80,12 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
 
   // Helper function to check if field should be shown
   const shouldShowField = (field: keyof Data): boolean => {
-    return !hiddenFields.includes(field)
+    return !hiddenFields?.includes(field)
   }
 
   // Helper function to check if field is read-only
   const isReadOnlyField = (field: keyof Data): boolean => {
-    return readOnlyFields.includes(field)
+    return !!readOnlyFields?.includes(field)
   }
 
   return (
@@ -104,31 +93,19 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
       <Form {...form}>
         <form
           className="grid gap-3 border-b border-gray-200 pb-8"
-          onSubmit={handleSubmit((formData) => {
-            // Only send the fields that have changed and are not read-only
-            const changedFields: z.infer<Schema> = {}
-            Object.keys(formData).forEach((key) => {
-              const fieldKey = key as keyof Data
-              if (
-                !isReadOnlyField(fieldKey) &&
-                formData[fieldKey] !== data[fieldKey]
-              ) {
-                changedFields[fieldKey] = formData[fieldKey]
-              }
-            })
-            if (Object.keys(changedFields).length > 0) {
-              updateMutation.mutate({
-                ...changedFields,
-                id: data.id,
-              })
-            }
+          onSubmit={form.handleSubmit((formData) => {
+            mutation.mutate(formData)
           })}
         >
           {/* Render read-only fields */}
           {shouldShowField('id') && (
             <FormItem>
               <FormLabel>{getFieldLabel('id')}</FormLabel>
-              <Input disabled value={data?.id ?? ''} className="bg-gray-100" />
+              <Input
+                disabled
+                value={form.getValues('id' as Path<Data>) ?? ''}
+                className="bg-gray-100"
+              />
             </FormItem>
           )}
 
@@ -137,7 +114,7 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
               <FormLabel>{getFieldLabel('name')}</FormLabel>
               <Input
                 disabled
-                value={data?.name ?? ''}
+                value={form.getValues('name' as Path<Data>) ?? ''}
                 className="bg-gray-100"
               />
             </FormItem>
@@ -145,7 +122,7 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
 
           {shouldShowField('name') && !isReadOnlyField('name') && (
             <FormField
-              control={control}
+              control={form.control}
               name={'name' as Path<Data>}
               render={({ field }) => (
                 <FormItem>
@@ -164,7 +141,9 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
               <FormLabel>{getFieldLabel('createdAt')}</FormLabel>
               <Input
                 disabled
-                value={formatDateTime(data?.createdAt)}
+                value={formatDateTime(
+                  form.getValues('createdAt' as Path<Data>),
+                )}
                 className="bg-gray-100"
               />
             </FormItem>
@@ -175,16 +154,18 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
               <FormLabel>{getFieldLabel('updatedAt')}</FormLabel>
               <Input
                 disabled
-                value={formatDateTime(data?.updatedAt)}
+                value={formatDateTime(
+                  form.getValues('updatedAt' as Path<Data>),
+                )}
                 className="bg-gray-100"
               />
             </FormItem>
           )}
 
           {/* Render editable description field if it exists */}
-          {shouldShowField('description') && 'description' in data && (
+          {shouldShowField('description') && (
             <FormField
-              control={control}
+              control={form.control}
               name={'description' as Path<Data>}
               render={({ field }) => (
                 <FormItem>
@@ -206,9 +187,9 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
           )}
 
           {/* Render metadata field if it exists */}
-          {'metadata' in data && shouldShowField('metadata') && (
+          {shouldShowField('metadata') && (
             <FormField
-              control={control}
+              control={form.control}
               name={'metadata' as Path<Data>}
               render={({ field }) => (
                 <FormItem>
@@ -216,8 +197,11 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
                   <FormControl>
                     <Textarea
                       {...field}
-                      className="font-mono bg-gray-100"
-                      disabled
+                      className={cn(
+                        'font-mono',
+                        isReadOnlyField('metadata') ? 'bg-gray-100' : '',
+                      )}
+                      disabled={isReadOnlyField('metadata')}
                       value={
                         typeof field.value === 'object'
                           ? JSON.stringify(field.value, null, 2)
@@ -231,27 +215,32 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
             />
           )}
 
+          {children}
+
           <div>
-            <Button className="mt-4" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Loading...' : 'Save'}
+            <Button className="mt-4" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Loading...' : 'Save'}
             </Button>
           </div>
         </form>
       </Form>
 
-      <div className="mt-8 border-b border-gray-200 pb-8">
-        <div className="text-xl mb-6 font-medium">{entityName} actions</div>
-        {deleteMutation && (
+      {deleteMutation && (
+        <div className="mt-8 border-b border-gray-200 pb-8">
+          <div className="text-xl mb-6 font-medium">{entityName} actions</div>
+
           <div className="mb-6">
-            <div className="font-medium">Delete {entityName.toLowerCase()}</div>
+            <div className="font-medium">
+              Delete {entityName?.toLowerCase()}
+            </div>
             <div className="mb-3">
-              Permanently remove the {entityName.toLowerCase()}, including all
-              related {entityNamePlural}.
+              Permanently remove the {entityName?.toLowerCase()}, including all
+              related {entityNamePlural?.toLowerCase()}.
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive">
-                  Delete {entityName.toLowerCase()}
+                  Delete {entityName?.toLowerCase()}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -259,17 +248,14 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete{' '}
-                    {data?.name} {entityName.toLowerCase()} and remove{' '}
-                    {data?.name} dependents.
+                    {form.getValues('name' as Path<Data>)}{' '}
+                    {entityName?.toLowerCase()} and remove{' '}
+                    {form.getValues('name' as Path<Data>)} dependents.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() =>
-                      data && deleteMutation.mutate({ id: data.id })
-                    }
-                  >
+                  <AlertDialogAction onClick={() => deleteMutation.mutate()}>
                     {match(deleteMutation)
                       .with({ isPending: true }, () => 'Loading...')
                       .otherwise(() => 'Continue')}
@@ -278,8 +264,8 @@ export const CrudForm = <Data extends BaseItem, Schema extends z.ZodSchema>({
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   )
 }

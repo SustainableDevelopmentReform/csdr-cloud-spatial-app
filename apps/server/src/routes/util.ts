@@ -3,7 +3,7 @@ import { z, ZodSchema } from 'zod'
 export type BaseResource = {
   id: string
   name?: string
-  description?: string
+  description?: string | null
   metadata?: any
   createdAt: Date
   updatedAt: Date
@@ -11,7 +11,7 @@ export type BaseResource = {
 
 export const baseCreateResourceSchema = z.object({
   name: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   metadata: z.any().optional(),
 })
 
@@ -33,7 +33,7 @@ export const transformCreateResource = <
 
 export const baseUpdateResourceSchema = z.object({
   name: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   metadata: z.any().optional(),
 })
 
