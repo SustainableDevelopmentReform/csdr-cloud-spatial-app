@@ -38,21 +38,8 @@ const GeometriesRunFeature = () => {
       //     return <div>{row.original.outputCount}</div>
       //   },
       // },
-      {
-        header: 'Main Run',
-        cell: ({ row }) => {
-          return (
-            <div>
-              {geometries?.mainRun &&
-              row.original.id === geometries?.mainRun?.id ? (
-                <MainRunBadge variant="geometries" />
-              ) : null}
-            </div>
-          )
-        },
-      },
     ] satisfies ColumnDef<GeometriesRunListItem>[]
-  }, [geometries?.mainRun?.id])
+  }, [])
 
   return (
     <div>

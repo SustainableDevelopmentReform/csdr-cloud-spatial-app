@@ -7,25 +7,18 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
 
 // Define shared query configuration
 const variableCategoryQuery = {
   columns: {
-    id: true,
-    name: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
+    ...baseColumns,
     parentId: true,
     displayOrder: true,
   },
   with: {
     parent: {
-      columns: {
-        id: true,
-        name: true,
-      },
+      columns: baseColumns,
     },
   },
 } satisfies QueryForTable<'variableCategory'>

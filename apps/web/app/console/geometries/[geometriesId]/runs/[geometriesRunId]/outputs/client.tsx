@@ -12,7 +12,7 @@ import {
   useGeometryOutputLink,
   useGeometryOutputs,
 } from '../../../../_hooks'
-import { GeometryOutputButton } from '../../../../_components/geometries-output-button'
+import { GeometryOutputButton } from '../../../../_components/geometry-output-button'
 
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 

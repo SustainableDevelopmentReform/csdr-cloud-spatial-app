@@ -13,8 +13,8 @@ import { DatasetButton } from '../datasets/_components/dataset-button'
 import { useDataset, useDatasetRun } from '../datasets/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { useGeometries, useGeometriesRun } from '../geometries/_hooks'
-import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
 import { GeometriesRunButton } from '../geometries/_components/geometries-run-button'
+import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
 
 export type ProductListItem = NonNullable<
   InferResponseType<typeof client.api.v1.product.$get, 200>['data']
@@ -55,6 +55,11 @@ export type UpdateProductPayload = NonNullable<
 export type UpdateProductRunPayload = NonNullable<
   InferRequestType<
     (typeof client.api.v1)['product-run'][':id']['$patch']
+  >['json']
+>
+export type UpdateProductOutputPayload = NonNullable<
+  InferRequestType<
+    (typeof client.api.v1)['product-output'][':id']['$patch']
   >['json']
 >
 
@@ -178,7 +183,19 @@ export const useProductRuns = (_productId?: string) => {
     setPage,
     filters: [
       datasetRun && (
+        <DatasetButton
+          dataset={datasetRun.dataset}
+          key={datasetRun.dataset.id}
+        />
+      ),
+      datasetRun && (
         <DatasetRunButton datasetRun={datasetRun} key={datasetRun.id} />
+      ),
+      geometriesRun && (
+        <GeometriesButton
+          geometries={geometriesRun.geometries}
+          key={geometriesRun.geometries.id}
+        />
       ),
       geometriesRun && (
         <GeometriesRunButton
@@ -388,6 +405,31 @@ export const useUpdateProductRun = () => {
   })
 }
 
+export const useUpdateProductOutput = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...payload
+    }: { id: string } & UpdateProductOutputPayload) => {
+      const res = client.api.v1['product-output'][':id'].$patch({
+        param: { id },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductOutput, id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductOutput],
+      })
+    },
+  })
+}
+
 export const useRefreshProductRunSummary = () => {
   const queryClient = useQueryClient()
 
@@ -403,7 +445,13 @@ export const useRefreshProductRunSummary = () => {
         queryKey: [QueryKey.ProductRun, id],
       })
       queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductRun],
+      })
+      queryClient.invalidateQueries({
         queryKey: [QueryKey.Product, id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Product],
       })
     },
   })
@@ -413,22 +461,21 @@ export const useDeleteProduct = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (product: ProductDetail) => {
+    mutationFn: async ({ id }: { id: string }) => {
       const res = client.api.v1.product[':id'].$delete({
         param: {
-          id: product.id,
+          id,
         },
       })
 
-      await unwrapResponse(res)
-      return product
+      return await unwrapResponse(res)
     },
-    onSuccess: (product) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Product],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, product.id],
+        queryKey: [QueryKey.Product, id],
       })
       if (redirect) {
         router.push(redirect)
@@ -442,22 +489,21 @@ export const useDeleteProductRun = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (productRun: ProductRunDetail) => {
+    mutationFn: async ({ id }: { id: string }) => {
       const res = client.api.v1['product-run'][':id'].$delete({
         param: {
-          id: productRun.id,
+          id,
         },
       })
 
-      await unwrapResponse(res)
-      return productRun
+      return await unwrapResponse(res)
     },
-    onSuccess: (productRun) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, productRun.id],
+        queryKey: [QueryKey.Product, id],
       })
       if (redirect) {
         router.push(redirect)
@@ -491,18 +537,21 @@ export const useProductRunsLink = () =>
     [],
   )
 
-export type ProductRunLinkParams = Pick<ProductRunDetail, 'id' | 'productId'>
+export type ProductRunLinkParams = Pick<
+  ProductRunDetail,
+  'id' | 'name' | 'product'
+>
 
 export const useProductRunLink = () =>
   useCallback(
     (productRun: ProductRunLinkParams) =>
-      `/console/products/${productRun.productId}/runs/${productRun.id}`,
+      `/console/products/${productRun.product.id}/runs/${productRun.id}`,
     [],
   )
 
 export type ProductOutputLinkParams = Pick<
   ProductOutputListItem,
-  'id' | 'productRun'
+  'id' | 'name' | 'productRun'
 >
 
 export const useProductOutputLink = () =>

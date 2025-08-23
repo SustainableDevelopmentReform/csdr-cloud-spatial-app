@@ -19,17 +19,17 @@ export const ProductRunButtons = ({
 
 export const ProductRunButton = ({
   productRun,
-  isMainRun,
 }: {
   productRun: ProductRunLinkParams
-  isMainRun?: boolean
 }) => {
   const productRunLink = useProductRunLink()
 
   return (
     <BadgeLink href={productRunLink(productRun)} variant="productRun">
-      {productRun.id}
-      {isMainRun && <MainRunBadge size="xs" variant="product" />}
+      {productRun.name}
+      {productRun.product.mainRunId === productRun.id && (
+        <MainRunBadge size="xs" variant="product" />
+      )}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )

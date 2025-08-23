@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { and, count, desc, eq, gt, SQL, sql } from 'drizzle-orm'
+import { and, count, desc, eq, SQL, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -7,17 +7,19 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { product, productRun } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
 import { productRunOutputSummaryQuery, productRunQuery } from './productRun'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  transformCreateResource,
+  transformUpdateResource,
+} from './util'
 
 // Common query configuration for products using Drizzle query API
 const productQuery = {
   columns: {
-    id: true,
-    name: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
+    ...baseColumns,
     metadata: true,
     timePrecision: true,
     datasetId: true,
@@ -26,27 +28,12 @@ const productQuery = {
   },
   with: {
     dataset: {
-      columns: {
-        id: true,
-        name: true,
-      },
+      columns: baseColumns,
     },
     geometries: {
-      columns: {
-        id: true,
-        name: true,
-      },
+      columns: baseColumns,
     },
-    mainRun: {
-      columns: {
-        id: true,
-        createdAt: true,
-        productId: true,
-      },
-      with: {
-        outputSummary: productRunOutputSummaryQuery,
-      },
-    },
+    mainRun: productRunQuery,
   },
   extras: {
     runCount: sql<number>`(
@@ -202,25 +189,20 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
-        name: z.string(),
-        description: z.string().nullable().optional(),
-        metadata: z.any().optional(),
-        datasetId: z.string(),
-        geometriesId: z.string(),
-        timePrecision: z.enum(['hour', 'day', 'month', 'year']),
-      }),
+      transformCreateResource(
+        baseCreateResourceSchema.extend({
+          datasetId: z.string(),
+          geometriesId: z.string(),
+          timePrecision: z.enum(['hour', 'day', 'month', 'year']),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:product',
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
-      const newProduct = await db
-        .insert(product)
-        .values({ ...data, id })
-        .returning()
+      const newProduct = await db.insert(product).values(data).returning()
 
       return generateJsonResponse(c, newProduct[0], 201)
     },
@@ -230,14 +212,12 @@ const app = new Hono()
     '/:id',
     zValidator(
       'json',
-      z.object({
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
-        metadata: z.any().optional(),
-        datasetId: z.string().optional(),
-        geometriesId: z.string().optional(),
-        timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
-      }),
+      transformUpdateResource(
+        baseUpdateResourceSchema.extend({
+          mainRunId: z.string().optional(),
+          timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:product',

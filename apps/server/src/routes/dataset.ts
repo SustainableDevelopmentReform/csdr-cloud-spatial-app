@@ -7,27 +7,23 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
 import { datasetRunQuery } from './datasetRun'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  transformCreateResource,
+  transformUpdateResource,
+} from './util'
 
 const datasetQuery = {
   columns: {
-    id: true,
-    name: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
+    ...baseColumns,
     metadata: true,
     mainRunId: true,
   },
   with: {
-    mainRun: {
-      columns: {
-        id: true,
-        createdAt: true,
-        datasetId: true,
-      },
-    },
+    mainRun: datasetRunQuery,
   },
   extras: {
     runCount: sql<number>`(
@@ -142,24 +138,13 @@ const app = new Hono()
   )
   .post(
     '/',
-    zValidator(
-      'json',
-      z.object({
-        name: z.string(),
-        description: z.string().nullable().optional(),
-        metadata: z.any().optional(),
-      }),
-    ),
+    zValidator('json', transformCreateResource(baseCreateResourceSchema)),
     authMiddleware({
       permission: 'write:dataset',
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
-      const newDataset = await db
-        .insert(dataset)
-        .values({ ...data, id })
-        .returning()
+      const newDataset = await db.insert(dataset).values(data).returning()
 
       return generateJsonResponse(c, newDataset[0], 201)
     },
@@ -168,11 +153,11 @@ const app = new Hono()
     '/:id',
     zValidator(
       'json',
-      z.object({
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
-        metadata: z.any().optional(),
-      }),
+      transformUpdateResource(
+        baseUpdateResourceSchema.extend({
+          mainRunId: z.string().optional(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:dataset',

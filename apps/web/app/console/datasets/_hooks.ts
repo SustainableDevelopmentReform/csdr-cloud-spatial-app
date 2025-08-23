@@ -248,22 +248,21 @@ export const useDeleteDataset = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (dataset: DatasetListItem) => {
+    mutationFn: async ({ id }: { id: string }) => {
       const res = client.api.v1.dataset[':id'].$delete({
         param: {
-          id: dataset.id,
+          id,
         },
       })
 
-      await unwrapResponse(res)
-      return dataset
+      return await unwrapResponse(res)
     },
-    onSuccess: (dataset) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Dataset],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset, dataset.id],
+        queryKey: [QueryKey.Dataset, id],
       })
       if (redirect) {
         router.push(redirect)
@@ -277,22 +276,21 @@ export const useDeleteDatasetRun = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (datasetRun: DatasetRunDetail) => {
+    mutationFn: async ({ id }: { id: string }) => {
       const res = client.api.v1['dataset-run'][':id'].$delete({
         param: {
-          id: datasetRun.id,
+          id,
         },
       })
 
-      await unwrapResponse(res)
-      return datasetRun
+      return await unwrapResponse(res)
     },
-    onSuccess: (datasetRun) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.DatasetRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Dataset, datasetRun.id],
+        queryKey: [QueryKey.Dataset, id],
       })
       if (redirect) {
         router.push(redirect)
@@ -311,12 +309,14 @@ export const useDatasetLink = () =>
 
 export const useDatasetRunsLink = () =>
   useCallback(
-    (dataset: Pick<DatasetListItem, 'id'>) =>
-      `/console/datasets/${dataset.id}/runs`,
+    (dataset: DatasetLinkParams) => `/console/datasets/${dataset.id}/runs`,
     [],
   )
 
-export type DatasetRunLinkParams = Pick<DatasetRunListItem, 'id' | 'dataset'>
+export type DatasetRunLinkParams = Pick<
+  DatasetRunListItem,
+  'id' | 'name' | 'dataset'
+>
 
 export const useDatasetRunLink = () =>
   useCallback(

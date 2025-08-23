@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { count, desc, eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '~/lib/db'
@@ -7,23 +7,26 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { datasetRun, productRun } from '../schemas'
-import { QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  transformCreateResource,
+  transformUpdateResource,
+} from './util'
 
 // Define shared query configuration
 export const datasetRunQuery = {
   columns: {
-    id: true,
-    description: true,
-    createdAt: true,
-    updatedAt: true,
-    parameters: true,
+    ...baseColumns,
+    metadata: true,
     datasetId: true,
   },
   with: {
     dataset: {
       columns: {
-        id: true,
-        name: true,
+        ...baseColumns,
+        mainRunId: true,
       },
     },
   },
@@ -65,33 +68,31 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
-        description: z.string().nullable().optional(),
-        parameters: z.any().optional(),
-        datasetId: z.string(),
-      }),
+      transformCreateResource(
+        baseCreateResourceSchema.extend({
+          datasetId: z.string(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:datasetRun',
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
-      const newdatasetRun = await db
-        .insert(datasetRun)
-        .values({ ...data, id })
-        .returning()
+      const newDatasetRun = await db.insert(datasetRun).values(data).returning()
 
-      return generateJsonResponse(c, newdatasetRun[0], 201)
+      return generateJsonResponse(c, newDatasetRun[0], 201)
     },
   )
   .patch(
     '/:id',
     zValidator(
       'json',
-      z.object({
-        description: z.string().nullable().optional(),
-      }),
+      transformUpdateResource(
+        baseUpdateResourceSchema.extend({
+          datasetId: z.string().optional(),
+        }),
+      ),
     ),
     authMiddleware({
       permission: 'write:datasetRun',

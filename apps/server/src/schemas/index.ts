@@ -8,6 +8,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  ReferenceConfig,
   text,
   timestamp,
   unique,
@@ -147,25 +148,27 @@ export const twoFactor = pgTable(
   (table) => [index('two_factor_secret_idx').on(table.secret)],
 )
 
+const baseColumns = {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}
+
 // DATA RELATED TABLES
+const coreBaseResourceColumns = (mainRunRelation: ReferenceConfig['ref']) => ({
+  ...baseColumns,
+  mainRunId: text('main_run_id').references(mainRunRelation, {
+    onDelete: 'cascade',
+  }),
+})
 
 export const dataset = pgTable(
   'dataset',
   {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-
-    description: text('description'),
-    metadata: jsonb('metadata'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-
-    mainRunId: text('main_run_id').references(
-      (): AnyPgColumn => datasetRun.id,
-      {
-        onDelete: 'cascade',
-      },
-    ),
+    ...coreBaseResourceColumns((): AnyPgColumn => datasetRun.id),
   },
   (table) => [
     index('dataset_name_idx').on(table.name),
@@ -177,20 +180,7 @@ export const dataset = pgTable(
 export const geometries = pgTable(
   'geometries',
   {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-
-    description: text('description'),
-    metadata: jsonb('metadata'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-
-    mainRunId: text('main_run_id').references(
-      (): AnyPgColumn => geometriesRun.id,
-      {
-        onDelete: 'cascade',
-      },
-    ),
+    ...coreBaseResourceColumns((): AnyPgColumn => geometriesRun.id),
   },
   (table) => [
     index('geometries_name_idx').on(table.name),
@@ -213,13 +203,7 @@ export const timePrecision = pgEnum('time_precision', [
 export const product = pgTable(
   'product',
   {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-
-    description: text('description'),
-    metadata: jsonb('metadata'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    ...coreBaseResourceColumns((): AnyPgColumn => productRun.id),
 
     datasetId: text('dataset_id')
       .notNull()
@@ -229,13 +213,6 @@ export const product = pgTable(
       .references(() => geometries.id, { onDelete: 'cascade' }),
 
     timePrecision: timePrecision('time_precision').notNull(),
-
-    mainRunId: text('main_run_id').references(
-      (): AnyPgColumn => productRun.id,
-      {
-        onDelete: 'cascade',
-      },
-    ),
   },
   (table) => [
     index('product_name_idx').on(table.name),
@@ -246,21 +223,11 @@ export const product = pgTable(
   ],
 )
 
-const baseRunColumns = {
-  id: text('id').primaryKey(),
-  description: text('description'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-
-  // Processing parameters
-  parameters: jsonb('parameters'),
-}
-
 // Run tables - only created for successful runs
 export const datasetRun = pgTable(
   'dataset_run',
   {
-    ...baseRunColumns,
+    ...baseColumns,
     datasetId: text('dataset_id')
       .notNull()
       .references(() => dataset.id, { onDelete: 'cascade' }),
@@ -274,7 +241,7 @@ export const datasetRun = pgTable(
 export const geometriesRun = pgTable(
   'geometries_run',
   {
-    ...baseRunColumns,
+    ...baseColumns,
     geometriesId: text('geometries_id')
       .notNull()
       .references(() => geometries.id, { onDelete: 'cascade' }),
@@ -288,12 +255,10 @@ export const geometriesRun = pgTable(
 export const geometryOutput = pgTable(
   'geometry_output',
   {
-    id: text('id').primaryKey(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    ...baseColumns,
     geometriesRunId: text('geometries_run_id')
       .notNull()
       .references(() => geometriesRun.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
     properties: jsonb('properties'),
     // TODO: add geometry type
     geometry: jsonb('geometry').notNull(),
@@ -308,7 +273,7 @@ export const geometryOutput = pgTable(
 export const productRun = pgTable(
   'product_run',
   {
-    ...baseRunColumns,
+    ...baseColumns,
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),
@@ -331,8 +296,7 @@ export const productRun = pgTable(
 export const productOutput = pgTable(
   'product_output',
   {
-    id: text('id').primaryKey(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    ...baseColumns,
     productRunId: text('product_run_id')
       .notNull()
       .references(() => productRun.id, { onDelete: 'cascade' }),
@@ -361,6 +325,14 @@ export const productOutput = pgTable(
     index('product_output_run_variable_idx').on(
       table.productRunId,
       table.variableId,
+    ),
+    unique(
+      'product_output_run_variable_time_point_geometry_output_id_unique',
+    ).on(
+      table.productRunId,
+      table.variableId,
+      table.timePoint,
+      table.geometryOutputId,
     ),
   ],
 )
@@ -423,9 +395,7 @@ export const productOutputSummaryVariable = pgTable(
 export const variableCategory = pgTable(
   'variable_category',
   {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-    description: text('description'),
+    ...baseColumns,
 
     // Tree structure
     parentId: text('parent_id').references(
@@ -436,8 +406,6 @@ export const variableCategory = pgTable(
     // TODO: add path
     // path: text('path').notNull(), // '/ecology/coverage'
     displayOrder: integer('display_order').default(0),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
     index('variable_category_parent_idx').on(table.parentId),
@@ -454,18 +422,13 @@ export const variableCategory = pgTable(
 export const variable = pgTable(
   'variable',
   {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-    description: text('description'),
+    ...baseColumns,
     unit: text('unit').notNull(),
     displayOrder: integer('display_order').default(0),
     // Link to category
     categoryId: text('category_id')
       .notNull()
       .references(() => variableCategory.id, { onDelete: 'cascade' }),
-
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
     index('variable_category_idx').on(table.categoryId),

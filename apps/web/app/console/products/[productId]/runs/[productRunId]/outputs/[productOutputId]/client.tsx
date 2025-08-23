@@ -1,21 +1,16 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@repo/ui/components/ui/card'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import { ArrowUpRightIcon } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useMemo } from 'react'
-import Link from '../../../../../../../../components/link'
+import {
+  baseFormSchema,
+  CrudForm,
+} from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
+import { DetailCard } from '../../../../../../_components/detail-cards'
 import { MainRunBadge } from '../../../../../../_components/main-run-badge'
 import { useGeometriesLink } from '../../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../../variables/_components/variable-button'
@@ -23,14 +18,14 @@ import {
   useProduct,
   useProductOutput,
   useProductRun,
+  useUpdateProductOutput,
 } from '../../../../../_hooks'
-import { DetailCard } from '../../../../../../_components/detail-cards'
 
 const ProductRunDetails = () => {
   const { data: product } = useProduct()
   const { data: productRun } = useProductRun()
   const { data: productOutput } = useProductOutput()
-
+  const updateProductOutput = useUpdateProductOutput()
   const geometriesLink = useGeometriesLink()
 
   const geometry = useMemo(() => {
@@ -50,12 +45,6 @@ const ProductRunDetails = () => {
 
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
-      <div className="text-2xl font-medium flex items-center gap-2">
-        Product Run Output Details
-        {product?.mainRun && productRun?.id === product?.mainRun?.id && (
-          <MainRunBadge variant="product" />
-        )}
-      </div>
       <div className="rounded-lg overflow-hidden">
         {geometryBbox && (
           <Map
@@ -112,6 +101,19 @@ const ProductRunDetails = () => {
           />
         )}
       </div>
+
+      {productOutput && (
+        <CrudForm
+          data={productOutput}
+          defaultValues={{
+            name: productOutput?.name,
+            description: productOutput?.description ?? undefined,
+            metadata: productOutput?.metadata ?? undefined,
+          }}
+          formSchema={baseFormSchema}
+          updateMutation={updateProductOutput}
+        />
+      )}
     </div>
   )
 }

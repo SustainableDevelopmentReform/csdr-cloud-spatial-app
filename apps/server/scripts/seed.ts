@@ -156,10 +156,17 @@ const datasetRun = await db
   .insert(schema.datasetRun)
   .values({
     id: 'forest-cover-run',
+    name: 'forest-cover-run',
     datasetId: dataset[0]!.id,
   })
   .onConflictDoNothing()
   .returning()
+
+// Update mainRunId in dataset
+await db
+  .update(schema.dataset)
+  .set({ mainRunId: datasetRun[0]!.id })
+  .where(eq(schema.dataset.id, dataset[0]!.id))
 
 console.log(`Dataset Run ID: ${datasetRun[0]!.id}`)
 
@@ -180,10 +187,17 @@ const geometriesRun = await db
   .insert(schema.geometriesRun)
   .values({
     id: 'australia-geometries-run',
+    name: 'australia-geometries-run',
     geometriesId: geometries[0]!.id,
   })
   .onConflictDoNothing()
   .returning()
+
+// Update mainRunId in geometries
+await db
+  .update(schema.geometries)
+  .set({ mainRunId: geometriesRun[0]!.id })
+  .where(eq(schema.geometries.id, geometries[0]!.id))
 
 console.log(`Geometries Run ID: ${geometriesRun[0]!.id}`)
 
@@ -260,11 +274,12 @@ const productRun = await db
   .insert(schema.productRun)
   .values({
     id: 'forest-cover-product-run',
+    name: 'forest-cover-product-run',
     description: 'Forest Cover Product Run in Australia',
     productId: product[0]!.id,
     datasetRunId: datasetRun[0]!.id,
     geometriesRunId: geometriesRun[0]!.id,
-    parameters: '{ "some product run": "parameters" }',
+    metadata: '{ "some product run": "parameters" }',
   })
   .onConflictDoNothing()
   .returning()
@@ -281,6 +296,7 @@ const productOutput1 = await db
   .insert(schema.productOutput)
   .values({
     id: 'forest-cover-product-output-0',
+    name: 'forest-cover-product-output-0',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput1[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
@@ -296,6 +312,7 @@ const productOutput2 = await db
   .insert(schema.productOutput)
   .values({
     id: 'forest-cover-product-output-1',
+    name: 'forest-cover-product-output-1',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput1[0]!.id,
     timePoint: new Date('2022-01-01T00:00:00Z'),
@@ -311,6 +328,7 @@ const productOutput3 = await db
   .insert(schema.productOutput)
   .values({
     id: 'forest-cover-product-output-2',
+    name: 'forest-cover-product-output-2',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
@@ -326,6 +344,7 @@ const productOutput4 = await db
   .insert(schema.productOutput)
   .values({
     id: 'forest-cover-product-output-3',
+    name: 'forest-cover-product-output-3',
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2022-01-01T00:00:00Z'),

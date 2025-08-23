@@ -56,6 +56,12 @@ export type UpdateGeometriesRunPayload = NonNullable<
   >['json']
 >
 
+export type UpdateGeometryOutputPayload = NonNullable<
+  InferRequestType<
+    (typeof client.api.v1)['geometry-output'][':id']['$patch']
+  >['json']
+>
+
 export type CreateGeometriesPayload = NonNullable<
   InferRequestType<(typeof client.api.v1.geometries)['$post']>['json']
 >
@@ -316,27 +322,51 @@ export const useUpdateGeometriesRun = () => {
   })
 }
 
+export const useUpdateGeometryOutput = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...payload
+    }: { id: string } & UpdateGeometryOutputPayload) => {
+      const res = client.api.v1['geometry-output'][':id'].$patch({
+        param: { id },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometryOutput, id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometryOutput],
+      })
+    },
+  })
+}
+
 export const useDeleteGeometries = (redirect: string | null = null) => {
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (geometries: GeometriesListItem) => {
+    mutationFn: async ({ id }: { id: string }) => {
       const res = client.api.v1.geometries[':id'].$delete({
         param: {
-          id: geometries.id,
+          id,
         },
       })
 
-      await unwrapResponse(res)
-      return geometries
+      return await unwrapResponse(res)
     },
-    onSuccess: (geometries) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Geometries],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Geometries, geometries.id],
+        queryKey: [QueryKey.Geometries, id],
       })
       if (redirect) {
         router.push(redirect)
@@ -350,22 +380,21 @@ export const useDeleteGeometriesRun = (redirect: string | null = null) => {
   const router = useRouter()
 
   return useMutation({
-    mutationFn: async (geometriesRun: GeometriesRunDetail) => {
+    mutationFn: async ({ id }: { id: string }) => {
       const res = client.api.v1['geometries-run'][':id'].$delete({
         param: {
-          id: geometriesRun.id,
+          id,
         },
       })
 
-      await unwrapResponse(res)
-      return geometriesRun
+      return await unwrapResponse(res)
     },
-    onSuccess: (geometriesRun) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometriesRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Geometries, geometriesRun.id],
+        queryKey: [QueryKey.Geometries, id],
       })
       if (redirect) {
         router.push(redirect)
@@ -392,13 +421,13 @@ export const useGeometriesRunsLink = () =>
 
 export type GeometriesRunLinkParams = Pick<
   GeometriesRunDetail,
-  'id' | 'geometriesId'
+  'id' | 'name' | 'geometries'
 >
 
 export const useGeometriesRunLink = () =>
   useCallback(
     (geometriesRun: GeometriesRunLinkParams) =>
-      `/console/geometries/${geometriesRun.geometriesId}/runs/${geometriesRun.id}`,
+      `/console/geometries/${geometriesRun.geometries.id}/runs/${geometriesRun.id}`,
     [],
   )
 

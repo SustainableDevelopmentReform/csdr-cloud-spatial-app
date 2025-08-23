@@ -27,23 +27,9 @@ const DatasetRunFeature = () => {
     return ['createdAt', 'updatedAt'] as const
   }, [])
 
-  // Add column to show mainfile badge if dataset.mainRunId === datasetRun.id
   const columns = useMemo(() => {
-    return [
-      {
-        header: 'Main Run',
-        cell: ({ row }) => {
-          return (
-            <div>
-              {dataset?.mainRun && row.original.id === dataset?.mainRun?.id ? (
-                <MainRunBadge variant="dataset" />
-              ) : null}
-            </div>
-          )
-        },
-      },
-    ] satisfies ColumnDef<DatasetRunListItem>[]
-  }, [dataset?.mainRun?.id])
+    return [] satisfies ColumnDef<DatasetRunListItem>[]
+  }, [])
 
   return (
     <div>

@@ -27,7 +27,11 @@ export const GeometryOutputButton = ({
   const geometriesRunLink = useGeometryOutputLink()
 
   return (
-    <BadgeLink href={geometriesRunLink(geometryOutput)} variant="outline">
+    <BadgeLink
+      href={geometriesRunLink(geometryOutput)}
+      variant="outline"
+      className="border-geometriesRun"
+    >
       {geometryOutput.name}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>

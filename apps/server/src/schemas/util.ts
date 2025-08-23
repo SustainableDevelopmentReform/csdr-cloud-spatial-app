@@ -7,3 +7,12 @@ export type QueryForTable<
   TableName extends keyof TableSchema,
   TRelationType extends 'one' | 'many' = 'one' | 'many',
 > = DBQueryConfig<TRelationType, boolean, TableSchema, TableSchema[TableName]>
+
+export const baseColumns = {
+  id: true,
+  name: true,
+  description: true,
+  metadata: true,
+  createdAt: true,
+  updatedAt: true,
+} as const

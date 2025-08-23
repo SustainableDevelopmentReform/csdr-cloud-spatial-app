@@ -27,8 +27,12 @@ export const ProductOutputButton = ({
   const productOutputLink = useProductOutputLink()
 
   return (
-    <BadgeLink href={productOutputLink(productOutput)} variant="outline">
-      {productOutput.id}
+    <BadgeLink
+      href={productOutputLink(productOutput)}
+      variant="outline"
+      className="border-productRun"
+    >
+      {productOutput.name}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
