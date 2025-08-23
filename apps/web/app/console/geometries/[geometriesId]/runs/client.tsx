@@ -2,7 +2,7 @@
 
 import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../components/crud-table'
 
@@ -51,6 +51,12 @@ const GeometriesRunFeature = () => {
   const form = useForm({
     resolver: zodResolver(createGeometriesRunSchema),
   })
+
+  useEffect(() => {
+    if (geometries) {
+      form.setValue('geometriesId', geometries.id)
+    }
+  }, [geometries])
 
   return (
     <div>

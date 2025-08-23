@@ -116,7 +116,7 @@ const app = new Hono()
           geometryOutputId: z.string(),
           value: z.string(),
           variableId: z.string(),
-          timePoint: z.date(),
+          timePoint: z.string(),
         }),
       ),
     ),
@@ -125,10 +125,19 @@ const app = new Hono()
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
+      let timePointDate: Date
+      try {
+        timePointDate = new Date(data.timePoint)
+      } catch (error) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to create productOutput',
+          description: 'Time point is not a valid date',
+        })
+      }
       const newProductOutput = await db
         .insert(productOutput)
-        .values(data)
+        .values({ ...data, timePoint: timePointDate })
         .returning()
 
       return generateJsonResponse(c, newProductOutput[0], 201)

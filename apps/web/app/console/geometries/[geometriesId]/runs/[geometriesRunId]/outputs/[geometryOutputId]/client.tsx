@@ -50,11 +50,7 @@ const GeometriesRunDetails = () => {
 
   useEffect(() => {
     if (geometryOutput) {
-      form.reset({
-        // name: geometryOutput.name,
-        description: geometryOutput.description ?? undefined,
-        metadata: geometryOutput.metadata ?? undefined,
-      })
+      form.reset(geometryOutput)
     }
   }, [geometryOutput, form])
 
@@ -107,11 +103,10 @@ const GeometriesRunDetails = () => {
       <CrudForm
         form={form}
         mutation={updateGeometryOutput}
-        config={{
-          entityName: 'Geometry Output',
-          entityNamePlural: 'Geometry Outputs',
-          readOnlyFields: ['id', 'createdAt', 'updatedAt'],
-        }}
+        hiddenFields={['id', 'createdAt', 'updatedAt']}
+        entityName="Geometry Output"
+        entityNamePlural="Geometry Outputs"
+        readOnlyFields={['id', 'createdAt', 'updatedAt', 'metadata', 'name']}
       />
     </div>
   )

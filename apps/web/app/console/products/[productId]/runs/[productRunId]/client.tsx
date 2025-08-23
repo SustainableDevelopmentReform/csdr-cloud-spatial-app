@@ -23,6 +23,8 @@ import {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
+import { DatasetButton } from '../../../../datasets/_components/dataset-button'
+import { GeometriesButton } from '../../../../geometries/_components/geometries-button'
 
 const ProductRunDetails = () => {
   const { data: productRun } = useProductRun()
@@ -53,7 +55,7 @@ const ProductRunDetails = () => {
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
           {productRun && (
             <DetailCard
-              title={`${productRun?.outputSummary?.outputCount} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
+              title={`${productRun?.outputSummary?.outputCount ?? 0} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
               description="Product Outputs"
               actionText="Open"
               actionLink={`${productRunLink(productRun)}/outputs`}
@@ -65,7 +67,11 @@ const ProductRunDetails = () => {
               title={'Dependencies'}
               footer={
                 <div className="flex flex-col gap-2">
+                  <DatasetButton dataset={productRun?.datasetRun?.dataset} />
                   <DatasetRunButton datasetRun={productRun?.datasetRun} />
+                  <GeometriesButton
+                    geometries={productRun?.geometriesRun?.geometries}
+                  />
                   <GeometriesRunButton
                     geometriesRun={productRun?.geometriesRun}
                   />

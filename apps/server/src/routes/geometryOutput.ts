@@ -98,9 +98,8 @@ const app = new Hono()
     zValidator(
       'json',
       transformUpdateResource(
-        baseUpdateResourceSchema.extend({
-          // Don't allow name to be updated
-          name: z.undefined(),
+        baseUpdateResourceSchema.omit({
+          name: true,
         }),
       ),
     ),

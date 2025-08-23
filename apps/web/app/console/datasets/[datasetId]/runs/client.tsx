@@ -2,7 +2,7 @@
 
 import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { z } from 'zod'
 import Pagination from '~/components/pagination'
 import { baseFormSchema } from '../../../../../components/crud-form'
@@ -12,6 +12,7 @@ import { DatasetRunButton } from '../../_components/dataset-run-button'
 import {
   DatasetRunListItem,
   useCreateDatasetRun,
+  useDataset,
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
@@ -25,6 +26,7 @@ const createDatasetRunSchema = baseFormSchema.extend({
 })
 
 const DatasetRunFeature = () => {
+  const { data: dataset } = useDataset()
   const { data, page, setPage } = useDatasetRuns()
   const createDatasetRun = useCreateDatasetRun()
   const datasetLink = useDatasetRunLink()
@@ -40,6 +42,11 @@ const DatasetRunFeature = () => {
   const form = useForm({
     resolver: zodResolver(createDatasetRunSchema),
   })
+
+  useEffect(() => {
+    if (!dataset) return
+    form.setValue('datasetId', dataset.id)
+  }, [dataset])
 
   return (
     <div>

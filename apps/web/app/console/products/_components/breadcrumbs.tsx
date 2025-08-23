@@ -18,6 +18,7 @@ import {
 } from '../_hooks'
 import { ProductButton } from './product-button'
 import { ProductRunButton } from './product-run-button'
+import { ProductOutputButton } from './product-output-button'
 
 export const ProductsBreadcrumbs = () => {
   const pathname = usePathname()
@@ -93,12 +94,7 @@ export const ProductsBreadcrumbs = () => {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link
-                  href={productOutputLink(productOutput)}
-                  className="font-mono"
-                >
-                  {productOutput.id}
-                </Link>
+                <ProductOutputButton productOutput={productOutput} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
