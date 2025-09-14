@@ -11,11 +11,9 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { MutationFunction, useMutation } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { authClient } from '../../../utils/auth'
-import { useRouter } from 'next/navigation'
 
 const createUserSchema = z
   .object({

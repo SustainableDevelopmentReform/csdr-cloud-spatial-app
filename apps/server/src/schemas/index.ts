@@ -148,6 +148,41 @@ export const twoFactor = pgTable(
   (table) => [index('two_factor_secret_idx').on(table.secret)],
 )
 
+export const apikey = pgTable(
+  'apikey',
+  {
+    id: text('id').primaryKey(),
+    name: text('name'),
+    start: text('start'),
+    prefix: text('prefix'),
+    key: text('key').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    refillInterval: integer('refill_interval'),
+    refillAmount: integer('refill_amount'),
+    lastRefillAt: timestamp('last_refill_at'),
+    enabled: boolean('enabled').notNull().default(true),
+    rateLimitEnabled: boolean('rate_limit_enabled').notNull().default(false),
+    rateLimitTimeWindow: integer('rate_limit_time_window'),
+    rateLimitMax: integer('rate_limit_max'),
+    requestCount: integer('request_count').notNull().default(0),
+    remaining: integer('remaining'),
+    lastRequest: timestamp('last_request'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    permissions: text('permissions'),
+    metadata: jsonb('metadata'),
+  },
+  (table) => [
+    index('api_key_user_id_idx').on(table.userId),
+    index('api_key_prefix_idx').on(table.prefix),
+    index('api_key_enabled_idx').on(table.enabled),
+    index('api_key_expires_at_idx').on(table.expiresAt),
+  ],
+)
+
 const baseColumns = {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

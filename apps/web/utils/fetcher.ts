@@ -25,6 +25,7 @@ export enum QueryKey {
   ProductOutput = 'product-output',
   ProductRun = 'product-run',
   Users = 'users',
+  ApiKeys = 'api-keys',
   UserProfile = 'user-profile',
   Variable = 'variable',
   VariableCategory = 'variable-category',

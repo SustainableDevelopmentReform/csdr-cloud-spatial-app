@@ -85,7 +85,14 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
 
       const { data } = await unwrapResponse(res)
 
-      await ofetch(data.url, {
+      if (!data?.url) {
+        toast.error('Failed to upload', {
+          description: 'Failed to get presigned url',
+        })
+        return
+      }
+
+      await ofetch(data?.url, {
         method: 'PUT',
         headers: {
           'x-amz-acl': 'public-read',
@@ -94,7 +101,7 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
         body: file,
       })
 
-      const url = new URL(data.url)
+      const url = new URL(data?.url)
       profileForm.setValue('image', url.origin + url.pathname)
     },
   })

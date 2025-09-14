@@ -3,6 +3,7 @@ import {
   adminClient,
   anonymousClient,
   twoFactorClient,
+  apiKeyClient,
 } from 'better-auth/client/plugins'
 import { createAuthClient as createReactAuthClient } from 'better-auth/react'
 
@@ -12,6 +13,7 @@ const authConfig = {
     adminClient(),
     twoFactorClient(),
     anonymousClient(),
+    apiKeyClient(),
     // Note there are issues with typing with organization plugin (we don't need it yet)
     // organization(),
   ],
