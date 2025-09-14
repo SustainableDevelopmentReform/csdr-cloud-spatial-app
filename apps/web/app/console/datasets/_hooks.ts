@@ -247,6 +247,34 @@ export const useUpdateDatasetRun = (_datasetRunId?: string) => {
   })
 }
 
+export const useSetDatasetMainRun = (run?: DatasetRunLinkParams | null) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!run) return
+      const res = client.api.v1['dataset-run'][':id']['set-as-main-run'].$post({
+        param: { id: run.id },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.DatasetRun, run?.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.DatasetRun],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Dataset, run?.dataset.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Dataset],
+      })
+    },
+  })
+}
+
 export const useDeleteDataset = (
   _datasetId?: string,
   redirect: string | null = null,

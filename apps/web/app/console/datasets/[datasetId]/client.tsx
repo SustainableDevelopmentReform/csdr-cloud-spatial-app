@@ -63,6 +63,8 @@ const DatasetDetails = () => {
         form={form}
         mutation={updateDataset}
         deleteMutation={deleteDataset}
+        entityName="Dataset"
+        entityNamePlural="datasets"
       />
     </div>
   )

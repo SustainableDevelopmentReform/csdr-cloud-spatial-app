@@ -56,6 +56,8 @@ const DatasetRunFeature = () => {
           form={form}
           mutation={createDatasetRun}
           buttonText="Add Dataset Run"
+          entityName="Dataset Run"
+          entityNamePlural="dataset runs"
         />
       </div>
       <div className="mt-8">

@@ -6,7 +6,12 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometriesRun, geometryOutput, productRun } from '../schemas'
+import {
+  geometries,
+  geometriesRun,
+  geometryOutput,
+  productRun,
+} from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
 import { geometryOutputQuery } from './geometryOutput'
 import {
@@ -167,6 +172,35 @@ const app = new Hono()
     async (c) => {
       const id = c.req.param('id')
       await db.delete(geometriesRun).where(eq(geometriesRun.id, id))
+
+      return generateJsonResponse(c)
+    },
+  )
+  .post(
+    '/:id/set-as-main-run',
+    authMiddleware({
+      permission: 'write:geometriesRun',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+
+      // Check if the geometries run exists
+      const run = await db.query.geometriesRun.findFirst({
+        where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
+      })
+
+      if (!run) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Geometries run not found',
+          description: `Geometries run with ID ${id} does not exist`,
+        })
+      }
+
+      await db
+        .update(geometries)
+        .set({ mainRunId: id })
+        .where(eq(geometries.id, run.geometriesId))
 
       return generateJsonResponse(c)
     },

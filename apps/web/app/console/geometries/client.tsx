@@ -36,6 +36,8 @@ const GeometriesFeature = () => {
           form={form}
           mutation={createGeometries}
           buttonText="Add Geometries"
+          entityName="Geometries"
+          entityNamePlural="geometries sets"
         />
       </div>
       <div className="mt-8">

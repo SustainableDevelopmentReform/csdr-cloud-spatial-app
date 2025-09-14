@@ -96,7 +96,7 @@ const ProductOutputFeature = () => {
           header: () => <span>Geometry</span>,
           cell: ({ row }) => {
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <GeometriesButton
                   geometries={
                     row.original.geometryOutput.geometriesRun.geometries
@@ -118,7 +118,7 @@ const ProductOutputFeature = () => {
           header: () => <span>Dataset</span>,
           cell: ({ row }) => {
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <DatasetButton
                   dataset={row.original.productRun.datasetRun.dataset}
                 />
@@ -152,6 +152,8 @@ const ProductOutputFeature = () => {
           form={form}
           mutation={createProductOutput}
           buttonText="Add Product Output"
+          entityName="Product Output"
+          entityNamePlural="product outputs"
         >
           <FormField
             control={form.control}

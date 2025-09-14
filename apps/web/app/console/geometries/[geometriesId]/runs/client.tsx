@@ -66,6 +66,8 @@ const GeometriesRunFeature = () => {
           form={form}
           mutation={createGeometriesRun}
           buttonText="Add Geometries Run"
+          entityName="Geometries Run"
+          entityNamePlural="geometries runs"
         />
       </div>
       <div className="mt-8">

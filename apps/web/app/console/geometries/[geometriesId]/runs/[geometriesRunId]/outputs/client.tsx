@@ -72,6 +72,8 @@ const GeometryOutputFeature = () => {
           mutation={createGeometryOutput}
           buttonText="Add Geometry Output"
           hiddenFields={['id', 'createdAt', 'updatedAt']}
+          entityName="Geometry Output"
+          entityNamePlural="geometry outputs"
         >
           <FormField
             control={form.control}

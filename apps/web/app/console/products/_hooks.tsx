@@ -457,25 +457,28 @@ export const useUpdateProductOutput = (_productOutputId?: string) => {
   })
 }
 
-export const useRefreshProductRunSummary = () => {
+export const useRefreshProductRunSummary = (
+  run?: ProductRunLinkParams | null,
+) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (productRun: Pick<ProductRunDetail, 'id'>) => {
+    mutationFn: async () => {
+      if (!run) return
       const res = client.api.v1['product-run'][':id']['refresh-summary'].$post({
-        param: { id: productRun.id },
+        param: { id: run.id },
       })
       return await unwrapResponse(res)
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun, id],
+        queryKey: [QueryKey.ProductRun, run?.id],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductRun],
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, id],
+        queryKey: [QueryKey.Product, run?.product.id],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Product],
@@ -483,6 +486,34 @@ export const useRefreshProductRunSummary = () => {
     },
   })
 }
+export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!run) return
+      const res = client.api.v1['product-run'][':id']['set-as-main-run'].$post({
+        param: { id: run.id },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductRun, run?.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.ProductRun],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Product, run?.product.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Product],
+      })
+    },
+  })
+}
+
 export const useDeleteProduct = (
   _productId?: string,
   redirect: string | null = null,

@@ -62,6 +62,8 @@ const GeometriesDetails = () => {
         form={form}
         mutation={updateGeometries}
         deleteMutation={deleteGeometries}
+        entityName="Geometries"
+        entityNamePlural="geometries sets"
       />
     </div>
   )

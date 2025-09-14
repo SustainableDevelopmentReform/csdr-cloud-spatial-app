@@ -7,7 +7,10 @@ export const BadgeLink = ({
   ...props
 }: { children: React.ReactNode; href: string } & BadgeProps) => {
   return (
-    <Link href={href} className="flex items-center">
+    <Link
+      href={href}
+      className="flex items-center hover:translate-x-0.5 hover:-translate-y-0.5 transition-transform duration-100 ease-out"
+    >
       <Badge {...props}>{children}</Badge>
     </Link>
   )

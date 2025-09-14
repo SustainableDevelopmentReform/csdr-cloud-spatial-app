@@ -7,6 +7,7 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
+  product,
   productOutput,
   productOutputSummary,
   productOutputSummaryVariable,
@@ -198,6 +199,35 @@ const app = new Hono()
     async (c) => {
       const id = c.req.param('id')
       await db.delete(productRun).where(eq(productRun.id, id))
+
+      return generateJsonResponse(c)
+    },
+  )
+  .post(
+    '/:id/set-as-main-run',
+    authMiddleware({
+      permission: 'write:productRun',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+
+      // Check if the product run exists
+      const run = await db.query.productRun.findFirst({
+        where: (productRun, { eq }) => eq(productRun.id, id),
+      })
+
+      if (!run) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Product run not found',
+          description: `Product run with ID ${id} does not exist`,
+        })
+      }
+
+      await db
+        .update(product)
+        .set({ mainRunId: id })
+        .where(eq(product.id, run.productId))
 
       return generateJsonResponse(c)
     },

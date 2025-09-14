@@ -1,6 +1,8 @@
-import { ArrowUpRightIcon, Loader2Icon, RefreshCwIcon } from 'lucide-react'
+import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
+import { ArrowUpRightIcon, RefreshCwIcon } from 'lucide-react'
 import { formatDate, formatDateTime } from '../../../../utils/date'
 import { DetailCard } from '../../_components/detail-cards'
+import { NoMainRunCard } from '../../_components/no-main-run-card'
 import { VariableButton } from '../../variables/_components/variable-button'
 import {
   ProductDetail,
@@ -8,7 +10,6 @@ import {
   useProductRunLink,
   useRefreshProductRunSummary,
 } from '../_hooks'
-import { NoMainRunCard } from '../../_components/no-main-run-card'
 
 export const ProductRunSummaryCard = ({
   product,
@@ -18,9 +19,8 @@ export const ProductRunSummaryCard = ({
   productRun?: ProductRunDetail | undefined | null
 }) => {
   const productRunLink = useProductRunLink()
-  const refreshProductRunSummary = useRefreshProductRunSummary()
-
-  const run = productRun ?? product?.mainRun
+  const run = productRun ?? product?.mainRun ?? undefined
+  const refreshProductRunSummary = useRefreshProductRunSummary(run)
 
   if (!run) {
     return <NoMainRunCard />
@@ -33,11 +33,11 @@ export const ProductRunSummaryCard = ({
         description="Main Run"
         actionText="Refresh"
         actionOnClick={() => {
-          refreshProductRunSummary.mutate(run)
+          refreshProductRunSummary.mutate()
         }}
         actionIcon={
           refreshProductRunSummary.isPending ? (
-            <Loader2Icon className="size-4 animate-spin" />
+            <LoadingIcon />
           ) : (
             <RefreshCwIcon />
           )
@@ -57,15 +57,12 @@ export const ProductRunSummaryCard = ({
       actionIcon={<ArrowUpRightIcon />}
       footer={`Data range: ${formatDate(run?.outputSummary?.startTime)} to ${formatDate(run?.outputSummary?.endTime)}`}
       subFooter={
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
           {`${run?.outputSummary?.outputCount} outputs`}
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-4">
             {run?.outputSummary?.variables?.map((variable) => (
-              <div className="flex flex-col gap-2">
-                <VariableButton
-                  variable={variable.variable}
-                  key={variable.variable.id}
-                />
+              <div className="flex flex-col gap-2" key={variable.variable.id}>
+                <VariableButton variable={variable.variable} />
                 <div className="flex flex-col gap-1">
                   <div>
                     Data range: {variable.minValue} to {variable.maxValue} over{' '}

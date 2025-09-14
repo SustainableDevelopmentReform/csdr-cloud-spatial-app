@@ -149,7 +149,7 @@ const ProductFeature = () => {
             name="geometriesId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Dataset</FormLabel>
+                <FormLabel>Geometries</FormLabel>
                 <SelectWithSearch
                   options={geometries?.data}
                   value={field.value}
