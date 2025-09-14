@@ -1,34 +1,33 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
-import { z } from 'zod'
-import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../../../components/crud-form'
-import CrudFormDialog from '../../../../../components/crud-form-dialog'
-import BaseCrudTable from '../../../../../components/crud-table'
-import { VariableButtons } from '../../../variables/_components/variable-button'
-import { ProductRunButton } from '../../_components/product-run-button'
-import {
-  ProductRunListItem,
-  useCreateProductRun,
-  useProductRunLink,
-  useProductRuns,
-} from '../../_hooks'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useProduct } from '../../_hooks'
 import {
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@repo/ui/components/ui/form'
-import { geometries } from '@repo/server/src/schemas/index.js'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
-import { useGeometriesRuns } from '../../../geometries/_hooks'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import Pagination from '~/components/pagination'
+import { baseFormSchema } from '../../../../../components/crud-form'
+import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import BaseCrudTable from '../../../../../components/crud-table'
 import { useDatasetRuns } from '../../../datasets/_hooks'
+import { useGeometriesRuns } from '../../../geometries/_hooks'
+import { VariableButtons } from '../../../variables/_components/variable-button'
+import { ProductRunButton } from '../../_components/product-run-button'
+import {
+  ProductRunListItem,
+  useCreateProductRun,
+  useProduct,
+  useProductRunLink,
+  useProductRuns,
+} from '../../_hooks'
+import { ProductButton } from '../../_components/product-button'
 
 const columnHelper = createColumnHelper<ProductRunListItem>()
 
@@ -42,9 +41,11 @@ const ProductRunFeature = () => {
   const { data, page, setPage, filters } = useProductRuns()
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
+
   const { data: product } = useProduct()
   const { data: datasetRuns } = useDatasetRuns(product?.datasetId)
   const { data: geometriesRuns } = useGeometriesRuns(product?.geometriesId)
+
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
   }, [])
@@ -96,6 +97,8 @@ const ProductRunFeature = () => {
           form={form}
           mutation={createProductRun}
           buttonText="Add Product Run"
+          entityName="Product Run"
+          entityNamePlural="product runs"
         >
           <FormField
             control={form.control}
@@ -139,7 +142,10 @@ const ProductRunFeature = () => {
           title="ProductRun"
           itemLink={productLink}
           itemButton={(productRun) => (
-            <ProductRunButton productRun={productRun} />
+            <div className="flex flex-wrap gap-2">
+              {!product && <ProductButton product={productRun.product} />}
+              <ProductRunButton productRun={productRun} />
+            </div>
           )}
         />
         <Pagination

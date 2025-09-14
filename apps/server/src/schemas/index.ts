@@ -426,13 +426,12 @@ export const variable = pgTable(
     unit: text('unit').notNull(),
     displayOrder: integer('display_order').default(0),
     // Link to category
-    categoryId: text('category_id')
-      .notNull()
-      .references(() => variableCategory.id, { onDelete: 'cascade' }),
+    categoryId: text('category_id').references(() => variableCategory.id, {
+      onDelete: 'cascade',
+    }),
   },
   (table) => [
     index('variable_category_idx').on(table.categoryId),
-    unique('variable_name_category_unique').on(table.name, table.categoryId),
     index('variable_name_idx').on(table.name),
     // Composite index for listing variables within a category with ordering
     index('variable_category_order_idx').on(

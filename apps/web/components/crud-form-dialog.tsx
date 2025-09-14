@@ -47,7 +47,15 @@ const CrudFormDialog = <Data extends z.infer<typeof baseFormSchema>>({
             {formProps.entityName ?? 'Add Item'}
           </DialogTitle>
         </DialogHeader>
-        <CrudForm {...formProps}>{children}</CrudForm>
+        <CrudForm
+          {...formProps}
+          onSuccess={() => {
+            setOpen(false)
+            formProps.onSuccess?.()
+          }}
+        >
+          {children}
+        </CrudForm>
       </DialogContent>
     </Dialog>
   )

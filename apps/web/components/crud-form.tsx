@@ -1,14 +1,3 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Form,
@@ -20,12 +9,14 @@ import {
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
+import { cn } from '@repo/ui/lib/utils'
 import { UseMutationResult } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { Path, UseFormReturn } from 'react-hook-form'
-import { match } from 'ts-pattern'
 import { z } from 'zod'
 import { formatDateTime } from '../utils/date'
-import { cn } from '@repo/ui/lib/utils'
+import { CrudFormAction, FormAction } from './crud-form-action'
+import { toast } from '@repo/ui/components/ui/sonner'
 
 export const baseFormSchema = z.object({
   id: z.string().optional().readonly(),
@@ -37,8 +28,8 @@ export const baseFormSchema = z.object({
 })
 
 export interface CrudFormConfig<Data extends z.infer<typeof baseFormSchema>> {
-  entityName?: string // e.g., "Dataset", "Product", "Geometry"
-  entityNamePlural?: string // e.g., "datasets", "products", "geometries"
+  entityName: string // e.g., "Dataset", "Product", "Geometry"
+  entityNamePlural: string // e.g., "datasets", "products", "geometries"
   readOnlyFields?: (keyof Data | string)[] // Fields that should be displayed but not editable
   hiddenFields?: (keyof Data | string)[] // Fields that should not be displayed at all
   fieldLabels?: Partial<Record<keyof Data, string>> // Custom labels for fields
@@ -49,19 +40,23 @@ export interface CrudFormProps<Data extends z.infer<typeof baseFormSchema>>
   form: UseFormReturn<Data>
   mutation: UseMutationResult<unknown, Error, Data>
   deleteMutation?: UseMutationResult<unknown, Error, void>
+  actions?: CrudFormAction[]
   children?: React.ReactNode | React.ReactNode[]
+  onSuccess?: () => void
 }
 
 export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
   form,
   mutation,
   deleteMutation,
+  actions: actionsProp,
   children,
   entityName,
   entityNamePlural,
   readOnlyFields,
   hiddenFields,
   fieldLabels,
+  onSuccess,
 }: CrudFormProps<Data>) => {
   // Helper function to get field label
   const getFieldLabel = (field: keyof Data): string => {
@@ -86,13 +81,38 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
     return !!readOnlyFields?.includes(field)
   }
 
+  const deleteAction: CrudFormAction | undefined = useMemo(() => {
+    if (!deleteMutation) return undefined
+    return {
+      title: `Delete ${entityName}`,
+      description: `Permanently remove the ${entityName?.toLowerCase()}, including all dependents.`,
+      buttonVariant: 'destructive',
+      buttonTitle: 'Continue',
+      mutation: deleteMutation,
+      confirmDialog: {
+        title: `Are you sure?`,
+        description: `This action cannot be undone. This will permanently delete ${form.getValues('name' as Path<Data>)} ${entityName?.toLowerCase()} and remove ${form.getValues('name' as Path<Data>)} dependents.`,
+        buttonCancelTitle: 'Cancel',
+      },
+    }
+  }, [entityName, deleteMutation, form])
+
+  const actions = useMemo(() => {
+    return [...(actionsProp ?? []), deleteAction ?? undefined]
+  }, [actionsProp, deleteAction]).filter(Boolean) as CrudFormAction[]
+
   return (
     <>
       <Form {...form}>
         <form
           className="grid gap-3 border-b border-gray-200 pb-8"
           onSubmit={form.handleSubmit((formData) => {
-            mutation.mutate(formData)
+            mutation.mutate(formData, {
+              onSuccess: () => {
+                toast.success(`Created ${entityName} successfully`)
+                onSuccess?.()
+              },
+            })
           })}
         >
           {/* Render read-only fields */}
@@ -223,45 +243,13 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
         </form>
       </Form>
 
-      {deleteMutation && (
-        <div className="mt-8 border-b border-gray-200 pb-8">
-          <div className="text-xl mb-6 font-medium">{entityName} actions</div>
+      {actions.length > 0 && (
+        <div className="mt-8 border-b border-gray-200 pb-8 flex flex-col gap-6">
+          <div className="text-xl font-medium">{entityName} actions</div>
 
-          <div className="mb-6">
-            <div className="font-medium">
-              Delete {entityName?.toLowerCase()}
-            </div>
-            <div className="mb-3">
-              Permanently remove the {entityName?.toLowerCase()}, including all
-              related {entityNamePlural?.toLowerCase()}.
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  Delete {entityName?.toLowerCase()}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete{' '}
-                    {form.getValues('name' as Path<Data>)}{' '}
-                    {entityName?.toLowerCase()} and remove{' '}
-                    {form.getValues('name' as Path<Data>)} dependents.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteMutation.mutate()}>
-                    {match(deleteMutation)
-                      .with({ isPending: true }, () => 'Loading...')
-                      .otherwise(() => 'Continue')}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          {actions.map((action, index) => (
+            <FormAction {...action} key={index} />
+          ))}
         </div>
       )}
     </>

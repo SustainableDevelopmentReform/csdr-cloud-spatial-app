@@ -114,7 +114,12 @@ const ProductRunDetails = () => {
         )}
       </div>
 
-      <CrudForm form={form} mutation={updateProductOutput} />
+      <CrudForm
+        form={form}
+        mutation={updateProductOutput}
+        entityName="Product Output"
+        entityNamePlural="product outputs"
+      />
     </div>
   )
 }

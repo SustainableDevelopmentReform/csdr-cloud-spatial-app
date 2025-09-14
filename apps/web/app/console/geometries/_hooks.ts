@@ -386,6 +386,38 @@ export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
   })
 }
 
+export const useSetGeometriesMainRun = (
+  run?: GeometriesRunLinkParams | null,
+) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!run) return
+      const res = client.api.v1['geometries-run'][':id'][
+        'set-as-main-run'
+      ].$post({
+        param: { id: run.id },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometriesRun, run?.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.GeometriesRun],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Geometries, run?.geometries.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [QueryKey.Geometries],
+      })
+    },
+  })
+}
+
 export const useDeleteGeometries = (
   _geometriesId?: string,
   redirect: string | null = null,

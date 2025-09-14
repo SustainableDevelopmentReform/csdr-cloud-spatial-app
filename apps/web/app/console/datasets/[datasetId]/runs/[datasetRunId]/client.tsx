@@ -1,11 +1,15 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   baseFormSchema,
   CrudForm,
 } from '../../../../../../components/crud-form'
+import { CrudFormAction } from '../../../../../../components/crud-form-action'
 import { DetailCard } from '../../../../_components/detail-cards'
 import { useProductRunsLink } from '../../../../products/_hooks'
 import { DatasetRunSummaryCard } from '../../../_components/dataset-run-summary-card'
@@ -13,11 +17,9 @@ import {
   useDataset,
   useDatasetRun,
   useDeleteDatasetRun,
+  useSetDatasetMainRun,
   useUpdateDatasetRun,
 } from '../../../_hooks'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { useEffect } from 'react'
 
 const DatasetRunDetails = () => {
   const { data: datasetRun } = useDatasetRun()
@@ -28,6 +30,21 @@ const DatasetRunDetails = () => {
   )
   const { data: dataset } = useDataset()
   const productRunsLink = useProductRunsLink()
+
+  const setDatasetMainRun = useSetDatasetMainRun(datasetRun)
+
+  const formActions: CrudFormAction[] = useMemo(
+    () => [
+      {
+        title: 'Set as Main Run',
+        description: 'Set this as the main run for the dataset',
+        buttonVariant: 'default',
+        buttonTitle: 'Set as Main Run',
+        mutation: setDatasetMainRun,
+      },
+    ],
+    [setDatasetMainRun],
+  )
 
   const form = useForm({
     resolver: zodResolver(baseFormSchema),
@@ -62,6 +79,9 @@ const DatasetRunDetails = () => {
         form={form}
         mutation={updateDatasetRun}
         deleteMutation={deleteDatasetRun}
+        entityName="Dataset Run"
+        entityNamePlural="dataset runs"
+        actions={formActions}
       />
     </div>
   )

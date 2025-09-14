@@ -28,13 +28,16 @@ export function CalendarSelect({
           <Button
             variant="outline"
             id="date"
-            className="w-48 justify-between font-normal"
+            className="justify-between font-normal"
           >
             {value ? value.toLocaleDateString() : 'Select date'}
             <ChevronDownIcon />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+        <PopoverContent
+          className="w-[--radix-popper-anchor-width] overflow-hidden p-0"
+          align="start"
+        >
           <Calendar
             mode="single"
             selected={value}
@@ -43,6 +46,7 @@ export function CalendarSelect({
               onChange(date)
               setOpen(false)
             }}
+            className="w-full"
           />
         </PopoverContent>
       </Popover>

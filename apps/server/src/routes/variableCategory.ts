@@ -8,6 +8,8 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseCreateResourceSchema } from './util'
+import { baseUpdateResourceSchema } from './util'
 
 // Define shared query configuration
 const variableCategoryQuery = {
@@ -26,36 +28,22 @@ const variableCategoryQuery = {
 const app = new Hono()
   .get(
     '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
     authMiddleware({
       permission: 'read:variableCategory',
     }),
     async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
       const totalCount = await db
         .select({
           count: count(),
         })
         .from(variableCategory)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.variableCategory.findMany({
         ...variableCategoryQuery,
-        limit: size,
-        offset: skip,
         orderBy: desc(variableCategory.createdAt),
       })
 
       return generateJsonResponse(c, {
-        pageCount,
         data,
         totalCount: totalCount[0]!.count,
       })
@@ -87,9 +75,9 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
+      baseCreateResourceSchema.extend({
+        // Name is mandatory
         name: z.string(),
-        description: z.string().nullable().optional(),
         parentId: z.string().optional(),
         displayOrder: z.number().optional(),
       }),
@@ -112,9 +100,7 @@ const app = new Hono()
     '/:id',
     zValidator(
       'json',
-      z.object({
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
+      baseUpdateResourceSchema.extend({
         parentId: z.string().optional(),
         displayOrder: z.number().optional(),
       }),

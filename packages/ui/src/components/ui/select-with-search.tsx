@@ -19,13 +19,21 @@ import {
   PopoverTrigger,
 } from '@repo/ui/components/ui/popover'
 
-interface SelectWithSearchProps {
+export interface SelectWithSearchProps {
   options?: { id: string; name?: string }[]
-  value: string
-  onSearch: (value: string) => void
-  onSelect: (value: string) => void
+  value: string | null
+  onSearch: (value: string | null) => void
+  onSelect: (value: string | null) => void
   placeholder?: string
+  allowUndefined?: boolean
   className?: string
+  noResult?: React.ReactNode
+  open?: boolean
+  setOpen?: (open: boolean) => void
+}
+
+export function EmptyResult() {
+  return 'No options found.'
 }
 
 export function SelectWithSearch({
@@ -34,18 +42,23 @@ export function SelectWithSearch({
   onSearch,
   onSelect,
   placeholder = 'Select an option',
+  allowUndefined,
   className,
+  noResult,
+  open: openProp,
+  setOpen: setOpenProp,
 }: SelectWithSearchProps) {
   const [open, setOpen] = React.useState(false)
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={openProp ?? open} onOpenChange={setOpenProp ?? setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={openProp ?? open}
           className="w-full justify-between"
+          animate={false}
         >
           {value
             ? (options?.find((option) => option.id === value)?.name ??
@@ -54,7 +67,9 @@ export function SelectWithSearch({
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn('p-0', className)}>
+      <PopoverContent
+        className={cn('p-0 w-[--radix-popper-anchor-width]', className)}
+      >
         <Command className="w-full">
           <CommandInput
             placeholder={placeholder}
@@ -62,15 +77,32 @@ export function SelectWithSearch({
             onValueChange={onSearch}
           />
           <CommandList>
-            <CommandEmpty>No options found.</CommandEmpty>
+            <CommandEmpty>{noResult ?? <EmptyResult />}</CommandEmpty>
             <CommandGroup>
+              {allowUndefined && (
+                <CommandItem
+                  value=""
+                  onSelect={() => {
+                    onSelect('')
+                    setOpenProp?.(false) || setOpen(false)
+                  }}
+                >
+                  {placeholder}
+                  <Check
+                    className={cn(
+                      'ml-auto',
+                      value === null ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+                </CommandItem>
+              )}
               {options?.map((option) => (
                 <CommandItem
                   key={option.id}
                   value={option.id}
                   onSelect={(currentValue) => {
                     onSelect(currentValue === value ? '' : currentValue)
-                    setOpen(false)
+                    setOpenProp?.(false) || setOpen(false)
                   }}
                 >
                   {option.name ?? option.id}

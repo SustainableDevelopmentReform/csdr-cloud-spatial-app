@@ -6,7 +6,7 @@ import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { datasetRun, productRun } from '../schemas'
+import { dataset, datasetRun, productRun } from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   baseCreateResourceSchema,
@@ -117,6 +117,35 @@ const app = new Hono()
     async (c) => {
       const id = c.req.param('id')
       await db.delete(datasetRun).where(eq(datasetRun.id, id))
+
+      return generateJsonResponse(c)
+    },
+  )
+  .post(
+    '/:id/set-as-main-run',
+    authMiddleware({
+      permission: 'write:datasetRun',
+    }),
+    async (c) => {
+      const id = c.req.param('id')
+
+      // Check if the dataset run exists
+      const run = await db.query.datasetRun.findFirst({
+        where: (datasetRun, { eq }) => eq(datasetRun.id, id),
+      })
+
+      if (!run) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Dataset run not found',
+          description: `Dataset run with ID ${id} does not exist`,
+        })
+      }
+
+      await db
+        .update(dataset)
+        .set({ mainRunId: id })
+        .where(eq(dataset.id, run.datasetId))
 
       return generateJsonResponse(c)
     },

@@ -11,17 +11,33 @@ import {
   useDeleteProduct,
   useProduct,
   useProductRunsLink,
+  useRefreshProductRunSummary,
   useUpdateProduct,
 } from '../_hooks'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
+import { CrudFormAction } from '../../../../components/crud-form-action'
 
 const ProductDetails = () => {
   const { data: product } = useProduct()
   const updateProduct = useUpdateProduct()
   const deleteProduct = useDeleteProduct(undefined, '/console/products')
   const productRunsLink = useProductRunsLink()
+
+  const refreshProductRunSummary = useRefreshProductRunSummary(product?.mainRun)
+  const formActions: CrudFormAction[] = useMemo(
+    () => [
+      {
+        title: 'Refresh',
+        description: 'Refresh the product main run summary',
+        buttonVariant: 'outline',
+        buttonTitle: 'Refresh',
+        mutation: refreshProductRunSummary,
+      },
+    ],
+    [refreshProductRunSummary],
+  )
 
   const form = useForm({
     resolver: zodResolver(baseFormSchema),
@@ -66,6 +82,9 @@ const ProductDetails = () => {
           form={form}
           mutation={updateProduct}
           deleteMutation={deleteProduct}
+          entityName="Product"
+          entityNamePlural="products"
+          actions={formActions}
         />
       )}
     </div>

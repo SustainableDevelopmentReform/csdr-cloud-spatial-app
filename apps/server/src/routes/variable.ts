@@ -8,6 +8,7 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variable } from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseCreateResourceSchema, baseUpdateResourceSchema } from './util'
 
 // Define shared query configuration
 const variableQuery = {
@@ -84,11 +85,11 @@ const app = new Hono()
     '/',
     zValidator(
       'json',
-      z.object({
+      baseCreateResourceSchema.extend({
+        // Name is mandatory
         name: z.string(),
-        description: z.string().nullable().optional(),
         unit: z.string(),
-        categoryId: z.string(),
+        categoryId: z.string().nullable().optional(),
         displayOrder: z.number().optional(),
       }),
     ),
@@ -100,7 +101,7 @@ const app = new Hono()
       const id = crypto.randomUUID()
       const newVariable = await db
         .insert(variable)
-        .values({ ...data, id })
+        .values({ ...data, categoryId: data.categoryId || null, id })
         .returning()
 
       return generateJsonResponse(c, newVariable[0], 201)
@@ -110,11 +111,9 @@ const app = new Hono()
     '/:id',
     zValidator(
       'json',
-      z.object({
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
+      baseUpdateResourceSchema.extend({
         unit: z.string().optional(),
-        categoryId: z.string().optional(),
+        categoryId: z.string().nullable().optional(),
         displayOrder: z.number().optional(),
       }),
     ),
