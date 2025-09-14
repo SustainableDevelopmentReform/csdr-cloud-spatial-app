@@ -64,6 +64,13 @@
       "when": 1757830519494,
       "tag": "0008_whole_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1757835943183,
+      "tag": "0009_shallow_jigsaw",
+      "breakpoints": true
     }
   ]
 }

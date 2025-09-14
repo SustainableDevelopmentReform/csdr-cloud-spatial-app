@@ -2,21 +2,15 @@
 
 import { Button } from '@repo/ui/components/ui/button'
 import { Input } from '@repo/ui/components/ui/input'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
-import { useState } from 'react'
 import Pagination from '~/components/pagination'
-import { QueryKey } from '~/utils/fetcher'
-import { authClient } from '../../../utils/auth'
 import UserForm from './_components/form'
 import UsersTable from './_components/table'
 import { useUsers } from './_hooks'
 
 const UserFeature = () => {
-  const { data, isOpen, setOpen, page, setPage, search, setSearch, pageSize } =
+  const { data, isOpen, setOpen, page, setPage, setSearch, pageSize } =
     useUsers()
-
-  // const { data: organizations } = useGetAllOrganizations()
 
   return (
     <div>
@@ -46,27 +40,6 @@ const UserFeature = () => {
             <Search className="absolute top-1/2 -translate-y-1/2 left-2 w-[18px] h-[18px] text-gray-600" />
             <Input name="search" className="pl-8" placeholder="Search" />
           </form>
-          {/* <Select
-              value={
-                selectedOrgId ??
-                organizations?.find((org) => org.isDefault)?.id?.toString()
-              }
-              onValueChange={setSelectedOrgId}
-            >
-              <SelectTrigger className="max-w-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {organizations?.map((org) => (
-                  <SelectItem
-                    key={`select-org-${org.id}`}
-                    value={org.id.toString()}
-                  >
-                    {org.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select> */}
         </div>
         <UsersTable data={data?.users || []} />
         <Pagination
