@@ -63,7 +63,9 @@ const columns = [
       return (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive">Delete API Key</Button>
+            <Button variant="destructive" size="sm">
+              Delete API Key
+            </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
