@@ -18,11 +18,14 @@ interface CrudFormDialogProps<Data extends z.infer<typeof baseFormSchema>>
   onClose?: () => void
 }
 
+// Note we assume that this form is to CREATE, not UPDATE - so we set defaults accordingly
 const CrudFormDialog = <Data extends z.infer<typeof baseFormSchema>>({
   buttonText,
   children,
   onOpen,
   onClose,
+  hiddenFields = ['createdAt', 'updatedAt'],
+  readOnlyFields = [],
   ...formProps
 }: CrudFormDialogProps<Data>) => {
   const [isOpen, setOpen] = useState(false)
@@ -48,6 +51,8 @@ const CrudFormDialog = <Data extends z.infer<typeof baseFormSchema>>({
           </DialogTitle>
         </DialogHeader>
         <CrudForm
+          hiddenFields={hiddenFields}
+          readOnlyFields={readOnlyFields}
           {...formProps}
           onSuccess={() => {
             setOpen(false)

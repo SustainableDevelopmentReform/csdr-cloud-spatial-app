@@ -11,41 +11,41 @@ import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 import { useParams, useRouter } from 'next/navigation'
 
 export type VariableListItem = NonNullable<
-  InferResponseType<typeof client.api.v1.variable.$get, 200>['data']
+  InferResponseType<typeof client.api.v0.variable.$get, 200>['data']
 >['data'][0]
 export type VariableDetail = NonNullable<
-  InferResponseType<(typeof client.api.v1.variable)[':id']['$get'], 200>['data']
+  InferResponseType<(typeof client.api.v0.variable)[':id']['$get'], 200>['data']
 >
 
 export type UpdateVariablePayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.variable)[':id']['$patch']>['json']
+  InferRequestType<(typeof client.api.v0.variable)[':id']['$patch']>['json']
 >
 
 export type CreateVariablePayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.variable)['$post']>['json']
+  InferRequestType<(typeof client.api.v0.variable)['$post']>['json']
 >
 
 export type VariableCategoryListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['variable-category']['$get'],
+    (typeof client.api.v0)['variable-category']['$get'],
     200
   >['data']
 >['data'][0]
 export type VariableCategoryDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['variable-category'][':id']['$get'],
+    (typeof client.api.v0)['variable-category'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateVariableCategoryPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v1)['variable-category'][':id']['$patch']
+    (typeof client.api.v0)['variable-category'][':id']['$patch']
   >['json']
 >
 
 export type CreateVariableCategoryPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1)['variable-category']['$post']>['json']
+  InferRequestType<(typeof client.api.v0)['variable-category']['$post']>['json']
 >
 
 const variableParamsSchema = z.object({
@@ -72,7 +72,7 @@ export const useVariables = () => {
   const { data } = useQuery({
     queryKey: [QueryKey.Variable],
     queryFn: async () => {
-      const res = client.api.v1.variable.$get({
+      const res = client.api.v0.variable.$get({
         query: {
           page,
         },
@@ -97,7 +97,7 @@ export const useVariableCategories = () => {
   const { data } = useQuery({
     queryKey: [QueryKey.VariableCategory],
     queryFn: async () => {
-      const res = client.api.v1['variable-category'].$get()
+      const res = client.api.v0['variable-category'].$get()
 
       const json = await unwrapResponse(res)
 
@@ -118,7 +118,7 @@ export const useVariable = (id?: string) => {
     queryKey: [QueryKey.Variable, variableId],
     queryFn: async () => {
       if (!variableId) return null
-      const res = client.api.v1.variable[':id'].$get({
+      const res = client.api.v0.variable[':id'].$get({
         param: {
           id: variableId,
         },
@@ -139,7 +139,7 @@ export const useVariableCategory = (id?: string) => {
     queryKey: [QueryKey.VariableCategory, variableCategoryId],
     queryFn: async () => {
       if (!variableCategoryId) return null
-      const res = client.api.v1['variable-category'][':id'].$get({
+      const res = client.api.v0['variable-category'][':id'].$get({
         param: {
           id: variableCategoryId,
         },
@@ -157,7 +157,7 @@ export const useCreateVariable = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateVariablePayload) => {
-      const res = client.api.v1.variable.$post({
+      const res = client.api.v0.variable.$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -173,7 +173,7 @@ export const useCreateVariableCategory = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateVariableCategoryPayload) => {
-      const res = client.api.v1['variable-category'].$post({
+      const res = client.api.v0['variable-category'].$post({
         json: data,
       })
       const variableCategory = await unwrapResponse(res)
@@ -194,7 +194,7 @@ export const useUpdateVariable = (_variableId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateVariablePayload) => {
       if (!variableId) return
-      const res = client.api.v1.variable[':id'].$patch({
+      const res = client.api.v0.variable[':id'].$patch({
         param: { id: variableId },
         json: payload,
       })
@@ -221,7 +221,7 @@ export const useUpdateVariableCategory = (_variableCategoryId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateVariableCategoryPayload) => {
       if (!variableCategoryId) return
-      const res = client.api.v1['variable-category'][':id'].$patch({
+      const res = client.api.v0['variable-category'][':id'].$patch({
         param: { id: variableCategoryId },
         json: payload,
       })
@@ -248,7 +248,7 @@ export const useDeleteVariable = (
   return useMutation({
     mutationFn: async () => {
       if (!variableId) return
-      const res = client.api.v1.variable[':id'].$delete({
+      const res = client.api.v0.variable[':id'].$delete({
         param: {
           id: variableId,
         },
@@ -283,7 +283,7 @@ export const useDeleteVariableCategory = (
   return useMutation({
     mutationFn: async () => {
       if (!variableCategoryId) return
-      const res = client.api.v1['variable-category'][':id'].$delete({
+      const res = client.api.v0['variable-category'][':id'].$delete({
         param: {
           id: variableCategoryId,
         },

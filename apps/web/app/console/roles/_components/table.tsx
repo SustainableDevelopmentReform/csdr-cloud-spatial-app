@@ -85,7 +85,7 @@
 
 //   const deleteRole = useMutation({
 //     mutationFn: async () => {
-//       const res = client.api.v1.role[':id'].$delete({
+//       const res = client.api.v0.role[':id'].$delete({
 //         param: {
 //           id: data.id.toString(),
 //         },

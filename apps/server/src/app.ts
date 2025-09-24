@@ -1,5 +1,6 @@
 import { createRoute } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
+import { APIError as BetterAuthApiError } from 'better-auth/api'
 import { compress } from 'hono/compress'
 import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
@@ -65,8 +66,8 @@ app.use('*', async (c, next) => {
 // Handle auth routes
 app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw))
 
-const v1ApiRoutes = app
-  .basePath('/api/v1/')
+const v0ApiRoutes = app
+  .basePath('/api/v0/')
   // .route('/file', file)
   .route('/dataset', dataset)
   .route('/dataset-run', datasetRun)
@@ -79,13 +80,15 @@ const v1ApiRoutes = app
   .route('/variable', variable)
   .route('/variable-category', variableCategory)
 
-v1ApiRoutes.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
+v0ApiRoutes.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',
   in: 'header',
   name: 'x-api-key',
 })
 
-v1ApiRoutes
+// TODO: add better auth responses here (eg 429 rate limit)
+
+v0ApiRoutes
   .doc('/doc', (c) => ({
     openapi: '3.0.0',
     externalDocs: {
@@ -93,8 +96,10 @@ v1ApiRoutes
       description: 'Auth API Documentation',
     },
     info: {
-      version: '1.0.0',
+      version: '0.0.1',
       title: 'CSDR Cloud Spatial API',
+      description:
+        'This is the API for the CSDR Cloud Spatial platform. Current is 0.0.1 alpha - expect breaking changes.',
     },
     servers: [
       {
@@ -111,12 +116,12 @@ v1ApiRoutes
       },
     ],
   }))
-  .get('/scalar', Scalar({ url: '/api/v1/doc' }))
+  .get('/scalar', Scalar({ url: '/api/v0/doc' }))
 
 app.openapi(
   createRoute({
     method: 'get',
-    path: '/api/v1/healthcheck',
+    path: '/api/v0/healthcheck',
     responses: {
       200: {
         description: 'Service healthcheck.',
@@ -137,6 +142,8 @@ app.openapi(
 )
 
 app.onError(async (err, c) => {
+  console.error(err)
+
   if (err instanceof ServerError) {
     const error = err as InstanceType<typeof ServerError>
     return c.json(
@@ -145,7 +152,12 @@ app.onError(async (err, c) => {
     )
   }
 
-  console.error(err)
+  if (err instanceof BetterAuthApiError) {
+    return c.json(
+      { ...err.body, statusCode: err.statusCode },
+      err.statusCode as ContentfulStatusCode,
+    )
+  }
 
   if (err instanceof Error) {
     return generateJsonResponse(
@@ -178,5 +190,5 @@ app.notFound((c) =>
   ),
 )
 
-export type ApiRoutesType = typeof v1ApiRoutes
+export type ApiRoutesType = typeof v0ApiRoutes
 export default app as ApiRoutesType

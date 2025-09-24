@@ -24,7 +24,7 @@
 // // Positive test cases
 // describe('Permission Controller API - Positive Test Cases', () => {
 //   test('it should return a list of permissions with pagination', async () => {
-//     const response = await client.api.v1.permission.$get(
+//     const response = await client.api.v0.permission.$get(
 //       {
 //         query: {
 //           page: '1',
@@ -48,7 +48,7 @@
 //   })
 
 //   test('it should return permission details for a valid permission ID', async () => {
-//     const response = await client.api.v1.permission.$post(
+//     const response = await client.api.v0.permission.$post(
 //       {
 //         json: {
 //           key: 'test',
@@ -63,7 +63,7 @@
 
 //     const { data: permission } = await response.json()
 
-//     const getIdResponse = await client.api.v1.permission[':id'].$get(
+//     const getIdResponse = await client.api.v0.permission[':id'].$get(
 //       {
 //         param: {
 //           id: permission.id.toString(),
@@ -82,7 +82,7 @@
 //   })
 
 //   test('it should create a new permission', async () => {
-//     const response = await client.api.v1.permission.$post(
+//     const response = await client.api.v0.permission.$post(
 //       {
 //         json: {
 //           key: 'approve:account-create',
@@ -105,7 +105,7 @@
 //   })
 
 //   test('it should update an existing permission', async () => {
-//     const response = await client.api.v1.permission.$post(
+//     const response = await client.api.v0.permission.$post(
 //       {
 //         json: {
 //           key: 'approve:account-create',
@@ -126,7 +126,7 @@
 //     expect(permissionBeforeEdit?.key).toEqual('approve:account-create')
 //     expect(permissionBeforeEdit?.name).toEqual('approve:account-create')
 
-//     await client.api.v1.permission[':id'].$put(
+//     await client.api.v0.permission[':id'].$put(
 //       {
 //         param: {
 //           id: data.id.toString(),
@@ -150,7 +150,7 @@
 //   })
 
 //   test('it should delete a permission', async () => {
-//     const response = await client.api.v1.permission.$post(
+//     const response = await client.api.v0.permission.$post(
 //       {
 //         json: {
 //           key: 'approve:account-create',
@@ -170,7 +170,7 @@
 
 //     expect(permission).toBeDefined()
 
-//     await client.api.v1.permission[':id'].$delete(
+//     await client.api.v0.permission[':id'].$delete(
 //       {
 //         param: {
 //           id: data.id.toString(),
@@ -192,7 +192,7 @@
 // // Negative test cases
 // describe('Permission Controller API - Negative Test Cases', () => {
 //   test('it should return 404 for a non-existent permission', async () => {
-//     const response = await client.api.v1.permission[':id'].$get(
+//     const response = await client.api.v0.permission[':id'].$get(
 //       {
 //         param: {
 //           id: '-1',
@@ -205,7 +205,7 @@
 //   })
 
 //   test('it should return 400 for invalid payload on permission creation', async () => {
-//     const res = await app.request('/api/v1/permission', {
+//     const res = await app.request('/api/v0/permission', {
 //       method: 'POST',
 //       body: JSON.stringify({
 //         foo: 'bar',
@@ -217,7 +217,7 @@
 //   })
 
 //   test('it should return 401 for unauthorized access', async () => {
-//     const response = await client.api.v1.permission[':id'].$get({
+//     const response = await client.api.v0.permission[':id'].$get({
 //       param: {
 //         id: '123',
 //       },
@@ -227,7 +227,7 @@
 //   })
 
 //   test('it should return 400 for duplicate key on permission creation', async () => {
-//     await client.api.v1.permission.$post(
+//     await client.api.v0.permission.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',
@@ -239,7 +239,7 @@
 //       },
 //     )
 
-//     const response = await client.api.v1.permission.$post(
+//     const response = await client.api.v0.permission.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',

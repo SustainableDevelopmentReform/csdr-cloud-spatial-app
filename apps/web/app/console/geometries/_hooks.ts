@@ -11,67 +11,67 @@ import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 import { useParams, useRouter } from 'next/navigation'
 
 export type GeometriesListItem = NonNullable<
-  InferResponseType<typeof client.api.v1.geometries.$get, 200>['data']
+  InferResponseType<typeof client.api.v0.geometries.$get, 200>['data']
 >['data'][0]
 export type GeometriesDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1.geometries)[':id']['$get'],
+    (typeof client.api.v0.geometries)[':id']['$get'],
     200
   >['data']
 >
 
 export type GeometriesRunListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v1.geometries)[':id']['runs']['$get'],
+    (typeof client.api.v0.geometries)[':id']['runs']['$get'],
     200
   >['data']
 >['data'][0]
 export type GeometriesRunDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['geometries-run'][':id']['$get'],
+    (typeof client.api.v0)['geometries-run'][':id']['$get'],
     200
   >['data']
 >
 
 export type GeometryOutputListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['geometries-run'][':id']['outputs']['$get'],
+    (typeof client.api.v0)['geometries-run'][':id']['outputs']['$get'],
     200
   >['data']
 >['data'][0]
 export type GeometryOutputDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['geometry-output'][':id']['$get'],
+    (typeof client.api.v0)['geometry-output'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateGeometriesPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.geometries)[':id']['$patch']>['json']
+  InferRequestType<(typeof client.api.v0.geometries)[':id']['$patch']>['json']
 >
 
 export type UpdateGeometriesRunPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v1)['geometries-run'][':id']['$patch']
+    (typeof client.api.v0)['geometries-run'][':id']['$patch']
   >['json']
 >
 
 export type UpdateGeometryOutputPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v1)['geometry-output'][':id']['$patch']
+    (typeof client.api.v0)['geometry-output'][':id']['$patch']
   >['json']
 >
 
 export type CreateGeometriesPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.geometries)['$post']>['json']
+  InferRequestType<(typeof client.api.v0.geometries)['$post']>['json']
 >
 
 export type CreateGeometriesRunPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1)['geometries-run']['$post']>['json']
+  InferRequestType<(typeof client.api.v0)['geometries-run']['$post']>['json']
 >
 
 export type CreateGeometryOutputPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1)['geometry-output']['$post']>['json']
+  InferRequestType<(typeof client.api.v0)['geometry-output']['$post']>['json']
 >
 
 const geometriesParamsSchema = z.object({
@@ -102,7 +102,7 @@ export const useAllGeometries = () => {
   const { data } = useQuery({
     queryKey: [QueryKey.Geometries],
     queryFn: async () => {
-      const res = client.api.v1.geometries.$get({
+      const res = client.api.v0.geometries.$get({
         query: {
           page,
         },
@@ -131,7 +131,7 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
     queryKey: [QueryKey.GeometriesRun, geometriesId],
     queryFn: async () => {
       if (!geometriesId) return null
-      const res = client.api.v1['geometries'][':id']['runs'].$get({
+      const res = client.api.v0['geometries'][':id']['runs'].$get({
         query: {
           page,
         },
@@ -163,7 +163,7 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
     queryKey: [QueryKey.GeometryOutput, geometriesRunId],
     queryFn: async () => {
       if (!geometriesRunId) return null
-      const res = client.api.v1['geometries-run'][':id']['outputs'].$get({
+      const res = client.api.v0['geometries-run'][':id']['outputs'].$get({
         query: {
           page,
         },
@@ -193,7 +193,7 @@ export const useGeometries = (_geometriesId?: string) => {
     queryKey: [QueryKey.Geometries, geometriesId],
     queryFn: async () => {
       if (!geometriesId) return null
-      const res = client.api.v1.geometries[':id'].$get({
+      const res = client.api.v0.geometries[':id'].$get({
         param: {
           id: geometriesId,
         },
@@ -214,7 +214,7 @@ export const useGeometriesRun = (_geometriesRunId?: string) => {
     queryKey: [QueryKey.GeometriesRun, geometriesRunId],
     queryFn: async () => {
       if (!geometriesRunId) return null
-      const res = client.api.v1['geometries-run'][':id'].$get({
+      const res = client.api.v0['geometries-run'][':id'].$get({
         param: {
           id: geometriesRunId,
         },
@@ -239,7 +239,7 @@ export const useGeometryOutput = (_geometryOutputId?: string) => {
     queryKey: [QueryKey.GeometryOutput, geometryOutputId],
     queryFn: async () => {
       if (!geometryOutputId) return null
-      const res = client.api.v1['geometry-output'][':id'].$get({
+      const res = client.api.v0['geometry-output'][':id'].$get({
         param: {
           id: geometryOutputId,
         },
@@ -256,7 +256,7 @@ export const useCreateGeometries = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateGeometriesPayload) => {
-      const res = client.api.v1.geometries.$post({
+      const res = client.api.v0.geometries.$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -272,7 +272,7 @@ export const useCreateGeometriesRun = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateGeometriesRunPayload) => {
-      const res = client.api.v1['geometries-run'].$post({
+      const res = client.api.v0['geometries-run'].$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -290,7 +290,7 @@ export const useCreateGeometryOutput = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateGeometryOutputPayload) => {
-      const res = client.api.v1['geometry-output'].$post({
+      const res = client.api.v0['geometry-output'].$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -317,7 +317,7 @@ export const useUpdateGeometries = (_geometriesId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateGeometriesPayload) => {
       if (!geometriesId) return
-      const res = client.api.v1.geometries[':id'].$patch({
+      const res = client.api.v0.geometries[':id'].$patch({
         param: { id: geometriesId },
         json: payload,
       })
@@ -341,7 +341,7 @@ export const useUpdateGeometriesRun = (_geometriesRunId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateGeometriesRunPayload) => {
       if (!geometriesRunId) return
-      const res = client.api.v1['geometries-run'][':id'].$patch({
+      const res = client.api.v0['geometries-run'][':id'].$patch({
         param: { id: geometriesRunId },
         json: payload,
       })
@@ -369,7 +369,7 @@ export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateGeometryOutputPayload) => {
       if (!geometryOutputId) return
-      const res = client.api.v1['geometry-output'][':id'].$patch({
+      const res = client.api.v0['geometry-output'][':id'].$patch({
         param: { id: geometryOutputId },
         json: payload,
       })
@@ -394,7 +394,7 @@ export const useSetGeometriesMainRun = (
   return useMutation({
     mutationFn: async () => {
       if (!run) return
-      const res = client.api.v1['geometries-run'][':id'][
+      const res = client.api.v0['geometries-run'][':id'][
         'set-as-main-run'
       ].$post({
         param: { id: run.id },
@@ -429,7 +429,7 @@ export const useDeleteGeometries = (
   return useMutation({
     mutationFn: async () => {
       if (!geometriesId) return
-      const res = client.api.v1.geometries[':id'].$delete({
+      const res = client.api.v0.geometries[':id'].$delete({
         param: {
           id: geometriesId,
         },
@@ -462,7 +462,7 @@ export const useDeleteGeometriesRun = (
   return useMutation({
     mutationFn: async () => {
       if (!geometriesRunId) return
-      const res = client.api.v1['geometries-run'][':id'].$delete({
+      const res = client.api.v0['geometries-run'][':id'].$delete({
         param: {
           id: geometriesRunId,
         },
