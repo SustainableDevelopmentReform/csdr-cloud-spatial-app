@@ -107,13 +107,19 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
                   {user?.email}
                 </div>
               </div>
-              <div className="pt-2 mt-2 border-t border-gray-200 px-4">
+              <div className="pt-2 mt-2 border-t border-gray-200 px-4 flex flex-col gap-1">
                 <AccountSettingsButton />
                 <Link
                   className="mb-2 block w-full text-left"
                   href="/console/me/api-keys"
                 >
                   API Keys
+                </Link>
+                <Link
+                  className="mb-2 block w-full text-left"
+                  href="/api/v1/scalar"
+                >
+                  API Docs
                 </Link>
                 <SignOutButton />
               </div>

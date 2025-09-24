@@ -1,7 +1,5 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
@@ -11,9 +9,16 @@ import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
 // Define shared query configuration
 export const productOutputQuery = {
@@ -65,18 +70,38 @@ export const productOutputQuery = {
   },
 } satisfies QueryForTable<'productOutput'>
 
-const app = new Hono()
-  .get(
-    '/:id',
-    authMiddleware({ permission: 'read:productOutput' }),
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a product output.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product output not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch product output'),
+      },
+    }),
     async (c) => {
-      const id = c.req.param('id')
-      const productOutput = await db.query.productOutput.findFirst({
+      const { id } = c.req.valid('param')
+      const record = await db.query.productOutput.findFirst({
         where: (productOutput, { eq }) => eq(productOutput.id, id),
         ...productOutputQuery,
       })
 
-      if (!productOutput) {
+      if (!record) {
         throw new ServerError({
           statusCode: 404,
           message: 'Failed to get productOutput',
@@ -84,63 +109,114 @@ const app = new Hono()
         })
       }
 
-      return generateJsonResponse(c, productOutput)
+      return generateJsonResponse(c, record, 200)
     },
   )
-  .patch(
-    '/:id',
-    zValidator('json', transformUpdateResource(baseUpdateResourceSchema)),
-    authMiddleware({
-      permission: 'write:productOutput',
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'write:productOutput' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                productRunId: z.string(),
+                geometryOutputId: z.string(),
+                value: z.string(),
+                variableId: z.string(),
+                timePoint: z.string().datetime(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a product output.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        400: jsonErrorResponse('Time point is not a valid date'),
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create product output'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
-        .update(productOutput)
-        .set(data)
-        .where(eq(productOutput.id, id))
-        .returning()
+      const payload = c.req.valid('json')
+      const timePointDate = new Date(payload.timePoint)
 
-      return generateJsonResponse(c, role[0])
-    },
-  )
-
-  .post(
-    '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          productRunId: z.string(),
-          geometryOutputId: z.string(),
-          value: z.string(),
-          variableId: z.string(),
-          timePoint: z.string(),
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:productOutput',
-    }),
-    async (c) => {
-      const data = c.req.valid('json')
-      let timePointDate: Date
-      try {
-        timePointDate = new Date(data.timePoint)
-      } catch (error) {
+      if (Number.isNaN(timePointDate.valueOf())) {
         throw new ServerError({
           statusCode: 400,
           message: 'Failed to create productOutput',
           description: 'Time point is not a valid date',
         })
       }
-      const newProductOutput = await db
+
+      const { timePoint, ...rest } = payload
+
+      const [newProductOutput] = await db
         .insert(productOutput)
-        .values({ ...data, timePoint: timePointDate })
+        .values(createPayload({ ...rest, timePoint: timePointDate }))
         .returning()
 
-      return generateJsonResponse(c, newProductOutput[0], 201)
+      return generateJsonResponse(
+        c,
+        newProductOutput,
+        201,
+        'Product output created',
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:productOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a product output.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product output not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update product output'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
+        .update(productOutput)
+        .set(updatePayload(payload))
+        .where(eq(productOutput.id, id))
+        .returning()
+
+      return generateJsonResponse(c, record, 200, 'Product output updated')
     },
   )
 

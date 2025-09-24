@@ -23,8 +23,8 @@ export const MeBreadcrumbs = () => {
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href="/console/me">Me</Link>
+          <BreadcrumbLink asChild className="hover:text-inherit">
+            <span>Me</span>
           </BreadcrumbLink>
         </BreadcrumbItem>
 

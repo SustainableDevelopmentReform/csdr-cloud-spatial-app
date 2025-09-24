@@ -104,7 +104,7 @@ export const useAllGeometries = () => {
     queryFn: async () => {
       const res = client.api.v1.geometries.$get({
         query: {
-          page: page.toString(),
+          page,
         },
       })
 
@@ -133,7 +133,7 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
       if (!geometriesId) return null
       const res = client.api.v1['geometries'][':id']['runs'].$get({
         query: {
-          page: page.toString(),
+          page,
         },
         param: {
           id: geometriesId,
@@ -165,7 +165,7 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
       if (!geometriesRunId) return null
       const res = client.api.v1['geometries-run'][':id']['outputs'].$get({
         query: {
-          page: page.toString(),
+          page,
         },
         param: {
           id: geometriesRunId,

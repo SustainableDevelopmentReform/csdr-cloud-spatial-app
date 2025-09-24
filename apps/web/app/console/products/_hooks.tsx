@@ -123,7 +123,7 @@ export const useProducts = () => {
     queryFn: async () => {
       const res = client.api.v1.product.$get({
         query: {
-          page: page.toString(),
+          page,
           datasetId,
           geometriesId,
         },
@@ -172,7 +172,7 @@ export const useProductRuns = (_productId?: string) => {
       if (!productId) return null
       const res = client.api.v1['product'][':id']['runs'].$get({
         query: {
-          page: page.toString(),
+          page,
           datasetRunId,
           geometriesRunId,
         },
@@ -232,7 +232,7 @@ export const useProductOutputs = (_productRunId?: string) => {
       if (!productRunId) return null
       const res = client.api.v1['product-run'][':id']['outputs'].$get({
         query: {
-          page: page.toString(),
+          page,
         },
         param: {
           id: productRunId,

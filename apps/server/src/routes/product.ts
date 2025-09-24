@@ -1,22 +1,27 @@
-import { zValidator } from '@hono/zod-validator'
-import { and, count, desc, eq, SQL, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
+import { createRoute } from '@hono/zod-openapi'
+import { and, count, desc, eq, sql, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { product, productRun } from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
-import { productRunOutputSummaryQuery, productRunQuery } from './productRun'
+import { productRunQuery } from './productRun'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-// Common query configuration for products using Drizzle query API
 const productQuery = {
   columns: {
     ...baseColumns,
@@ -44,21 +49,39 @@ const productQuery = {
   },
 } satisfies QueryForTable<'product'>
 
-const app = new Hono()
-  // GET ALL PRODUCTS
-  .get(
-    '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-        datasetId: z.string().optional(),
-        geometriesId: z.string().optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:product',
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'read:product' })],
+      request: {
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+          datasetId: z.string().optional(),
+          geometriesId: z.string().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List products with pagination metadata.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list products'),
+      },
     }),
     async (c) => {
       const {
@@ -95,53 +118,98 @@ const app = new Hono()
         orderBy: desc(product.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
-  // GET A SINGLE PRODUCT
-  .get('/:id', authMiddleware({ permission: 'read:product' }), async (c) => {
-    const id = c.req.param('id')
 
-    // Get single product with all related data using Drizzle query API
-    const result = await db.query.product.findFirst({
-      where: (product, { eq }) => eq(product.id, id),
-      ...productQuery,
-    })
-
-    if (!result) {
-      throw new ServerError({
-        statusCode: 404,
-        message: 'Failed to get product',
-        description: "Product you're looking for is not found",
-      })
-    }
-
-    return generateJsonResponse(c, result)
-  })
-  // GET ALL PRODUCT RUNS FOR A PRODUCT
-  .get(
-    '/:id/runs',
-    zValidator(
-      'query',
-      z.object({
-        datasetRunId: z.string().optional(),
-        geometriesRunId: z.string().optional(),
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:productRun',
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a product.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch product'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      // Allow * to be used as a wildcard for the product id - to show all product runs
-      const productId = id === '*' ? undefined : id
+      const { id } = c.req.valid('param')
+      const record = await db.query.product.findFirst({
+        where: (product, { eq }) => eq(product.id, id),
+        ...productQuery,
+      })
 
+      if (!record) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Failed to get product',
+          description: "Product you're looking for is not found",
+        })
+      }
+
+      return generateJsonResponse(c, record, 200)
+    },
+  )
+
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id/runs',
+      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+          datasetRunId: z.string().optional(),
+          geometriesRunId: z.string().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description:
+            'List product runs for a product or across products using "*".',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list product runs'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const productId = id === '*' ? undefined : id
       const {
         page = 1,
         size = 10,
@@ -176,75 +244,140 @@ const app = new Hono()
         orderBy: desc(productRun.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
 
-  // CREATE A NEW PRODUCT
-  .post(
-    '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          datasetId: z.string(),
-          geometriesId: z.string(),
-          timePrecision: z.enum(['hour', 'day', 'month', 'year']),
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:product',
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                datasetId: z.string(),
+                geometriesId: z.string(),
+                timePrecision: z.enum(['hour', 'day', 'month', 'year']),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a product.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create product'),
+      },
     }),
     async (c) => {
-      const data = c.req.valid('json')
-      const newProduct = await db.insert(product).values(data).returning()
+      const payload = c.req.valid('json')
+      const [newProduct] = await db
+        .insert(product)
+        .values(createPayload(payload))
+        .returning()
 
-      return generateJsonResponse(c, newProduct[0], 201)
+      return generateJsonResponse(c, newProduct, 201, 'Product created')
     },
   )
-  // UPDATE A PRODUCT
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      transformUpdateResource(
-        baseUpdateResourceSchema.extend({
-          mainRunId: z.string().optional(),
-          timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:product',
+
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.extend({
+                mainRunId: z.string().optional(),
+                timePrecision: z
+                  .enum(['hour', 'day', 'month', 'year'])
+                  .optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a product.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update product'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
         .update(product)
-        .set(data)
+        .set(updatePayload(payload))
         .where(eq(product.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Product updated')
     },
   )
-  // DELETE A PRODUCT
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:product',
+
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a product.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete product'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(product).where(eq(product.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Product deleted')
     },
   )
 
