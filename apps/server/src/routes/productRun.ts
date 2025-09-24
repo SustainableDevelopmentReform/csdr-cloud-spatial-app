@@ -1,7 +1,5 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { avg, count, desc, eq, max, min } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
@@ -18,9 +16,17 @@ import { productOutputQuery } from './productOutput'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
 export const productRunOutputSummaryQuery = {
   columns: {
@@ -53,7 +59,6 @@ export const productRunOutputSummaryQuery = {
   },
 } satisfies QueryForTable<'productOutputSummary'>
 
-// Define shared query configuration
 export const productRunQuery = {
   columns: {
     ...baseColumns,
@@ -93,46 +98,90 @@ export const productRunQuery = {
   },
 } satisfies QueryForTable<'productRun'>
 
-const app = new Hono()
-  .get('/:id', authMiddleware({ permission: 'read:productRun' }), async (c) => {
-    const id = c.req.param('id')
-    const productRun = await db.query.productRun.findFirst({
-      where: (productRun, { eq }) => eq(productRun.id, id),
-      ...productRunQuery,
-    })
-
-    if (!productRun) {
-      throw new ServerError({
-        statusCode: 404,
-        message: 'Failed to get productRun',
-        description: "productRun you're looking for is not found",
-      })
-    }
-
-    return generateJsonResponse(c, productRun)
-  })
-  .get(
-    '/:id/outputs',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:productOutput',
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch product run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
+      const record = await db.query.productRun.findFirst({
+        where: (productRun, { eq }) => eq(productRun.id, id),
+        ...productRunQuery,
+      })
+
+      if (!record) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Failed to get productRun',
+          description: "productRun you're looking for is not found",
+        })
+      }
+
+      return generateJsonResponse(c, record, 200)
+    },
+  )
+
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id/outputs',
+      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List outputs for a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list product outputs'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
       const { page = 1, size = 10 } = c.req.valid('query')
       const skip = (page - 1) * size
 
       const totalCount = await db
-        .select({
-          count: count(),
-        })
+        .select({ count: count() })
         .from(productOutput)
+        .where(eq(productOutput.productRunId, id))
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.productOutput.findMany({
@@ -143,75 +192,164 @@ const app = new Hono()
         orderBy: desc(productOutput.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
 
-  .post(
-    '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          productId: z.string(),
-          datasetRunId: z.string(),
-          geometriesRunId: z.string(),
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:productRun',
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                productId: z.string(),
+                datasetRunId: z.string(),
+                geometriesRunId: z.string(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create product run'),
+      },
     }),
     async (c) => {
-      const data = c.req.valid('json')
-      const newProductRun = await db.insert(productRun).values(data).returning()
+      const payload = c.req.valid('json')
+      const [newProductRun] = await db
+        .insert(productRun)
+        .values(createPayload(payload))
+        .returning()
 
-      return generateJsonResponse(c, newProductRun[0], 201)
+      return generateJsonResponse(c, newProductRun, 201, 'Product run created')
     },
   )
-  .patch(
-    '/:id',
-    zValidator('json', transformUpdateResource(baseUpdateResourceSchema)),
-    authMiddleware({
-      permission: 'write:productRun',
+
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update product run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
         .update(productRun)
-        .set(data)
+        .set(updatePayload(payload))
         .where(eq(productRun.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Product run updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:productRun',
+
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a product run.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete product run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(productRun).where(eq(productRun.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Product run deleted')
     },
   )
-  .post(
-    '/:id/set-as-main-run',
-    authMiddleware({
-      permission: 'write:productRun',
+
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/:id/set-as-main-run',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Mark a product run as the main run for its product.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to set product run as main'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
 
-      // Check if the product run exists
       const run = await db.query.productRun.findFirst({
         where: (productRun, { eq }) => eq(productRun.id, id),
       })
@@ -229,18 +367,42 @@ const app = new Hono()
         .set({ mainRunId: id })
         .where(eq(product.id, run.productId))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Product run set as main')
     },
   )
-  .post(
-    '/:id/refresh-summary',
-    authMiddleware({
-      permission: 'write:productRun',
+
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/:id/refresh-summary',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description:
+            'Recompute and persist summary statistics for a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  message: z.string(),
+                  data: z.any().nullable(),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to refresh product run summary'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
 
-      // Check if the product run exists
       const run = await db.query.productRun.findFirst({
         where: (productRun, { eq }) => eq(productRun.id, id),
       })
@@ -253,7 +415,6 @@ const app = new Hono()
         })
       }
 
-      // Use a transaction to ensure consistency
       await db.transaction(async (tx) => {
         // 1. Calculate overall summary statistics
         const summaryStats = await tx
@@ -336,10 +497,14 @@ const app = new Hono()
         },
       })
 
-      return generateJsonResponse(c, {
-        message: 'Summary refreshed successfully',
-        data: updatedRun,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          message: 'Summary refreshed successfully',
+          data: updatedRun,
+        },
+        200,
+      )
     },
   )
 

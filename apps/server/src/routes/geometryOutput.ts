@@ -1,7 +1,5 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
@@ -11,11 +9,18 @@ import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-// Define shared query configuration
 export const geometryOutputQuery = {
   columns: {
     ...baseColumns,
@@ -33,18 +38,38 @@ export const geometryOutputQuery = {
   },
 } satisfies QueryForTable<'geometryOutput'>
 
-const app = new Hono()
-  .get(
-    '/:id',
-    authMiddleware({ permission: 'read:geometryOutput' }),
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:geometryOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a geometry output.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometry output not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch geometry output'),
+      },
+    }),
     async (c) => {
-      const id = c.req.param('id')
-      const geometryOutput = await db.query.geometryOutput.findFirst({
+      const { id } = c.req.valid('param')
+      const record = await db.query.geometryOutput.findFirst({
         where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
         ...geometryOutputQuery,
       })
 
-      if (!geometryOutput) {
+      if (!record) {
         throw new ServerError({
           statusCode: 404,
           message: 'Failed to get geometryOutput',
@@ -52,82 +77,143 @@ const app = new Hono()
         })
       }
 
-      return generateJsonResponse(c, geometryOutput)
+      return generateJsonResponse(c, record, 200)
     },
   )
 
-  .post(
-    '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          // Name is mandatory
-          name: z.string(),
-          geometriesRunId: z.string(),
-          geometry: z.record(z.string(), z.any()),
-          properties: z.any().optional(),
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:geometryOutput',
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                name: z.string(),
+                geometriesRunId: z.string(),
+                geometry: z.record(z.string(), z.any()),
+                properties: z.any().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a geometry output.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        400: jsonErrorResponse('Geometry is required'),
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create geometry output'),
+      },
     }),
     async (c) => {
-      const data = c.req.valid('json')
-      const geometry = data.geometry
-      // TODO figure out why this doesn't work in the validator
-      if (!geometry) {
+      const payload = c.req.valid('json')
+
+      if (!payload.geometry) {
         throw new ServerError({
           statusCode: 400,
           message: 'Failed to create geometryOutput',
           description: 'Geometry is required',
         })
       }
-      const id = crypto.randomUUID()
-      const newGeometryOutput = await db
+
+      const [newGeometryOutput] = await db
         .insert(geometryOutput)
-        .values({ ...data, id, geometry })
+        .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newGeometryOutput[0], 201)
+      return generateJsonResponse(
+        c,
+        newGeometryOutput,
+        201,
+        'Geometry output created',
+      )
     },
   )
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      transformUpdateResource(
-        baseUpdateResourceSchema.omit({
-          name: true,
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:geometryOutput',
+
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.omit({ name: true }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a geometry output.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometry output not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update geometry output'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
         .update(geometryOutput)
-        .set(data)
+        .set(updatePayload(payload))
         .where(eq(geometryOutput.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Geometry output updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:geometryOutput',
+
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a geometry output.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometry output not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete geometry output'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(geometryOutput).where(eq(geometryOutput.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Geometry output deleted')
     },
   )
 

@@ -14,8 +14,8 @@
 //     zValidator(
 //       'query',
 //       z.object({
-//         page: z.number({ coerce: true }).optional(),
-//         size: z.number({ coerce: true }).optional(),
+//         page: z.coerce.number().optional(),
+//         size: z.coerce.number().optional(),
 //       }),
 //     ),
 //     authMiddleware({ permission: 'read:feature-flags' }),

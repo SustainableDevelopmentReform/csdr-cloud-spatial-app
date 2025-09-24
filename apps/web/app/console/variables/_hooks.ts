@@ -74,7 +74,7 @@ export const useVariables = () => {
     queryFn: async () => {
       const res = client.api.v1.variable.$get({
         query: {
-          page: page.toString(),
+          page,
         },
       })
 

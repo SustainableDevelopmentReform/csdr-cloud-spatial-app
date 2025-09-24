@@ -23,7 +23,7 @@ const authConfig = {
   plugins: [
     admin(),
     twoFactor(),
-    openAPI(),
+    openAPI({ path: '/scalar' }),
     anonymous(),
     apiKey(),
     // Note there are issues with typing with organization plugin (we don't need it yet)

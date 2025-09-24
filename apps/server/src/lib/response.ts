@@ -1,15 +1,18 @@
 import { type Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
-export const generateJsonResponse = <T>(
+export const generateJsonResponse = <
+  T,
+  StatusCode extends ContentfulStatusCode,
+>(
   c: Context,
-  data?: T,
-  statusCode: ContentfulStatusCode = 200,
+  data: T,
+  statusCode: StatusCode,
   message = 'OK',
 ) =>
   c.json(
     {
-      statusCode,
+      statusCode: statusCode,
       message,
       data,
     },

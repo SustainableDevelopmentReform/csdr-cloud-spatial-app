@@ -59,52 +59,52 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
     },
   })
 
-  const handleUploadImage = useMutation({
-    mutationFn: async () => {
-      const file = await browseFile('image/*')
+  // const handleUploadImage = useMutation({
+  //   mutationFn: async () => {
+  //     const file = await browseFile('image/*')
 
-      if (!file.type.startsWith('image')) {
-        toast.error('Failed to upload', {
-          description: 'Image format is invalid',
-        })
-        return
-      }
+  //     if (!file.type.startsWith('image')) {
+  //       toast.error('Failed to upload', {
+  //         description: 'Image format is invalid',
+  //       })
+  //       return
+  //     }
 
-      if (file.size / (1024 * 1024) > 3) {
-        toast.error('Failed to upload', {
-          description: 'File size max 3mb',
-        })
-        return
-      }
+  //     if (file.size / (1024 * 1024) > 3) {
+  //       toast.error('Failed to upload', {
+  //         description: 'File size max 3mb',
+  //       })
+  //       return
+  //     }
 
-      const res = client.api.v1.file['get-presigned-url'].$post({
-        json: {
-          fileKey: `assets/${new Date().getTime()}-${file.name}`,
-        },
-      })
+  //     const res = client.api.v1.file['get-presigned-url'].$post({
+  //       json: {
+  //         fileKey: `assets/${new Date().getTime()}-${file.name}`,
+  //       },
+  //     })
 
-      const { data } = await unwrapResponse(res)
+  //     const { data } = await unwrapResponse(res)
 
-      if (!data?.url) {
-        toast.error('Failed to upload', {
-          description: 'Failed to get presigned url',
-        })
-        return
-      }
+  //     if (!data?.url) {
+  //       toast.error('Failed to upload', {
+  //         description: 'Failed to get presigned url',
+  //       })
+  //       return
+  //     }
 
-      await ofetch(data?.url, {
-        method: 'PUT',
-        headers: {
-          'x-amz-acl': 'public-read',
-          'content-type': file.type,
-        },
-        body: file,
-      })
+  //     await ofetch(data?.url, {
+  //       method: 'PUT',
+  //       headers: {
+  //         'x-amz-acl': 'public-read',
+  //         'content-type': file.type,
+  //       },
+  //       body: file,
+  //     })
 
-      const url = new URL(data?.url)
-      profileForm.setValue('image', url.origin + url.pathname)
-    },
-  })
+  //     const url = new URL(data?.url)
+  //     profileForm.setValue('image', url.origin + url.pathname)
+  //   },
+  // })
 
   return (
     <>
@@ -137,7 +137,7 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
                   <User2 className="text-gray-400" />
                 )}
               </div>
-              <div>
+              {/* <div>
                 <div className="text-sm font-medium text-gray-500">
                   Profile picture
                 </div>
@@ -153,7 +153,7 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
                     ? 'Loading...'
                     : 'Upload picture'}
                 </button>
-              </div>
+              </div> */}
             </div>
             <Form {...profileForm}>
               <form

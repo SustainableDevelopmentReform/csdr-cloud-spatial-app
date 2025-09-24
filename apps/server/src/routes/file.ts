@@ -1,19 +1,63 @@
-import { Hono } from 'hono'
-import { authMiddleware } from '../middlewares/auth'
-import { zValidator } from '@hono/zod-validator'
-import { z } from 'zod'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { createRoute } from '@hono/zod-openapi'
+import { authMiddleware } from '../middlewares/auth'
 import { s3Client } from '~/lib/s3'
 import { generateJsonResponse } from '../lib/response'
 import { env } from '~/env'
 import { ServerError } from '../lib/error'
+import {
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-const app = new Hono().post(
-  '/get-presigned-url',
-  zValidator('json', z.object({ fileKey: z.string() })),
-  authMiddleware({
-    permission: 'write:files',
+const app = createOpenAPIApp().openapi(
+  createRoute({
+    method: 'post',
+    path: '/get-presigned-url',
+    middleware: [
+      authMiddleware({
+        permission: 'write:files',
+      }),
+    ],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: z.object({
+              fileKey: z
+                .string()
+                .min(1)
+                .openapi({ example: 'uploads/image.png' }),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Returns a presigned URL for direct uploads.',
+        content: {
+          'application/json': {
+            schema: createResponseSchema(
+              z.object({
+                url: z
+                  .string()
+                  .url()
+                  .openapi({ example: 'https://s3.amazonaws.com/bucket/key' }),
+              }),
+            ),
+          },
+        },
+      },
+      401: jsonErrorResponse('Unauthorized'),
+      422: validationErrorResponse,
+      500: jsonErrorResponse('Failed to create presigned URL'),
+    },
   }),
   async (c) => {
     if (!s3Client) {
@@ -35,7 +79,7 @@ const app = new Hono().post(
       expiresIn: 15 * 60,
     })
 
-    return generateJsonResponse(c, { url })
+    return generateJsonResponse(c, { url }, 200)
   },
 )
 

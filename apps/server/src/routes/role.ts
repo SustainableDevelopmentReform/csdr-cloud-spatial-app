@@ -23,8 +23,8 @@
 //     zValidator(
 //       'query',
 //       z.object({
-//         page: z.number({ coerce: true }).positive().optional(),
-//         size: z.number({ coerce: true }).optional(),
+//         page: z.coerce.number().positive().optional(),
+//         size: z.coerce.number().optional(),
 //       }),
 //     ),
 //     authMiddleware({
@@ -179,7 +179,7 @@
 //     zValidator(
 //       'json',
 //       z.object({
-//         permissionIds: z.array(z.number({ coerce: true })),
+//         permissionIds: z.array(z.number()),
 //       }),
 //     ),
 //     authMiddleware({
@@ -208,7 +208,7 @@
 //     zValidator(
 //       'json',
 //       z.object({
-//         permissionIds: z.array(z.number({ coerce: true })),
+//         permissionIds: z.array(z.number()),
 //       }),
 //     ),
 //     authMiddleware({

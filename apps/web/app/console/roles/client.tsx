@@ -18,7 +18,7 @@
 //     queryFn: async () => {
 //       const res = client.api.v1.role.$get({
 //         query: {
-//           page: page.toString(),
+//           page,
 //         },
 //       })
 

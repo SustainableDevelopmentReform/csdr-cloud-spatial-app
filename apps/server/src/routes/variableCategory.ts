@@ -1,17 +1,21 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { count, desc, eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
-import { baseCreateResourceSchema } from './util'
-import { baseUpdateResourceSchema } from './util'
+import { baseCreateResourceSchema, baseUpdateResourceSchema } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-// Define shared query configuration
 const variableCategoryQuery = {
   columns: {
     ...baseColumns,
@@ -25,11 +29,33 @@ const variableCategoryQuery = {
   },
 } satisfies QueryForTable<'variableCategory'>
 
-const app = new Hono()
-  .get(
-    '/',
-    authMiddleware({
-      permission: 'read:variableCategory',
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/',
+      middleware: [
+        authMiddleware({
+          permission: 'read:variableCategory',
+        }),
+      ],
+      responses: {
+        200: {
+          description: 'List all variable categories.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  data: z.array(z.any()),
+                  totalCount: z.number().int(),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        500: jsonErrorResponse('Failed to list variable categories'),
+      },
     }),
     async (c) => {
       const totalCount = await db
@@ -43,23 +69,48 @@ const app = new Hono()
         orderBy: desc(variableCategory.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
-  .get(
-    '/:id',
-    authMiddleware({ permission: 'read:variableCategory' }),
+
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:variableCategory' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Get a single variable category.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Variable category not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch variable category'),
+      },
+    }),
     async (c) => {
-      const id = c.req.param('id')
-      const variableCategory = await db.query.variableCategory.findFirst({
+      const { id } = c.req.valid('param')
+      const record = await db.query.variableCategory.findFirst({
         where: (variableCategory, { eq }) => eq(variableCategory.id, id),
         ...variableCategoryQuery,
       })
 
-      if (!variableCategory) {
+      if (!record) {
         throw new ServerError({
           statusCode: 404,
           message: 'Failed to get variableCategory',
@@ -67,69 +118,147 @@ const app = new Hono()
         })
       }
 
-      return generateJsonResponse(c, variableCategory)
+      return generateJsonResponse(c, record, 200)
     },
   )
 
-  .post(
-    '/',
-    zValidator(
-      'json',
-      baseCreateResourceSchema.extend({
-        // Name is mandatory
-        name: z.string(),
-        parentId: z.string().optional(),
-        displayOrder: z.number().optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'write:variableCategory',
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [
+        authMiddleware({
+          permission: 'write:variableCategory',
+        }),
+      ],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                name: z.string().min(1),
+                parentId: z.string().optional(),
+                displayOrder: z.number().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a variable category.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create variable category'),
+      },
     }),
     async (c) => {
       const data = c.req.valid('json')
       const id = crypto.randomUUID()
-      const newVariableCategory = await db
+      const [newVariableCategory] = await db
         .insert(variableCategory)
         .values({ ...data, id })
         .returning()
 
-      return generateJsonResponse(c, newVariableCategory[0], 201)
+      return generateJsonResponse(
+        c,
+        newVariableCategory,
+        201,
+        'Variable category created',
+      )
     },
   )
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      baseUpdateResourceSchema.extend({
-        parentId: z.string().optional(),
-        displayOrder: z.number().optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'write:variableCategory',
+
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:variableCategory',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.extend({
+                parentId: z.string().optional(),
+                displayOrder: z.number().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a variable category.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Variable category not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update variable category'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       const data = c.req.valid('json')
-      const role = await db
+      const [record] = await db
         .update(variableCategory)
         .set(data)
         .where(eq(variableCategory.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Variable category updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:variableCategory',
+
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:variableCategory',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a variable category.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Variable category not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete variable category'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(variableCategory).where(eq(variableCategory.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Variable category deleted')
     },
   )
 

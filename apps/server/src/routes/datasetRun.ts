@@ -1,7 +1,5 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
@@ -11,11 +9,18 @@ import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-// Define shared query configuration
 export const datasetRunQuery = {
   columns: {
     ...baseColumns,
@@ -30,106 +35,222 @@ export const datasetRunQuery = {
       },
     },
   },
-  // This doesn't work for some reason
-  // extras: {
-  //   productRunCount: db
-  //     .$count(productRun, eq(productRun.datasetRunId, datasetRun.id))
-  //     .as('product_run_count'),
-  // },
 } satisfies QueryForTable<'datasetRun'>
 
-// There is an entry for the table datasetRun, but it cannot be referenced from this part of the query
-
-const app = new Hono()
-  .get('/:id', authMiddleware({ permission: 'read:datasetRun' }), async (c) => {
-    const id = c.req.param('id')
-    const results = await db.query.datasetRun.findFirst({
-      where: (datasetRun, { eq }) => eq(datasetRun.id, id),
-      ...datasetRunQuery,
-    })
-
-    const productRunCount = await db.$count(
-      productRun,
-      eq(productRun.datasetRunId, id),
-    )
-
-    if (!results) {
-      throw new ServerError({
-        statusCode: 404,
-        message: 'Failed to get datasetRun',
-        description: "datasetRun you're looking for is not found",
-      })
-    }
-
-    return generateJsonResponse(c, { ...results, productRunCount })
-  })
-
-  .post(
-    '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          datasetId: z.string(),
-        }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:datasetRun',
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:datasetRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a dataset run with aggregated metadata.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch dataset run'),
+      },
     }),
     async (c) => {
-      const data = c.req.valid('json')
-      const newDatasetRun = await db.insert(datasetRun).values(data).returning()
+      const { id } = c.req.valid('param')
+      const results = await db.query.datasetRun.findFirst({
+        where: (datasetRun, { eq }) => eq(datasetRun.id, id),
+        ...datasetRunQuery,
+      })
 
-      return generateJsonResponse(c, newDatasetRun[0], 201)
+      const productRunCount = await db.$count(
+        productRun,
+        eq(productRun.datasetRunId, id),
+      )
+
+      if (!results) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Failed to get datasetRun',
+          description: "datasetRun you're looking for is not found",
+        })
+      }
+
+      return generateJsonResponse(
+        c,
+        {
+          ...results,
+          productRunCount,
+        },
+        200,
+      )
     },
   )
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      transformUpdateResource(
-        baseUpdateResourceSchema.extend({
-          datasetId: z.string().optional(),
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [
+        authMiddleware({
+          permission: 'write:datasetRun',
         }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:datasetRun',
+      ],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                datasetId: z.string(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a dataset run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create dataset run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const payload = c.req.valid('json')
+      const [newDatasetRun] = await db
+        .insert(datasetRun)
+        .values(createPayload(payload))
+        .returning()
+
+      return generateJsonResponse(c, newDatasetRun, 201, 'Dataset run created')
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:datasetRun',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.extend({
+                datasetId: z.string().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a dataset run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update dataset run'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
         .update(datasetRun)
-        .set(data)
+        .set(updatePayload(payload))
         .where(eq(datasetRun.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Dataset run updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:datasetRun',
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:datasetRun',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a dataset run.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete dataset run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(datasetRun).where(eq(datasetRun.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Dataset run deleted')
     },
   )
-  .post(
-    '/:id/set-as-main-run',
-    authMiddleware({
-      permission: 'write:datasetRun',
+
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/:id/set-as-main-run',
+      middleware: [
+        authMiddleware({
+          permission: 'write:datasetRun',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Mark a dataset run as the main run for its dataset.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to set dataset run as main'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
 
-      // Check if the dataset run exists
       const run = await db.query.datasetRun.findFirst({
         where: (datasetRun, { eq }) => eq(datasetRun.id, id),
       })
@@ -147,7 +268,7 @@ const app = new Hono()
         .set({ mainRunId: id })
         .where(eq(dataset.id, run.datasetId))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Dataset run set as main')
     },
   )
 

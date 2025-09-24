@@ -1,7 +1,5 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { count, desc, eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
@@ -17,11 +15,18 @@ import { geometryOutputQuery } from './geometryOutput'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-// Define shared query configuration
 export const geometriesRunQuery = {
   columns: {
     ...baseColumns,
@@ -38,14 +43,34 @@ export const geometriesRunQuery = {
   },
 } satisfies QueryForTable<'geometriesRun'>
 
-const app = new Hono()
-  .get(
-    '/:id',
-    authMiddleware({ permission: 'read:geometriesRun' }),
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:geometriesRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a geometries run with aggregated metadata.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch geometries run'),
+      },
+    }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
 
-      const geometriesRun = await db.query.geometriesRun.findFirst({
+      const geometriesRunRecord = await db.query.geometriesRun.findFirst({
         where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
         ...geometriesRunQuery,
       })
@@ -60,7 +85,7 @@ const app = new Hono()
         eq(productRun.geometriesRunId, id),
       )
 
-      if (!geometriesRun) {
+      if (!geometriesRunRecord) {
         throw new ServerError({
           statusCode: 404,
           message: 'Failed to get geometriesRun',
@@ -68,27 +93,55 @@ const app = new Hono()
         })
       }
 
-      return generateJsonResponse(c, {
-        ...geometriesRun,
-        outputCount,
-        productRunCount,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          ...geometriesRunRecord,
+          outputCount,
+          productRunCount,
+        },
+        200,
+      )
     },
   )
-  .get(
-    '/:id/outputs',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:geometryOutput',
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id/outputs',
+      middleware: [
+        authMiddleware({
+          permission: 'read:geometryOutput',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List outputs for a geometries run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list geometry outputs'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       const { page = 1, size = 10 } = c.req.valid('query')
       const skip = (page - 1) * size
 
@@ -97,6 +150,7 @@ const app = new Hono()
           count: count(),
         })
         .from(geometryOutput)
+        .where(eq(geometryOutput.geometriesRunId, id))
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.geometryOutput.findMany({
@@ -108,83 +162,186 @@ const app = new Hono()
         orderBy: desc(geometryOutput.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
 
-  .post(
-    '/',
-    zValidator(
-      'json',
-      transformCreateResource(
-        baseCreateResourceSchema.extend({
-          geometriesId: z.string(),
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [
+        authMiddleware({
+          permission: 'write:geometriesRun',
         }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:geometriesRun',
+      ],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                geometriesId: z.string(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a geometries run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create geometries run'),
+      },
     }),
     async (c) => {
-      const data = c.req.valid('json')
-      const newGeometriesRun = await db
+      const payload = c.req.valid('json')
+      const [newGeometriesRun] = await db
         .insert(geometriesRun)
-        .values(data)
+        .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newGeometriesRun[0], 201)
+      return generateJsonResponse(
+        c,
+        newGeometriesRun,
+        201,
+        'Geometries run created',
+      )
     },
   )
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      transformUpdateResource(
-        baseUpdateResourceSchema.extend({
-          geometriesId: z.string().optional(),
+
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:geometriesRun',
         }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:geometriesRun',
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.extend({
+                geometriesId: z.string().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a geometries run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update geometries run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
         .update(geometriesRun)
-        .set(data)
+        .set(updatePayload(payload))
         .where(eq(geometriesRun.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Geometries run updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:geometriesRun',
+
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:geometriesRun',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a geometries run.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete geometries run'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(geometriesRun).where(eq(geometriesRun.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Geometries run deleted')
     },
   )
-  .post(
-    '/:id/set-as-main-run',
-    authMiddleware({
-      permission: 'write:geometriesRun',
+
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/:id/set-as-main-run',
+      middleware: [
+        authMiddleware({
+          permission: 'write:geometriesRun',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description:
+            'Mark a geometries run as the main run for its geometries.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to set geometries run as main'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
 
-      // Check if the geometries run exists
       const run = await db.query.geometriesRun.findFirst({
         where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
       })
@@ -202,7 +359,7 @@ const app = new Hono()
         .set({ mainRunId: id })
         .where(eq(geometries.id, run.geometriesId))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Geometries run set as main')
     },
   )
 

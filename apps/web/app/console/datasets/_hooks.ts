@@ -72,7 +72,7 @@ export const useDatasets = () => {
     queryFn: async () => {
       const res = client.api.v1.dataset.$get({
         query: {
-          page: page.toString(),
+          page,
         },
       })
 
@@ -101,7 +101,7 @@ export const useDatasetRuns = (_datasetId?: string) => {
       if (!datasetId) return null
       const res = client.api.v1['dataset'][':id']['runs'].$get({
         query: {
-          page: page.toString(),
+          page,
         },
         param: {
           id: datasetId,

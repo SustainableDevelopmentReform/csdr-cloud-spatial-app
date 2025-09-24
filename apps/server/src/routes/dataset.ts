@@ -1,7 +1,5 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { count, desc, eq, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
@@ -12,9 +10,17 @@ import { datasetRunQuery } from './datasetRun'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
-  transformCreateResource,
-  transformUpdateResource,
+  createPayload,
+  updatePayload,
 } from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
 const datasetQuery = {
   columns: {
@@ -39,18 +45,41 @@ const datasetQuery = {
   },
 } satisfies QueryForTable<'dataset'>
 
-const app = new Hono()
-  .get(
-    '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:dataset',
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/',
+      middleware: [
+        authMiddleware({
+          permission: 'read:dataset',
+        }),
+      ],
+      request: {
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List datasets with pagination metadata.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list datasets'),
+      },
     }),
     async (c) => {
       const { page = 1, size = 10 } = c.req.valid('query')
@@ -70,46 +99,100 @@ const app = new Hono()
         orderBy: desc(dataset.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
-  .get('/:id', authMiddleware({ permission: 'read:dataset' }), async (c) => {
-    const id = c.req.param('id')
-    const dataset = await db.query.dataset.findFirst({
-      where: (dataset, { eq }) => eq(dataset.id, id),
-      ...datasetQuery,
-    })
-
-    if (!dataset) {
-      throw new ServerError({
-        statusCode: 404,
-        message: 'Failed to get dataset',
-        description: "Dataset you're looking for is not found",
-      })
-    }
-
-    return generateJsonResponse(c, dataset)
-  })
-  // GET ALL PRODUCT RUNS FOR A PRODUCT
-  .get(
-    '/:id/runs',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:productRun',
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:dataset' })],
+      request: {
+        params: z.object({
+          id: z.string().min(1),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a dataset by id.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch dataset'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
+      const record = await db.query.dataset.findFirst({
+        where: (dataset, { eq }) => eq(dataset.id, id),
+        ...datasetQuery,
+      })
 
+      if (!record) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Failed to get dataset',
+          description: "Dataset you're looking for is not found",
+        })
+      }
+
+      return generateJsonResponse(c, record, 200)
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id/runs',
+      middleware: [
+        authMiddleware({
+          permission: 'read:productRun',
+        }),
+      ],
+      request: {
+        params: z.object({
+          id: z.string().min(1),
+        }),
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List dataset runs for a dataset.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list dataset runs'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
       const { page = 1, size = 10 } = c.req.valid('query')
       const skip = (page - 1) * size
 
@@ -129,61 +212,142 @@ const app = new Hono()
         orderBy: desc(datasetRun.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
-  .post(
-    '/',
-    zValidator('json', transformCreateResource(baseCreateResourceSchema)),
-    authMiddleware({
-      permission: 'write:dataset',
-    }),
-    async (c) => {
-      const data = c.req.valid('json')
-      const newDataset = await db.insert(dataset).values(data).returning()
-
-      return generateJsonResponse(c, newDataset[0], 201)
-    },
-  )
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      transformUpdateResource(
-        baseUpdateResourceSchema.extend({
-          mainRunId: z.string().optional(),
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
         }),
-      ),
-    ),
-    authMiddleware({
-      permission: 'write:dataset',
+      ],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a dataset.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create dataset'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const payload = c.req.valid('json')
+      const [newDataset] = await db
+        .insert(dataset)
+        .values(createPayload(payload))
+        .returning()
+
+      return generateJsonResponse(c, newDataset, 201, 'Dataset created')
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.extend({
+                mainRunId: z.string().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a dataset.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update dataset'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+
+      const [record] = await db
         .update(dataset)
-        .set(data)
+        .set(updatePayload(payload))
         .where(eq(dataset.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Dataset updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:dataset',
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a dataset.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete dataset'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(dataset).where(eq(dataset.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Dataset deleted')
     },
   )
 

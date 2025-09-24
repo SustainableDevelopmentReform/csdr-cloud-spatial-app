@@ -3,16 +3,24 @@ import { type ClientResponse, hc } from 'hono/client'
 
 export const client = hc<ApiRoutesType>('/')
 
-export function unwrapResponse<T>(f: Promise<ClientResponse<T>>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    f.then(async (res) => {
-      if (res.status >= 400) {
-        reject((await res.json()) as T)
-      } else {
-        resolve((await res.json()) as T)
-      }
-    }).catch((err) => reject(err))
-  })
+export async function unwrapResponse<
+  Res extends ClientResponse<unknown, number, 'json'>,
+>(f: Promise<Res>) {
+  type SuccessResponse = Extract<Res, ClientResponse<unknown, 200, 'json'>>
+  type ErrorResponse = Exclude<Res, ClientResponse<unknown, 200, 'json'>>
+  type SuccessPayload<T> =
+    T extends ClientResponse<infer Json, 200, 'json'> ? Json : never
+  type ErrorPayload<T> =
+    T extends ClientResponse<infer Json, number, 'json'> ? Json : never
+
+  const res = await f
+  const payload = await res.json()
+
+  if (res.status === 200) {
+    return payload as SuccessPayload<SuccessResponse>
+  }
+
+  throw payload as ErrorPayload<ErrorResponse>
 }
 
 export enum QueryKey {

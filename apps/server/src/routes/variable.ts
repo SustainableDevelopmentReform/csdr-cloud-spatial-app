@@ -1,16 +1,26 @@
-import { zValidator } from '@hono/zod-validator'
+import { createRoute } from '@hono/zod-openapi'
 import { count, desc, eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { z } from 'zod'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variable } from '../schemas'
 import { baseColumns, QueryForTable } from '../schemas/util'
-import { baseCreateResourceSchema, baseUpdateResourceSchema } from './util'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  createPayload,
+  updatePayload,
+} from './util'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+  z,
+} from '~/lib/openapi'
 
-// Define shared query configuration
 const variableQuery = {
   columns: {
     ...baseColumns,
@@ -25,18 +35,37 @@ const variableQuery = {
   },
 } satisfies QueryForTable<'variable'>
 
-const app = new Hono()
-  .get(
-    '/',
-    zValidator(
-      'query',
-      z.object({
-        page: z.number({ coerce: true }).positive().optional(),
-        size: z.number({ coerce: true }).optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'read:variable',
+const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'read:variable' })],
+      request: {
+        query: z.object({
+          page: z.coerce.number().positive().optional(),
+          size: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List variables with pagination metadata.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(z.any()),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to list variables'),
+      },
     }),
     async (c) => {
       const { page = 1, size = 10 } = c.req.valid('query')
@@ -56,92 +85,192 @@ const app = new Hono()
         orderBy: desc(variable.createdAt),
       })
 
-      return generateJsonResponse(c, {
-        pageCount,
-        data,
-        totalCount: totalCount[0]!.count,
-      })
+      return generateJsonResponse(
+        c,
+        {
+          pageCount,
+          data,
+          totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
     },
   )
-  .get('/:id', authMiddleware({ permission: 'read:variable' }), async (c) => {
-    const id = c.req.param('id')
-    const variable = await db.query.variable.findFirst({
-      where: (variable, { eq }) => eq(variable.id, id),
-      ...variableQuery,
-    })
 
-    if (!variable) {
-      throw new ServerError({
-        statusCode: 404,
-        message: 'Failed to get variable',
-        description: "variable you're looking for is not found",
-      })
-    }
-
-    return generateJsonResponse(c, variable)
-  })
-
-  .post(
-    '/',
-    zValidator(
-      'json',
-      baseCreateResourceSchema.extend({
-        // Name is mandatory
-        name: z.string(),
-        unit: z.string(),
-        categoryId: z.string().nullable().optional(),
-        displayOrder: z.number().optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'write:variable',
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'read:variable' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Retrieve a variable.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Variable not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch variable'),
+      },
     }),
     async (c) => {
-      const data = c.req.valid('json')
-      const id = crypto.randomUUID()
-      const newVariable = await db
+      const { id } = c.req.valid('param')
+      const record = await db.query.variable.findFirst({
+        where: (variable, { eq }) => eq(variable.id, id),
+        ...variableQuery,
+      })
+
+      if (!record) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Failed to get variable',
+          description: "variable you're looking for is not found",
+        })
+      }
+
+      return generateJsonResponse(c, record, 200)
+    },
+  )
+
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/',
+      middleware: [authMiddleware({ permission: 'write:variable' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseCreateResourceSchema.extend({
+                name: z.string(),
+                unit: z.string(),
+                categoryId: z.string().nullable().optional(),
+                displayOrder: z.number().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create a variable.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create variable'),
+      },
+    }),
+    async (c) => {
+      const payload = c.req.valid('json')
+      const data = {
+        ...payload,
+        categoryId: payload.categoryId ?? null,
+      }
+      const [newVariable] = await db
         .insert(variable)
-        .values({ ...data, categoryId: data.categoryId || null, id })
+        .values(createPayload(data))
         .returning()
 
-      return generateJsonResponse(c, newVariable[0], 201)
+      return generateJsonResponse(c, newVariable, 201, 'Variable created')
     },
   )
-  .patch(
-    '/:id',
-    zValidator(
-      'json',
-      baseUpdateResourceSchema.extend({
-        unit: z.string().optional(),
-        categoryId: z.string().nullable().optional(),
-        displayOrder: z.number().optional(),
-      }),
-    ),
-    authMiddleware({
-      permission: 'write:variable',
+
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:variable' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: baseUpdateResourceSchema.extend({
+                unit: z.string().optional(),
+                categoryId: z.string().nullable().optional(),
+                displayOrder: z.number().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Update a variable.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Variable not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update variable'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
-      const data = c.req.valid('json')
-      const role = await db
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const data = {
+        ...payload,
+        ...(payload.categoryId !== undefined && {
+          categoryId: payload.categoryId ?? null,
+        }),
+      }
+
+      const [record] = await db
         .update(variable)
-        .set(data)
+        .set(updatePayload(data))
         .where(eq(variable.id, id))
         .returning()
 
-      return generateJsonResponse(c, role[0])
+      return generateJsonResponse(c, record, 200, 'Variable updated')
     },
   )
-  .delete(
-    '/:id',
-    authMiddleware({
-      permission: 'write:variable',
+
+  .openapi(
+    createRoute({
+      method: 'delete',
+      path: '/:id',
+      middleware: [authMiddleware({ permission: 'write:variable' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Delete a variable.',
+          content: {
+            'application/json': {
+              schema: BaseResponseSchema,
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Variable not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete variable'),
+      },
     }),
     async (c) => {
-      const id = c.req.param('id')
+      const { id } = c.req.valid('param')
       await db.delete(variable).where(eq(variable.id, id))
 
-      return generateJsonResponse(c)
+      return generateJsonResponse(c, {}, 200, 'Variable deleted')
     },
   )
 

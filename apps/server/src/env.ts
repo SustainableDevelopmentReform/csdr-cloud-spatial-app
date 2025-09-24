@@ -11,11 +11,11 @@ export const env = createEnv({
     DATABASE_URL: z
       .string()
       .default('postgresql://admin:admin@localhost:5431/csdr-dev'),
-    PORT: z.number({ coerce: true }).default(4000),
+    PORT: z.coerce.number().default(4000),
     SMTP_PASSWORD: z.string().optional(),
     SMTP_USERNAME: z.string().optional(),
     SMTP_HOST: z.string().optional(),
-    SMTP_PORT: z.number({ coerce: true }).optional(),
+    SMTP_PORT: z.coerce.number().optional(),
     EMAIL_SENDER: z.string().optional(),
     EMAIL_CATCHER: z.string().email().optional(),
     S3_BUCKET_NAME: z.string().optional(),
