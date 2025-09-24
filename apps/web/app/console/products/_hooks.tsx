@@ -17,60 +17,60 @@ import { GeometriesRunButton } from '../geometries/_components/geometries-run-bu
 import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
 
 export type ProductListItem = NonNullable<
-  InferResponseType<typeof client.api.v1.product.$get, 200>['data']
+  InferResponseType<typeof client.api.v0.product.$get, 200>['data']
 >['data'][0]
 export type ProductDetail = NonNullable<
-  InferResponseType<(typeof client.api.v1.product)[':id']['$get'], 200>['data']
+  InferResponseType<(typeof client.api.v0.product)[':id']['$get'], 200>['data']
 >
 
 export type ProductRunListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v1.product)[':id']['runs']['$get'],
+    (typeof client.api.v0.product)[':id']['runs']['$get'],
     200
   >['data']
 >['data'][0]
 export type ProductRunDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['product-run'][':id']['$get'],
+    (typeof client.api.v0)['product-run'][':id']['$get'],
     200
   >['data']
 >
 
 export type ProductOutputListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['product-run'][':id']['outputs']['$get'],
+    (typeof client.api.v0)['product-run'][':id']['outputs']['$get'],
     200
   >['data']
 >['data'][0]
 export type ProductOutputDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['product-output'][':id']['$get'],
+    (typeof client.api.v0)['product-output'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateProductPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.product)[':id']['$patch']>['json']
+  InferRequestType<(typeof client.api.v0.product)[':id']['$patch']>['json']
 >
 export type UpdateProductRunPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v1)['product-run'][':id']['$patch']
+    (typeof client.api.v0)['product-run'][':id']['$patch']
   >['json']
 >
 export type UpdateProductOutputPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v1)['product-output'][':id']['$patch']
+    (typeof client.api.v0)['product-output'][':id']['$patch']
   >['json']
 >
 
 export type CreateProductPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.product)['$post']>['json']
+  InferRequestType<(typeof client.api.v0.product)['$post']>['json']
 >
 export type CreateProductRunPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1)['product-run']['$post']>['json']
+  InferRequestType<(typeof client.api.v0)['product-run']['$post']>['json']
 >
 export type CreateProductRunOutputPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1)['product-output']['$post']>['json']
+  InferRequestType<(typeof client.api.v0)['product-output']['$post']>['json']
 >
 
 const productParamsSchema = z.object({
@@ -121,7 +121,7 @@ export const useProducts = () => {
   const { data } = useQuery({
     queryKey: [QueryKey.Product, datasetId, geometriesId],
     queryFn: async () => {
-      const res = client.api.v1.product.$get({
+      const res = client.api.v0.product.$get({
         query: {
           page,
           datasetId,
@@ -170,7 +170,7 @@ export const useProductRuns = (_productId?: string) => {
     queryKey: [QueryKey.ProductRun, productId, datasetRunId, geometriesRunId],
     queryFn: async () => {
       if (!productId) return null
-      const res = client.api.v1['product'][':id']['runs'].$get({
+      const res = client.api.v0['product'][':id']['runs'].$get({
         query: {
           page,
           datasetRunId,
@@ -230,7 +230,7 @@ export const useProductOutputs = (_productRunId?: string) => {
     queryKey: [QueryKey.ProductOutput],
     queryFn: async () => {
       if (!productRunId) return null
-      const res = client.api.v1['product-run'][':id']['outputs'].$get({
+      const res = client.api.v0['product-run'][':id']['outputs'].$get({
         query: {
           page,
         },
@@ -260,7 +260,7 @@ export const useProduct = (_productId?: string) => {
     queryKey: [QueryKey.Product, productId],
     queryFn: async () => {
       if (!productId || productId === '*') return null
-      const res = client.api.v1.product[':id'].$get({
+      const res = client.api.v0.product[':id'].$get({
         param: {
           id: productId,
         },
@@ -281,7 +281,7 @@ export const useProductRun = (_productRunId?: string) => {
     queryKey: [QueryKey.ProductRun, productRunId],
     queryFn: async () => {
       if (!productRunId) return null
-      const res = client.api.v1['product-run'][':id'].$get({
+      const res = client.api.v0['product-run'][':id'].$get({
         param: {
           id: productRunId,
         },
@@ -306,7 +306,7 @@ export const useProductOutput = (_productOutputId?: string) => {
     queryKey: [QueryKey.ProductOutput, productOutputId],
     queryFn: async () => {
       if (!productOutputId) return null
-      const res = client.api.v1['product-output'][':id'].$get({
+      const res = client.api.v0['product-output'][':id'].$get({
         param: {
           id: productOutputId,
         },
@@ -324,7 +324,7 @@ export const useCreateProduct = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateProductPayload) => {
-      const res = client.api.v1.product.$post({
+      const res = client.api.v0.product.$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -340,7 +340,7 @@ export const useCreateProductRun = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateProductRunPayload) => {
-      const res = client.api.v1['product-run'].$post({
+      const res = client.api.v0['product-run'].$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -358,7 +358,7 @@ export const useCreateProductRunOutput = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateProductRunOutputPayload) => {
-      const res = client.api.v1['product-output'].$post({
+      const res = client.api.v0['product-output'].$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -388,7 +388,7 @@ export const useUpdateProduct = (_productId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateProductPayload) => {
       if (!productId) return
-      const res = client.api.v1.product[':id'].$patch({
+      const res = client.api.v0.product[':id'].$patch({
         param: { id: productId },
         json: payload,
       })
@@ -412,7 +412,7 @@ export const useUpdateProductRun = (_productRunId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateProductRunPayload) => {
       if (!productRunId) return
-      const res = client.api.v1['product-run'][':id'].$patch({
+      const res = client.api.v0['product-run'][':id'].$patch({
         param: { id: productRunId },
         json: payload,
       })
@@ -440,7 +440,7 @@ export const useUpdateProductOutput = (_productOutputId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateProductOutputPayload) => {
       if (!productOutputId) return
-      const res = client.api.v1['product-output'][':id'].$patch({
+      const res = client.api.v0['product-output'][':id'].$patch({
         param: { id: productOutputId },
         json: payload,
       })
@@ -465,7 +465,7 @@ export const useRefreshProductRunSummary = (
   return useMutation({
     mutationFn: async () => {
       if (!run) return
-      const res = client.api.v1['product-run'][':id']['refresh-summary'].$post({
+      const res = client.api.v0['product-run'][':id']['refresh-summary'].$post({
         param: { id: run.id },
       })
       return await unwrapResponse(res)
@@ -492,7 +492,7 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
   return useMutation({
     mutationFn: async () => {
       if (!run) return
-      const res = client.api.v1['product-run'][':id']['set-as-main-run'].$post({
+      const res = client.api.v0['product-run'][':id']['set-as-main-run'].$post({
         param: { id: run.id },
       })
       return await unwrapResponse(res)
@@ -525,7 +525,7 @@ export const useDeleteProduct = (
   return useMutation({
     mutationFn: async () => {
       if (!productId) return
-      const res = client.api.v1.product[':id'].$delete({
+      const res = client.api.v0.product[':id'].$delete({
         param: {
           id: productId,
         },
@@ -558,7 +558,7 @@ export const useDeleteProductRun = (
   return useMutation({
     mutationFn: async () => {
       if (!productRunId) return
-      const res = client.api.v1['product-run'][':id'].$delete({
+      const res = client.api.v0['product-run'][':id'].$delete({
         param: {
           id: productRunId,
         },

@@ -15,7 +15,7 @@ import * as schema from '~/schemas'
 
 const authConfig = {
   baseURL: 'http://localhost:4000',
-  trustedOrigins: ['http://localhost:3000'],
+  trustedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema,
@@ -25,7 +25,14 @@ const authConfig = {
     twoFactor(),
     openAPI({ path: '/scalar' }),
     anonymous(),
-    apiKey(),
+    apiKey({
+      rateLimit: {
+        enabled: true,
+        // 10000 requests per hour
+        timeWindow: 1000 * 60 * 60,
+        maxRequests: 10000,
+      },
+    }),
     // Note there are issues with typing with organization plugin (we don't need it yet)
     // organization(),
   ],

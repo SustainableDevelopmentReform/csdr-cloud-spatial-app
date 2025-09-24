@@ -77,7 +77,7 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
   //       return
   //     }
 
-  //     const res = client.api.v1.file['get-presigned-url'].$post({
+  //     const res = client.api.v0.file['get-presigned-url'].$post({
   //       json: {
   //         fileKey: `assets/${new Date().getTime()}-${file.name}`,
   //       },

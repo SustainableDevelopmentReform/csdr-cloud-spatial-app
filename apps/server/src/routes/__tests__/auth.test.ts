@@ -32,7 +32,7 @@
 
 // describe('Auth controller API', () => {
 //   test('it should create new user, return otp token, and send otp to email', async () => {
-//     const response = await testClient(app).api.v1.auth['sign-up'].$post({
+//     const response = await testClient(app).api.v0.auth['sign-up'].$post({
 //       json: {
 //         name: 'John Doe',
 //         email: 'john@sidrstudio.com',
@@ -53,7 +53,7 @@
 //   test('it should return and send otp token to email for existing user', async () => {
 //     await createUserWithRole('John Doe', 'john@sidrstudio.com')
 
-//     const response = await testClient(app).api.v1.auth['sign-in'].$post({
+//     const response = await testClient(app).api.v0.auth['sign-in'].$post({
 //       json: {
 //         email: 'john@sidrstudio.com',
 //       },
@@ -66,7 +66,7 @@
 //   })
 
 //   test('it should verify otp and set session cookie', async () => {
-//     const response = await testClient(app).api.v1.auth['sign-up'].$post({
+//     const response = await testClient(app).api.v0.auth['sign-up'].$post({
 //       json: {
 //         name: 'John Doe',
 //         email: 'john@sidrstudio.com',
@@ -78,7 +78,7 @@
 //       where: eq(otpTokens.token, data.otpToken),
 //     })
 
-//     const otpResponse = await testClient(app).api.v1.auth['verify-otp'].$post({
+//     const otpResponse = await testClient(app).api.v0.auth['verify-otp'].$post({
 //       json: {
 //         otpToken: data.otpToken,
 //         otp: otpObject!.otp,
@@ -96,7 +96,7 @@
 
 //   describe('Login negative test cases', () => {
 //     test('it should return 404 if user not exist', async () => {
-//       const response = await testClient(app).api.v1.auth['sign-in'].$post({
+//       const response = await testClient(app).api.v0.auth['sign-in'].$post({
 //         json: {
 //           email: 'john@sidrstudio.com',
 //         },
@@ -115,7 +115,7 @@
 //         })
 //         .where(eq(users.id, user.id))
 
-//       const response = await testClient(app).api.v1.auth['sign-in'].$post({
+//       const response = await testClient(app).api.v0.auth['sign-in'].$post({
 //         json: {
 //           email: 'john@sidrstudio.com',
 //         },
@@ -129,7 +129,7 @@
 //     test('it should return 400 if user already exist', async () => {
 //       await createUserWithRole('John Doe', 'john@sidrstudio.com')
 
-//       const response = await testClient(app).api.v1.auth['sign-up'].$post({
+//       const response = await testClient(app).api.v0.auth['sign-up'].$post({
 //         json: {
 //           name: 'John Doe',
 //           email: 'john@sidrstudio.com',
@@ -143,7 +143,7 @@
 //   describe('verify otp negative test cases', () => {
 //     test('it should return 401 if otp is expired', async () => {
 //       vi.useFakeTimers()
-//       const response = await testClient(app).api.v1.auth['sign-up'].$post({
+//       const response = await testClient(app).api.v0.auth['sign-up'].$post({
 //         json: {
 //           name: 'John Doe',
 //           email: 'john@sidrstudio.com',
@@ -158,7 +158,7 @@
 //         where: eq(otpTokens.token, data.otpToken),
 //       })
 
-//       const otpResponse = await testClient(app).api.v1.auth['verify-otp'].$post(
+//       const otpResponse = await testClient(app).api.v0.auth['verify-otp'].$post(
 //         {
 //           json: {
 //             otpToken: data.otpToken,

@@ -24,7 +24,7 @@ export const baseFormSchema = z.object({
   updatedAt: z.string().optional().readonly(),
   name: z.string().optional(),
   description: z.string().nullable().optional(),
-  metadata: z.any().optional(),
+  metadata: z.any().optional().readonly(),
 })
 
 export interface CrudFormConfig<Data extends z.infer<typeof baseFormSchema>> {
@@ -53,7 +53,7 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
   children,
   entityName,
   entityNamePlural,
-  readOnlyFields,
+  readOnlyFields = ['id', 'createdAt', 'updatedAt', 'metadata'],
   hiddenFields,
   fieldLabels,
   onSuccess,
@@ -115,8 +115,7 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
             })
           })}
         >
-          {/* Render read-only fields */}
-          {shouldShowField('id') && (
+          {shouldShowField('id') && isReadOnlyField('id') && (
             <FormItem>
               <FormLabel>{getFieldLabel('id')}</FormLabel>
               <Input
@@ -125,6 +124,22 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
                 className="bg-gray-100"
               />
             </FormItem>
+          )}
+
+          {shouldShowField('id') && !isReadOnlyField('id') && (
+            <FormField
+              control={form.control}
+              name={'id' as Path<Data>}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{getFieldLabel('id')}</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           )}
 
           {shouldShowField('name') && isReadOnlyField('name') && (

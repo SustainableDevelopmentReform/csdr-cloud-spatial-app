@@ -35,7 +35,7 @@
 //     mutationFn: async (organizationId: number) => {
 //       if (!id) return
 
-//       const res = client.api.v1.user[':id']['assign-organization'].$post({
+//       const res = client.api.v0.user[':id']['assign-organization'].$post({
 //         json: {
 //           organizationId,
 //         },
@@ -60,7 +60,7 @@
 //     mutationFn: async (organizationId: number) => {
 //       if (!id) return
 
-//       const res = client.api.v1.user[':id']['unassign-organization'].$post({
+//       const res = client.api.v0.user[':id']['unassign-organization'].$post({
 //         json: {
 //           organizationId,
 //         },

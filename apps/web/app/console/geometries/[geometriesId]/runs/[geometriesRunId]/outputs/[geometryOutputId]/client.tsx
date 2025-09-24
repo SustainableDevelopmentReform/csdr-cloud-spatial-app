@@ -1,25 +1,31 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo } from 'react'
+import { Path, useForm } from 'react-hook-form'
 import {
   baseFormSchema,
   CrudForm,
 } from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
 import { DetailCard } from '../../../../../../_components/detail-cards'
-import { MainRunBadge } from '../../../../../../_components/main-run-badge'
 import {
   useGeometries,
   useGeometriesRun,
   useGeometryOutput,
   useUpdateGeometryOutput,
 } from '../../../../../_hooks'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 
 const updateGeometryOutputSchema = baseFormSchema.omit({ name: true })
 
@@ -92,7 +98,7 @@ const GeometriesRunDetails = () => {
       <div className="grid grid-cols-2 grid-rows-1 gap-4">
         {geometryOutput && (
           <DetailCard
-            title={`${geometryOutput?.name} : ${geometryOutput?.name}`}
+            title={`${geometries?.name} : ${geometryOutput?.name}`}
             description="Geometry"
             footer={`Created: ${formatDateTime(geometriesRun?.createdAt)}`}
             subFooter={geometriesRun?.id}
@@ -107,7 +113,30 @@ const GeometriesRunDetails = () => {
         entityName="Geometry Output"
         entityNamePlural="Geometry Outputs"
         readOnlyFields={['id', 'createdAt', 'updatedAt', 'metadata', 'name']}
-      />
+      >
+        <FormField
+          control={form.control}
+          name={'properties'}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Properties</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  className={'font-mono bg-gray-100'}
+                  disabled={true}
+                  value={
+                    typeof field.value === 'object'
+                      ? JSON.stringify(field.value, null, 2)
+                      : field.value
+                  }
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </CrudForm>
     </div>
   )
 }

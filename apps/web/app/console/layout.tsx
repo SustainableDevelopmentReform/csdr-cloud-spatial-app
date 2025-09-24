@@ -117,7 +117,7 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
                 </Link>
                 <Link
                   className="mb-2 block w-full text-left"
-                  href="/api/v1/scalar"
+                  href="/api/v0/scalar"
                 >
                   API Docs
                 </Link>

@@ -24,7 +24,7 @@
 //       },
 //     ])
 
-//     const response = await client.api.v1.role.$get(
+//     const response = await client.api.v0.role.$get(
 //       {
 //         query: {
 //           page: '1',
@@ -49,7 +49,7 @@
 //   })
 
 //   test('it should return role details for a valid role ID', async () => {
-//     const response = await client.api.v1.role.$post(
+//     const response = await client.api.v0.role.$post(
 //       {
 //         json: {
 //           key: 'test',
@@ -64,7 +64,7 @@
 
 //     const { data: role } = await response.json()
 
-//     const getIdResponse = await client.api.v1.role[':id'].$get(
+//     const getIdResponse = await client.api.v0.role[':id'].$get(
 //       {
 //         param: {
 //           id: role.id.toString(),
@@ -83,7 +83,7 @@
 //   })
 
 //   test('it should create a new role', async () => {
-//     const response = await client.api.v1.role.$post(
+//     const response = await client.api.v0.role.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',
@@ -106,7 +106,7 @@
 //   })
 
 //   test('it should update an existing role', async () => {
-//     const response = await client.api.v1.role.$post(
+//     const response = await client.api.v0.role.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',
@@ -127,7 +127,7 @@
 //     expect(roleBeforeEdit?.key).toEqual('financial-approver')
 //     expect(roleBeforeEdit?.name).toEqual('financial-approver')
 
-//     await client.api.v1.role[':id'].$put(
+//     await client.api.v0.role[':id'].$put(
 //       {
 //         param: {
 //           id: data.id.toString(),
@@ -151,7 +151,7 @@
 //   })
 
 //   test('it should delete a role', async () => {
-//     const response = await client.api.v1.role.$post(
+//     const response = await client.api.v0.role.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',
@@ -171,7 +171,7 @@
 
 //     expect(role).toBeDefined()
 
-//     await client.api.v1.role[':id'].$delete(
+//     await client.api.v0.role[':id'].$delete(
 //       {
 //         param: {
 //           id: data.id.toString(),
@@ -193,7 +193,7 @@
 // // Negative test cases
 // describe('Role Controller API - Negative Test Cases', () => {
 //   test('it should return 404 for a non-existent role', async () => {
-//     const response = await client.api.v1.role[':id'].$get(
+//     const response = await client.api.v0.role[':id'].$get(
 //       {
 //         param: {
 //           id: '-1',
@@ -206,7 +206,7 @@
 //   })
 
 //   test('it should return 400 for invalid payload on role creation', async () => {
-//     const res = await app.request('/api/v1/role', {
+//     const res = await app.request('/api/v0/role', {
 //       method: 'POST',
 //       body: JSON.stringify({
 //         foo: 'bar',
@@ -218,7 +218,7 @@
 //   })
 
 //   test('it should return 401 for unauthorized access', async () => {
-//     const response = await client.api.v1.role[':id'].$get({
+//     const response = await client.api.v0.role[':id'].$get({
 //       param: {
 //         id: '123',
 //       },
@@ -228,7 +228,7 @@
 //   })
 
 //   test('it should return 400 for duplicate key on role creation', async () => {
-//     await client.api.v1.role.$post(
+//     await client.api.v0.role.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',
@@ -240,7 +240,7 @@
 //       },
 //     )
 
-//     const response = await client.api.v1.role.$post(
+//     const response = await client.api.v0.role.$post(
 //       {
 //         json: {
 //           key: 'financial-approver',

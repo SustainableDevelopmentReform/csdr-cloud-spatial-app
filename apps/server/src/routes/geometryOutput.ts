@@ -2,16 +2,6 @@ import { createRoute } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { geometryOutput } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
-import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
@@ -20,6 +10,17 @@ import {
   validationErrorResponse,
   z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { geometryOutput } from '../schemas'
+import { MultiPolygonSchema, PolygonSchema } from '../schemas/geojson'
+import { baseColumns, QueryForTable } from '../schemas/util'
+import {
+  baseCreateResourceSchema,
+  baseUpdateResourceSchema,
+  createPayload,
+  updatePayload,
+} from './util'
 
 export const geometryOutputQuery = {
   columns: {
@@ -94,7 +95,12 @@ const app = createOpenAPIApp()
               schema: baseCreateResourceSchema.extend({
                 name: z.string(),
                 geometriesRunId: z.string(),
-                geometry: z.record(z.string(), z.any()),
+                geometry: z.union([
+                  PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
+                  MultiPolygonSchema.openapi({
+                    title: 'GeoJSON MultiPolygon',
+                  }),
+                ]),
                 properties: z.any().optional(),
               }),
             },
@@ -130,6 +136,79 @@ const app = createOpenAPIApp()
       const [newGeometryOutput] = await db
         .insert(geometryOutput)
         .values(createPayload(payload))
+        .returning()
+
+      return generateJsonResponse(
+        c,
+        newGeometryOutput,
+        201,
+        'Geometry output created',
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/bulk',
+      middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: z.object({
+                geometriesRunId: z.string(),
+                outputs: z.array(
+                  baseCreateResourceSchema.extend({
+                    name: z.string(),
+                    geometry: z.union([
+                      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
+                      MultiPolygonSchema.openapi({
+                        title: 'GeoJSON MultiPolygon',
+                      }),
+                    ]),
+                    properties: z.any().optional(),
+                  }),
+                ),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Create multiple geometry outputs.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        400: jsonErrorResponse('Geometry outputs are required'),
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create geometry outputs'),
+      },
+    }),
+    async (c) => {
+      const payload = c.req.valid('json')
+
+      if (!payload.outputs.every((output) => output.geometry)) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to create geometryOutputs',
+          description: 'Geometry outputs are required',
+        })
+      }
+
+      const [newGeometryOutput] = await db
+        .insert(geometryOutput)
+        .values(
+          payload.outputs.map((output) => ({
+            ...createPayload(output),
+            geometriesRunId: payload.geometriesRunId,
+          })),
+        )
         .returning()
 
       return generateJsonResponse(

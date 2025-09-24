@@ -10,15 +10,18 @@ export type BaseResource = {
 }
 
 export const baseCreateResourceSchema = z.object({
+  id: z.string().optional(),
   name: z.string().optional(),
   description: z.string().nullable().optional(),
   metadata: z.any().optional(),
 })
 
-export const createPayload = <T extends { name?: string }>(data: T) => ({
+export const createPayload = <T extends { name?: string; id?: string }>(
+  data: T,
+) => ({
   ...data,
-  id: crypto.randomUUID(),
   name: data.name ?? crypto.randomUUID(),
+  id: data.id ?? crypto.randomUUID(),
   createdAt: new Date(),
   updatedAt: new Date(),
 })
@@ -26,7 +29,6 @@ export const createPayload = <T extends { name?: string }>(data: T) => ({
 export const baseUpdateResourceSchema = z.object({
   name: z.string().optional(),
   description: z.string().nullable().optional(),
-  metadata: z.any().optional(),
 })
 
 export const updatePayload = <T extends object>(data: T) => ({

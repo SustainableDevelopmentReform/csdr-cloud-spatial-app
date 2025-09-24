@@ -72,7 +72,7 @@
 //   const { data: permissions } = useQuery({
 //     queryKey: [QueryKey.Permissions, QueryKey.PermissionsToRoles],
 //     queryFn: async () => {
-//       const res = client.api.v1.permission.$get({
+//       const res = client.api.v0.permission.$get({
 //         query: {
 //           page: '1',
 //           size: '999999',
@@ -88,7 +88,7 @@
 
 //   const createRole = useMutation({
 //     mutationFn: async (data: Data) => {
-//       const res = client.api.v1.role.$post({
+//       const res = client.api.v0.role.$post({
 //         json: data,
 //       })
 
@@ -99,7 +99,7 @@
 //         return
 //       }
 
-//       const assignPermissionRes = client.api.v1.role['assign-permission'][
+//       const assignPermissionRes = client.api.v0.role['assign-permission'][
 //         ':id'
 //       ].$post({
 //         param: {
@@ -122,7 +122,7 @@
 
 //   const updateRole = useMutation({
 //     mutationFn: async (data: Data & { id: number }) => {
-//       const res = client.api.v1.role[':id'].$put({
+//       const res = client.api.v0.role[':id'].$put({
 //         json: {
 //           description: data.description,
 //           key: data.key,
@@ -146,7 +146,7 @@
 //         initialChecked?.filter((id) => !permissionsChecked.has(id)) ?? []
 
 //       await unwrapResponse(
-//         client.api.v1.role['assign-permission'][':id'].$post({
+//         client.api.v0.role['assign-permission'][':id'].$post({
 //           json: {
 //             permissionIds: newAssignedIds,
 //           },
@@ -156,7 +156,7 @@
 //         }),
 //       )
 //       await unwrapResponse(
-//         client.api.v1.role['unassign-permission'][':id'].$post({
+//         client.api.v0.role['unassign-permission'][':id'].$post({
 //           json: {
 //             permissionIds: newUnAsiggnedIds,
 //           },

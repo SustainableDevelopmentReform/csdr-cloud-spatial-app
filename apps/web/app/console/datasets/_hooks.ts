@@ -11,39 +11,39 @@ import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
 import { useParams, useRouter } from 'next/navigation'
 
 export type DatasetListItem = NonNullable<
-  InferResponseType<typeof client.api.v1.dataset.$get, 200>['data']
+  InferResponseType<typeof client.api.v0.dataset.$get, 200>['data']
 >['data'][0]
 export type DatasetDetail = NonNullable<
-  InferResponseType<(typeof client.api.v1.dataset)[':id']['$get'], 200>['data']
+  InferResponseType<(typeof client.api.v0.dataset)[':id']['$get'], 200>['data']
 >
 
 export type DatasetRunListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v1.dataset)[':id']['runs']['$get'],
+    (typeof client.api.v0.dataset)[':id']['runs']['$get'],
     200
   >['data']
 >['data'][0]
 export type DatasetRunDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v1)['dataset-run'][':id']['$get'],
+    (typeof client.api.v0)['dataset-run'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateDatasetPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.dataset)[':id']['$patch']>['json']
+  InferRequestType<(typeof client.api.v0.dataset)[':id']['$patch']>['json']
 >
 export type UpdateDatasetRunPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v1)['dataset-run'][':id']['$patch']
+    (typeof client.api.v0)['dataset-run'][':id']['$patch']
   >['json']
 >
 
 export type CreateDatasetPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1.dataset)['$post']>['json']
+  InferRequestType<(typeof client.api.v0.dataset)['$post']>['json']
 >
 export type CreateDatasetRunPayload = NonNullable<
-  InferRequestType<(typeof client.api.v1)['dataset-run']['$post']>['json']
+  InferRequestType<(typeof client.api.v0)['dataset-run']['$post']>['json']
 >
 
 const datasetParamsSchema = z.object({
@@ -70,7 +70,7 @@ export const useDatasets = () => {
   const { data } = useQuery({
     queryKey: [QueryKey.Dataset],
     queryFn: async () => {
-      const res = client.api.v1.dataset.$get({
+      const res = client.api.v0.dataset.$get({
         query: {
           page,
         },
@@ -99,7 +99,7 @@ export const useDatasetRuns = (_datasetId?: string) => {
     queryKey: [QueryKey.DatasetRun, datasetId],
     queryFn: async () => {
       if (!datasetId) return null
-      const res = client.api.v1['dataset'][':id']['runs'].$get({
+      const res = client.api.v0['dataset'][':id']['runs'].$get({
         query: {
           page,
         },
@@ -129,7 +129,7 @@ export const useDataset = (id?: string) => {
     queryKey: [QueryKey.Dataset, datasetId],
     queryFn: async () => {
       if (!datasetId) return null
-      const res = client.api.v1.dataset[':id'].$get({
+      const res = client.api.v0.dataset[':id'].$get({
         param: {
           id: datasetId,
         },
@@ -150,7 +150,7 @@ export const useDatasetRun = (_datasetRunId?: string) => {
     queryKey: [QueryKey.DatasetRun, datasetRunId],
     queryFn: async () => {
       if (!datasetRunId) return null
-      const res = client.api.v1['dataset-run'][':id'].$get({
+      const res = client.api.v0['dataset-run'][':id'].$get({
         param: {
           id: datasetRunId,
         },
@@ -168,7 +168,7 @@ export const useCreateDataset = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateDatasetPayload) => {
-      const res = client.api.v1.dataset.$post({
+      const res = client.api.v0.dataset.$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -184,7 +184,7 @@ export const useCreateDatasetRun = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: CreateDatasetRunPayload) => {
-      const res = client.api.v1['dataset-run'].$post({
+      const res = client.api.v0['dataset-run'].$post({
         json: data,
       })
       await unwrapResponse(res)
@@ -206,7 +206,7 @@ export const useUpdateDataset = (_datasetId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateDatasetPayload) => {
       if (!datasetId) return
-      const res = client.api.v1.dataset[':id'].$patch({
+      const res = client.api.v0.dataset[':id'].$patch({
         param: { id: datasetId },
         json: payload,
       })
@@ -230,7 +230,7 @@ export const useUpdateDatasetRun = (_datasetRunId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateDatasetRunPayload) => {
       if (!datasetRunId) return
-      const res = client.api.v1['dataset-run'][':id'].$patch({
+      const res = client.api.v0['dataset-run'][':id'].$patch({
         param: { id: datasetRunId },
         json: payload,
       })
@@ -253,7 +253,7 @@ export const useSetDatasetMainRun = (run?: DatasetRunLinkParams | null) => {
   return useMutation({
     mutationFn: async () => {
       if (!run) return
-      const res = client.api.v1['dataset-run'][':id']['set-as-main-run'].$post({
+      const res = client.api.v0['dataset-run'][':id']['set-as-main-run'].$post({
         param: { id: run.id },
       })
       return await unwrapResponse(res)
@@ -285,7 +285,7 @@ export const useDeleteDataset = (
   return useMutation({
     mutationFn: async () => {
       if (!datasetId) return
-      const res = client.api.v1.dataset[':id'].$delete({
+      const res = client.api.v0.dataset[':id'].$delete({
         param: {
           id: datasetId,
         },
@@ -318,7 +318,7 @@ export const useDeleteDatasetRun = (
   return useMutation({
     mutationFn: async () => {
       if (!datasetRunId) return
-      const res = client.api.v1['dataset-run'][':id'].$delete({
+      const res = client.api.v0['dataset-run'][':id'].$delete({
         param: {
           id: datasetRunId,
         },
