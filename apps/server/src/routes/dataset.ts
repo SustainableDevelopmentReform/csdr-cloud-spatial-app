@@ -48,6 +48,7 @@ const datasetQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'List datasets with pagination metadata.',
       method: 'get',
       path: '/',
       middleware: [
@@ -63,7 +64,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'List datasets with pagination metadata.',
+          description: 'Successfully listed datasets.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -112,6 +113,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Retrieve a dataset by id.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:dataset' })],
@@ -122,7 +124,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a dataset by id.',
+          description: 'Successfully retrieved a dataset.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -155,6 +157,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'List dataset runs for a dataset with pagination metadata.',
       method: 'get',
       path: '/:id/runs',
       middleware: [
@@ -173,7 +176,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'List dataset runs for a dataset.',
+          description: 'Successfully listed dataset runs.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -225,6 +228,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Create a dataset.',
       method: 'post',
       path: '/',
       middleware: [
@@ -244,7 +248,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a dataset.',
+          description: 'Successfully created a dataset.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -268,6 +272,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Update a dataset.',
       method: 'patch',
       path: '/:id',
       middleware: [
@@ -290,7 +295,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a dataset.',
+          description: 'Successfully updated a dataset.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -318,6 +323,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Delete a dataset.',
       method: 'delete',
       path: '/:id',
       middleware: [
@@ -330,7 +336,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a dataset.',
+          description: 'Successfully deleted a dataset.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

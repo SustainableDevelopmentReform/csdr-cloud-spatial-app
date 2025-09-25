@@ -42,6 +42,7 @@ export const geometryOutputQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'Retrieve a geometry output.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:geometryOutput' })],
@@ -50,7 +51,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a geometry output.',
+          description: 'Successfully retrieved a geometry output.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -84,6 +85,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Create a geometry output.',
       method: 'post',
       path: '/',
       middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
@@ -109,7 +111,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a geometry output.',
+          description: 'Successfully created a geometry output.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -148,6 +150,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Create multiple geometry outputs.',
       method: 'post',
       path: '/bulk',
       middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
@@ -177,7 +180,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create multiple geometry outputs.',
+          description: 'Successfully created multiple geometry outputs.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -201,7 +204,7 @@ const app = createOpenAPIApp()
         })
       }
 
-      const [newGeometryOutput] = await db
+      const newGeometryOutputs = await db
         .insert(geometryOutput)
         .values(
           payload.outputs.map((output) => ({
@@ -213,7 +216,7 @@ const app = createOpenAPIApp()
 
       return generateJsonResponse(
         c,
-        newGeometryOutput,
+        newGeometryOutputs,
         201,
         'Geometry output created',
       )
@@ -222,6 +225,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Update a geometry output.',
       method: 'patch',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
@@ -238,7 +242,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a geometry output.',
+          description: 'Successfully updated a geometry output.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -267,6 +271,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete a geometry output.',
       method: 'delete',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:geometryOutput' })],
@@ -275,7 +280,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a geometry output.',
+          description: 'Successfully deleted a geometry output.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

@@ -52,6 +52,7 @@ const productQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'List products with pagination metadata.',
       method: 'get',
       path: '/',
       middleware: [authMiddleware({ permission: 'read:product' })],
@@ -65,7 +66,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'List products with pagination metadata.',
+          description: 'Successfully listed products.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -132,6 +133,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Retrieve a product.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:product' })],
@@ -140,7 +142,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a product.',
+          description: 'Successfully retrieved a product.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -174,6 +176,8 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description:
+        'List product runs for a product, or across products using "*".',
       method: 'get',
       path: '/:id/runs',
       middleware: [authMiddleware({ permission: 'read:productRun' })],
@@ -189,7 +193,7 @@ const app = createOpenAPIApp()
       responses: {
         200: {
           description:
-            'List product runs for a product or across products using "*".',
+            'Successfully listed product runs for a product or across products using "*".',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -258,6 +262,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Create a product.',
       method: 'post',
       path: '/',
       middleware: [authMiddleware({ permission: 'write:product' })],
@@ -277,7 +282,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a product.',
+          description: 'Successfully created a product.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -302,6 +307,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Update a product.',
       method: 'patch',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:product' })],
@@ -323,7 +329,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a product.',
+          description: 'Successfully updated a product.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -352,6 +358,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete a product.',
       method: 'delete',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:product' })],
@@ -360,7 +367,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a product.',
+          description: 'Successfully deleted a product.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

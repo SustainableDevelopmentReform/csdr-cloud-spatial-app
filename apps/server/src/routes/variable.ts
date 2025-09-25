@@ -38,6 +38,7 @@ const variableQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'List variables with pagination metadata.',
       method: 'get',
       path: '/',
       middleware: [authMiddleware({ permission: 'read:variable' })],
@@ -99,6 +100,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Retrieve a variable.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:variable' })],
@@ -107,7 +109,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a variable.',
+          description: 'Successfully retrieved a variable.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -141,6 +143,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Create a variable.',
       method: 'post',
       path: '/',
       middleware: [authMiddleware({ permission: 'write:variable' })],
@@ -161,7 +164,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a variable.',
+          description: 'Successfully created a variable.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -190,6 +193,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Update a variable.',
       method: 'patch',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:variable' })],
@@ -210,7 +214,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a variable.',
+          description: 'Successfully updated a variable.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -245,6 +249,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete a variable.',
       method: 'delete',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:variable' })],
@@ -253,7 +258,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a variable.',
+          description: 'Successfully deleted a variable.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

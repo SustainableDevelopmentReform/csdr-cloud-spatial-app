@@ -16,6 +16,7 @@ import {
 
 const app = createOpenAPIApp().openapi(
   createRoute({
+    description: 'Get a presigned URL for direct uploads.',
     method: 'post',
     path: '/get-presigned-url',
     middleware: [
@@ -40,7 +41,8 @@ const app = createOpenAPIApp().openapi(
     },
     responses: {
       200: {
-        description: 'Returns a presigned URL for direct uploads.',
+        description:
+          'Successfully returned a presigned URL for direct uploads.',
         content: {
           'application/json': {
             schema: createResponseSchema(

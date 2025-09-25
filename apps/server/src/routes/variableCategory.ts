@@ -32,6 +32,7 @@ const variableCategoryQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'List all variable categories.',
       method: 'get',
       path: '/',
       middleware: [
@@ -41,7 +42,7 @@ const app = createOpenAPIApp()
       ],
       responses: {
         200: {
-          description: 'List all variable categories.',
+          description: 'Successfully listed all variable categories.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -82,6 +83,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Get a single variable category.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:variableCategory' })],
@@ -90,7 +92,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Get a single variable category.',
+          description: 'Successfully retrieved a variable category.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -124,6 +126,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Create a variable category.',
       method: 'post',
       path: '/',
       middleware: [
@@ -147,7 +150,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a variable category.',
+          description: 'Successfully created a variable category.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -178,6 +181,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Update a variable category.',
       method: 'patch',
       path: '/:id',
       middleware: [
@@ -201,7 +205,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a variable category.',
+          description: 'Successfully updated a variable category.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -229,6 +233,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete a variable category.',
       method: 'delete',
       path: '/:id',
       middleware: [
@@ -241,7 +246,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a variable category.',
+          description: 'Successfully deleted a variable category.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

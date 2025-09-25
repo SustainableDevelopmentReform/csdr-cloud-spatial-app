@@ -40,6 +40,7 @@ export const datasetRunQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'Retrieve a dataset run with aggregated metadata.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:datasetRun' })],
@@ -48,7 +49,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a dataset run with aggregated metadata.',
+          description: 'Successfully retrieved a dataset run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -93,6 +94,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Create a dataset run.',
       method: 'post',
       path: '/',
       middleware: [
@@ -114,7 +116,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a dataset run.',
+          description: 'Successfully created a dataset run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -138,6 +140,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Update a dataset run.',
       method: 'patch',
       path: '/:id',
       middleware: [
@@ -160,7 +163,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a dataset run.',
+          description: 'Successfully updated a dataset run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -188,6 +191,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Delete a dataset run.',
       method: 'delete',
       path: '/:id',
       middleware: [
@@ -200,7 +204,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a dataset run.',
+          description: 'Successfully deleted a dataset run.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,
@@ -223,6 +227,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Mark a dataset run as the main run for its dataset.',
       method: 'post',
       path: '/:id/set-as-main-run',
       middleware: [
@@ -235,7 +240,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Mark a dataset run as the main run for its dataset.',
+          description: 'Successfully marked a dataset run as the main run.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,
