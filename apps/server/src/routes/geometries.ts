@@ -47,6 +47,7 @@ const geometriesQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'List geometries with pagination metadata.',
       method: 'get',
       path: '/',
       middleware: [authMiddleware({ permission: 'read:geometries' })],
@@ -58,7 +59,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'List geometries with pagination metadata.',
+          description: 'Successfully listed geometries.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -107,6 +108,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Retrieve geometries by id.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:geometries' })],
@@ -115,7 +117,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve geometries by id.',
+          description: 'Successfully retrieved geometries.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -148,6 +150,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'List geometries runs for a geometries resource.',
       method: 'get',
       path: '/:id/runs',
       middleware: [authMiddleware({ permission: 'read:productRun' })],
@@ -160,7 +163,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'List geometries runs for a geometries resource.',
+          description: 'Successfully listed geometries runs.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -213,6 +216,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Create geometries.',
       method: 'post',
       path: '/',
       middleware: [authMiddleware({ permission: 'write:geometries' })],
@@ -228,7 +232,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create geometries.',
+          description: 'Successfully created geometries.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -253,6 +257,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Update geometries.',
       method: 'patch',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:geometries' })],
@@ -271,7 +276,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update geometries.',
+          description: 'Successfully updated geometries.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -300,6 +305,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete geometries.',
       method: 'delete',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:geometries' })],
@@ -308,7 +314,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete geometries.',
+          description: 'Successfully deleted geometries.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

@@ -46,6 +46,7 @@ export const geometriesRunQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'Retrieve a geometries run with aggregated metadata.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:geometriesRun' })],
@@ -54,7 +55,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a geometries run with aggregated metadata.',
+          description: 'Successfully retrieved a geometries run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -106,6 +107,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'List outputs for a geometries run.',
       method: 'get',
       path: '/:id/outputs',
       middleware: [
@@ -122,7 +124,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'List outputs for a geometries run.',
+          description: 'Successfully listed outputs for a geometries run.',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -176,6 +178,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Create a geometries run.',
       method: 'post',
       path: '/',
       middleware: [
@@ -197,7 +200,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a geometries run.',
+          description: 'Successfully created a geometries run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -227,6 +230,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Update a geometries run.',
       method: 'patch',
       path: '/:id',
       middleware: [
@@ -249,7 +253,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a geometries run.',
+          description: 'Successfully updated a geometries run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -278,6 +282,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete a geometries run.',
       method: 'delete',
       path: '/:id',
       middleware: [
@@ -290,7 +295,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Delete a geometries run.',
+          description: 'Successfully deleted a geometries run.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,
@@ -313,6 +318,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Mark a geometries run as the main run for its geometries.',
       method: 'post',
       path: '/:id/set-as-main-run',
       middleware: [
@@ -326,7 +332,7 @@ const app = createOpenAPIApp()
       responses: {
         200: {
           description:
-            'Mark a geometries run as the main run for its geometries.',
+            'Successfully marked a geometries run as the main run for its geometries.',
           content: {
             'application/json': {
               schema: BaseResponseSchema,

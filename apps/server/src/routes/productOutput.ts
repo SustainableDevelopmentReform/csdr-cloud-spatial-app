@@ -73,6 +73,7 @@ export const productOutputQuery = {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
+      description: 'Retrieve a product output.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:productOutput' })],
@@ -81,7 +82,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Retrieve a product output.',
+          description: 'Successfully retrieved a product output.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -114,6 +115,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Create a product output.',
       method: 'post',
       path: '/',
       middleware: [authMiddleware({ permission: 'write:productOutput' })],
@@ -127,7 +129,7 @@ const app = createOpenAPIApp()
                 geometryOutputId: z.string(),
                 value: z.string(),
                 variableId: z.string(),
-                timePoint: z.string().datetime(),
+                timePoint: z.iso.datetime(),
               }),
             },
           },
@@ -135,7 +137,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Create a product output.',
+          description: 'Successfully created a product output.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -160,11 +162,9 @@ const app = createOpenAPIApp()
         })
       }
 
-      const { timePoint, ...rest } = payload
-
       const [newProductOutput] = await db
         .insert(productOutput)
-        .values(createPayload({ ...rest, timePoint: timePointDate }))
+        .values(createPayload({ ...payload, timePoint: timePointDate }))
         .returning()
 
       return generateJsonResponse(
@@ -177,6 +177,82 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description:
+        'Create multiple product outputs, for a given product run, variable, and time point.',
+      method: 'post',
+      path: '/bulk',
+      middleware: [authMiddleware({ permission: 'write:productOutput' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: z.object({
+                productRunId: z.string(),
+                variableId: z.string(),
+                timePoint: z.iso.datetime(),
+                outputs: z.array(
+                  baseCreateResourceSchema.extend({
+                    geometryOutputId: z.string(),
+                    value: z.string(),
+                  }),
+                ),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description:
+            'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(z.any()),
+            },
+          },
+        },
+        400: jsonErrorResponse('Time point is not a valid date'),
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to create product output'),
+      },
+    }),
+    async (c) => {
+      const payload = c.req.valid('json')
+      const timePointDate = new Date(payload.timePoint)
+
+      if (Number.isNaN(timePointDate.valueOf())) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to create productOutput',
+          description: 'Time point is not a valid date',
+        })
+      }
+
+      const { outputs, ...rest } = payload
+
+      const [newProductOutput] = await db
+        .insert(productOutput)
+        .values(
+          outputs.map((output) =>
+            createPayload({ ...output, ...rest, timePoint: timePointDate }),
+          ),
+        )
+        .returning()
+
+      return generateJsonResponse(
+        c,
+        newProductOutput,
+        201,
+        'Product output created',
+      )
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Update a product output.',
       method: 'patch',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'write:productOutput' })],
@@ -193,7 +269,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Update a product output.',
+          description: 'Successfully updated a product output.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
