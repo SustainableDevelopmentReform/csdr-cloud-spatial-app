@@ -22,7 +22,7 @@ import {
   z,
 } from '~/lib/openapi'
 
-const geometriesQuery = {
+export const geometriesQuery = {
   columns: {
     ...baseColumns,
     metadata: true,

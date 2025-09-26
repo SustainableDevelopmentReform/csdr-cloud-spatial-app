@@ -21,6 +21,10 @@ import {
   validationErrorResponse,
   z,
 } from '~/lib/openapi'
+import { datasetQuery } from './dataset'
+import { geometriesQuery } from './geometries'
+import { datasetRunQuery } from './datasetRun'
+import { geometriesRunQuery } from './geometriesRun'
 
 const productQuery = {
   columns: {
@@ -33,12 +37,20 @@ const productQuery = {
   },
   with: {
     dataset: {
-      columns: baseColumns,
+      columns: datasetQuery.columns,
+      with: { mainRun: { columns: datasetQuery.with.mainRun.columns } },
     },
     geometries: {
-      columns: baseColumns,
+      columns: geometriesQuery.columns,
+      with: { mainRun: { columns: geometriesQuery.with.mainRun.columns } },
     },
-    mainRun: productRunQuery,
+    mainRun: {
+      columns: productRunQuery.columns,
+      with: {
+        datasetRun: { columns: datasetRunQuery.columns },
+        geometriesRun: { columns: geometriesRunQuery.columns },
+      },
+    },
   },
   extras: {
     runCount: sql<number>`(
