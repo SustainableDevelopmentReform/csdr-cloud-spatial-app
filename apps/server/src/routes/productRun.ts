@@ -219,7 +219,7 @@ const app = createOpenAPIApp()
           content: {
             'application/json': {
               schema: baseCreateRunResourceSchema.extend({
-                dataType: z.enum(['parquet']),
+                dataType: z.enum(['parquet']).optional(),
                 productId: z.string(),
                 datasetRunId: z.string(),
                 geometriesRunId: z.string(),

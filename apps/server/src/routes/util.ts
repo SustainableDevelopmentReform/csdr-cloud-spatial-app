@@ -13,7 +13,9 @@ export const baseCreateRunResourceSchema = baseCreateResourceSchema.extend({
   provenanceJson: z.any().optional(),
   provenanceUrl: z.string().optional(),
   dataUrl: z.string().optional(),
-  dataType: z.enum(['parquet', 'geoparquet', 'stac-geoparquet', 'zarr']),
+  dataType: z
+    .enum(['parquet', 'geoparquet', 'stac-geoparquet', 'zarr'])
+    .optional(),
   dataSize: z.number().int().optional(),
   dataEtag: z.string().optional(),
 })
