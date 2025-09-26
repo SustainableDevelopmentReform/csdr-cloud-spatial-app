@@ -27,6 +27,8 @@ export const datasetQuery = {
     ...baseColumns,
     metadata: true,
     mainRunId: true,
+    sourceUrl: true,
+    sourceMetadataUrl: true,
   },
   with: {
     mainRun: datasetRunQuery,
@@ -241,7 +243,10 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema,
+              schema: baseCreateResourceSchema.extend({
+                sourceUrl: z.string().optional(),
+                sourceMetadataUrl: z.string().optional(),
+              }),
             },
           },
         },

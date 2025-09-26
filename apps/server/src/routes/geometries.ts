@@ -26,6 +26,8 @@ export const geometriesQuery = {
   columns: {
     ...baseColumns,
     metadata: true,
+    sourceUrl: true,
+    sourceMetadataUrl: true,
   },
   with: {
     mainRun: geometriesRunQuery,
@@ -225,7 +227,10 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema,
+              schema: baseCreateResourceSchema.extend({
+                sourceUrl: z.string().optional(),
+                sourceMetadataUrl: z.string().optional(),
+              }),
             },
           },
         },

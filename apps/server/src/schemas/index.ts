@@ -192,6 +192,28 @@ const baseColumns = {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }
 
+export const datasetRunDataType = pgEnum('dataset_run_data_type', [
+  'parquet',
+  'geoparquet',
+  'stac-geoparquet',
+  'zarr',
+])
+export const geometriesRunDataType = pgEnum('geometries_run_data_type', [
+  'geoparquet',
+])
+export const productRunDataType = pgEnum('product_run_data_type', ['parquet'])
+
+const runBaseColumns = {
+  ...baseColumns,
+  imageCode: text('image_code'),
+  imageTag: text('image_tag'),
+  provenanceJson: jsonb('provenance_json'),
+  provenanceUrl: text('provenance_url'),
+  dataUrl: text('data_url'),
+  dataSize: integer('data_size'),
+  dataEtag: text('data_etag'),
+}
+
 // DATA RELATED TABLES
 const coreBaseResourceColumns = (mainRunRelation: ReferenceConfig['ref']) => ({
   ...baseColumns,
@@ -204,6 +226,8 @@ export const dataset = pgTable(
   'dataset',
   {
     ...coreBaseResourceColumns((): AnyPgColumn => datasetRun.id),
+    sourceUrl: text('source_url'),
+    sourceMetadataUrl: text('source_metadata_url'),
   },
   (table) => [
     index('dataset_name_idx').on(table.name),
@@ -216,6 +240,8 @@ export const geometries = pgTable(
   'geometries',
   {
     ...coreBaseResourceColumns((): AnyPgColumn => geometriesRun.id),
+    sourceUrl: text('source_url'),
+    sourceMetadataUrl: text('source_metadata_url'),
   },
   (table) => [
     index('geometries_name_idx').on(table.name),
@@ -262,7 +288,8 @@ export const product = pgTable(
 export const datasetRun = pgTable(
   'dataset_run',
   {
-    ...baseColumns,
+    ...runBaseColumns,
+    dataType: datasetRunDataType('data_type'),
     datasetId: text('dataset_id')
       .notNull()
       .references(() => dataset.id, { onDelete: 'cascade' }),
@@ -276,7 +303,8 @@ export const datasetRun = pgTable(
 export const geometriesRun = pgTable(
   'geometries_run',
   {
-    ...baseColumns,
+    ...runBaseColumns,
+    dataType: geometriesRunDataType('data_type'),
     geometriesId: text('geometries_id')
       .notNull()
       .references(() => geometries.id, { onDelete: 'cascade' }),
@@ -308,7 +336,8 @@ export const geometryOutput = pgTable(
 export const productRun = pgTable(
   'product_run',
   {
-    ...baseColumns,
+    ...runBaseColumns,
+    dataType: productRunDataType('data_type'),
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),

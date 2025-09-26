@@ -24,7 +24,7 @@ export const baseFormSchema = z.object({
   createdAt: z.string().optional().readonly(),
   updatedAt: z.string().optional().readonly(),
   name: z.string().optional(),
-  description: z.string().nullable().optional(),
+  description: z.string().optional(),
   metadata: z.any().optional().readonly(),
 })
 

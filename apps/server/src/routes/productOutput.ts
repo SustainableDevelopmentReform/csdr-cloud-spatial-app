@@ -5,7 +5,7 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { productOutput } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
 import {
   baseCreateResourceSchema,
   baseUpdateResourceSchema,
@@ -37,7 +37,7 @@ export const productOutputQuery = {
           columns: { ...baseColumns, mainRunId: true },
         },
         datasetRun: {
-          columns: baseColumns,
+          columns: baseRunColumns,
           with: {
             dataset: {
               columns: { ...baseColumns, mainRunId: true },

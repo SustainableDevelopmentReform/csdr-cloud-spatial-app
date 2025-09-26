@@ -16,3 +16,15 @@ export const baseColumns = {
   createdAt: true,
   updatedAt: true,
 } as const
+
+export const baseRunColumns = {
+  ...baseColumns,
+  imageCode: true,
+  imageTag: true,
+  provenanceJson: true,
+  provenanceUrl: true,
+  dataUrl: true,
+  dataType: true,
+  dataSize: true,
+  dataEtag: true,
+} as const
