@@ -87,47 +87,49 @@ const ProductRunFeature = () => {
             {filters}
           </div>
         </h1>
-        <CrudFormDialog
-          form={form}
-          mutation={createProductRun}
-          buttonText="Add Product Run"
-          entityName="Product Run"
-          entityNamePlural="product runs"
-        >
-          <FormField
-            control={form.control}
-            name="datasetRunId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Dataset Run</FormLabel>
-                <SelectWithSearch
-                  options={datasetRuns?.data}
-                  value={field.value}
-                  onSelect={field.onChange}
-                  onSearch={() => {}}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="geometriesRunId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Geometries Run</FormLabel>
-                <SelectWithSearch
-                  options={geometriesRuns?.data}
-                  value={field.value}
-                  onSelect={field.onChange}
-                  onSearch={() => {}}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <CrudFormRunFields form={form} />
-        </CrudFormDialog>
+        {product && (
+          <CrudFormDialog
+            form={form}
+            mutation={createProductRun}
+            buttonText="Add Product Run"
+            entityName="Product Run"
+            entityNamePlural="product runs"
+          >
+            <FormField
+              control={form.control}
+              name="datasetRunId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dataset Run</FormLabel>
+                  <SelectWithSearch
+                    options={datasetRuns?.data}
+                    value={field.value}
+                    onSelect={field.onChange}
+                    onSearch={() => {}}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="geometriesRunId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Geometries Run</FormLabel>
+                  <SelectWithSearch
+                    options={geometriesRuns?.data}
+                    value={field.value}
+                    onSelect={field.onChange}
+                    onSearch={() => {}}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <CrudFormRunFields form={form} />
+          </CrudFormDialog>
+        )}
       </div>
       <div className="mt-8">
         <BaseCrudTable

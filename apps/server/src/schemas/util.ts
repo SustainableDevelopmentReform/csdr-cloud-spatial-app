@@ -75,7 +75,7 @@ export const createPayload = <T extends { name?: string; id?: string }>(
 ) => ({
   ...data,
   name: data.name ?? crypto.randomUUID(),
-  id: data.id ?? crypto.randomUUID(),
+  id: data.id || crypto.randomUUID(),
   createdAt: new Date(),
   updatedAt: new Date(),
 })

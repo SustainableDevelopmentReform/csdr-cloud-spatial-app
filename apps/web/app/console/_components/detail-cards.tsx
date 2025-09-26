@@ -10,23 +10,18 @@ import {
 import { ArrowUpRightIcon } from 'lucide-react'
 import Link from 'next/link'
 
-type CardProps = {
+export type DetailCardProps = {
   title: string
   description?: React.ReactNode
   actionText?: string
   actionIcon?: React.ReactNode
   footer?: React.ReactNode
   subFooter?: React.ReactNode
-} & (
-  | {
-      actionLink?: string
-    }
-  | {
-      actionOnClick?: () => void
-    }
-)
+  actionLink?: string
+  actionOnClick?: () => void
+}
 
-export const DetailCard = (props: CardProps) => {
+export const DetailCard = (props: DetailCardProps) => {
   return (
     <Card className="@container/card">
       <CardHeader>

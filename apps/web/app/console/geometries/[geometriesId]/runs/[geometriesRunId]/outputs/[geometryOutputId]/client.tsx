@@ -10,18 +10,13 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../../../../components/crud-form'
-import { formatDateTime } from '../../../../../../../../utils/date'
-import { DetailCard } from '../../../../../../_components/detail-cards'
+import { GeometryOutputCard } from '../../../../../../_components/geometry-output-card'
 import {
-  useGeometries,
-  useGeometriesRun,
   useGeometryOutput,
   useUpdateGeometryOutput,
 } from '../../../../../_hooks'
 
 const GeometriesRunDetails = () => {
-  const { data: geometries } = useGeometries()
-  const { data: geometriesRun } = useGeometriesRun()
   const { data: geometryOutput } = useGeometryOutput()
   const updateGeometryOutput = useUpdateGeometryOutput()
 
@@ -87,12 +82,7 @@ const GeometriesRunDetails = () => {
 
       <div className="grid grid-cols-2 grid-rows-1 gap-4">
         {geometryOutput && (
-          <DetailCard
-            title={`${geometries?.name} : ${geometryOutput?.name}`}
-            description="Geometry"
-            footer={`Created: ${formatDateTime(geometriesRun?.createdAt)}`}
-            subFooter={geometriesRun?.id}
-          />
+          <GeometryOutputCard geometryOutput={geometryOutput} />
         )}
       </div>
 
