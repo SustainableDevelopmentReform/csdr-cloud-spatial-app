@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createProductOutputSchema } from '@repo/server/schemas/zod'
 import { CalendarSelect } from '@repo/ui/components/ui/calendar-select'
 import {
   FormControl,
@@ -14,9 +15,7 @@ import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../../../../../components/crud-form'
 import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../../../../../components/crud-table'
 import { formatDateTime } from '../../../../../../../utils/date'
@@ -30,6 +29,7 @@ import {
   useGeometryOutputs,
 } from '../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../variables/_components/variable-button'
+import { useVariables } from '../../../../../variables/_hooks'
 import { ProductOutputButton } from '../../../../_components/product-output-button'
 import {
   ProductOutputListItem,
@@ -38,17 +38,8 @@ import {
   useProductOutputs,
   useProductRun,
 } from '../../../../_hooks'
-import { useVariables } from '../../../../../variables/_hooks'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
-
-const createProductRunOutputSchema = baseFormSchema.extend({
-  productRunId: z.string(),
-  value: z.string(),
-  geometryOutputId: z.string(),
-  variableId: z.string(),
-  timePoint: z.date(),
-})
 
 const ProductOutputFeature = () => {
   const { data, page, setPage } = useProductOutputs()
@@ -135,7 +126,7 @@ const ProductOutputFeature = () => {
   )
 
   const form = useForm({
-    resolver: zodResolver(createProductRunOutputSchema),
+    resolver: zodResolver(createProductOutputSchema),
   })
 
   useEffect(() => {
@@ -208,8 +199,8 @@ const ProductOutputFeature = () => {
                 <FormLabel>Time Point</FormLabel>
                 <CalendarSelect
                   label="Time Point"
-                  value={field.value}
-                  onChange={field.onChange}
+                  value={new Date(field.value)}
+                  onChange={(event) => field.onChange(event?.toISOString())}
                 />
                 <FormMessage />
               </FormItem>

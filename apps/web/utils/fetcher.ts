@@ -1,11 +1,12 @@
-import type { ApiRoutesType } from '@repo/server'
-import { type ClientResponse, hc } from 'hono/client'
+import { type ClientResponse } from 'hono/client'
+import { hcWithType } from '@repo/server/hc'
+import { StatusCode } from 'hono/utils/http-status'
 
-export const client = hc<ApiRoutesType>('/')
+export const client = hcWithType('/')
 
 export async function unwrapResponse<
   Res extends ClientResponse<unknown, number, 'json'>,
-  OKStatus extends number = 200,
+  OKStatus extends StatusCode = 200,
 >(f: Promise<Res>, okStatus: OKStatus = 200) {
   type SuccessResponse = Extract<Res, ClientResponse<unknown, OKStatus, 'json'>>
   type ErrorResponse = Exclude<Res, ClientResponse<unknown, OKStatus, 'json'>>

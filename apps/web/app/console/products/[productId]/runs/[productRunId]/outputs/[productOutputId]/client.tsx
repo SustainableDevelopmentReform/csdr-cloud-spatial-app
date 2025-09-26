@@ -1,34 +1,25 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import { updateProductOutputSchema } from '@repo/server/schemas/zod'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import { ArrowUpRightIcon } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo } from 'react'
-import {
-  baseFormSchema,
-  CrudForm,
-} from '../../../../../../../../components/crud-form'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
 import { DetailCard } from '../../../../../../_components/detail-cards'
-import { MainRunBadge } from '../../../../../../_components/main-run-badge'
-import { useGeometriesLink } from '../../../../../../geometries/_hooks'
+import { GeometryOutputCard } from '../../../../../../_components/geometry-output-card'
+import { useGeometryOutputLink } from '../../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../../variables/_components/variable-button'
-import {
-  useProduct,
-  useProductOutput,
-  useProductRun,
-  useUpdateProductOutput,
-} from '../../../../../_hooks'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useProductOutput, useUpdateProductOutput } from '../../../../../_hooks'
 
 const ProductRunDetails = () => {
-  const { data: product } = useProduct()
-  const { data: productRun } = useProductRun()
   const { data: productOutput } = useProductOutput()
   const updateProductOutput = useUpdateProductOutput()
-  const geometriesLink = useGeometriesLink()
+  const geometryOutputLink = useGeometryOutputLink()
 
   const geometry = useMemo(() => {
     return (
@@ -46,7 +37,7 @@ const ProductRunDetails = () => {
   }, [productOutput?.geometryOutput?.geometry])
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(updateProductOutputSchema),
   })
 
   useEffect(() => {
@@ -100,15 +91,10 @@ const ProductRunDetails = () => {
           />
         )}
         {productOutput?.geometryOutput && (
-          <DetailCard
-            title={`${productOutput?.geometryOutput?.geometriesRun?.geometries?.name} : ${productOutput?.geometryOutput?.name}`}
-            description="Geometry"
-            footer={`Created: ${formatDateTime(productRun?.geometriesRun?.createdAt)}`}
-            subFooter={productRun?.geometriesRun?.id}
+          <GeometryOutputCard
+            geometryOutput={productOutput?.geometryOutput}
             actionText="Open"
-            actionLink={geometriesLink(
-              productOutput?.geometryOutput?.geometriesRun?.geometries,
-            )}
+            actionLink={geometryOutputLink(productOutput?.geometryOutput)}
             actionIcon={<ArrowUpRightIcon />}
           />
         )}

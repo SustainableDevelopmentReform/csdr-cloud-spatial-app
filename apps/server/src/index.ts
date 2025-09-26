@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server'
-import app, { ApiRoutesType } from './app'
+import app from './app'
 import { env } from './env'
 
 serve(
@@ -11,6 +11,3 @@ serve(
     console.log(`Server is running on http://localhost:${env.PORT}`)
   },
 )
-
-// export { type User } from './services/users'
-export { type ApiRoutesType }

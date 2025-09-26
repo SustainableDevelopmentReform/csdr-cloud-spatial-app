@@ -1,41 +1,33 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
-import Pagination from '~/components/pagination'
-import BaseCrudTable from '../../../../../../../components/crud-table'
-import {
-  GeometryOutputListItem,
-  useCreateGeometryOutput,
-  useGeometriesRun,
-  useGeometriesLink,
-  useGeometryOutputLink,
-  useGeometryOutputs,
-} from '../../../../_hooks'
-import { GeometryOutputButton } from '../../../../_components/geometry-output-button'
-import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
-import { baseFormSchema } from '../../../../../../../components/crud-form'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   FormControl,
   FormField,
-  FormLabel,
   FormItem,
+  FormLabel,
   FormMessage,
 } from '@repo/ui/components/ui/form'
-import { cn } from '@repo/ui/lib/utils'
 import { Textarea } from '@repo/ui/components/ui/textarea'
+import { cn } from '@repo/ui/lib/utils'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import Pagination from '~/components/pagination'
+import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
+import BaseCrudTable from '../../../../../../../components/crud-table'
+import { GeometryOutputButton } from '../../../../_components/geometry-output-button'
+import {
+  GeometryOutputListItem,
+  useCreateGeometryOutput,
+  useGeometriesLink,
+  useGeometriesRun,
+  useGeometryOutputLink,
+  useGeometryOutputs,
+} from '../../../../_hooks'
+import { createGeometryOutputSchema } from '@repo/server/schemas/zod'
 
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
-
-const createGeometryOutputSchema = baseFormSchema.extend({
-  name: z.string(),
-  geometriesRunId: z.string(),
-  geometry: z.record(z.string(), z.any()),
-})
 
 const GeometryOutputFeature = () => {
   const { data, page, setPage } = useGeometryOutputs()
@@ -71,7 +63,7 @@ const GeometryOutputFeature = () => {
           form={form}
           mutation={createGeometryOutput}
           buttonText="Add Geometry Output"
-          hiddenFields={['id', 'createdAt', 'updatedAt']}
+          hiddenFields={['id']}
           entityName="Geometry Output"
           entityNamePlural="geometry outputs"
         >

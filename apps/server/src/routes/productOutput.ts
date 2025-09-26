@@ -1,74 +1,89 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { productOutput } from '../schemas'
-import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
-import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { productOutput } from '../schemas'
+import {
+  baseColumns,
+  baseIdResourceSchema,
+  baseIdResourceSchemaWithMainRunId,
+  baseResourceSchema,
+  createPayload,
+  idColumns,
+  idColumnsWithMainRunId,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
+import {
+  createManyProductOutputSchema,
+  createProductOutputSchema,
+  updateProductOutputSchema,
+} from '../schemas/zod'
+import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
+import { baseVariableQuery, baseVariableSchema } from './variable'
 
-// Define shared query configuration
 export const productOutputQuery = {
   columns: {
     ...baseColumns,
     value: true,
     timePoint: true,
-    productRunId: true,
-    geometryOutputId: true,
   },
   with: {
     productRun: {
-      columns: baseColumns,
+      columns: idColumns,
       with: {
         product: {
-          columns: { ...baseColumns, mainRunId: true },
+          columns: idColumnsWithMainRunId,
         },
         datasetRun: {
-          columns: baseRunColumns,
+          columns: idColumns,
           with: {
             dataset: {
-              columns: { ...baseColumns, mainRunId: true },
+              columns: idColumnsWithMainRunId,
             },
           },
         },
-      },
-    },
-    variable: {
-      columns: {
-        ...baseColumns,
-        unit: true,
-      },
-    },
-    geometryOutput: {
-      columns: {
-        ...baseColumns,
-        geometry: true,
-      },
-      with: {
         geometriesRun: {
+          columns: idColumns,
           with: {
             geometries: {
-              columns: { ...baseColumns, mainRunId: true },
+              columns: idColumnsWithMainRunId,
             },
           },
         },
       },
     },
+
+    variable: baseVariableQuery,
+    geometryOutput: geometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
+
+export const productOutputSchema = baseResourceSchema
+  .extend({
+    value: z.string(),
+    timePoint: z.iso.datetime(),
+    productRun: baseIdResourceSchema.extend({
+      product: baseIdResourceSchemaWithMainRunId,
+      datasetRun: baseIdResourceSchema.extend({
+        dataset: baseIdResourceSchemaWithMainRunId,
+      }),
+      geometriesRun: baseIdResourceSchema.extend({
+        geometries: baseIdResourceSchemaWithMainRunId,
+      }),
+    }),
+    geometryOutput: geometryOutputSchema,
+    variable: baseVariableSchema,
+  })
+  .openapi('ProductOutputSchema')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -85,7 +100,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(productOutputSchema),
             },
           },
         },
@@ -124,13 +139,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                productRunId: z.string(),
-                geometryOutputId: z.string(),
-                value: z.string(),
-                variableId: z.string(),
-                timePoint: z.iso.datetime(),
-              }),
+              schema: createProductOutputSchema,
             },
           },
         },
@@ -140,7 +149,15 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                productOutputSchema
+                  .omit({
+                    geometryOutput: true,
+                    productRun: true,
+                    variable: true,
+                  })
+                  .optional(),
+              ),
             },
           },
         },
@@ -187,17 +204,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: z.object({
-                productRunId: z.string(),
-                variableId: z.string(),
-                timePoint: z.iso.datetime(),
-                outputs: z.array(
-                  baseCreateResourceSchema.extend({
-                    geometryOutputId: z.string(),
-                    value: z.string(),
-                  }),
-                ),
-              }),
+              schema: createManyProductOutputSchema,
             },
           },
         },
@@ -208,7 +215,15 @@ const app = createOpenAPIApp()
             'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                z.array(
+                  productOutputSchema.omit({
+                    geometryOutput: true,
+                    productRun: true,
+                    variable: true,
+                  }),
+                ),
+              ),
             },
           },
         },
@@ -232,7 +247,7 @@ const app = createOpenAPIApp()
 
       const { outputs, ...rest } = payload
 
-      const [newProductOutput] = await db
+      const newProductOutputs = await db
         .insert(productOutput)
         .values(
           outputs.map((output) =>
@@ -243,7 +258,7 @@ const app = createOpenAPIApp()
 
       return generateJsonResponse(
         c,
-        newProductOutput,
+        newProductOutputs,
         201,
         'Product output created',
       )
@@ -262,7 +277,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateProductOutputSchema,
             },
           },
         },
@@ -272,7 +287,15 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                productOutputSchema
+                  .omit({
+                    geometryOutput: true,
+                    productRun: true,
+                    variable: true,
+                  })
+                  .optional(),
+              ),
             },
           },
         },

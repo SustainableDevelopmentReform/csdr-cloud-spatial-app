@@ -1,6 +1,6 @@
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { authMiddleware } from '../middlewares/auth'
 import { s3Client } from '~/lib/s3'
 import { generateJsonResponse } from '../lib/response'
@@ -11,7 +11,6 @@ import {
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
 
 const app = createOpenAPIApp().openapi(

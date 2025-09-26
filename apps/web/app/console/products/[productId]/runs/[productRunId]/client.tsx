@@ -1,17 +1,19 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import { updateProductRunSchema } from '@repo/server/schemas/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
-import { z } from 'zod'
-import {
-  baseFormSchema,
-  CrudForm,
-} from '../../../../../../components/crud-form'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../../../components/crud-form'
+import { CrudFormAction } from '../../../../../../components/crud-form-action'
+import { CrudFormRunFields } from '../../../../../../components/crud-form-run-fields'
 import { DetailCard } from '../../../../_components/detail-cards'
+import { DatasetButton } from '../../../../datasets/_components/dataset-button'
 import { DatasetRunButton } from '../../../../datasets/_components/dataset-run-button'
-import { useDatasetRunLink } from '../../../../datasets/_hooks'
+import { GeometriesButton } from '../../../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../../../geometries/_components/geometries-run-button'
-import { useGeometriesLink } from '../../../../geometries/_hooks'
 import { ProductRunSummaryCard } from '../../../_components/product-run-summary-card'
 import {
   useDeleteProductRun,
@@ -22,12 +24,6 @@ import {
   useSetProductMainRun,
   useUpdateProductRun,
 } from '../../../_hooks'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useMemo } from 'react'
-import { DatasetButton } from '../../../../datasets/_components/dataset-button'
-import { GeometriesButton } from '../../../../geometries/_components/geometries-button'
-import { CrudFormAction } from '../../../../../../components/crud-form-action'
 
 const ProductRunDetails = () => {
   const { data: productRun } = useProductRun()
@@ -43,7 +39,7 @@ const ProductRunDetails = () => {
   const { data: product } = useProduct()
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(updateProductRunSchema),
   })
 
   const formActions: CrudFormAction[] = useMemo(
@@ -114,7 +110,9 @@ const ProductRunDetails = () => {
           entityName="Product Run"
           entityNamePlural="product runs"
           actions={formActions}
-        />
+        >
+          <CrudFormRunFields form={form} readOnlyFields={'all'} />
+        </CrudForm>
       )}
     </div>
   )

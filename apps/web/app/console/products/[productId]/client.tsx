@@ -1,8 +1,13 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import { updateProductSchema } from '@repo/server/schemas/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
-import { baseFormSchema, CrudForm } from '../../../../components/crud-form'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../components/crud-form'
+import { CrudFormAction } from '../../../../components/crud-form-action'
 import { DetailCard } from '../../_components/detail-cards'
 import { DatasetButton } from '../../datasets/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
@@ -14,10 +19,6 @@ import {
   useRefreshProductRunSummary,
   useUpdateProduct,
 } from '../_hooks'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useMemo } from 'react'
-import { CrudFormAction } from '../../../../components/crud-form-action'
 
 const ProductDetails = () => {
   const { data: product } = useProduct()
@@ -40,7 +41,7 @@ const ProductDetails = () => {
   )
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(updateProductSchema),
   })
 
   useEffect(() => {

@@ -1,14 +1,14 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { formatDateTime } from '../../../../utils/date'
 import { DetailCard } from '../../_components/detail-cards'
-import { DatasetListItem, DatasetRunDetail, useDatasetRunLink } from '../_hooks'
+import { DatasetDetail, DatasetRunDetail, useDatasetRunLink } from '../_hooks'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
 
 export const DatasetRunSummaryCard = ({
   dataset,
   datasetRun,
 }: {
-  dataset: DatasetListItem | undefined | null
+  dataset: DatasetDetail | undefined | null
   datasetRun?: DatasetRunDetail | undefined | null
 }) => {
   const datasetRunLink = useDatasetRunLink()

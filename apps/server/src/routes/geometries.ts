@@ -1,50 +1,61 @@
-import { createRoute } from '@hono/zod-openapi'
-import { count, desc, eq, sql } from 'drizzle-orm'
+import { createRoute, z } from '@hono/zod-openapi'
+import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { geometries, geometriesRun } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
-import { geometriesRunQuery } from './geometriesRun'
-import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { geometries, geometriesRun, product } from '../schemas'
+import {
+  baseColumns,
+  baseResourceSchema,
+  createPayload,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
+import { createGeometriesSchema, updateGeometriesSchema } from '../schemas/zod'
+import {
+  baseGeometriesRunQuery,
+  baseGeometriesRunSchema,
+} from './geometriesRun'
 
-export const geometriesQuery = {
+export const baseGeometriesQuery = {
   columns: {
     ...baseColumns,
-    metadata: true,
+    mainRunId: true,
     sourceUrl: true,
     sourceMetadataUrl: true,
   },
+} satisfies QueryForTable<'geometries'>
+
+export const fullGeometriesQuery = {
+  columns: baseGeometriesQuery.columns,
   with: {
-    mainRun: geometriesRunQuery,
-  },
-  extras: {
-    runCount: sql<number>`(
-      SELECT COUNT(*)::int
-      FROM geometries_run dr
-      WHERE dr.geometries_id = ${geometries}.id
-    )`.as('run_count'),
-    productCount: sql<number>`(
-      SELECT COUNT(*)::int
-      FROM product p
-      WHERE p.geometries_id = ${geometries}.id
-    )`.as('product_count'),
+    mainRun: baseGeometriesRunQuery,
   },
 } satisfies QueryForTable<'geometries'>
+
+export const baseGeometriesSchema = baseResourceSchema
+  .extend({
+    mainRunId: z.string().nullable(),
+    sourceUrl: z.string().nullable(),
+    sourceMetadataUrl: z.string().nullable(),
+  })
+  .openapi('GeometriesBase')
+
+export const fullGeometriesSchema = baseGeometriesSchema
+  .extend({
+    runCount: z.number().int(),
+    productCount: z.number().int(),
+    mainRun: baseGeometriesRunSchema.nullable(),
+  })
+  .openapi('GeometriesFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -68,7 +79,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseGeometriesSchema),
                 }),
               ),
             },
@@ -91,7 +102,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.geometries.findMany({
-        ...geometriesQuery,
+        ...baseGeometriesQuery,
         limit: size,
         offset: skip,
         orderBy: desc(geometries.createdAt),
@@ -122,7 +133,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved geometries.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullGeometriesSchema),
             },
           },
         },
@@ -136,7 +147,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.geometries.findFirst({
         where: (geometries, { eq }) => eq(geometries.id, id),
-        ...geometriesQuery,
+        ...fullGeometriesQuery,
       })
 
       if (!record) {
@@ -147,7 +158,16 @@ const app = createOpenAPIApp()
         })
       }
 
-      return generateJsonResponse(c, record, 200)
+      const runCount = await db.$count(
+        geometriesRun,
+        eq(geometriesRun.geometriesId, id),
+      )
+      const productCount = await db.$count(
+        product,
+        eq(product.geometriesId, id),
+      )
+
+      return generateJsonResponse(c, { ...record, runCount, productCount }, 200)
     },
   )
   .openapi(
@@ -172,7 +192,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseGeometriesRunSchema),
                 }),
               ),
             },
@@ -197,7 +217,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.geometriesRun.findMany({
-        ...geometriesRunQuery,
+        ...baseGeometriesRunQuery,
         where: (geometriesRun, { eq }) => eq(geometriesRun.geometriesId, id),
         limit: size,
         offset: skip,
@@ -227,10 +247,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                sourceUrl: z.string().optional(),
-                sourceMetadataUrl: z.string().optional(),
-              }),
+              schema: createGeometriesSchema,
             },
           },
         },
@@ -240,7 +257,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created geometries.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(baseGeometriesSchema.optional()),
             },
           },
         },
@@ -272,9 +289,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                mainRunId: z.string().optional(),
-              }),
+              schema: updateGeometriesSchema,
             },
           },
         },
@@ -284,7 +299,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated geometries.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(baseGeometriesSchema.optional()),
             },
           },
         },

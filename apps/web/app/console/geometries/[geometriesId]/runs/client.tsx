@@ -1,13 +1,15 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../components/crud-table'
 
-import { baseFormSchema } from '../../../../../components/crud-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { createGeometriesRunSchema } from '@repo/server/schemas/zod'
+import { useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
 import {
   GeometriesRunListItem,
@@ -16,15 +18,8 @@ import {
   useGeometriesRunLink,
   useGeometriesRuns,
 } from '../../_hooks'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
-
-const createGeometriesRunSchema = baseFormSchema.extend({
-  geometriesId: z.string(),
-})
 
 const GeometriesRunFeature = () => {
   const { data, page, setPage } = useGeometriesRuns()
@@ -68,7 +63,9 @@ const GeometriesRunFeature = () => {
           buttonText="Add Geometries Run"
           entityName="Geometries Run"
           entityNamePlural="geometries runs"
-        />
+        >
+          <CrudFormRunFields form={form} />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

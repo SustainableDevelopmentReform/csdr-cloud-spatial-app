@@ -1,20 +1,22 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { variableCategory } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
-import { baseCreateResourceSchema, baseUpdateResourceSchema } from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { variableCategory } from '../schemas'
+import { baseColumns, QueryForTable } from '../schemas/util'
+import {
+  createVariableCategorySchema,
+  updateVariableCategorySchema,
+} from '../schemas/zod'
 
 const variableCategoryQuery = {
   columns: {
@@ -139,11 +141,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                name: z.string().min(1),
-                parentId: z.string().optional(),
-                displayOrder: z.number().optional(),
-              }),
+              schema: createVariableCategorySchema,
             },
           },
         },
@@ -195,10 +193,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                parentId: z.string().optional(),
-                displayOrder: z.number().optional(),
-              }),
+              schema: updateVariableCategorySchema,
             },
           },
         },

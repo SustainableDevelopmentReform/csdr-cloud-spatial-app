@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
@@ -13,7 +14,6 @@ import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../components/crud-form'
 import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { SelectWithSearchWithCreate } from '../../../components/select-with-search-with-create'
@@ -27,13 +27,7 @@ import {
   useVariables,
   VariableListItem,
 } from './_hooks'
-
-const createVariableSchema = baseFormSchema.extend({
-  // Name is required
-  name: z.string(),
-  categoryId: z.string().nullable().optional(),
-  unit: z.string(),
-})
+import { createVariableSchema } from '@repo/server/schemas/zod'
 
 const VariableFeature = () => {
   const { data, page, setPage } = useVariables()
@@ -87,7 +81,9 @@ const VariableFeature = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <Input {...field} />
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -98,16 +94,18 @@ const VariableFeature = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Variable Category</FormLabel>
-                <SelectWithSearchWithCreate
-                  options={variableCategories?.data}
-                  value={field.value ?? null}
-                  onSelect={field.onChange}
-                  onSearch={() => {}}
-                  placeholder="Root Category"
-                  entityName="Variable Category"
-                  createMutation={createVariableCategory}
-                  allowUndefined
-                />
+                <FormControl>
+                  <SelectWithSearchWithCreate
+                    options={variableCategories?.data}
+                    value={field.value ?? null}
+                    onSelect={field.onChange}
+                    onSearch={() => {}}
+                    placeholder="Root Category"
+                    entityName="Variable Category"
+                    createMutation={createVariableCategory}
+                    allowUndefined
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

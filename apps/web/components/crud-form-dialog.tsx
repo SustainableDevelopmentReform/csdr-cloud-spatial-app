@@ -7,11 +7,13 @@ import {
 } from '@repo/ui/components/ui/dialog'
 import React, { useState } from 'react'
 import { z } from 'zod'
-import { baseFormSchema, CrudForm, CrudFormProps } from './crud-form'
+import { CrudForm, CrudFormProps } from './crud-form'
 import { Button } from '@repo/ui/components/ui/button'
+import { baseCreateResourceSchema } from '@repo/server/schemas/zod'
 
-interface CrudFormDialogProps<Data extends z.infer<typeof baseFormSchema>>
-  extends CrudFormProps<Data> {
+interface CrudFormDialogProps<
+  Data extends z.infer<typeof baseCreateResourceSchema>,
+> extends CrudFormProps<Data> {
   buttonText?: string
   children?: React.ReactNode
   onOpen?: () => void
@@ -19,12 +21,12 @@ interface CrudFormDialogProps<Data extends z.infer<typeof baseFormSchema>>
 }
 
 // Note we assume that this form is to CREATE, not UPDATE - so we set defaults accordingly
-const CrudFormDialog = <Data extends z.infer<typeof baseFormSchema>>({
+const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
   buttonText,
   children,
   onOpen,
   onClose,
-  hiddenFields = ['createdAt', 'updatedAt'],
+  hiddenFields = [],
   readOnlyFields = [],
   ...formProps
 }: CrudFormDialogProps<Data>) => {

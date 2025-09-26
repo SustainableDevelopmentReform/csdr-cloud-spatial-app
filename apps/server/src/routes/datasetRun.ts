@@ -1,42 +1,55 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { dataset, datasetRun, productRun } from '../schemas'
-import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
-import {
-  baseCreateResourceSchema,
-  baseCreateRunResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { dataset, datasetRun, productRun } from '../schemas'
+import {
+  baseIdResourceSchemaWithMainRunId,
+  baseRunColumns,
+  baseRunResourceSchema,
+  createPayload,
+  idColumns,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
+import { createDatasetRunSchema, updateDatasetRunSchema } from '../schemas/zod'
 
-export const datasetRunQuery = {
+export const baseDatasetRunQuery = {
   columns: {
     ...baseRunColumns,
-    metadata: true,
-    datasetId: true,
   },
   with: {
     dataset: {
       columns: {
-        ...baseColumns,
+        ...idColumns,
         mainRunId: true,
       },
     },
   },
 } satisfies QueryForTable<'datasetRun'>
+
+export const fullDatasetRunQuery = baseDatasetRunQuery
+
+export const baseDatasetRunSchema = baseRunResourceSchema
+  .extend({
+    dataset: baseIdResourceSchemaWithMainRunId,
+  })
+  .openapi('DatasetRunBase')
+
+export const fullDatasetRunSchema = baseDatasetRunSchema
+  .extend({
+    productRunCount: z.number().int(),
+  })
+  .openapi('DatasetRunFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -53,7 +66,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a dataset run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullDatasetRunSchema),
             },
           },
         },
@@ -67,7 +80,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const results = await db.query.datasetRun.findFirst({
         where: (datasetRun, { eq }) => eq(datasetRun.id, id),
-        ...datasetRunQuery,
+        ...fullDatasetRunQuery,
       })
 
       const productRunCount = await db.$count(
@@ -108,9 +121,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateRunResourceSchema.extend({
-                datasetId: z.string(),
-              }),
+              schema: createDatasetRunSchema,
             },
           },
         },
@@ -120,7 +131,9 @@ const app = createOpenAPIApp()
           description: 'Successfully created a dataset run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                baseDatasetRunSchema.omit({ dataset: true }).optional(),
+              ),
             },
           },
         },
@@ -155,7 +168,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateDatasetRunSchema,
             },
           },
         },
@@ -165,7 +178,9 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a dataset run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                baseDatasetRunSchema.omit({ dataset: true }).optional(),
+              ),
             },
           },
         },
