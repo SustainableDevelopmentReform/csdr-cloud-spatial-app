@@ -5,9 +5,10 @@ import { ServerError } from '~/lib/error'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, productRun } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
 import {
   baseCreateResourceSchema,
+  baseCreateRunResourceSchema,
   baseUpdateResourceSchema,
   createPayload,
   updatePayload,
@@ -23,7 +24,7 @@ import {
 
 export const datasetRunQuery = {
   columns: {
-    ...baseColumns,
+    ...baseRunColumns,
     metadata: true,
     datasetId: true,
   },
@@ -107,7 +108,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
+              schema: baseCreateRunResourceSchema.extend({
                 datasetId: z.string(),
               }),
             },
@@ -154,9 +155,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                datasetId: z.string().optional(),
-              }),
+              schema: baseUpdateResourceSchema,
             },
           },
         },

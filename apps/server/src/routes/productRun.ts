@@ -11,10 +11,11 @@ import {
   productOutputSummaryVariable,
   productRun,
 } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
 import { productOutputQuery } from './productOutput'
 import {
   baseCreateResourceSchema,
+  baseCreateRunResourceSchema,
   baseUpdateResourceSchema,
   createPayload,
   updatePayload,
@@ -61,7 +62,7 @@ export const productRunOutputSummaryQuery = {
 
 export const productRunQuery = {
   columns: {
-    ...baseColumns,
+    ...baseRunColumns,
     metadata: true,
     productId: true,
   },
@@ -74,7 +75,7 @@ export const productRunQuery = {
       },
     },
     datasetRun: {
-      columns: baseColumns,
+      columns: baseRunColumns,
       with: {
         dataset: {
           columns: {
@@ -85,7 +86,7 @@ export const productRunQuery = {
       },
     },
     geometriesRun: {
-      columns: baseColumns,
+      columns: baseRunColumns,
       with: {
         geometries: {
           columns: {
@@ -217,7 +218,8 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
+              schema: baseCreateRunResourceSchema.extend({
+                dataType: z.enum(['parquet']),
                 productId: z.string(),
                 datasetRunId: z.string(),
                 geometriesRunId: z.string(),

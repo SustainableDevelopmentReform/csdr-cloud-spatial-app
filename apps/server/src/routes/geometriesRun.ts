@@ -10,10 +10,11 @@ import {
   geometryOutput,
   productRun,
 } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
 import { geometryOutputQuery } from './geometryOutput'
 import {
   baseCreateResourceSchema,
+  baseCreateRunResourceSchema,
   baseUpdateResourceSchema,
   createPayload,
   updatePayload,
@@ -29,7 +30,7 @@ import {
 
 export const geometriesRunQuery = {
   columns: {
-    ...baseColumns,
+    ...baseRunColumns,
     metadata: true,
     geometriesId: true,
   },
@@ -191,7 +192,9 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
+              schema: baseCreateRunResourceSchema.extend({
+                // Override dataType to be geoparquet
+                dataType: z.enum(['geoparquet']),
                 geometriesId: z.string(),
               }),
             },
@@ -244,9 +247,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                geometriesId: z.string().optional(),
-              }),
+              schema: baseUpdateResourceSchema,
             },
           },
         },

@@ -1,6 +1,5 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
 import { useMemo } from 'react'
 import Pagination from '~/components/pagination'
 import { baseFormSchema } from '../../../components/crud-form'
@@ -10,6 +9,19 @@ import { DatasetButton } from './_components/dataset-button'
 import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@repo/ui/components/ui/select'
 
 const DatasetFeature = () => {
   const { data, page, setPage } = useDatasets()
@@ -35,7 +47,31 @@ const DatasetFeature = () => {
           buttonText="Add Dataset"
           entityName="Dataset"
           entityNamePlural="datasets"
-        />
+        >
+          <FormField
+            control={form.control}
+            name="dataType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data Type</FormLabel>
+                <Select {...field} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="parquet">Parquet</SelectItem>
+                    <SelectItem value="geoparquet">Geoparquet</SelectItem>
+                    <SelectItem value="stac-geoparquet">
+                      STAC Geoparquet
+                    </SelectItem>
+                    <SelectItem value="zarr">Zarr</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable
