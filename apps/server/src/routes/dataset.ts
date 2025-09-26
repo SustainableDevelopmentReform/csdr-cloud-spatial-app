@@ -22,7 +22,7 @@ import {
   z,
 } from '~/lib/openapi'
 
-const datasetQuery = {
+export const datasetQuery = {
   columns: {
     ...baseColumns,
     metadata: true,
