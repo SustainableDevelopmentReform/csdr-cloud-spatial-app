@@ -1,7 +1,8 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import Pagination from '~/components/pagination'
 import { baseFormSchema } from '../../../components/crud-form'
 import CrudFormDialog from '../../../components/crud-form-dialog'
@@ -12,8 +13,20 @@ import {
   useCreateGeometries,
   useGeometriesLink,
 } from './_hooks'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
+import z from 'zod'
+
+const createGeometriesSchema = baseFormSchema.extend({
+  sourceUrl: z.string(),
+  sourceMetadataUrl: z.string(),
+})
 
 const GeometriesFeature = () => {
   const { data, page, setPage } = useAllGeometries()
@@ -25,7 +38,7 @@ const GeometriesFeature = () => {
   }, [])
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(createGeometriesSchema),
   })
 
   return (
@@ -38,7 +51,34 @@ const GeometriesFeature = () => {
           buttonText="Add Geometries"
           entityName="Geometries"
           entityNamePlural="geometries sets"
-        />
+        >
+          <FormField
+            control={form.control}
+            name={'sourceUrl'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Source URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name={'sourceMetadataUrl'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Source Metadata URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

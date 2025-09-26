@@ -1,27 +1,28 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
 import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import Pagination from '~/components/pagination'
 import { baseFormSchema } from '../../../components/crud-form'
 import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { DatasetButton } from './_components/dataset-button'
 import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@repo/ui/components/ui/select'
+import { Input } from '@repo/ui/components/ui/input'
+import z from 'zod'
+
+const createDatasetSchema = baseFormSchema.extend({
+  sourceUrl: z.string(),
+  sourceMetadataUrl: z.string(),
+})
 
 const DatasetFeature = () => {
   const { data, page, setPage } = useDatasets()
@@ -34,7 +35,7 @@ const DatasetFeature = () => {
   }, [])
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(createDatasetSchema),
   })
 
   return (
@@ -50,23 +51,26 @@ const DatasetFeature = () => {
         >
           <FormField
             control={form.control}
-            name="dataType"
+            name={'sourceUrl'}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Data Type</FormLabel>
-                <Select {...field} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="parquet">Parquet</SelectItem>
-                    <SelectItem value="geoparquet">Geoparquet</SelectItem>
-                    <SelectItem value="stac-geoparquet">
-                      STAC Geoparquet
-                    </SelectItem>
-                    <SelectItem value="zarr">Zarr</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormLabel>Source URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name={'sourceMetadataUrl'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Source Metadata URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

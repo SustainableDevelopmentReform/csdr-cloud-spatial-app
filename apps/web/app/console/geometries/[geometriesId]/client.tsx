@@ -15,6 +15,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { SourcesCard } from '../../_components/sources-card'
 
 const GeometriesDetails = () => {
   const { data: geometries } = useGeometries()
@@ -56,6 +57,7 @@ const GeometriesDetails = () => {
               actionIcon={<ArrowUpRightIcon />}
             />
           )}
+          {geometries && <SourcesCard resource={geometries} />}
         </div>
       </div>
       <CrudForm

@@ -7,6 +7,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { baseFormSchema, CrudForm } from '../../../../components/crud-form'
 import { DetailCard } from '../../_components/detail-cards'
+import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../products/_hooks'
 import { DatasetRunSummaryCard } from '../_components/dataset-run-summary-card'
 import {
@@ -15,7 +16,6 @@ import {
   useDeleteDataset,
   useUpdateDataset,
 } from '../_hooks'
-
 const DatasetDetails = () => {
   const { data: dataset } = useDataset()
   const productsLink = useProductsLink()
@@ -56,6 +56,7 @@ const DatasetDetails = () => {
               actionIcon={<ArrowUpRightIcon />}
             />
           )}
+          {dataset && <SourcesCard resource={dataset} />}
         </div>
       </div>
 
