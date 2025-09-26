@@ -1,41 +1,48 @@
-import { betterAuth, BetterAuthOptions } from 'better-auth'
+import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { db } from './db'
-// import { env } from '~/env'
 import {
   admin,
   anonymous,
+  apiKey,
   openAPI,
   twoFactor,
-  apiKey,
 } from 'better-auth/plugins'
 import { env } from '~/env'
 import * as schema from '~/schemas'
-// import { oidcProvider } from 'better-auth/plugins'
+import { db } from './db'
+
+export type Plugins = [
+  ReturnType<typeof admin>,
+  ReturnType<typeof twoFactor>,
+  ReturnType<typeof openAPI>,
+  ReturnType<typeof anonymous>,
+  ReturnType<typeof apiKey>,
+]
+
+const plugins: Plugins = [
+  admin(),
+  twoFactor(),
+  openAPI({ path: '/scalar' }),
+  anonymous(),
+  apiKey({
+    rateLimit: {
+      enabled: true,
+      // 10000 requests per hour
+      timeWindow: 1000 * 60 * 60,
+      maxRequests: 10000,
+    },
+  }),
+  // organization(),
+]
 
 const authConfig = {
   baseURL: 'http://localhost:4000',
-  trustedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
+  trustedOrigins: ['http://localhost:3000'],
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema,
   }),
-  plugins: [
-    admin(),
-    twoFactor(),
-    openAPI({ path: '/scalar' }),
-    anonymous(),
-    apiKey({
-      rateLimit: {
-        enabled: true,
-        // 10000 requests per hour
-        timeWindow: 1000 * 60 * 60,
-        maxRequests: 10000,
-      },
-    }),
-    // Note there are issues with typing with organization plugin (we don't need it yet)
-    // organization(),
-  ],
+  plugins: plugins,
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days in seconds
     updateAge: 60 * 60 * 24, // Update session every 24 hours
@@ -60,7 +67,7 @@ const authConfig = {
     // cookiePrefix: 'csdr-dev',
     useSecureCookies: true,
   },
-} satisfies BetterAuthOptions
+}
 
 export const auth = betterAuth(authConfig) as ReturnType<
   typeof betterAuth<typeof authConfig>

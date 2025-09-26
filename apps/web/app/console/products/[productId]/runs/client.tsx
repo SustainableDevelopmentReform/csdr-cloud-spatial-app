@@ -27,6 +27,13 @@ import {
   useProductRunLink,
   useProductRuns,
 } from '../../_hooks'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@repo/ui/components/ui/select'
 import { ProductButton } from '../../_components/product-button'
 
 const columnHelper = createColumnHelper<ProductRunListItem>()
@@ -43,8 +50,8 @@ const ProductRunFeature = () => {
   const productLink = useProductRunLink()
 
   const { data: product } = useProduct()
-  const { data: datasetRuns } = useDatasetRuns(product?.datasetId)
-  const { data: geometriesRuns } = useGeometriesRuns(product?.geometriesId)
+  const { data: datasetRuns } = useDatasetRuns(product?.dataset.id)
+  const { data: geometriesRuns } = useGeometriesRuns(product?.geometries.id)
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
@@ -128,6 +135,24 @@ const ProductRunFeature = () => {
                   onSelect={field.onChange}
                   onSearch={() => {}}
                 />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="dataType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data Type</FormLabel>
+                <Select {...field} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="parquet">Parquet</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

@@ -19,6 +19,19 @@ import {
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@repo/ui/components/ui/select'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
@@ -68,7 +81,26 @@ const GeometriesRunFeature = () => {
           buttonText="Add Geometries Run"
           entityName="Geometries Run"
           entityNamePlural="geometries runs"
-        />
+        >
+          <FormField
+            control={form.control}
+            name="dataType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data Type</FormLabel>
+                <Select {...field} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="geoparquet">Geoparquet</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

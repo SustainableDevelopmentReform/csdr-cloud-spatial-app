@@ -1,8 +1,22 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/ui/components/ui/select'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import Pagination from '~/components/pagination'
 import { baseFormSchema } from '../../../../../components/crud-form'
@@ -16,8 +30,6 @@ import {
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
 
 const columnHelper = createColumnHelper<DatasetRunListItem>()
 
@@ -58,7 +70,31 @@ const DatasetRunFeature = () => {
           buttonText="Add Dataset Run"
           entityName="Dataset Run"
           entityNamePlural="dataset runs"
-        />
+        >
+          <FormField
+            control={form.control}
+            name="dataType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data Type</FormLabel>
+                <Select {...field} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="parquet">Parquet</SelectItem>
+                    <SelectItem value="geoparquet">Geoparquet</SelectItem>
+                    <SelectItem value="stac-geoparquet">
+                      Stac Geoparquet
+                    </SelectItem>
+                    <SelectItem value="zarr">Zarr</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable
