@@ -171,7 +171,7 @@ export const useCreateDataset = () => {
       const res = client.api.v0.dataset.$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Dataset],
@@ -187,7 +187,7 @@ export const useCreateDatasetRun = () => {
       const res = client.api.v0['dataset-run'].$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
         queryKey: [QueryKey.DatasetRun],

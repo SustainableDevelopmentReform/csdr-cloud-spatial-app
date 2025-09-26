@@ -259,7 +259,7 @@ export const useCreateGeometries = () => {
       const res = client.api.v0.geometries.$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Geometries],
@@ -275,7 +275,7 @@ export const useCreateGeometriesRun = () => {
       const res = client.api.v0['geometries-run'].$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometriesRun],
       })
@@ -293,7 +293,7 @@ export const useCreateGeometryOutput = () => {
       const res = client.api.v0['geometry-output'].$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.GeometryOutput],
       })

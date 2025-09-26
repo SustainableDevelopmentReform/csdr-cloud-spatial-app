@@ -5,18 +5,19 @@ export const client = hc<ApiRoutesType>('/')
 
 export async function unwrapResponse<
   Res extends ClientResponse<unknown, number, 'json'>,
->(f: Promise<Res>) {
-  type SuccessResponse = Extract<Res, ClientResponse<unknown, 200, 'json'>>
-  type ErrorResponse = Exclude<Res, ClientResponse<unknown, 200, 'json'>>
+  OKStatus extends number = 200,
+>(f: Promise<Res>, okStatus: OKStatus = 200) {
+  type SuccessResponse = Extract<Res, ClientResponse<unknown, OKStatus, 'json'>>
+  type ErrorResponse = Exclude<Res, ClientResponse<unknown, OKStatus, 'json'>>
   type SuccessPayload<T> =
-    T extends ClientResponse<infer Json, 200, 'json'> ? Json : never
+    T extends ClientResponse<infer Json, OKStatus, 'json'> ? Json : never
   type ErrorPayload<T> =
     T extends ClientResponse<infer Json, number, 'json'> ? Json : never
 
   const res = await f
   const payload = await res.json()
 
-  if (res.status === 200) {
+  if (res.status === okStatus) {
     return payload as SuccessPayload<SuccessResponse>
   }
 
