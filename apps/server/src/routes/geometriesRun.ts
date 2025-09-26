@@ -194,7 +194,7 @@ const app = createOpenAPIApp()
             'application/json': {
               schema: baseCreateRunResourceSchema.extend({
                 // Override dataType to be geoparquet
-                dataType: z.enum(['geoparquet']),
+                dataType: z.enum(['geoparquet']).optional(),
                 geometriesId: z.string(),
               }),
             },
