@@ -2,6 +2,7 @@
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
     "skipLibCheck": true,
+    "noEmit": true,
     "plugins": [
       {
         "name": "next"
@@ -18,17 +19,17 @@
     "next-env.d.ts",
     "next.config.mjs",
     "postcss.config.mjs",
-    "**/*.ts",
-    "**/*.tsx",
+    "tailwind.config.ts",
+    "env.ts",
+    "middleware.ts",
+    "app/**/*",
+    "components/**/*",
+    "pages/**/*",
+    "utils/**/*",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist"
-  ],
-  "references": [
-    {
-      "path": "../server"
-    }
   ]
 }
