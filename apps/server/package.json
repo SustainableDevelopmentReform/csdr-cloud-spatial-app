@@ -7,6 +7,12 @@
         "default": "./dist/hc.js",
         "types": "./dist/hc.d.ts"
       }
+    },
+    "./schemas/zod": {
+      "import": {
+        "default": "./dist/schemas/zod.js",
+        "types": "./dist/schemas/zod.d.ts"
+      }
     }
   },
   "scripts": {

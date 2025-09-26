@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createProductRunSchema } from '@repo/server/schemas/zod'
 import {
   FormField,
   FormItem,
@@ -11,14 +12,14 @@ import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../../../components/crud-form'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/crud-table'
 import { useDatasetRuns } from '../../../datasets/_hooks'
 import { useGeometriesRuns } from '../../../geometries/_hooks'
 import { VariableButtons } from '../../../variables/_components/variable-button'
+import { ProductButton } from '../../_components/product-button'
 import { ProductRunButton } from '../../_components/product-run-button'
 import {
   ProductRunListItem,
@@ -27,22 +28,8 @@ import {
   useProductRunLink,
   useProductRuns,
 } from '../../_hooks'
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@repo/ui/components/ui/select'
-import { ProductButton } from '../../_components/product-button'
 
 const columnHelper = createColumnHelper<ProductRunListItem>()
-
-const createProductRunSchema = baseFormSchema.extend({
-  productId: z.string(),
-  datasetRunId: z.string(),
-  geometriesRunId: z.string(),
-})
 
 const ProductRunFeature = () => {
   const { data, page, setPage, filters } = useProductRuns()
@@ -139,24 +126,7 @@ const ProductRunFeature = () => {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="dataType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Data Type</FormLabel>
-                <Select {...field} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="parquet">Parquet</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <CrudFormRunFields form={form} />
         </CrudFormDialog>
       </div>
       <div className="mt-8">

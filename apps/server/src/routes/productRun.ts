@@ -19,18 +19,17 @@ import {
   productRun,
 } from '../schemas'
 import {
-  baseCreateRunResourceSchema,
   baseIdResourceSchema,
   baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
   baseRunResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { createProductRunSchema, updateProductRunSchema } from '../schemas/zod'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 import {
   baseGeometriesRunQuery,
@@ -268,12 +267,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateRunResourceSchema.extend({
-                dataType: z.enum(['parquet']).optional(),
-                productId: z.string(),
-                datasetRunId: z.string(),
-                geometriesRunId: z.string(),
-              }),
+              schema: createProductRunSchema,
             },
           },
         },
@@ -324,7 +318,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateProductRunSchema,
             },
           },
         },

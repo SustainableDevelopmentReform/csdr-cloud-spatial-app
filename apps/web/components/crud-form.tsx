@@ -18,17 +18,11 @@ import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { formatDateTime } from '../utils/date'
 import { CrudFormAction, FormAction } from './crud-form-action'
+import { baseCreateResourceSchema } from '@repo/server/schemas/zod'
 
-export const baseFormSchema = z.object({
-  id: z.string().optional().readonly(),
-  createdAt: z.string().optional().readonly(),
-  updatedAt: z.string().optional().readonly(),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  metadata: z.any().optional().readonly(),
-})
-
-export interface CrudFormConfig<Data extends z.infer<typeof baseFormSchema>> {
+export interface CrudFormConfig<
+  Data extends z.infer<typeof baseCreateResourceSchema>,
+> {
   entityName: string // e.g., "Dataset", "Product", "Geometry"
   entityNamePlural: string // e.g., "datasets", "products", "geometries"
   readOnlyFields?: (keyof Data | string)[] // Fields that should be displayed but not editable
@@ -36,8 +30,9 @@ export interface CrudFormConfig<Data extends z.infer<typeof baseFormSchema>> {
   fieldLabels?: Partial<Record<keyof Data, string>> // Custom labels for fields
 }
 
-export interface CrudFormProps<Data extends z.infer<typeof baseFormSchema>>
-  extends CrudFormConfig<Data> {
+export interface CrudFormProps<
+  Data extends z.infer<typeof baseCreateResourceSchema>,
+> extends CrudFormConfig<Data> {
   form: UseFormReturn<Data>
   mutation: UseMutationResult<unknown, Error, Data>
   deleteMutation?: UseMutationResult<unknown, Error, void>
@@ -46,7 +41,9 @@ export interface CrudFormProps<Data extends z.infer<typeof baseFormSchema>>
   onSuccess?: () => void
 }
 
-export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
+export const CrudForm = <
+  Data extends z.infer<typeof baseCreateResourceSchema>,
+>({
   form,
   mutation,
   deleteMutation,
@@ -54,7 +51,7 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
   children,
   entityName,
   entityNamePlural,
-  readOnlyFields = ['id', 'createdAt', 'updatedAt', 'metadata'],
+  readOnlyFields = ['id', 'metadata'],
   hiddenFields,
   fieldLabels,
   onSuccess,
@@ -174,32 +171,6 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
                 </FormItem>
               )}
             />
-          )}
-
-          {shouldShowField('createdAt') && isReadOnlyField('createdAt') && (
-            <FormItem>
-              <FormLabel>{getFieldLabel('createdAt')}</FormLabel>
-              <Input
-                disabled
-                value={formatDateTime(
-                  form.getValues('createdAt' as Path<Data>),
-                )}
-                className="bg-gray-100"
-              />
-            </FormItem>
-          )}
-
-          {shouldShowField('updatedAt') && isReadOnlyField('updatedAt') && (
-            <FormItem>
-              <FormLabel>{getFieldLabel('updatedAt')}</FormLabel>
-              <Input
-                disabled
-                value={formatDateTime(
-                  form.getValues('updatedAt' as Path<Data>),
-                )}
-                className="bg-gray-100"
-              />
-            </FormItem>
           )}
 
           {/* Render editable description field if it exists */}

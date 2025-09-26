@@ -1,23 +1,15 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
+import { updateGeometryOutputSchema } from '@repo/server/schemas/zod'
+import { FormItem, FormLabel, FormMessage } from '@repo/ui/components/ui/form'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo } from 'react'
-import { Path, useForm } from 'react-hook-form'
-import {
-  baseFormSchema,
-  CrudForm,
-} from '../../../../../../../../components/crud-form'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
 import { DetailCard } from '../../../../../../_components/detail-cards'
 import {
@@ -26,8 +18,6 @@ import {
   useGeometryOutput,
   useUpdateGeometryOutput,
 } from '../../../../../_hooks'
-
-const updateGeometryOutputSchema = baseFormSchema.omit({ name: true })
 
 const GeometriesRunDetails = () => {
   const { data: geometries } = useGeometries()
@@ -109,33 +99,24 @@ const GeometriesRunDetails = () => {
       <CrudForm
         form={form}
         mutation={updateGeometryOutput}
-        hiddenFields={['id', 'createdAt', 'updatedAt']}
+        hiddenFields={['id']}
         entityName="Geometry Output"
         entityNamePlural="Geometry Outputs"
-        readOnlyFields={['id', 'createdAt', 'updatedAt', 'metadata', 'name']}
+        readOnlyFields={['id', 'metadata', 'name']}
       >
-        <FormField
-          control={form.control}
-          name={'properties'}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Properties</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  className={'font-mono bg-gray-100'}
-                  disabled={true}
-                  value={
-                    typeof field.value === 'object'
-                      ? JSON.stringify(field.value, null, 2)
-                      : field.value
-                  }
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <FormItem>
+          <FormLabel>Properties</FormLabel>
+          <Textarea
+            className={'font-mono bg-gray-100'}
+            disabled={true}
+            value={
+              geometryOutput?.properties === 'object'
+                ? JSON.stringify(geometryOutput?.properties, null, 2)
+                : geometryOutput?.properties
+            }
+          />
+          <FormMessage />
+        </FormItem>
       </CrudForm>
     </div>
   )

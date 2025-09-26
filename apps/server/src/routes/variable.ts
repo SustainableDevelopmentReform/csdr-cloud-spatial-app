@@ -14,24 +14,17 @@ import { generateJsonResponse } from '../lib/response'
 import { variable } from '../schemas'
 import {
   baseColumns,
-  baseCreateResourceSchema,
   baseResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { createVariableSchema, updateVariableSchema } from '../schemas/zod'
 
 export const baseVariableQuery = {
   columns: {
     ...baseColumns,
     unit: true,
-  },
-} satisfies QueryForTable<'variable'>
-
-const fullVariableQuery = {
-  columns: {
-    ...baseVariableQuery.columns,
     displayOrder: true,
     categoryId: true,
   },
@@ -45,16 +38,11 @@ const fullVariableQuery = {
 export const baseVariableSchema = baseResourceSchema
   .extend({
     unit: z.string(),
-  })
-  .openapi('VariableSchemaBase')
-
-export const fullVariableSchema = baseVariableSchema
-  .extend({
     category: baseResourceSchema.nullable(),
     displayOrder: z.number().int().nullable(),
     categoryId: z.string().nullable(),
   })
-  .openapi('VariableSchemaFull')
+  .openapi('VariableSchemaBase')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -101,7 +89,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.variable.findMany({
-        ...fullVariableQuery,
+        ...baseVariableQuery,
         limit: size,
         offset: skip,
         orderBy: desc(variable.createdAt),
@@ -133,7 +121,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a variable.',
           content: {
             'application/json': {
-              schema: createResponseSchema(fullVariableSchema),
+              schema: createResponseSchema(baseVariableSchema),
             },
           },
         },
@@ -147,7 +135,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.variable.findFirst({
         where: (variable, { eq }) => eq(variable.id, id),
-        ...fullVariableQuery,
+        ...baseVariableQuery,
       })
 
       if (!record) {
@@ -173,12 +161,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                name: z.string(),
-                unit: z.string(),
-                categoryId: z.string().nullable().optional(),
-                displayOrder: z.number().optional(),
-              }),
+              schema: createVariableSchema,
             },
           },
         },
@@ -224,11 +207,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                unit: z.string().optional(),
-                categoryId: z.string().nullable().optional(),
-                displayOrder: z.number().optional(),
-              }),
+              schema: updateVariableSchema,
             },
           },
         },

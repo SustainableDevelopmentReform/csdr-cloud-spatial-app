@@ -1,17 +1,16 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import { updateProductOutputSchema } from '@repo/server/schemas/zod'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import { ArrowUpRightIcon } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo } from 'react'
-import {
-  baseFormSchema,
-  CrudForm,
-} from '../../../../../../../../components/crud-form'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
 import { DetailCard } from '../../../../../../_components/detail-cards'
-import { MainRunBadge } from '../../../../../../_components/main-run-badge'
 import { useGeometriesLink } from '../../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../../variables/_components/variable-button'
 import {
@@ -20,8 +19,6 @@ import {
   useProductRun,
   useUpdateProductOutput,
 } from '../../../../../_hooks'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 
 const ProductRunDetails = () => {
   const { data: product } = useProduct()
@@ -46,7 +43,7 @@ const ProductRunDetails = () => {
   }, [productOutput?.geometryOutput?.geometry])
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(updateProductOutputSchema),
   })
 
   useEffect(() => {

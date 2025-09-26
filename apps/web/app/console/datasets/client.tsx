@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createDatasetSchema } from '@repo/server/schemas/zod'
 import {
   FormControl,
   FormField,
@@ -8,21 +9,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../components/crud-form'
 import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { DatasetButton } from './_components/dataset-button'
 import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
-import { Input } from '@repo/ui/components/ui/input'
-import z from 'zod'
-
-const createDatasetSchema = baseFormSchema.extend({
-  sourceUrl: z.string(),
-  sourceMetadataUrl: z.string(),
-})
 
 const DatasetFeature = () => {
   const { data, page, setPage } = useDatasets()

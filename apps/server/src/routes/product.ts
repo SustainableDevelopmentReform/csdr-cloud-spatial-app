@@ -14,15 +14,14 @@ import { generateJsonResponse } from '../lib/response'
 import { product, productRun } from '../schemas'
 import {
   baseColumns,
-  baseCreateResourceSchema,
   baseIdResourceSchema,
   baseResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   idColumns,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { createProductSchema, updateProductSchema } from '../schemas/zod'
 import { fullDatasetQuery, fullDatasetSchema } from './dataset'
 import { fullGeometriesQuery, fullGeometriesSchema } from './geometries'
 import {
@@ -300,11 +299,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                datasetId: z.string(),
-                geometriesId: z.string(),
-                timePrecision: z.enum(['hour', 'day', 'month', 'year']),
-              }),
+              schema: createProductSchema,
             },
           },
         },
@@ -350,12 +345,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                mainRunId: z.string().optional(),
-                timePrecision: z
-                  .enum(['hour', 'day', 'month', 'year'])
-                  .optional(),
-              }),
+              schema: updateProductSchema,
             },
           },
         },

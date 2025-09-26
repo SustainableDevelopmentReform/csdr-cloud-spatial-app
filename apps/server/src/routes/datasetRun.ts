@@ -13,16 +13,15 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, productRun } from '../schemas'
 import {
-  baseCreateRunResourceSchema,
   baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
   baseRunResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   idColumns,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { createDatasetRunSchema, updateDatasetRunSchema } from '../schemas/zod'
 
 export const baseDatasetRunQuery = {
   columns: {
@@ -122,9 +121,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateRunResourceSchema.extend({
-                datasetId: z.string(),
-              }),
+              schema: createDatasetRunSchema,
             },
           },
         },
@@ -171,7 +168,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateDatasetRunSchema,
             },
           },
         },

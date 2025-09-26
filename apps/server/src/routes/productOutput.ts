@@ -13,17 +13,20 @@ import { generateJsonResponse } from '../lib/response'
 import { productOutput } from '../schemas'
 import {
   baseColumns,
-  baseCreateResourceSchema,
   baseIdResourceSchema,
   baseIdResourceSchemaWithMainRunId,
   baseResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import {
+  createManyProductOutputSchema,
+  createProductOutputSchema,
+  updateProductOutputSchema,
+} from '../schemas/zod'
 import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
 
@@ -136,13 +139,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                productRunId: z.string(),
-                geometryOutputId: z.string(),
-                value: z.string(),
-                variableId: z.string(),
-                timePoint: z.iso.datetime(),
-              }),
+              schema: createProductOutputSchema,
             },
           },
         },
@@ -207,17 +204,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: z.object({
-                productRunId: z.string(),
-                variableId: z.string(),
-                timePoint: z.iso.datetime(),
-                outputs: z.array(
-                  baseCreateResourceSchema.extend({
-                    geometryOutputId: z.string(),
-                    value: z.string(),
-                  }),
-                ),
-              }),
+              schema: createManyProductOutputSchema,
             },
           },
         },
@@ -290,7 +277,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateProductOutputSchema,
             },
           },
         },

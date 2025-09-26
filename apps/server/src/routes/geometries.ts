@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { count, desc, eq, sql } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -14,13 +14,12 @@ import { generateJsonResponse } from '../lib/response'
 import { geometries, geometriesRun, product } from '../schemas'
 import {
   baseColumns,
-  baseCreateResourceSchema,
   baseResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { createGeometriesSchema, updateGeometriesSchema } from '../schemas/zod'
 import {
   baseGeometriesRunQuery,
   baseGeometriesRunSchema,
@@ -248,10 +247,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                sourceUrl: z.string().optional(),
-                sourceMetadataUrl: z.string().optional(),
-              }),
+              schema: createGeometriesSchema,
             },
           },
         },
@@ -293,9 +289,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                mainRunId: z.string().optional(),
-              }),
+              schema: updateGeometriesSchema,
             },
           },
         },
