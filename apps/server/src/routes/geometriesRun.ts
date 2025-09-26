@@ -18,16 +18,18 @@ import {
   productRun,
 } from '../schemas'
 import {
-  baseCreateRunResourceSchema,
   baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
   baseRunResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import {
+  createGeometriesRunSchema,
+  updateGeometriesRunSchema,
+} from '../schemas/zod'
 import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
 
 export const baseGeometriesRunQuery = {
@@ -204,11 +206,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateRunResourceSchema.extend({
-                // Override dataType to be geoparquet
-                dataType: z.enum(['geoparquet']).optional(),
-                geometriesId: z.string(),
-              }),
+              schema: createGeometriesRunSchema,
             },
           },
         },
@@ -261,7 +259,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateGeometriesRunSchema,
             },
           },
         },

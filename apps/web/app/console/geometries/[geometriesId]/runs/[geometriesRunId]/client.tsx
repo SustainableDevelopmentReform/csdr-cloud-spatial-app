@@ -5,10 +5,7 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import {
-  baseFormSchema,
-  CrudForm,
-} from '../../../../../../components/crud-form'
+import { CrudForm } from '../../../../../../components/crud-form'
 import { CrudFormAction } from '../../../../../../components/crud-form-action'
 import { DetailCard } from '../../../../_components/detail-cards'
 import { useProductRunsLink } from '../../../../products/_hooks'
@@ -21,6 +18,8 @@ import {
   useSetGeometriesMainRun,
   useUpdateGeometriesRun,
 } from '../../../_hooks'
+import { updateGeometriesRunSchema } from '@repo/server/schemas/zod'
+import { CrudFormRunFields } from '../../../../../../components/crud-form-run-fields'
 
 const GeometriesRunDetails = () => {
   const { data: geometriesRun } = useGeometriesRun()
@@ -49,7 +48,7 @@ const GeometriesRunDetails = () => {
   )
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(updateGeometriesRunSchema),
   })
 
   useEffect(() => {
@@ -96,7 +95,9 @@ const GeometriesRunDetails = () => {
         entityName="Geometries Run"
         entityNamePlural="geometries runs"
         actions={formActions}
-      />
+      >
+        <CrudFormRunFields form={form} readOnlyFields={'all'} />
+      </CrudForm>
     </div>
   )
 }

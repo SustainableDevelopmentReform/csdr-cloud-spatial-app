@@ -1,26 +1,13 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/ui/components/ui/select'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../../../components/crud-form'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/crud-table'
 import { DatasetRunButton } from '../../_components/dataset-run-button'
 import {
@@ -30,12 +17,9 @@ import {
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
+import { createDatasetRunSchema } from '@repo/server/schemas/zod'
 
 const columnHelper = createColumnHelper<DatasetRunListItem>()
-
-const createDatasetRunSchema = baseFormSchema.extend({
-  datasetId: z.string(),
-})
 
 const DatasetRunFeature = () => {
   const { data: dataset } = useDataset()
@@ -71,29 +55,7 @@ const DatasetRunFeature = () => {
           entityName="Dataset Run"
           entityNamePlural="dataset runs"
         >
-          <FormField
-            control={form.control}
-            name="dataType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Data Type</FormLabel>
-                <Select {...field} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="parquet">Parquet</SelectItem>
-                    <SelectItem value="geoparquet">Geoparquet</SelectItem>
-                    <SelectItem value="stac-geoparquet">
-                      Stac Geoparquet
-                    </SelectItem>
-                    <SelectItem value="zarr">Zarr</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <CrudFormRunFields form={form} />
         </CrudFormDialog>
       </div>
       <div className="mt-8">

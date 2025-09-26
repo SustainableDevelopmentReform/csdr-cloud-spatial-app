@@ -1,9 +1,14 @@
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
+import { updateGeometriesSchema } from '@repo/server/schemas/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
-import { baseFormSchema, CrudForm } from '../../../../components/crud-form'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../components/crud-form'
 import { DetailCard } from '../../_components/detail-cards'
+import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../products/_hooks'
 import { GeometriesRunSummaryCard } from '../_components/geometries-run-summary-card'
 import {
@@ -12,10 +17,6 @@ import {
   useGeometriesRunsLink,
   useUpdateGeometries,
 } from '../_hooks'
-import { useForm } from 'react-hook-form'
-import { useEffect } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { SourcesCard } from '../../_components/sources-card'
 
 const GeometriesDetails = () => {
   const { data: geometries } = useGeometries()
@@ -25,7 +26,7 @@ const GeometriesDetails = () => {
   const geometriesRunsLink = useGeometriesRunsLink()
 
   const form = useForm({
-    resolver: zodResolver(baseFormSchema),
+    resolver: zodResolver(updateGeometriesSchema),
   })
 
   useEffect(() => {

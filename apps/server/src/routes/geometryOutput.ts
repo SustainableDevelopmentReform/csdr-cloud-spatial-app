@@ -15,17 +15,20 @@ import { geometryOutput } from '../schemas'
 import { MultiPolygonSchema, PolygonSchema } from '../schemas/geojson'
 import {
   baseColumns,
-  baseCreateResourceSchema,
   baseIdResourceSchema,
   baseIdResourceSchemaWithMainRunId,
   baseResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import {
+  createGeometryOutputSchema,
+  createManyGeometryOutputSchema,
+  updateGeometryOutputSchema,
+} from '../schemas/zod'
 
 export const geometryOutputQuery = {
   columns: {
@@ -113,17 +116,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                name: z.string(),
-                geometriesRunId: z.string(),
-                geometry: z.union([
-                  PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-                  MultiPolygonSchema.openapi({
-                    title: 'GeoJSON MultiPolygon',
-                  }),
-                ]),
-                properties: z.any().optional(),
-              }),
+              schema: createGeometryOutputSchema,
             },
           },
         },
@@ -182,21 +175,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: z.object({
-                geometriesRunId: z.string(),
-                outputs: z.array(
-                  baseCreateResourceSchema.extend({
-                    name: z.string(),
-                    geometry: z.union([
-                      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-                      MultiPolygonSchema.openapi({
-                        title: 'GeoJSON MultiPolygon',
-                      }),
-                    ]),
-                    properties: z.any().optional(),
-                  }),
-                ),
-              }),
+              schema: createManyGeometryOutputSchema,
             },
           },
         },
@@ -265,7 +244,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.omit({ name: true }),
+              schema: updateGeometryOutputSchema,
             },
           },
         },

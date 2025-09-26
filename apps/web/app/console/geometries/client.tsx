@@ -1,10 +1,17 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../components/crud-form'
 import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { GeometriesButton } from './_components/geometries-button'
@@ -13,20 +20,7 @@ import {
   useCreateGeometries,
   useGeometriesLink,
 } from './_hooks'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
-import { Input } from '@repo/ui/components/ui/input'
-import z from 'zod'
-
-const createGeometriesSchema = baseFormSchema.extend({
-  sourceUrl: z.string(),
-  sourceMetadataUrl: z.string(),
-})
+import { createGeometriesSchema } from '@repo/server/schemas/zod'
 
 const GeometriesFeature = () => {
   const { data, page, setPage } = useAllGeometries()

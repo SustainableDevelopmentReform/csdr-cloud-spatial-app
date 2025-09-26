@@ -12,12 +12,11 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas'
+import { baseColumns, QueryForTable } from '../schemas/util'
 import {
-  baseColumns,
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  QueryForTable,
-} from '../schemas/util'
+  createVariableCategorySchema,
+  updateVariableCategorySchema,
+} from '../schemas/zod'
 
 const variableCategoryQuery = {
   columns: {
@@ -142,11 +141,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                name: z.string().min(1),
-                parentId: z.string().optional(),
-                displayOrder: z.number().optional(),
-              }),
+              schema: createVariableCategorySchema,
             },
           },
         },
@@ -198,10 +193,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                parentId: z.string().optional(),
-                displayOrder: z.number().optional(),
-              }),
+              schema: updateVariableCategorySchema,
             },
           },
         },

@@ -14,13 +14,12 @@ import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, product } from '../schemas'
 import {
   baseColumns,
-  baseCreateResourceSchema,
   baseResourceSchema,
-  baseUpdateResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { createDatasetSchema, updateDatasetSchema } from '../schemas/zod'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 
 export const baseDatasetQuery = {
@@ -254,10 +253,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                sourceUrl: z.string().optional(),
-                sourceMetadataUrl: z.string().optional(),
-              }),
+              schema: createDatasetSchema,
             },
           },
         },
@@ -302,9 +298,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.extend({
-                mainRunId: z.string().optional(),
-              }),
+              schema: updateDatasetSchema,
             },
           },
         },

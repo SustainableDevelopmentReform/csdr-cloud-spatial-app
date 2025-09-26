@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createProductSchema } from '@repo/server/schemas/zod'
 import {
   FormField,
   FormItem,
@@ -14,18 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
+import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../components/crud-form'
 import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { DatasetButton } from '../datasets/_components/dataset-button'
 import { useDatasets } from '../datasets/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
-import { useAllGeometries, useGeometries } from '../geometries/_hooks'
+import { useAllGeometries } from '../geometries/_hooks'
 import { VariableButtons } from '../variables/_components/variable-button'
 import { ProductButton } from './_components/product-button'
 import {
@@ -34,7 +34,6 @@ import {
   useProductLink,
   useProducts,
 } from './_hooks'
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 
 const columnHelper = createColumnHelper<ProductListItem>()
 
@@ -91,12 +90,6 @@ const columns = [
   }),
 ] as ColumnDef<ProductListItem>[]
 
-const createProductSchema = baseFormSchema.extend({
-  datasetId: z.string(),
-  geometriesId: z.string(),
-  timePrecision: z.enum(['hour', 'day', 'month', 'year']),
-})
-
 const ProductFeature = () => {
   const { data, page, setPage, filters } = useProducts()
   const { data: datasets } = useDatasets()
@@ -123,7 +116,7 @@ const ProductFeature = () => {
         <CrudFormDialog
           form={form}
           mutation={createProduct}
-          hiddenFields={['id', 'createdAt', 'updatedAt']}
+          hiddenFields={['id']}
           entityName="Product"
           entityNamePlural="Products"
           buttonText="Add Product"
