@@ -1,4 +1,4 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { APIError as BetterAuthApiError } from 'better-auth/api'
 import { compress } from 'hono/compress'
@@ -12,7 +12,6 @@ import {
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
-  z,
 } from './lib/openapi'
 import { generateJsonResponse } from './lib/response'
 import { logger } from './middlewares/logger'

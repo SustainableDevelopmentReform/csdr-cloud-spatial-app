@@ -1,51 +1,59 @@
-import { createRoute } from '@hono/zod-openapi'
-import { count, desc, eq, sql } from 'drizzle-orm'
+import { createRoute, z } from '@hono/zod-openapi'
+import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { dataset, datasetRun } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
-import { datasetRunQuery } from './datasetRun'
-import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { dataset, datasetRun, product } from '../schemas'
+import {
+  baseColumns,
+  baseCreateResourceSchema,
+  baseResourceSchema,
+  baseUpdateResourceSchema,
+  createPayload,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
+import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 
-export const datasetQuery = {
+export const baseDatasetQuery = {
   columns: {
     ...baseColumns,
-    metadata: true,
     mainRunId: true,
     sourceUrl: true,
     sourceMetadataUrl: true,
   },
+} satisfies QueryForTable<'dataset'>
+
+export const fullDatasetQuery = {
+  columns: baseDatasetQuery.columns,
   with: {
-    mainRun: datasetRunQuery,
-  },
-  extras: {
-    runCount: sql<number>`(
-      SELECT COUNT(*)::int
-      FROM dataset_run dr
-      WHERE dr.dataset_id = ${dataset}.id
-    )`.as('run_count'),
-    productCount: sql<number>`(
-      SELECT COUNT(*)::int
-      FROM product p
-      WHERE p.dataset_id = ${dataset}.id
-    )`.as('product_count'),
+    mainRun: baseDatasetRunQuery,
   },
 } satisfies QueryForTable<'dataset'>
+
+export const baseDatasetSchema = baseResourceSchema
+  .extend({
+    mainRunId: z.string().nullable(),
+    sourceUrl: z.string().nullable(),
+    sourceMetadataUrl: z.string().nullable(),
+  })
+  .openapi('DatasetBase')
+
+export const fullDatasetSchema = baseDatasetSchema
+  .extend({
+    runCount: z.number().int(),
+    productCount: z.number().int(),
+    mainRun: baseDatasetRunSchema.nullable(),
+  })
+  .openapi('DatasetFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -73,7 +81,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseDatasetSchema),
                 }),
               ),
             },
@@ -96,7 +104,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.dataset.findMany({
-        ...datasetQuery,
+        ...baseDatasetQuery,
         limit: size,
         offset: skip,
         orderBy: desc(dataset.createdAt),
@@ -129,7 +137,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a dataset.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullDatasetSchema),
             },
           },
         },
@@ -143,7 +151,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.dataset.findFirst({
         where: (dataset, { eq }) => eq(dataset.id, id),
-        ...datasetQuery,
+        ...fullDatasetQuery,
       })
 
       if (!record) {
@@ -154,7 +162,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      return generateJsonResponse(c, record, 200)
+      const runCount = await db.$count(datasetRun, eq(datasetRun.datasetId, id))
+      const productCount = await db.$count(product, eq(product.datasetId, id))
+
+      return generateJsonResponse(c, { ...record, runCount, productCount }, 200)
     },
   )
   .openapi(
@@ -185,7 +196,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseDatasetRunSchema),
                 }),
               ),
             },
@@ -210,7 +221,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.datasetRun.findMany({
-        ...datasetRunQuery,
+        ...baseDatasetRunQuery,
         where: (datasetRun, { eq }) => eq(datasetRun.datasetId, id),
         limit: size,
         offset: skip,
@@ -256,7 +267,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a dataset.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(baseDatasetSchema.optional()),
             },
           },
         },
@@ -303,7 +314,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a dataset.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(baseDatasetSchema.optional()),
             },
           },
         },

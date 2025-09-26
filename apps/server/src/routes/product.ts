@@ -1,65 +1,80 @@
-import { createRoute } from '@hono/zod-openapi'
-import { and, count, desc, eq, sql, SQL } from 'drizzle-orm'
+import { createRoute, z } from '@hono/zod-openapi'
+import { and, count, desc, eq, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { product, productRun } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
-import { productRunQuery } from './productRun'
-import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
-import { datasetQuery } from './dataset'
-import { geometriesQuery } from './geometries'
-import { datasetRunQuery } from './datasetRun'
-import { geometriesRunQuery } from './geometriesRun'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { product, productRun } from '../schemas'
+import {
+  baseColumns,
+  baseCreateResourceSchema,
+  baseIdResourceSchema,
+  baseResourceSchema,
+  baseUpdateResourceSchema,
+  createPayload,
+  idColumns,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
+import { fullDatasetQuery, fullDatasetSchema } from './dataset'
+import { fullGeometriesQuery, fullGeometriesSchema } from './geometries'
+import {
+  baseProductRunQuery,
+  baseProductRunSchema,
+  fullProductRunQuery,
+  fullProductRunSchema,
+} from './productRun'
 
-const productQuery = {
+const baseProductQuery = {
   columns: {
     ...baseColumns,
-    metadata: true,
     timePrecision: true,
-    datasetId: true,
-    geometriesId: true,
     mainRunId: true,
   },
   with: {
-    dataset: {
-      columns: datasetQuery.columns,
-      with: { mainRun: { columns: datasetQuery.with.mainRun.columns } },
-    },
-    geometries: {
-      columns: geometriesQuery.columns,
-      with: { mainRun: { columns: geometriesQuery.with.mainRun.columns } },
-    },
-    mainRun: {
-      columns: productRunQuery.columns,
-      with: {
-        datasetRun: { columns: datasetRunQuery.columns },
-        geometriesRun: { columns: geometriesRunQuery.columns },
-      },
-    },
-  },
-  extras: {
-    runCount: sql<number>`(
-      SELECT COUNT(*)::int
-      FROM product_run pr
-      WHERE pr.product_id = ${product}.id
-    )`.as('run_count'),
+    dataset: { columns: idColumns },
+    geometries: { columns: idColumns },
+    mainRun: baseProductRunQuery,
   },
 } satisfies QueryForTable<'product'>
+
+export const fullProductQuery = {
+  columns: baseProductQuery.columns,
+  with: {
+    dataset: fullDatasetQuery,
+    geometries: fullGeometriesQuery,
+    mainRun: fullProductRunQuery,
+  },
+} satisfies QueryForTable<'product'>
+
+const baseProductSchema = baseResourceSchema
+  .extend({
+    timePrecision: z.enum(['hour', 'day', 'month', 'year']),
+    mainRunId: z.string().nullable(),
+    dataset: baseIdResourceSchema,
+    geometries: baseIdResourceSchema,
+    mainRun: baseProductRunSchema.nullable(),
+  })
+  .openapi('ProductBase')
+
+const fullProductSchema = baseProductSchema
+  .extend({
+    dataset: fullDatasetSchema.omit({ runCount: true, productCount: true }),
+    geometries: fullGeometriesSchema.omit({
+      runCount: true,
+      productCount: true,
+    }),
+    mainRun: fullProductRunSchema.nullable(),
+    runCount: z.number().int(),
+  })
+  .openapi('ProductFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -85,7 +100,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseProductSchema),
                 }),
               ),
             },
@@ -124,7 +139,7 @@ const app = createOpenAPIApp()
 
       // Get products with all related data using Drizzle query API
       const data = await db.query.product.findMany({
-        ...productQuery,
+        ...baseProductQuery,
         where: and(...filters),
         limit: size,
         offset: skip,
@@ -157,7 +172,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a product.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullProductSchema),
             },
           },
         },
@@ -171,7 +186,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.product.findFirst({
         where: (product, { eq }) => eq(product.id, id),
-        ...productQuery,
+        ...fullProductQuery,
       })
 
       if (!record) {
@@ -182,7 +197,9 @@ const app = createOpenAPIApp()
         })
       }
 
-      return generateJsonResponse(c, record, 200)
+      const runCount = await db.$count(productRun, eq(productRun.productId, id))
+
+      return generateJsonResponse(c, { ...record, runCount }, 200)
     },
   )
 
@@ -212,7 +229,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseProductRunSchema),
                 }),
               ),
             },
@@ -253,7 +270,7 @@ const app = createOpenAPIApp()
       }
 
       const data = await db.query.productRun.findMany({
-        ...productRunQuery,
+        ...baseProductRunQuery,
         where: and(...filters),
         limit: size,
         offset: skip,
@@ -297,7 +314,11 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                baseProductSchema
+                  .omit({ mainRun: true, geometries: true, dataset: true })
+                  .optional(),
+              ),
             },
           },
         },
@@ -344,7 +365,11 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                baseProductSchema
+                  .omit({ mainRun: true, geometries: true, dataset: true })
+                  .optional(),
+              ),
             },
           },
         },

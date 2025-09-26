@@ -4,7 +4,7 @@ import { DetailCard } from './detail-cards'
 export const SourcesCard = ({
   resource,
 }: {
-  resource: { sourceUrl?: string | null; sourceMetadataUrl?: string | null }
+  resource: { sourceUrl?: string; sourceMetadataUrl?: string }
 }) => {
   if (!resource.sourceUrl && !resource.sourceMetadataUrl) {
     return null

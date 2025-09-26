@@ -53,7 +53,6 @@ export const BaseResponseSchema = z
   .object({
     statusCode: z.number().int().openapi({ example: 200 }),
     message: z.string().openapi({ example: 'OK' }),
-    data: z.any().nullable().optional(),
     description: z.string().nullable().optional(),
   })
   .openapi('BaseResponse')
@@ -139,5 +138,3 @@ export const createOpenAPIApp = <E extends Env = Env>(
     ...options,
     defaultHook: options.defaultHook ?? defaultValidationHook,
   })
-
-export { z }

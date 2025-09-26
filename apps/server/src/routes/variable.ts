@@ -1,31 +1,38 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { authMiddleware } from '~/middlewares/auth'
-import { generateJsonResponse } from '../lib/response'
-import { variable } from '../schemas'
-import { baseColumns, QueryForTable } from '../schemas/util'
-import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
-  createPayload,
-  updatePayload,
-} from './util'
 import {
   BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
+import { authMiddleware } from '~/middlewares/auth'
+import { generateJsonResponse } from '../lib/response'
+import { variable } from '../schemas'
+import {
+  baseColumns,
+  baseCreateResourceSchema,
+  baseResourceSchema,
+  baseUpdateResourceSchema,
+  createPayload,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
 
-const variableQuery = {
+export const baseVariableQuery = {
   columns: {
     ...baseColumns,
-    displayOrder: true,
     unit: true,
+  },
+} satisfies QueryForTable<'variable'>
+
+const fullVariableQuery = {
+  columns: {
+    ...baseVariableQuery.columns,
+    displayOrder: true,
     categoryId: true,
   },
   with: {
@@ -34,6 +41,20 @@ const variableQuery = {
     },
   },
 } satisfies QueryForTable<'variable'>
+
+export const baseVariableSchema = baseResourceSchema
+  .extend({
+    unit: z.string(),
+  })
+  .openapi('VariableSchemaBase')
+
+export const fullVariableSchema = baseVariableSchema
+  .extend({
+    category: baseResourceSchema.nullable(),
+    displayOrder: z.number().int().nullable(),
+    categoryId: z.string().nullable(),
+  })
+  .openapi('VariableSchemaFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -57,7 +78,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(baseVariableSchema),
                 }),
               ),
             },
@@ -80,7 +101,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.variable.findMany({
-        ...variableQuery,
+        ...fullVariableQuery,
         limit: size,
         offset: skip,
         orderBy: desc(variable.createdAt),
@@ -112,7 +133,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a variable.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullVariableSchema),
             },
           },
         },
@@ -126,7 +147,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.variable.findFirst({
         where: (variable, { eq }) => eq(variable.id, id),
-        ...variableQuery,
+        ...fullVariableQuery,
       })
 
       if (!record) {
