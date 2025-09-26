@@ -1,7 +1,14 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { avg, count, desc, eq, max, min } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import {
+  BaseResponseSchema,
+  createOpenAPIApp,
+  createResponseSchema,
+  jsonErrorResponse,
+  validationErrorResponse,
+} from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
@@ -11,25 +18,27 @@ import {
   productOutputSummaryVariable,
   productRun,
 } from '../schemas'
-import { baseColumns, baseRunColumns, QueryForTable } from '../schemas/util'
-import { productOutputQuery } from './productOutput'
 import {
-  baseCreateResourceSchema,
-  baseCreateRunResourceSchema,
-  baseUpdateResourceSchema,
+  baseIdResourceSchema,
+  baseIdResourceSchemaWithMainRunId,
+  baseRunColumns,
+  baseRunResourceSchema,
   createPayload,
+  idColumns,
+  idColumnsWithMainRunId,
+  QueryForTable,
   updatePayload,
-} from './util'
+} from '../schemas/util'
+import { createProductRunSchema, updateProductRunSchema } from '../schemas/zod'
+import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 import {
-  BaseResponseSchema,
-  createOpenAPIApp,
-  createResponseSchema,
-  jsonErrorResponse,
-  validationErrorResponse,
-  z,
-} from '~/lib/openapi'
+  baseGeometriesRunQuery,
+  baseGeometriesRunSchema,
+} from './geometriesRun'
+import { productOutputQuery, productOutputSchema } from './productOutput'
+import { baseVariableQuery, baseVariableSchema } from './variable'
 
-export const productRunOutputSummaryQuery = {
+export const baseProductRunOutputSummaryQuery = {
   columns: {
     lastUpdated: true,
     startTime: true,
@@ -38,9 +47,18 @@ export const productRunOutputSummaryQuery = {
   },
   with: {
     variables: {
+      with: {
+        variable: baseVariableQuery,
+      },
+    },
+  },
+} satisfies QueryForTable<'productOutputSummary'>
+
+export const fullProductRunOutputSummaryQuery = {
+  columns: baseProductRunOutputSummaryQuery.columns,
+  with: {
+    variables: {
       columns: {
-        productRunId: true,
-        variableId: true,
         minValue: true,
         maxValue: true,
         avgValue: true,
@@ -48,56 +66,87 @@ export const productRunOutputSummaryQuery = {
         lastUpdated: true,
       },
       with: {
-        variable: {
-          columns: {
-            ...baseColumns,
-            unit: true,
-            categoryId: true,
-          },
-        },
+        variable: baseVariableQuery,
       },
     },
   },
 } satisfies QueryForTable<'productOutputSummary'>
 
-export const productRunQuery = {
+export const baseProductRunQuery = {
   columns: {
     ...baseRunColumns,
-    metadata: true,
-    productId: true,
   },
   with: {
-    outputSummary: productRunOutputSummaryQuery,
     product: {
-      columns: {
-        ...baseColumns,
-        mainRunId: true,
-      },
+      columns: idColumnsWithMainRunId,
     },
     datasetRun: {
-      columns: baseRunColumns,
-      with: {
-        dataset: {
-          columns: {
-            ...baseColumns,
-            mainRunId: true,
-          },
-        },
-      },
+      columns: idColumns,
     },
     geometriesRun: {
-      columns: baseRunColumns,
-      with: {
-        geometries: {
-          columns: {
-            ...baseColumns,
-            mainRunId: true,
-          },
-        },
-      },
+      columns: idColumns,
     },
+    outputSummary: baseProductRunOutputSummaryQuery,
   },
 } satisfies QueryForTable<'productRun'>
+
+export const fullProductRunQuery = {
+  columns: baseProductRunQuery.columns,
+  with: {
+    ...baseProductRunQuery.with,
+    datasetRun: baseDatasetRunQuery,
+    geometriesRun: baseGeometriesRunQuery,
+    outputSummary: fullProductRunOutputSummaryQuery,
+  },
+} satisfies QueryForTable<'productRun'>
+
+export const baseProductRunOutputSummarySchema = z
+  .object({
+    startTime: z.date().nullable(),
+    endTime: z.date().nullable(),
+    outputCount: z.number().int(),
+    variables: z.array(
+      z.object({
+        variable: baseVariableSchema,
+      }),
+    ),
+  })
+  .openapi('ProductRunOutputSummaryBase')
+
+export const fullProductRunOutputSummarySchema = z
+  .object({
+    startTime: z.date().nullable(),
+    endTime: z.date().nullable(),
+    outputCount: z.number().int(),
+    variables: z.array(
+      z.object({
+        minValue: z.string().nullable(),
+        maxValue: z.string().nullable(),
+        avgValue: z.string().nullable(),
+        count: z.number().int(),
+        lastUpdated: z.date(),
+        variable: baseVariableSchema,
+      }),
+    ),
+  })
+  .openapi('ProductRunOutputSummaryFull')
+
+export const baseProductRunSchema = baseRunResourceSchema
+  .extend({
+    product: baseIdResourceSchemaWithMainRunId,
+    datasetRun: baseIdResourceSchema,
+    geometriesRun: baseIdResourceSchema,
+    outputSummary: baseProductRunOutputSummarySchema,
+  })
+  .openapi('ProductRunBase')
+
+export const fullProductRunSchema = baseProductRunSchema
+  .extend({
+    datasetRun: baseDatasetRunSchema,
+    geometriesRun: baseGeometriesRunSchema,
+    outputSummary: fullProductRunOutputSummarySchema,
+  })
+  .openapi('ProductRunFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -114,7 +163,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullProductRunSchema),
             },
           },
         },
@@ -128,7 +177,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.productRun.findFirst({
         where: (productRun, { eq }) => eq(productRun.id, id),
-        ...productRunQuery,
+        ...fullProductRunQuery,
       })
 
       if (!record) {
@@ -165,7 +214,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(z.any()),
+                  data: z.array(productOutputSchema),
                 }),
               ),
             },
@@ -218,12 +267,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateRunResourceSchema.extend({
-                dataType: z.enum(['parquet']).optional(),
-                productId: z.string(),
-                datasetRunId: z.string(),
-                geometriesRunId: z.string(),
-              }),
+              schema: createProductRunSchema,
             },
           },
         },
@@ -233,7 +277,16 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                baseProductRunSchema
+                  .omit({
+                    outputSummary: true,
+                    datasetRun: true,
+                    geometriesRun: true,
+                    product: true,
+                  })
+                  .optional(),
+              ),
             },
           },
         },
@@ -265,7 +318,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema,
+              schema: updateProductRunSchema,
             },
           },
         },
@@ -275,7 +328,16 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                baseProductRunSchema
+                  .omit({
+                    outputSummary: true,
+                    datasetRun: true,
+                    geometriesRun: true,
+                    product: true,
+                  })
+                  .optional(),
+              ),
             },
           },
         },
@@ -397,7 +459,14 @@ const app = createOpenAPIApp()
               schema: createResponseSchema(
                 z.object({
                   message: z.string(),
-                  data: z.any().nullable(),
+                  data: baseProductRunSchema
+                    .omit({
+                      outputSummary: true,
+                      datasetRun: true,
+                      geometriesRun: true,
+                      product: true,
+                    })
+                    .optional(),
                 }),
               ),
             },
@@ -502,7 +571,7 @@ const app = createOpenAPIApp()
       const updatedRun = await db.query.productRun.findFirst({
         where: (productRun, { eq }) => eq(productRun.id, id),
         with: {
-          outputSummary: productRunOutputSummaryQuery,
+          outputSummary: fullProductRunOutputSummaryQuery,
         },
       })
 

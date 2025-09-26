@@ -1,12 +1,13 @@
 'use client'
 
-import { Button } from '@repo/ui/components/ui/button'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import Pagination from '~/components/pagination'
-import { baseFormSchema } from '../../../../../components/crud-form'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/crud-table'
 import { DatasetRunButton } from '../../_components/dataset-run-button'
 import {
@@ -16,14 +17,9 @@ import {
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { createDatasetRunSchema } from '@repo/server/schemas/zod'
 
 const columnHelper = createColumnHelper<DatasetRunListItem>()
-
-const createDatasetRunSchema = baseFormSchema.extend({
-  datasetId: z.string(),
-})
 
 const DatasetRunFeature = () => {
   const { data: dataset } = useDataset()
@@ -58,7 +54,9 @@ const DatasetRunFeature = () => {
           buttonText="Add Dataset Run"
           entityName="Dataset Run"
           entityNamePlural="dataset runs"
-        />
+        >
+          <CrudFormRunFields form={form} />
+        </CrudFormDialog>
       </div>
       <div className="mt-8">
         <BaseCrudTable

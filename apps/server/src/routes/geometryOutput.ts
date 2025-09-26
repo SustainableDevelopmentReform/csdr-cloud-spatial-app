@@ -1,4 +1,4 @@
-import { createRoute } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -8,19 +8,27 @@ import {
   createResponseSchema,
   jsonErrorResponse,
   validationErrorResponse,
-  z,
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas'
 import { MultiPolygonSchema, PolygonSchema } from '../schemas/geojson'
-import { baseColumns, QueryForTable } from '../schemas/util'
 import {
-  baseCreateResourceSchema,
-  baseUpdateResourceSchema,
+  baseColumns,
+  baseIdResourceSchema,
+  baseIdResourceSchemaWithMainRunId,
+  baseResourceSchema,
   createPayload,
+  idColumns,
+  idColumnsWithMainRunId,
+  QueryForTable,
   updatePayload,
-} from './util'
+} from '../schemas/util'
+import {
+  createGeometryOutputSchema,
+  createManyGeometryOutputSchema,
+  updateGeometryOutputSchema,
+} from '../schemas/zod'
 
 export const geometryOutputQuery = {
   columns: {
@@ -30,14 +38,28 @@ export const geometryOutputQuery = {
   },
   with: {
     geometriesRun: {
+      columns: idColumns,
       with: {
         geometries: {
-          columns: { ...baseColumns, mainRunId: true },
+          columns: idColumnsWithMainRunId,
         },
       },
     },
   },
 } satisfies QueryForTable<'geometryOutput'>
+
+export const geometryOutputSchema = baseResourceSchema
+  .extend({
+    properties: z.any(),
+    geometry: z.union([
+      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
+      MultiPolygonSchema.openapi({ title: 'GeoJSON MultiPolygon' }),
+    ]),
+    geometriesRun: baseIdResourceSchema.extend({
+      geometries: baseIdResourceSchemaWithMainRunId,
+    }),
+  })
+  .openapi('GeometryOutputSchema')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -54,7 +76,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a geometry output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(geometryOutputSchema),
             },
           },
         },
@@ -94,17 +116,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseCreateResourceSchema.extend({
-                name: z.string(),
-                geometriesRunId: z.string(),
-                geometry: z.union([
-                  PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-                  MultiPolygonSchema.openapi({
-                    title: 'GeoJSON MultiPolygon',
-                  }),
-                ]),
-                properties: z.any().optional(),
-              }),
+              schema: createGeometryOutputSchema,
             },
           },
         },
@@ -114,7 +126,11 @@ const app = createOpenAPIApp()
           description: 'Successfully created a geometry output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                geometryOutputSchema
+                  .omit({ geometry: true, geometriesRun: true })
+                  .optional(),
+              ),
             },
           },
         },
@@ -159,21 +175,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: z.object({
-                geometriesRunId: z.string(),
-                outputs: z.array(
-                  baseCreateResourceSchema.extend({
-                    name: z.string(),
-                    geometry: z.union([
-                      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-                      MultiPolygonSchema.openapi({
-                        title: 'GeoJSON MultiPolygon',
-                      }),
-                    ]),
-                    properties: z.any().optional(),
-                  }),
-                ),
-              }),
+              schema: createManyGeometryOutputSchema,
             },
           },
         },
@@ -183,7 +185,14 @@ const app = createOpenAPIApp()
           description: 'Successfully created multiple geometry outputs.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                z.array(
+                  geometryOutputSchema.omit({
+                    geometry: true,
+                    geometriesRun: true,
+                  }),
+                ),
+              ),
             },
           },
         },
@@ -235,7 +244,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: baseUpdateResourceSchema.omit({ name: true }),
+              schema: updateGeometryOutputSchema,
             },
           },
         },
@@ -245,7 +254,11 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a geometry output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(
+                geometryOutputSchema
+                  .omit({ geometry: true, geometriesRun: true })
+                  .optional(),
+              ),
             },
           },
         },

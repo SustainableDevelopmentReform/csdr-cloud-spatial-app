@@ -2,6 +2,7 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "skipLibCheck": true,
+    "noEmit": true,
     "paths": {
       "~/*": [
         "./src/*"
@@ -14,11 +15,10 @@
     "strict": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx"
+    "src/**/*",
+    "scripts/**/*"
   ],
   "exclude": [
-    "node_modules",
-    "dist"
+    "node_modules"
   ]
 }
