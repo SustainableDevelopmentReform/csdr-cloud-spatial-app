@@ -1,14 +1,12 @@
 {
   "name": "@repo/server",
   "version": "0.0.0",
-  "private": true,
-  "type": "module",
   "exports": {
-    ".": {
-      "import": "./src/index.ts"
-    },
-    "./*": {
-      "import": "./*"
+    "./hc": {
+      "import": {
+        "default": "./dist/hc.js",
+        "types": "./dist/hc.d.ts"
+      }
     }
   },
   "scripts": {
