@@ -200,7 +200,7 @@ const ProductOutputFeature = () => {
                 <CalendarSelect
                   label="Time Point"
                   value={new Date(field.value)}
-                  onChange={field.onChange}
+                  onChange={(event) => field.onChange(event?.toISOString())}
                 />
                 <FormMessage />
               </FormItem>

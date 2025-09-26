@@ -520,6 +520,6 @@ export type GeometryOutputLinkParams = Pick<
 export const useGeometryOutputLink = () =>
   useCallback(
     (geometryOutput: GeometryOutputLinkParams) =>
-      `/console/geometries/${geometryOutput.geometriesRun.geometriesId}/runs/${geometryOutput.geometriesRun.id}/outputs/${geometryOutput.id}`,
+      `/console/geometries/${geometryOutput.geometriesRun.geometries.id}/runs/${geometryOutput.geometriesRun.id}/outputs/${geometryOutput.id}`,
     [],
   )

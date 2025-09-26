@@ -11,21 +11,15 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../../../../components/crud-form'
 import { formatDateTime } from '../../../../../../../../utils/date'
 import { DetailCard } from '../../../../../../_components/detail-cards'
-import { useGeometriesLink } from '../../../../../../geometries/_hooks'
+import { GeometryOutputCard } from '../../../../../../_components/geometry-output-card'
+import { useGeometryOutputLink } from '../../../../../../geometries/_hooks'
 import { VariableButton } from '../../../../../../variables/_components/variable-button'
-import {
-  useProduct,
-  useProductOutput,
-  useProductRun,
-  useUpdateProductOutput,
-} from '../../../../../_hooks'
+import { useProductOutput, useUpdateProductOutput } from '../../../../../_hooks'
 
 const ProductRunDetails = () => {
-  const { data: product } = useProduct()
-  const { data: productRun } = useProductRun()
   const { data: productOutput } = useProductOutput()
   const updateProductOutput = useUpdateProductOutput()
-  const geometriesLink = useGeometriesLink()
+  const geometryOutputLink = useGeometryOutputLink()
 
   const geometry = useMemo(() => {
     return (
@@ -97,15 +91,10 @@ const ProductRunDetails = () => {
           />
         )}
         {productOutput?.geometryOutput && (
-          <DetailCard
-            title={`${productOutput?.geometryOutput?.geometriesRun?.geometries?.name} : ${productOutput?.geometryOutput?.name}`}
-            description="Geometry"
-            footer={`Created: ${formatDateTime(productRun?.geometriesRun?.createdAt)}`}
-            subFooter={productRun?.geometriesRun?.id}
+          <GeometryOutputCard
+            geometryOutput={productOutput?.geometryOutput}
             actionText="Open"
-            actionLink={geometriesLink(
-              productOutput?.geometryOutput?.geometriesRun?.geometries,
-            )}
+            actionLink={geometryOutputLink(productOutput?.geometryOutput)}
             actionIcon={<ArrowUpRightIcon />}
           />
         )}
