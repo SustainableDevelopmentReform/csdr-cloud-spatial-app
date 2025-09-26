@@ -1,4 +1,5 @@
 import { Button } from '@repo/ui/components/ui/button'
+import { CopyButton } from '@repo/ui/components/ui/copy-button'
 import {
   Form,
   FormControl,
@@ -8,6 +9,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { toast } from '@repo/ui/components/ui/sonner'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { cn } from '@repo/ui/lib/utils'
 import { UseMutationResult } from '@tanstack/react-query'
@@ -16,7 +18,6 @@ import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { formatDateTime } from '../utils/date'
 import { CrudFormAction, FormAction } from './crud-form-action'
-import { toast } from '@repo/ui/components/ui/sonner'
 
 export const baseFormSchema = z.object({
   id: z.string().optional().readonly(),
@@ -118,11 +119,17 @@ export const CrudForm = <Data extends z.infer<typeof baseFormSchema>>({
           {shouldShowField('id') && isReadOnlyField('id') && (
             <FormItem>
               <FormLabel>{getFieldLabel('id')}</FormLabel>
-              <Input
-                disabled
-                value={form.getValues('id' as Path<Data>) ?? ''}
-                className="bg-gray-100"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  disabled
+                  value={form.getValues('id' as Path<Data>) ?? ''}
+                  className="bg-gray-100"
+                />
+                <CopyButton
+                  value={form.getValues('id' as Path<Data>) ?? ''}
+                  className="h-9 w-9"
+                />
+              </div>
             </FormItem>
           )}
 
