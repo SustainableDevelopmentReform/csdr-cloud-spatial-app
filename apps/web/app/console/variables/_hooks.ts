@@ -160,7 +160,7 @@ export const useCreateVariable = () => {
       const res = client.api.v0.variable.$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Variable],
@@ -176,7 +176,7 @@ export const useCreateVariableCategory = () => {
       const res = client.api.v0['variable-category'].$post({
         json: data,
       })
-      const variableCategory = await unwrapResponse(res)
+      const variableCategory = await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
         queryKey: [QueryKey.VariableCategory],

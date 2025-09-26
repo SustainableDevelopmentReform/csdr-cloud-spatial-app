@@ -327,7 +327,7 @@ export const useCreateProduct = () => {
       const res = client.api.v0.product.$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Product],
@@ -343,7 +343,7 @@ export const useCreateProductRun = () => {
       const res = client.api.v0['product-run'].$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductRun],
       })
@@ -361,7 +361,7 @@ export const useCreateProductRunOutput = () => {
       const res = client.api.v0['product-output'].$post({
         json: data,
       })
-      await unwrapResponse(res)
+      await unwrapResponse(res, 201)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ProductOutput],
       })

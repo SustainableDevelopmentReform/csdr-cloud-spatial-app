@@ -1,6 +1,7 @@
 {
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
+    "skipLibCheck": true,
     "plugins": [
       {
         "name": "next"
@@ -22,7 +23,8 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist"
   ],
   "references": [
     {
