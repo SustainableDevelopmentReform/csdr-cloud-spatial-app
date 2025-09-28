@@ -1,3 +1,5 @@
+'use client'
+
 import {
   keepPreviousData,
   useMutation,
@@ -580,10 +582,12 @@ export const useDeleteProductRun = (
   })
 }
 
+export const PRODUCTS_BASE_PATH = '/console/products'
+
 export const useProductsLink = () =>
   useCallback(
     (query?: z.infer<typeof productQuerySchema>) =>
-      `/console/products?${new URLSearchParams(query ?? {}).toString()}`,
+      `${PRODUCTS_BASE_PATH}?${new URLSearchParams(query ?? {}).toString()}`,
     [],
   )
 
@@ -591,7 +595,7 @@ export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'>
 
 export const useProductLink = () =>
   useCallback(
-    (product: ProductLinkParams) => `/console/products/${product.id}`,
+    (product: ProductLinkParams) => `${PRODUCTS_BASE_PATH}/${product.id}`,
     [],
   )
 
@@ -601,7 +605,7 @@ export const useProductRunsLink = () =>
       product: ProductLinkParams | null,
       query?: z.infer<typeof productRunQuerySchema>,
     ) =>
-      `/console/products/${product?.id ?? '*'}/runs?${new URLSearchParams(query ?? {}).toString()}`,
+      `${PRODUCTS_BASE_PATH}/${product?.id ?? '*'}/runs?${new URLSearchParams(query ?? {}).toString()}`,
     [],
   )
 
@@ -610,10 +614,19 @@ export type ProductRunLinkParams = Pick<
   'id' | 'name' | 'product'
 >
 
+export const PRODUCTS_RUNS_BASE_PATH = '/console/product-run'
+
 export const useProductRunLink = () =>
   useCallback(
     (productRun: ProductRunLinkParams) =>
-      `/console/products/${productRun.product.id}/runs/${productRun.id}`,
+      `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}`,
+    [],
+  )
+
+export const useProductRunOutputsLink = () =>
+  useCallback(
+    (productRun: ProductRunLinkParams) =>
+      `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}/outputs`,
     [],
   )
 
@@ -622,9 +635,11 @@ export type ProductOutputLinkParams = Pick<
   'id' | 'name' | 'productRun'
 >
 
+export const PRODUCTS_RUNS_OUTPUTS_BASE_PATH = '/console/product-output'
+
 export const useProductOutputLink = () =>
   useCallback(
     (productOutput: ProductOutputLinkParams) =>
-      `/console/products/${productOutput.productRun.product.id}/runs/${productOutput.productRun.id}/outputs/${productOutput.id}`,
+      `${PRODUCTS_RUNS_OUTPUTS_BASE_PATH}/${productOutput.id}`,
     [],
   )

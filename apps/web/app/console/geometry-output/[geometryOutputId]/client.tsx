@@ -9,12 +9,12 @@ import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { CrudForm } from '../../../../../../../../components/crud-form'
-import { GeometryOutputCard } from '../../../../../../_components/geometry-output-card'
+import { CrudForm } from '../../../../components/crud-form'
+import { GeometryOutputCard } from '../../_components/geometry-output-card'
 import {
   useGeometryOutput,
   useUpdateGeometryOutput,
-} from '../../../../../_hooks'
+} from '../../geometries/_hooks'
 
 const GeometriesRunDetails = () => {
   const { data: geometryOutput } = useGeometryOutput()

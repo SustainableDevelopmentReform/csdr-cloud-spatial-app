@@ -9,11 +9,12 @@ import {
 import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
 import {
+  GEOMETRIES_BASE_PATH,
   useGeometries,
   useGeometriesRun,
-  useGeometriesRunLink,
   useGeometriesRunsLink,
   useGeometryOutput,
+  useGeometryRunOutputsLink,
 } from '../_hooks'
 import { GeometriesButton } from './geometries-button'
 import { GeometriesRunButton } from './geometries-run-button'
@@ -22,12 +23,19 @@ import { GeometryOutputButton } from './geometry-output-button'
 export const GeometriesBreadcrumbs = () => {
   const pathname = usePathname()
 
-  const { data: geometries } = useGeometries()
-  const { data: geometriesRun } = useGeometriesRun()
-  const { data: geometryOutput } = useGeometryOutput()
+  const { data: geometriesFromUrl } = useGeometries()
+  const { data: geometriesRunFromUrl } = useGeometriesRun()
+  const { data: geometryOutputFromUrl } = useGeometryOutput()
 
-  const geometriesRunLink = useGeometriesRunLink()
+  const geometries =
+    geometriesFromUrl ??
+    geometriesRunFromUrl?.geometries ??
+    geometryOutputFromUrl?.geometriesRun?.geometries
+  const geometriesRun =
+    geometriesRunFromUrl ?? geometryOutputFromUrl?.geometriesRun
+
   const geometriesRunsLink = useGeometriesRunsLink()
+  const geometryRunOutputsLink = useGeometryRunOutputsLink()
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -39,7 +47,7 @@ export const GeometriesBreadcrumbs = () => {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console/geometries">Geometries</Link>
+            <Link href={GEOMETRIES_BASE_PATH}>Geometries</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {geometries && (
@@ -52,16 +60,19 @@ export const GeometriesBreadcrumbs = () => {
             </BreadcrumbItem>
           </>
         )}
-        {geometries && pathname?.includes('runs') && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={geometriesRunsLink(geometries)}>Runs</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
+        {geometries &&
+          (pathname?.includes('runs') ||
+            geometriesRunFromUrl ||
+            geometryOutputFromUrl) && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href={geometriesRunsLink(geometries)}>Runs</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
 
         {geometriesRun && (
           <>
@@ -75,24 +86,25 @@ export const GeometriesBreadcrumbs = () => {
             </BreadcrumbItem>
           </>
         )}
-        {geometriesRun && pathname?.includes('outputs') && (
+        {geometriesRun &&
+          (pathname?.includes('outputs') || geometryOutputFromUrl) && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href={geometryRunOutputsLink(geometriesRun)}>
+                    Outputs
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
+        {geometryOutputFromUrl && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={`${geometriesRunLink(geometriesRun)}/outputs`}>
-                  Outputs
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
-        {geometryOutput && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <GeometryOutputButton geometryOutput={geometryOutput} />
+                <GeometryOutputButton geometryOutput={geometryOutputFromUrl} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>

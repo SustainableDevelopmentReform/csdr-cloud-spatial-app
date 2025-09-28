@@ -1,24 +1,24 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { updateDatasetRunSchema } from '@repo/server/schemas/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { CrudForm } from '../../../../../../components/crud-form'
-import { CrudFormAction } from '../../../../../../components/crud-form-action'
-import { DetailCard } from '../../../../_components/detail-cards'
-import { useProductRunsLink } from '../../../../products/_hooks'
-import { DatasetRunSummaryCard } from '../../../_components/dataset-run-summary-card'
+import { CrudForm } from '../../../../components/crud-form'
+import { CrudFormAction } from '../../../../components/crud-form-action'
+import { CrudFormRunFields } from '../../../../components/crud-form-run-fields'
+import { DetailCard } from '../../_components/detail-cards'
+import { DatasetRunSummaryCard } from '../../datasets/_components/dataset-run-summary-card'
 import {
-  useDataset,
   useDatasetRun,
-  useDeleteDatasetRun,
-  useSetDatasetMainRun,
   useUpdateDatasetRun,
-} from '../../../_hooks'
-import { updateDatasetRunSchema } from '@repo/server/schemas/zod'
-import { CrudFormRunFields } from '../../../../../../components/crud-form-run-fields'
+  useDeleteDatasetRun,
+  useDataset,
+  useSetDatasetMainRun,
+} from '../../datasets/_hooks'
+import { useProductRunsLink } from '../../products/_hooks'
 
 const DatasetRunDetails = () => {
   const { data: datasetRun } = useDatasetRun()
@@ -58,7 +58,7 @@ const DatasetRunDetails = () => {
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DatasetRunSummaryCard dataset={dataset} datasetRun={datasetRun} />
+        <DatasetRunSummaryCard run={datasetRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
           {datasetRun && (
             <DetailCard

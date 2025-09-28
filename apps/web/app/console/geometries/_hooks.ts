@@ -1,3 +1,5 @@
+'use client'
+
 import {
   keepPreviousData,
   useMutation,
@@ -486,17 +488,19 @@ export const useDeleteGeometriesRun = (
 
 export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'>
 
+export const GEOMETRIES_BASE_PATH = '/console/geometries'
+
 export const useGeometriesLink = () =>
   useCallback(
     (geometries: GeometriesLinkParams) =>
-      `/console/geometries/${geometries.id}`,
+      `${GEOMETRIES_BASE_PATH}/${geometries.id}`,
     [],
   )
 
 export const useGeometriesRunsLink = () =>
   useCallback(
     (geometries: GeometriesLinkParams) =>
-      `/console/geometries/${geometries.id}/runs`,
+      `${GEOMETRIES_BASE_PATH}/${geometries.id}/runs`,
     [],
   )
 
@@ -505,10 +509,19 @@ export type GeometriesRunLinkParams = Pick<
   'id' | 'name' | 'geometries'
 >
 
+export const GEOMETRIES_RUNS_BASE_PATH = `/console/geometries-run`
+
 export const useGeometriesRunLink = () =>
   useCallback(
     (geometriesRun: GeometriesRunLinkParams) =>
-      `/console/geometries/${geometriesRun.geometries.id}/runs/${geometriesRun.id}`,
+      `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`,
+    [],
+  )
+
+export const useGeometryRunOutputsLink = () =>
+  useCallback(
+    (geometriesRun: GeometriesRunLinkParams) =>
+      `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}/outputs`,
     [],
   )
 
@@ -517,9 +530,11 @@ export type GeometryOutputLinkParams = Pick<
   'id' | 'geometriesRun' | 'name'
 >
 
+export const GEOMETRIES_RUNS_OUTPUTS_BASE_PATH = `/console/geometry-output`
+
 export const useGeometryOutputLink = () =>
   useCallback(
     (geometryOutput: GeometryOutputLinkParams) =>
-      `/console/geometries/${geometryOutput.geometriesRun.geometries.id}/runs/${geometryOutput.geometriesRun.id}/outputs/${geometryOutput.id}`,
+      `${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutput.id}`,
     [],
   )

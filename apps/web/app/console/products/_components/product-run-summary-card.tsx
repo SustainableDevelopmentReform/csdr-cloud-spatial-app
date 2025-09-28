@@ -5,24 +5,22 @@ import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
 import { VariableButton } from '../../variables/_components/variable-button'
 import {
-  ProductDetail,
   ProductRunDetail,
   useProductRunLink,
   useRefreshProductRunSummary,
 } from '../_hooks'
 
 export const ProductRunSummaryCard = ({
-  product,
-  productRun,
+  run,
+  mainRun = false,
 }: {
-  product: ProductDetail | undefined | null
-  productRun?: ProductRunDetail | undefined | null
+  run?: ProductRunDetail | undefined | null
+  mainRun?: boolean
 }) => {
   const productRunLink = useProductRunLink()
-  const run = productRun ?? product?.mainRun ?? undefined
   const refreshProductRunSummary = useRefreshProductRunSummary(run)
 
-  if (!run) {
+  if (!run && mainRun) {
     return <NoMainRunCard />
   }
 
@@ -49,11 +47,9 @@ export const ProductRunSummaryCard = ({
   return (
     <DetailCard
       title={`Created at ${formatDateTime(run?.createdAt)}`}
-      description={
-        productRun ? 'Product Run Summary' : 'Product Main Run Summary'
-      }
+      description={mainRun ? 'Product Main Run Summary' : 'Product Run Summary'}
       actionText="Open"
-      actionLink={!productRun ? productRunLink(run) : undefined}
+      actionLink={run && mainRun ? productRunLink(run) : undefined}
       actionIcon={<ArrowUpRightIcon />}
       footer={`Data range: ${formatDate(run?.outputSummary?.startTime)} to ${formatDate(run?.outputSummary?.endTime)}`}
       subFooter={

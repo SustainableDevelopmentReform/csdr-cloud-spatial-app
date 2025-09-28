@@ -16,28 +16,28 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/pagination'
-import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
-import BaseCrudTable from '../../../../../../../components/crud-table'
-import { formatDateTime } from '../../../../../../../utils/date'
-import { DatasetButton } from '../../../../../datasets/_components/dataset-button'
-import { DatasetRunButton } from '../../../../../datasets/_components/dataset-run-button'
-import { GeometriesButton } from '../../../../../geometries/_components/geometries-button'
-import { GeometriesRunButton } from '../../../../../geometries/_components/geometries-run-button'
-import { GeometryOutputButton } from '../../../../../geometries/_components/geometry-output-button'
+import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import BaseCrudTable from '../../../../../components/crud-table'
+import { formatDateTime } from '../../../../../utils/date'
+import { DatasetButton } from '../../../datasets/_components/dataset-button'
+import { DatasetRunButton } from '../../../datasets/_components/dataset-run-button'
+import { GeometriesButton } from '../../../geometries/_components/geometries-button'
+import { GeometriesRunButton } from '../../../geometries/_components/geometries-run-button'
+import { GeometryOutputButton } from '../../../geometries/_components/geometry-output-button'
 import {
   useGeometriesLink,
   useGeometryOutputs,
-} from '../../../../../geometries/_hooks'
-import { VariableButton } from '../../../../../variables/_components/variable-button'
-import { useVariables } from '../../../../../variables/_hooks'
-import { ProductOutputButton } from '../../../../_components/product-output-button'
+} from '../../../geometries/_hooks'
+import { ProductOutputButton } from '../../../products/_components/product-output-button'
 import {
   ProductOutputListItem,
-  useCreateProductRunOutput,
-  useProductOutputLink,
   useProductOutputs,
+  useCreateProductRunOutput,
   useProductRun,
-} from '../../../../_hooks'
+  useProductOutputLink,
+} from '../../../products/_hooks'
+import { VariableButton } from '../../../variables/_components/variable-button'
+import { useVariables } from '../../../variables/_hooks'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 

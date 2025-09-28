@@ -7,24 +7,24 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
+import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
 import {
+  DATASETS_BASE_PATH,
   useDataset,
-  useDatasetLink,
   useDatasetRun,
-  useDatasetRunLink,
   useDatasetRunsLink,
 } from '../_hooks'
-import { usePathname } from 'next/navigation'
 import { DatasetButton } from './dataset-button'
 import { DatasetRunButton } from './dataset-run-button'
 
 export const DatasetBreadcrumbs = () => {
-  const { data: dataset } = useDataset()
-  const { data: datasetRun } = useDatasetRun()
-  const datasetLink = useDatasetLink()
+  const { data: datasetFromUrl } = useDataset()
+  const { data: datasetRunFromUrl } = useDatasetRun()
   const datasetRunsLink = useDatasetRunsLink()
-  const datasetRunLink = useDatasetRunLink()
+
+  const dataset = datasetFromUrl ?? datasetRunFromUrl?.dataset
+
   const pathname = usePathname()
   return (
     <Breadcrumb>
@@ -37,7 +37,7 @@ export const DatasetBreadcrumbs = () => {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console/datasets">Datasets</Link>
+            <Link href={DATASETS_BASE_PATH}>Datasets</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
 
@@ -52,7 +52,7 @@ export const DatasetBreadcrumbs = () => {
           </>
         )}
 
-        {dataset && pathname?.includes('runs') && (
+        {dataset && (pathname?.includes('runs') || datasetRunFromUrl) && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -63,13 +63,13 @@ export const DatasetBreadcrumbs = () => {
           </>
         )}
 
-        {datasetRun && (
+        {datasetRunFromUrl && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <div className="flex items-center gap-1">
-                  <DatasetRunButton datasetRun={datasetRun} />
+                  <DatasetRunButton datasetRun={datasetRunFromUrl} />
                 </div>
               </BreadcrumbLink>
             </BreadcrumbItem>
