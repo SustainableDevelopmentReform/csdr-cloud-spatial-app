@@ -115,7 +115,7 @@ export const updateProductRunSchema = baseUpdateResourceSchema
 export const createProductOutputSchema = baseCreateResourceSchema.extend({
   productRunId: z.string(),
   geometryOutputId: z.string(),
-  value: z.string(),
+  value: z.number(),
   variableId: z.string(),
   timePoint: z.iso.datetime(),
 })
@@ -129,7 +129,7 @@ export const createManyProductOutputSchema = z.object({
   outputs: z.array(
     baseCreateResourceSchema.extend({
       geometryOutputId: z.string(),
-      value: z.string(),
+      value: z.number(),
     }),
   ),
 })

@@ -27,7 +27,7 @@ const DatasetRunDetails = () => {
     undefined,
     '/console/datasetRuns',
   )
-  const { data: dataset } = useDataset()
+
   const productRunsLink = useProductRunsLink()
 
   const setDatasetMainRun = useSetDatasetMainRun(datasetRun)
@@ -40,6 +40,7 @@ const DatasetRunDetails = () => {
         buttonVariant: 'default',
         buttonTitle: 'Set as Main Run',
         mutation: setDatasetMainRun,
+        disabled: datasetRun?.id === datasetRun?.dataset.mainRunId,
       },
     ],
     [setDatasetMainRun],
@@ -56,7 +57,7 @@ const DatasetRunDetails = () => {
   }, [datasetRun, form])
 
   return (
-    <div className="max-w-2xl gap-8 flex flex-col">
+    <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DatasetRunSummaryCard run={datasetRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">

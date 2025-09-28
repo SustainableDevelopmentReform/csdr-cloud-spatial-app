@@ -60,9 +60,9 @@ export const ProductRunSummaryCard = ({
               <div className="flex flex-col gap-2" key={variable.variable.id}>
                 <VariableButton variable={variable.variable} />
                 <div className="flex flex-col gap-1">
+                  <div>Count: {variable.count}</div>
                   <div>
-                    Data range: {variable.minValue} to {variable.maxValue} over{' '}
-                    {variable.count} outputs
+                    Data range: {variable.minValue} to {variable.maxValue}
                   </div>
                   <div>Mean: {variable.avgValue}</div>
                 </div>

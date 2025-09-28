@@ -46,7 +46,7 @@ const GeometriesRunDetails = () => {
   }, [geometryOutput, form])
 
   return (
-    <div className="max-w-2xl gap-8 flex flex-col">
+    <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="rounded-lg overflow-hidden">
         {geometryBbox && (
           <Map

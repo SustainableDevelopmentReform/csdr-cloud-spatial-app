@@ -196,7 +196,7 @@
 //       }}
 //     >
 //       <DialogTrigger asChild>{children}</DialogTrigger>
-//       <DialogContent className="w-full max-w-2xl px-0">
+//       <DialogContent className="w-full w-[800px] max-w-full px-0">
 //         <DialogHeader className="px-6">
 //           <DialogTitle className="text-3xl">
 //             {type === 'create' ? 'Add' : 'Edit'} Role

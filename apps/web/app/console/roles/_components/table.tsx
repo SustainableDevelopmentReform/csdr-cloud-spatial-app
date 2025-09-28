@@ -108,7 +108,7 @@
 //           open ? setModalState('delete') : setModalState('idle')
 //         }
 //       >
-//         <AlertDialogContent className="w-full max-w-2xl">
+//         <AlertDialogContent className="w-full w-[800px] max-w-full">
 //           <AlertDialogHeader>
 //             <AlertDialogTitle className="text-2xl mb-4">
 //               Delete Role

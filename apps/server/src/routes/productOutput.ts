@@ -69,7 +69,7 @@ export const productOutputQuery = {
 
 export const productOutputSchema = baseResourceSchema
   .extend({
-    value: z.string(),
+    value: z.number(),
     timePoint: z.iso.datetime(),
     productRun: baseIdResourceSchema.extend({
       product: baseIdResourceSchemaWithMainRunId,

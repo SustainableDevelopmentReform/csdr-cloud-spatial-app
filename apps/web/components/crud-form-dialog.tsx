@@ -46,7 +46,7 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
       <DialogTrigger asChild>
         <Button>{buttonText}</Button>
       </DialogTrigger>
-      <DialogContent className="w-full max-w-2xl">
+      <DialogContent className="w-full w-[800px] max-w-full">
         <DialogHeader>
           <DialogTitle className="text-3xl">
             {formProps.entityName ?? 'Add Item'}

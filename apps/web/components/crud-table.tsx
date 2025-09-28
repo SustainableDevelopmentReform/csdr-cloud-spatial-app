@@ -15,6 +15,7 @@ import { Ellipsis } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import Table from '~/components/table'
+import { formatDateTime } from '../utils/date'
 
 export interface BaseItem {
   name: string
@@ -133,7 +134,7 @@ const BaseCrudTable = <
           cell: (info) => {
             const value = info.getValue()
             if (!value) return null
-            return new Date(value).toLocaleDateString()
+            return formatDateTime(value)
           },
           size: 120,
         }),
@@ -145,7 +146,7 @@ const BaseCrudTable = <
           cell: (info) => {
             const value = info.getValue()
             if (!value) return null
-            return new Date(value).toLocaleDateString()
+            return formatDateTime(value)
           },
           size: 120,
         }),

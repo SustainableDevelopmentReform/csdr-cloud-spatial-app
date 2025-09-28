@@ -98,7 +98,7 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="w-full max-w-2xl">
+      <DialogContent className="w-full w-[800px] max-w-full">
         {apiKey ? (
           <>
             <DialogHeader>

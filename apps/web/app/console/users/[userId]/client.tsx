@@ -181,7 +181,7 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-[800px] max-w-full">
       <div className="text-2xl font-medium mb-8">Profile</div>
       <Form {...form}>
         <form

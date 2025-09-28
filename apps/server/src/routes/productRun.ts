@@ -120,9 +120,9 @@ export const fullProductRunOutputSummarySchema = z
     outputCount: z.number().int(),
     variables: z.array(
       z.object({
-        minValue: z.string().nullable(),
-        maxValue: z.string().nullable(),
-        avgValue: z.string().nullable(),
+        minValue: z.number().nullable(),
+        maxValue: z.number().nullable(),
+        avgValue: z.number().nullable(),
         count: z.number().int(),
         lastUpdated: z.date(),
         variable: baseVariableSchema,
@@ -553,7 +553,7 @@ const app = createOpenAPIApp()
                 variableId: stat.variableId,
                 minValue: stat.minValue,
                 maxValue: stat.maxValue,
-                avgValue: stat.avgValue,
+                avgValue: stat.avgValue ? parseFloat(stat.avgValue) : null,
                 count: stat.count,
                 lastUpdated: new Date(),
               })),

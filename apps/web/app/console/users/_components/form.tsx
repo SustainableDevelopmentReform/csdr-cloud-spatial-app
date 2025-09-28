@@ -39,7 +39,7 @@ const UserForm: React.FC<UserFormProps> = ({
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="w-full max-w-2xl">
+      <DialogContent className="w-full w-[800px] max-w-full">
         <DialogHeader>
           <DialogTitle className="text-3xl">Add User</DialogTitle>
         </DialogHeader>

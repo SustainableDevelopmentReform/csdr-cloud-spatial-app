@@ -40,6 +40,7 @@ const GeometriesRunDetails = () => {
         buttonVariant: 'default',
         buttonTitle: 'Set as Main Run',
         mutation: setGeometriesMainRun,
+        disabled: geometriesRun?.id === geometriesRun?.geometries.mainRunId,
       },
     ],
     [setGeometriesMainRun],
@@ -56,7 +57,7 @@ const GeometriesRunDetails = () => {
   }, [geometriesRun, form])
 
   return (
-    <div className="max-w-2xl gap-8 flex flex-col">
+    <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <GeometriesRunSummaryCard run={geometriesRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
