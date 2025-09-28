@@ -56,6 +56,7 @@ const ProductRunDetails = () => {
         buttonVariant: 'default',
         buttonTitle: 'Set as Main Run',
         mutation: setProductMainRun,
+        disabled: productRun?.id === productRun?.product.mainRunId,
       },
     ],
     [refreshProductRunSummary],
@@ -68,7 +69,7 @@ const ProductRunDetails = () => {
   }, [productRun, form])
 
   return (
-    <div className="max-w-2xl gap-8 flex flex-col">
+    <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProductRunSummaryCard run={productRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">

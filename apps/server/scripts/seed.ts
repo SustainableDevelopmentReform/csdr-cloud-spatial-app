@@ -300,7 +300,7 @@ const productOutput1 = await db
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput1[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
-    value: '100',
+    value: 100,
     variableId: variable1[0]!.id,
   })
   .onConflictDoNothing()
@@ -316,7 +316,7 @@ const productOutput2 = await db
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput1[0]!.id,
     timePoint: new Date('2022-01-01T00:00:00Z'),
-    value: '200',
+    value: 200,
     variableId: variable1[0]!.id,
   })
   .onConflictDoNothing()
@@ -332,7 +332,7 @@ const productOutput3 = await db
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2021-01-01T00:00:00Z'),
-    value: '300',
+    value: 300,
     variableId: variable1[0]!.id,
   })
   .onConflictDoNothing()
@@ -348,7 +348,7 @@ const productOutput4 = await db
     productRunId: productRun[0]!.id,
     geometryOutputId: geometryOutput2[0]!.id,
     timePoint: new Date('2022-01-01T00:00:00Z'),
-    value: '400',
+    value: 400,
     variableId: variable1[0]!.id,
   })
   .onConflictDoNothing()

@@ -19,7 +19,7 @@ export default async function Page() {
         <h1 className="font-mono text-center text-5xl font-semibold leading-tight mb-6">
           CSDR Spatial Cloud App
         </h1>
-        <p className="font-mono text-center max-w-2xl mx-auto mb-10 text-lg text-gray-600">
+        <p className="font-mono text-center w-[800px] max-w-[100vw] mx-auto mb-10 text-lg text-gray-600">
           Prototype
         </p>
         <div className="flex items-center justify-center gap-4">

@@ -84,7 +84,7 @@
 //   return (
 //     <Dialog>
 //       <DialogTrigger asChild>{children}</DialogTrigger>
-//       <DialogContent className="max-w-2xl w-full">
+//       <DialogContent className="w-[800px] max-w-full w-full">
 //         <DialogHeader>
 //           <DialogTitle className="text-2xl">Edit organizations</DialogTitle>
 //         </DialogHeader>

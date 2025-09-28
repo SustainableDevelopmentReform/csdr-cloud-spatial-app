@@ -368,7 +368,7 @@ export const productOutput = pgTable(
       .notNull()
       .references(() => geometryOutput.id, { onDelete: 'cascade' }),
 
-    value: numeric('value').notNull(),
+    value: numeric('value', { mode: 'number' }).notNull(),
     variableId: text('variable_id')
       .notNull()
       .references(() => variable.id),
@@ -441,9 +441,9 @@ export const productOutputSummaryVariable = pgTable(
       .notNull()
       .references(() => variable.id, { onDelete: 'cascade' }),
     // Optional: track aggregated stats per variable
-    minValue: numeric('min_value'),
-    maxValue: numeric('max_value'),
-    avgValue: numeric('avg_value'),
+    minValue: numeric('min_value', { mode: 'number' }),
+    maxValue: numeric('max_value', { mode: 'number' }),
+    avgValue: numeric('avg_value', { mode: 'number' }),
     count: integer('count').notNull().default(0),
     lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   },

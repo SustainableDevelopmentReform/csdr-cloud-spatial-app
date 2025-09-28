@@ -11,6 +11,7 @@ import {
 } from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
+import { cn } from '@repo/ui/lib/utils'
 import { UseMutationResult } from '@tanstack/react-query'
 import { ComponentProps } from 'react'
 
@@ -25,11 +26,12 @@ export type CrudFormAction = {
     description: string
     buttonCancelTitle?: string
   }
+  disabled?: boolean
 }
 
 export const FormAction = (props: CrudFormAction) => {
   return (
-    <div>
+    <div className={cn(props.disabled && 'opacity-50')}>
       <div className="font-medium">{props.title}</div>
       <div className="mb-3">{props.description}</div>
       {props.confirmDialog ? (
@@ -64,6 +66,7 @@ export const FormAction = (props: CrudFormAction) => {
         <Button
           variant={props.buttonVariant}
           onClick={() => props.mutation.mutateAsync()}
+          disabled={props.disabled}
         >
           {props.mutation.isPending ? (
             <LoadingIcon>'Loading...'</LoadingIcon>

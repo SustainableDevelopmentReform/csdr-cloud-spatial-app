@@ -8,6 +8,7 @@
     "build": "dotenvx run -- turbo build",
     "dev": "dotenvx run -- turbo dev",
     "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,scss,css,html}\"",
     "ui": "pnpm --filter @repo/ui ui",
     "create:migration": "dotenvx run -- turbo --filter @repo/server create:migration",

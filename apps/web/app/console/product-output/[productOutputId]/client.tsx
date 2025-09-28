@@ -47,7 +47,7 @@ const ProductRunDetails = () => {
   }, [productOutput, form])
 
   return (
-    <div className="max-w-2xl gap-8 flex flex-col">
+    <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="rounded-lg overflow-hidden">
         {geometryBbox && (
           <Map
@@ -84,7 +84,7 @@ const ProductRunDetails = () => {
       <div className="grid grid-cols-2 grid-rows-1 gap-4">
         {productOutput && (
           <DetailCard
-            title={productOutput.value}
+            title={productOutput.value.toString()}
             description="Output Value"
             footer={formatDateTime(productOutput.timePoint)}
             subFooter={<VariableButton variable={productOutput.variable} />}
