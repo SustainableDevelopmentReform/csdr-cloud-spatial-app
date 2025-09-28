@@ -14,6 +14,7 @@ import {
   useProductOutputLink,
   useProductRun,
   useProductRunLink,
+  useProductRunOutputsLink,
   useProductRunsLink,
 } from '../_hooks'
 import { ProductButton } from './product-button'
@@ -23,12 +24,17 @@ import { ProductOutputButton } from './product-output-button'
 export const ProductsBreadcrumbs = () => {
   const pathname = usePathname()
 
-  const { data: product } = useProduct()
-  const { data: productRun } = useProductRun()
-  const { data: productOutput } = useProductOutput()
+  const { data: productFromUrl } = useProduct()
+  const { data: productRunFromUrl } = useProductRun()
+  const { data: productOutputFromUrl } = useProductOutput()
 
-  const productRunLink = useProductRunLink()
-  const productOutputLink = useProductOutputLink()
+  const product =
+    productFromUrl ??
+    productRunFromUrl?.product ??
+    productOutputFromUrl?.productRun?.product
+  const productRun = productRunFromUrl ?? productOutputFromUrl?.productRun
+
+  const productRunOutputsLink = useProductRunOutputsLink()
   const productRunsLink = useProductRunsLink()
   return (
     <Breadcrumb>
@@ -54,16 +60,19 @@ export const ProductsBreadcrumbs = () => {
             </BreadcrumbItem>
           </>
         )}
-        {pathname?.includes('runs') && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={productRunsLink(product ?? null)}>Runs</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
+        {product &&
+          (pathname?.includes('runs') ||
+            productRunFromUrl ||
+            productOutputFromUrl) && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href={productRunsLink(product)}>Runs</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
 
         {productRun && (
           <>
@@ -77,24 +86,25 @@ export const ProductsBreadcrumbs = () => {
             </BreadcrumbItem>
           </>
         )}
-        {productRun && pathname?.includes('outputs') && (
+        {productRun &&
+          (pathname?.includes('outputs') || productOutputFromUrl) && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href={`${productRunOutputsLink(productRun)}`}>
+                    Outputs
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
+        {productOutputFromUrl && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={`${productRunLink(productRun)}/outputs`}>
-                  Outputs
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
-        {productOutput && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <ProductOutputButton productOutput={productOutput} />
+                <ProductOutputButton productOutput={productOutputFromUrl} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>

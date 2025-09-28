@@ -11,13 +11,12 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { Switch } from '@repo/ui/components/ui/switch'
 import { useMutation } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { authClient } from '../../../utils/auth'
-import { Switch } from '@repo/ui/components/ui/switch'
-import { useRouter } from 'next/navigation'
-import { toast } from '@repo/ui/components/ui/sonner'
 
 const formSchema = z.object({
   email: z.string({ message: 'Email is required' }).email('Email is invalid'),

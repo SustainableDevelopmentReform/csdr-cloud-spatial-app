@@ -14,6 +14,8 @@ import Link from '~/components/link'
 import { SignOutButton } from '../../components/sign-out-button'
 import { getUserServerSession } from '../../utils/getUserServerSession'
 import AccountSettingsButton from './_components/account-settings-button'
+import { GEOMETRIES_BASE_PATH } from './geometries/_hooks'
+import { DATASETS_BASE_PATH } from './datasets/_hooks'
 
 const SIDEBAR_CONFIG = [
   {
@@ -25,13 +27,13 @@ const SIDEBAR_CONFIG = [
   {
     text: 'Datasets',
     icon: <SquareIcon className="fill-dataset stroke-none size-6" />,
-    href: '/console/datasets',
+    href: DATASETS_BASE_PATH,
     roles: ['admin', 'user'],
   },
   {
     text: 'Geometries',
     icon: <SquareIcon className="fill-geometry stroke-none size-6" />,
-    href: '/console/geometries',
+    href: GEOMETRIES_BASE_PATH,
     roles: ['admin', 'user'],
   },
   {

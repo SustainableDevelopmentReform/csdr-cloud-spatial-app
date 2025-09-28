@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createGeometryOutputSchema } from '@repo/server/schemas/zod'
 import {
   FormControl,
   FormField,
@@ -13,10 +14,10 @@ import { cn } from '@repo/ui/lib/utils'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import Pagination from '~/components/pagination'
-import CrudFormDialog from '../../../../../../../components/crud-form-dialog'
-import BaseCrudTable from '../../../../../../../components/crud-table'
-import { GeometryOutputButton } from '../../../../_components/geometry-output-button'
+import CrudFormDialog from '../../../../../components/crud-form-dialog'
+import BaseCrudTable from '../../../../../components/crud-table'
+import Pagination from '../../../../../components/pagination'
+import { GeometryOutputButton } from '../../../geometries/_components/geometry-output-button'
 import {
   GeometryOutputListItem,
   useCreateGeometryOutput,
@@ -24,8 +25,7 @@ import {
   useGeometriesRun,
   useGeometryOutputLink,
   useGeometryOutputs,
-} from '../../../../_hooks'
-import { createGeometryOutputSchema } from '@repo/server/schemas/zod'
+} from '../../../geometries/_hooks'
 
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 

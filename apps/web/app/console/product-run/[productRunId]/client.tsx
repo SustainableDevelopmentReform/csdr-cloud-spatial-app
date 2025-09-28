@@ -6,24 +6,24 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { CrudForm } from '../../../../../../components/crud-form'
-import { CrudFormAction } from '../../../../../../components/crud-form-action'
-import { CrudFormRunFields } from '../../../../../../components/crud-form-run-fields'
-import { DetailCard } from '../../../../_components/detail-cards'
-import { DatasetButton } from '../../../../datasets/_components/dataset-button'
-import { DatasetRunButton } from '../../../../datasets/_components/dataset-run-button'
-import { GeometriesButton } from '../../../../geometries/_components/geometries-button'
-import { GeometriesRunButton } from '../../../../geometries/_components/geometries-run-button'
-import { ProductRunSummaryCard } from '../../../_components/product-run-summary-card'
+import { CrudForm } from '../../../../components/crud-form'
+import { CrudFormAction } from '../../../../components/crud-form-action'
+import { CrudFormRunFields } from '../../../../components/crud-form-run-fields'
+import { DetailCard } from '../../_components/detail-cards'
+import { DatasetButton } from '../../datasets/_components/dataset-button'
+import { DatasetRunButton } from '../../datasets/_components/dataset-run-button'
+import { GeometriesButton } from '../../geometries/_components/geometries-button'
+import { GeometriesRunButton } from '../../geometries/_components/geometries-run-button'
+import { ProductRunSummaryCard } from '../../products/_components/product-run-summary-card'
 import {
-  useDeleteProductRun,
-  useProduct,
   useProductRun,
+  useUpdateProductRun,
+  useDeleteProductRun,
   useProductRunLink,
+  useProductRunOutputsLink,
   useRefreshProductRunSummary,
   useSetProductMainRun,
-  useUpdateProductRun,
-} from '../../../_hooks'
+} from '../../products/_hooks'
 
 const ProductRunDetails = () => {
   const { data: productRun } = useProductRun()
@@ -33,10 +33,9 @@ const ProductRunDetails = () => {
     '/console/productRuns',
   )
   const productRunLink = useProductRunLink()
+  const productRunOutputsLink = useProductRunOutputsLink()
   const refreshProductRunSummary = useRefreshProductRunSummary(productRun)
   const setProductMainRun = useSetProductMainRun(productRun)
-
-  const { data: product } = useProduct()
 
   const form = useForm({
     resolver: zodResolver(updateProductRunSchema),
@@ -71,14 +70,14 @@ const ProductRunDetails = () => {
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ProductRunSummaryCard product={product} productRun={productRun} />
+        <ProductRunSummaryCard run={productRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
           {productRun && (
             <DetailCard
               title={`${productRun?.outputSummary?.outputCount ?? 0} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
               description="Product Outputs"
               actionText="Open"
-              actionLink={`${productRunLink(productRun)}/outputs`}
+              actionLink={productRunOutputsLink(productRun)}
               actionIcon={<ArrowUpRightIcon />}
             />
           )}

@@ -1,19 +1,17 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { formatDateTime } from '../../../../utils/date'
 import { DetailCard } from '../../_components/detail-cards'
-import { DatasetDetail, DatasetRunDetail, useDatasetRunLink } from '../_hooks'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
+import { DatasetRunListItem, useDatasetRunLink } from '../_hooks'
 
 export const DatasetRunSummaryCard = ({
-  dataset,
-  datasetRun,
+  run,
+  mainRun = false,
 }: {
-  dataset: DatasetDetail | undefined | null
-  datasetRun?: DatasetRunDetail | undefined | null
+  run?: DatasetRunListItem | undefined | null
+  mainRun?: boolean
 }) => {
   const datasetRunLink = useDatasetRunLink()
-
-  const run = datasetRun ?? dataset?.mainRun
 
   if (!run) {
     return <NoMainRunCard />
@@ -22,11 +20,9 @@ export const DatasetRunSummaryCard = ({
   return (
     <DetailCard
       title={`Created at ${formatDateTime(run?.createdAt)}`}
-      description={
-        datasetRun ? 'Dataset Run Summary' : 'Dataset Main Run Summary'
-      }
+      description={mainRun ? 'Dataset Main Run Summary' : 'Dataset Run Summary'}
       actionText="Open"
-      actionLink={!datasetRun ? datasetRunLink(run) : undefined}
+      actionLink={run && mainRun ? datasetRunLink(run) : undefined}
       actionIcon={<ArrowUpRightIcon />}
       // footer={`Data range: ${formatDate(dataset?.mainRun?.outputSummary?.startTime)} to ${formatDate(dataset?.mainRun?.outputSummary?.endTime)}`}
       // subFooter={

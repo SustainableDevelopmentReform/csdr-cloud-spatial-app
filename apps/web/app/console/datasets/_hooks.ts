@@ -1,3 +1,5 @@
+'use client'
+
 import {
   keepPreviousData,
   useMutation,
@@ -342,15 +344,17 @@ export const useDeleteDatasetRun = (
 
 export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'>
 
+export const DATASETS_BASE_PATH = '/console/datasets'
+
 export const useDatasetLink = () =>
   useCallback(
-    (dataset: DatasetLinkParams) => `/console/datasets/${dataset.id}`,
+    (dataset: DatasetLinkParams) => `${DATASETS_BASE_PATH}/${dataset.id}`,
     [],
   )
 
 export const useDatasetRunsLink = () =>
   useCallback(
-    (dataset: DatasetLinkParams) => `/console/datasets/${dataset.id}/runs`,
+    (dataset: DatasetLinkParams) => `${DATASETS_BASE_PATH}/${dataset.id}/runs`,
     [],
   )
 
@@ -359,9 +363,10 @@ export type DatasetRunLinkParams = Pick<
   'id' | 'name' | 'dataset'
 >
 
+export const DATASETS_RUNS_BASE_PATH = '/console/dataset-run'
 export const useDatasetRunLink = () =>
   useCallback(
     (datasetRun: DatasetRunLinkParams) =>
-      `/console/datasets/${datasetRun.dataset.id}/runs/${datasetRun.id}`,
+      `${DATASETS_RUNS_BASE_PATH}/${datasetRun.id}`,
     [],
   )

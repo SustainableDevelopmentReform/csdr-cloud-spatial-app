@@ -1,25 +1,24 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { updateGeometriesRunSchema } from '@repo/server/schemas/zod'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { CrudForm } from '../../../../../../components/crud-form'
-import { CrudFormAction } from '../../../../../../components/crud-form-action'
-import { DetailCard } from '../../../../_components/detail-cards'
-import { useProductRunsLink } from '../../../../products/_hooks'
-import { GeometriesRunSummaryCard } from '../../../_components/geometries-run-summary-card'
+import { CrudForm } from '../../../../components/crud-form'
+import { CrudFormAction } from '../../../../components/crud-form-action'
+import { CrudFormRunFields } from '../../../../components/crud-form-run-fields'
+import { DetailCard } from '../../_components/detail-cards'
+import { GeometriesRunSummaryCard } from '../../geometries/_components/geometries-run-summary-card'
 import {
-  useDeleteGeometriesRun,
-  useGeometries,
   useGeometriesRun,
-  useGeometriesRunLink,
-  useSetGeometriesMainRun,
   useUpdateGeometriesRun,
-} from '../../../_hooks'
-import { updateGeometriesRunSchema } from '@repo/server/schemas/zod'
-import { CrudFormRunFields } from '../../../../../../components/crud-form-run-fields'
+  useDeleteGeometriesRun,
+  useGeometryRunOutputsLink,
+  useSetGeometriesMainRun,
+} from '../../geometries/_hooks'
+import { useProductRunsLink } from '../../products/_hooks'
 
 const GeometriesRunDetails = () => {
   const { data: geometriesRun } = useGeometriesRun()
@@ -28,9 +27,8 @@ const GeometriesRunDetails = () => {
     undefined,
     '/console/geometriesRuns',
   )
-  const geometriesRunLink = useGeometriesRunLink()
+  const geometryRunOutputsLink = useGeometryRunOutputsLink()
   const productRunsLink = useProductRunsLink()
-  const { data: geometries } = useGeometries()
 
   const setGeometriesMainRun = useSetGeometriesMainRun(geometriesRun)
 
@@ -60,17 +58,14 @@ const GeometriesRunDetails = () => {
   return (
     <div className="max-w-2xl gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <GeometriesRunSummaryCard
-          geometries={geometries}
-          geometriesRun={geometriesRun}
-        />
+        <GeometriesRunSummaryCard run={geometriesRun} />
         <div className="grid grid-cols-1 grid-rows-3 gap-4">
           {geometriesRun && (
             <DetailCard
               title={`${geometriesRun?.outputCount} ${pluralize(geometriesRun?.outputCount, 'output', 'outputs')}`}
               description="Geometry Outputs"
               actionText="Open"
-              actionLink={`${geometriesRunLink(geometriesRun)}/outputs`}
+              actionLink={geometryRunOutputsLink(geometriesRun)}
               actionIcon={<ArrowUpRightIcon />}
             />
           )}
