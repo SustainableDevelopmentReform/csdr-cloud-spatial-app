@@ -101,11 +101,12 @@ There are two commands to run the migration and seed in production:
 - To seed the database, run `node /app/backend/seed/index.js`
 
 ```bash
-# To migrate the database
-docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app node /app/backend/migrate/index.js
+# To migrate the database (run cd /app/backend/migrate/ && node index.js)
+# To migrate the database (run cd /app/backend/migrate/ && node index.js)
+docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/migrate/ && node index.js"
 
-# To seed the database
-docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app node /app/backend/seed/index.js
+# To seed the database (run cd /app/backend/seed/ && node index.js)
+docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/seed/ && node index.js"
 ```
 
 ## 💽 Database Schema (Drizzle)
