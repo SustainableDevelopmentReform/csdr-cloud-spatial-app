@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@repo/ui'],
+  transpilePackages: ['@repo/ui', '@repo/schemas'],
   output: 'standalone',
   eslint: {
     ignoreDuringBuilds: true,

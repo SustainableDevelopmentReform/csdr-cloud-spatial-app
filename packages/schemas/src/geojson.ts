@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '@hono/zod-openapi'
 
 // Adapted from https://github.com/timbtimbtimb/zod-geojson-schemas
 // Under MIT license Copyright (c) 2025 Timothée Billiet Cadart

@@ -11,6 +11,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "composite": true,
     "incremental": true,
     "strict": true
   },

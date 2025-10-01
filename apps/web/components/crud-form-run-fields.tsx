@@ -1,4 +1,4 @@
-import { baseCreateRunResourceSchema } from '@repo/server/schemas/zod'
+import { baseCreateRunResourceSchema } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,

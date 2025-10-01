@@ -1,6 +1,11 @@
-import { type ClientResponse } from 'hono/client'
-import { hcWithType } from '@repo/server/hc'
+import { type ClientResponse, hc } from 'hono/client'
+import type { ApiRoutesType } from '@repo/server/app'
 import { StatusCode } from 'hono/utils/http-status'
+
+export type Client = ReturnType<typeof hc<ApiRoutesType>>
+
+export const hcWithType = (...args: Parameters<typeof hc>): Client =>
+  hc<ApiRoutesType>(...args)
 
 export const client = hcWithType('/')
 

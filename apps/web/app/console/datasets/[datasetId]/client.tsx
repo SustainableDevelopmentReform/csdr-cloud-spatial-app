@@ -16,7 +16,7 @@ import {
   useDeleteDataset,
   useUpdateDataset,
 } from '../_hooks'
-import { updateDatasetSchema } from '@repo/server/schemas/zod'
+import { updateDatasetSchema } from '@repo/schemas/crud'
 
 const DatasetDetails = () => {
   const { data: dataset } = useDataset()

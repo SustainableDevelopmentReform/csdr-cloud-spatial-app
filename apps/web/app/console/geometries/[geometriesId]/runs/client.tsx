@@ -6,7 +6,7 @@ import Pagination from '~/components/pagination'
 import BaseCrudTable from '../../../../../components/crud-table'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createGeometriesRunSchema } from '@repo/server/schemas/zod'
+import { createGeometriesRunSchema } from '@repo/schemas/crud'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'

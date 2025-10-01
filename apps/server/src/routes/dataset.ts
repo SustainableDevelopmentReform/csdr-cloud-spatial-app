@@ -19,7 +19,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createDatasetSchema, updateDatasetSchema } from '../schemas/zod'
+import { createDatasetSchema, updateDatasetSchema } from '@repo/schemas/crud'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 
 export const baseDatasetQuery = {
