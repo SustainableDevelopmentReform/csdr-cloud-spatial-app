@@ -1,0 +1,103 @@
+name: Build Docker Image
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: sustainabledevelopmentreform/csdr-cloud-spatial-app # ${{ github.repository }}
+  AWS_ROLE_TO_ASSUME: arn:aws:iam::891612567384:role/ecr-csdr-cloud-spatial-role-federated
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - created
+
+jobs:
+  # Get version info that can be reused by other jobs
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      docker_image_ecr: ${{ steps.version.outputs.DOCKER_IMAGE_ECR }}
+      latest_tag: ${{ steps.version.outputs.LATEST_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Get version number
+        id: version
+        run: |
+          # Get version from the git tags, with fallback for local testing
+          if git fetch --all --tags 2>/dev/null; then
+            VERSION=$(git describe --tags 2>/dev/null || echo "v0.0.0-local")
+          else
+            echo "Warning: Could not fetch tags, using fallback version"
+            VERSION="v0.0.0-local"
+          fi
+
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+    runs-on: ubuntu-latest
+    needs: [tests, version]
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4.1.0
+        with:
+          aws-region: ap-southeast-2
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.0.1
+
+      - name: Set ECR image tags
+        id: ecr-tags
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
+          DOCKER_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ vars.AWS_ECR_REPO }}:${VERSION}"
+
+          echo "DOCKER_IMAGE=${DOCKER_IMAGE}" >> $GITHUB_OUTPUT
+
+          # Check if we are on the main branch and set LATEST_TAG accordingly
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "LATEST_TAG=${{ steps.login-ecr.outputs.registry }}/${{ vars.AWS_ECR_REPO }}:latest" >> $GITHUB_OUTPUT
+          else
+            echo "LATEST_TAG=" >> $GITHUB_OUTPUT
+          fi
+
+      # Cache docker stuff
+      - uses: docker/setup-qemu-action@v3.6.0
+      - uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Build and push
+        if: ${{ github.event_name == 'release' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+        uses: docker/build-push-action@v6.15.0
+        with:
+          context: .
+          push: true
+          build-args: |
+            DOCKER_IMAGE=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}
+            COMMIT=${{ github.sha }}
+          tags: |
+            ${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}
+            ${{ steps.ecr-tags.outputs.LATEST_TAG }}
+          # Use both GitHub Actions cache and registry cache for better performance
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}-cache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}-cache,mode=max
