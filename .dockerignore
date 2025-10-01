@@ -1,5 +1,6 @@
 **/.classpath
 **/.dockerignore
+**/.env
 **/.env.local
 **/.git
 **/.github
