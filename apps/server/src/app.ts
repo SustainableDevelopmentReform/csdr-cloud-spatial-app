@@ -33,11 +33,13 @@ const app = createOpenAPIApp<{ Variables: AuthType }>({
   strict: false,
 })
 
+const appUrl = new URL(env.APP_URL)
+
 app.use(compress())
 app.use(logger())
 app.use(
   cors({
-    origin: ['http://localhost:3000'],
+    origin: [appUrl.origin],
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
@@ -185,7 +187,7 @@ app.notFound((c) =>
     c,
     null,
     404,
-    "Endpoint you're looking for is not found",
+    "Endpoint you're looking for is not found: " + c.req.url,
   ),
 )
 

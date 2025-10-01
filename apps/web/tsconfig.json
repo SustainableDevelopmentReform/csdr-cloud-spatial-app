@@ -26,6 +26,7 @@
     "components/**/*",
     "pages/**/*",
     "utils/**/*",
+    "hooks/**/*",
     ".next/types/**/*.ts"
   ],
   "exclude": [

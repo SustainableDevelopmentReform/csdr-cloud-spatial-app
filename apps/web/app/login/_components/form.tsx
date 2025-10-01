@@ -16,7 +16,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { authClient } from '../../../utils/auth'
+import { useAuthClient } from '~/hooks/useAuthClient'
 
 const formSchema = z.object({
   email: z.string({ message: 'Email is required' }).email('Email is invalid'),
@@ -27,6 +27,7 @@ const formSchema = z.object({
 type Data = z.infer<typeof formSchema>
 
 const LoginForm = () => {
+  const authClient = useAuthClient()
   const router = useRouter()
   const form = useForm<Data>({
     defaultValues: {

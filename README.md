@@ -21,7 +21,7 @@ cd csdr-cloud-spatial-app
 pnpm install
 
 # Copy environment and set values for all of them
-cp .env.example .env
+cp .env.example.local .env
 ```
 
 ### Setting up Database

@@ -8,9 +8,16 @@ export const env = createEnv({
       .default('development'),
   },
   server: {
+    APP_URL: z.url().default('http://localhost:3000'),
+    INTERNAL_BACKEND_URL: z.url().optional(),
     DATABASE_URL: z
       .string()
       .default('postgresql://admin:admin@localhost:5431/csdr-dev'),
+    TRUSTED_ORIGINS: z
+      .string()
+      .default('http://localhost:3000')
+      .transform((val) => val.split(',')),
+    DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z.coerce.boolean().default(false),
     PORT: z.coerce.number().default(4000),
     SMTP_PASSWORD: z.string().optional(),
     SMTP_USERNAME: z.string().optional(),
@@ -25,13 +32,15 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().optional(),
-    AUTH_REQUIRE_EMAIL_VERIFICATION: z
-      .string()
-      .optional()
-      .transform((val) => val === 'true'),
+    AUTH_REQUIRE_EMAIL_VERIFICATION: z.coerce.boolean().default(false),
   },
   runtimeEnv: {
+    APP_URL: process.env.APP_URL,
+    TRUSTED_ORIGINS: process.env.TRUSTED_ORIGINS,
     DATABASE_URL: process.env.DATABASE_URL,
+    INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
+    DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND:
+      process.env.DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND,
     PORT: process.env.PORT,
     SMTP_PASSWORD: process.env.SMTP_PASSWORD,
     SMTP_USERNAME: process.env.SMTP_USERNAME,

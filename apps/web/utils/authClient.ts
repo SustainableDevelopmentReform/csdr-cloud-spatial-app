@@ -8,7 +8,6 @@ import {
 import { createAuthClient as createReactAuthClient } from 'better-auth/react'
 
 const authConfig = {
-  baseURL: 'http://localhost:4000',
   plugins: [
     adminClient(),
     twoFactorClient(),
@@ -19,10 +18,17 @@ const authConfig = {
   ],
 }
 
-/** Better auth client to use in React/client components */
-export const authClient: ReturnType<
+export const createAuthClient = (baseURL: string) => {
+  /** Better auth client to use in React/client components */
+  return createReactAuthClient({
+    ...authConfig,
+    baseURL,
+  })
+}
+
+export type AuthClient = ReturnType<
   typeof createReactAuthClient<typeof authConfig>
-> = createReactAuthClient(authConfig)
+>
 
 export type User = InferUserFromClient<typeof authConfig>
 export type Session = InferSessionFromClient<typeof authConfig>

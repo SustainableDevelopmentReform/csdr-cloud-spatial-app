@@ -1,15 +1,17 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { QueryKey } from '~/utils/fetcher'
-import { authClient, User } from '../../../utils/auth'
-import { useState } from 'react'
 import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { z } from 'zod'
+import { useAuthClient } from '~/hooks/useAuthClient'
+import { QueryKey } from '~/utils/apiClient'
+import { User } from '../../../utils/authClient'
 
 const userIdSchema = z.object({
   userId: z.string().optional(),
 })
 
 export const useUser = (id?: string) => {
+  const authClient = useAuthClient()
   const params = useParams()
   const { userId } = id ? { userId: id } : userIdSchema.parse(params)
 
@@ -37,6 +39,7 @@ export const useUser = (id?: string) => {
 }
 
 export const useUsers = () => {
+  const authClient = useAuthClient()
   const [isOpen, setOpen] = useState(false)
   const [page, setPage] = useState(1)
   const pageSize = 10

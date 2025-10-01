@@ -7,12 +7,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useState } from 'react'
-import { QueryKey } from '~/utils/fetcher'
-import { authClient } from '../../../utils/auth'
+import { QueryKey } from '~/utils/apiClient'
+import { useAuthClient } from '~/hooks/useAuthClient'
 
 export type ApiKey = NonNullable<ReturnType<typeof useApiKeys>['data']>[0]
 
 export const useApiKeys = () => {
+  const authClient = useAuthClient()
   const [isOpen, setOpen] = useState(false)
 
   const { data } = useQuery({
@@ -37,6 +38,7 @@ export const useApiKeys = () => {
 }
 
 export const useDeleteApiKey = (apiKeyId: string) => {
+  const authClient = useAuthClient()
   const queryClient = useQueryClient()
 
   return useMutation({

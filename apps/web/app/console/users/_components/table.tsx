@@ -6,7 +6,7 @@ import {
 import React from 'react'
 import Link from '~/components/link'
 import Table from '../../../../components/table'
-import { User } from '../../../../utils/auth'
+import { User } from '../../../../utils/authClient'
 
 interface UsersTableProps {
   data: Partial<User>[]

@@ -9,71 +9,72 @@ import {
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useCallback, useState } from 'react'
 import { z } from 'zod'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
+import { Client, QueryKey, unwrapResponse } from '~/utils/apiClient'
 import { useParams, useRouter } from 'next/navigation'
+import { useApiClient } from '../../../hooks/useApiClient'
 
 export type GeometriesListItem = NonNullable<
-  InferResponseType<typeof client.api.v0.geometries.$get, 200>['data']
+  InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
 >['data'][0]
 export type GeometriesDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v0.geometries)[':id']['$get'],
+    Client['api']['v0']['geometries'][':id']['$get'],
     200
   >['data']
 >
 
 export type GeometriesRunListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v0.geometries)[':id']['runs']['$get'],
+    Client['api']['v0']['geometries'][':id']['runs']['$get'],
     200
   >['data']
 >['data'][0]
 export type GeometriesRunDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['geometries-run'][':id']['$get'],
+    Client['api']['v0']['geometries-run'][':id']['$get'],
     200
   >['data']
 >
 
 export type GeometryOutputListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['geometries-run'][':id']['outputs']['$get'],
+    Client['api']['v0']['geometries-run'][':id']['outputs']['$get'],
     200
   >['data']
 >['data'][0]
 export type GeometryOutputDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['geometry-output'][':id']['$get'],
+    Client['api']['v0']['geometry-output'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateGeometriesPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0.geometries)[':id']['$patch']>['json']
+  InferRequestType<Client['api']['v0']['geometries'][':id']['$patch']>['json']
 >
 
 export type UpdateGeometriesRunPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v0)['geometries-run'][':id']['$patch']
+    Client['api']['v0']['geometries-run'][':id']['$patch']
   >['json']
 >
 
 export type UpdateGeometryOutputPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v0)['geometry-output'][':id']['$patch']
+    Client['api']['v0']['geometry-output'][':id']['$patch']
   >['json']
 >
 
 export type CreateGeometriesPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0.geometries)['$post']>['json']
+  InferRequestType<Client['api']['v0']['geometries']['$post']>['json']
 >
 
 export type CreateGeometriesRunPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0)['geometries-run']['$post']>['json']
+  InferRequestType<Client['api']['v0']['geometries-run']['$post']>['json']
 >
 
 export type CreateGeometryOutputPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0)['geometry-output']['$post']>['json']
+  InferRequestType<Client['api']['v0']['geometry-output']['$post']>['json']
 >
 
 const geometriesParamsSchema = z.object({
@@ -100,7 +101,7 @@ export const useGeometriesParams = (
 
 export const useAllGeometries = () => {
   const [page, setPage] = useState(1)
-
+  const client = useApiClient()
   const { data } = useQuery({
     queryKey: [QueryKey.Geometries],
     queryFn: async () => {
@@ -126,7 +127,7 @@ export const useAllGeometries = () => {
 
 export const useGeometriesRuns = (_geometriesId?: string) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
-
+  const client = useApiClient()
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -158,7 +159,7 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
 
 export const useGeometryOutputs = (_geometriesRunId?: string) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
-
+  const client = useApiClient()
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -190,7 +191,7 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
 
 export const useGeometries = (_geometriesId?: string) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.Geometries, geometriesId],
     queryFn: async () => {
@@ -211,7 +212,7 @@ export const useGeometries = (_geometriesId?: string) => {
 
 export const useGeometriesRun = (_geometriesRunId?: string) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.GeometriesRun, geometriesRunId],
     queryFn: async () => {
@@ -236,7 +237,7 @@ export const useGeometryOutput = (_geometryOutputId?: string) => {
     undefined,
     _geometryOutputId,
   )
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.GeometryOutput, geometryOutputId],
     queryFn: async () => {
@@ -256,6 +257,7 @@ export const useGeometryOutput = (_geometryOutputId?: string) => {
 
 export const useCreateGeometries = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateGeometriesPayload) => {
       const res = client.api.v0.geometries.$post({
@@ -272,6 +274,7 @@ export const useCreateGeometries = () => {
 
 export const useCreateGeometriesRun = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateGeometriesRunPayload) => {
       const res = client.api.v0['geometries-run'].$post({
@@ -290,6 +293,7 @@ export const useCreateGeometriesRun = () => {
 
 export const useCreateGeometryOutput = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateGeometryOutputPayload) => {
       const res = client.api.v0['geometry-output'].$post({
@@ -315,7 +319,7 @@ export const useCreateGeometryOutput = () => {
 export const useUpdateGeometries = (_geometriesId?: string) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateGeometriesPayload) => {
       if (!geometriesId) return
@@ -339,7 +343,7 @@ export const useUpdateGeometries = (_geometriesId?: string) => {
 export const useUpdateGeometriesRun = (_geometriesRunId?: string) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateGeometriesRunPayload) => {
       if (!geometriesRunId) return
@@ -367,7 +371,7 @@ export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
     _geometryOutputId,
   )
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateGeometryOutputPayload) => {
       if (!geometryOutputId) return
@@ -392,7 +396,7 @@ export const useSetGeometriesMainRun = (
   run?: GeometriesRunLinkParams | null,
 ) => {
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!run) return
@@ -427,7 +431,7 @@ export const useDeleteGeometries = (
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const queryClient = useQueryClient()
   const router = useRouter()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!geometriesId) return
@@ -460,7 +464,7 @@ export const useDeleteGeometriesRun = (
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const queryClient = useQueryClient()
   const router = useRouter()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!geometriesRunId) return

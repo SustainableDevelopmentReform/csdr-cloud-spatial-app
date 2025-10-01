@@ -1,60 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { authClient } from './utils/auth'
+import { env } from './env'
 
 const isProtectedRoute = (pathname: string) => {
   return pathname.startsWith('/console')
 }
 
-function isRunningDockerCompose(): boolean {
-  return process.env.IS_DOCKER_COMPOSE === 'true'
-}
-
-function isRunningSingleFileDocker(): boolean {
-  return process.env.IS_SINGLE_FILE_DOCKER === 'true'
-}
-
-const HTTP_PORT_TO_PROTOCOL_MAP: Record<string, string> = {
-  '80': 'http://',
-  '443': 'https://',
-}
-
-// This function will assume if there's no port, means it run in production
-// that uses https protocol
-function getProtocol(port: string | undefined) {
-  return port ? (HTTP_PORT_TO_PROTOCOL_MAP[port] ?? 'http://') : 'https://'
-}
-
 export async function middleware(request: NextRequest) {
+  if (!env.APP_URL) {
+    throw new Error('APP_URL is not set')
+  }
+
   const session =
     request.cookies.get('session_token') ??
     request.cookies.get('__Secure-better-auth.session_token')
 
-  const host = request.headers.get('host')!
   const { pathname } = request.nextUrl
-
-  const [hostname, port] = host.split(':')
-  const protocol = getProtocol(port)
-
-  const redirectBaseUrl = `${protocol}${hostname}${port ? `:${port}` : ''}`
-  let rewriteBaseUrl = redirectBaseUrl
-  let backendUrl = redirectBaseUrl
-
-  if (isRunningDockerCompose()) {
-    rewriteBaseUrl = 'http://web:3000'
-    backendUrl = 'http://server:4000'
-  }
-
-  if (isRunningSingleFileDocker()) {
-    rewriteBaseUrl =
-      protocol === 'http://'
-        ? `http://host.docker.internal:${port}`
-        : 'http://localhost:3000'
-    backendUrl = 'http://localhost:4000'
-  }
 
   if (!session && isProtectedRoute(pathname)) {
     console.log('protected route')
-    return NextResponse.rewrite(new URL('/not-found', rewriteBaseUrl))
+    return NextResponse.rewrite(
+      new URL('/not-found', env.INTERNAL_FRONTEND_URL ?? env.APP_URL),
+    )
   }
 
   const headers = new Headers()
@@ -79,7 +45,9 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.log('error', error)
     if (isProtectedRoute(pathname)) {
-      return NextResponse.rewrite(new URL('/not-found', rewriteBaseUrl))
+      return NextResponse.rewrite(
+        new URL('/not-found', env.INTERNAL_FRONTEND_URL ?? env.APP_URL),
+      )
     }
   }
 }

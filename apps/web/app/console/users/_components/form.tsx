@@ -5,11 +5,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@repo/ui/components/ui/dialog'
-import { toast } from '@repo/ui/components/ui/sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
-import { QueryKey } from '~/utils/fetcher'
-import { authClient } from '../../../../utils/auth'
+import { QueryKey } from '~/utils/apiClient'
+import { useAuthClient } from '~/hooks/useAuthClient'
 import SignupForm from '../../../sign-up/_components/form'
 
 interface UserFormProps {
@@ -26,7 +25,7 @@ const UserForm: React.FC<UserFormProps> = ({
   onOpen,
 }) => {
   const queryClient = useQueryClient()
-
+  const authClient = useAuthClient()
   return (
     <Dialog
       open={isOpen}

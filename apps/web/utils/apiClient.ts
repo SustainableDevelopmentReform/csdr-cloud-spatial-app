@@ -4,10 +4,21 @@ import { StatusCode } from 'hono/utils/http-status'
 
 export type Client = ReturnType<typeof hc<ApiRoutesType>>
 
-export const hcWithType = (...args: Parameters<typeof hc>): Client =>
+const hcWithType = (...args: Parameters<typeof hc>): Client =>
   hc<ApiRoutesType>(...args)
 
-export const client = hcWithType('/')
+export const createApiClient = (baseURL: string) =>
+  hcWithType(baseURL, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    fetch(input, requestInit, _Env, _executionCtx) {
+      return fetch(input, {
+        ...requestInit,
+        credentials: 'include',
+      })
+    },
+  })
 
 export async function unwrapResponse<
   Res extends ClientResponse<unknown, number, 'json'>,

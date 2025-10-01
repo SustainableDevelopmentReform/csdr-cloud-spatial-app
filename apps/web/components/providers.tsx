@@ -1,6 +1,6 @@
 'use client'
 
-import { ServerError } from '@repo/server/src/lib/error.js'
+// import { ServerError } from '@repo/server/src/lib/error.js'
 import { toast, Toaster } from '@repo/ui/components/ui/sonner'
 import {
   MutationCache,
@@ -9,10 +9,12 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { createContext } from 'react'
 
 function handleError(data: any) {
   if ('statusCode' in data) {
-    const err = data as InstanceType<typeof ServerError>['response']
+    // const err = data as InstanceType<typeof ServerError>['response']
+    const err = data as any
     toast.error(err.message, {
       description: err.description,
     })
@@ -70,18 +72,30 @@ export const queryClient = new QueryClient({
   }),
 })
 
+export const ConfigContext = createContext<{
+  appUrl: string
+  apiBaseUrl: string
+}>({
+  appUrl: '',
+  apiBaseUrl: '',
+})
+
 interface Props {
   children?: React.ReactNode
+  appUrl: string
+  apiBaseUrl: string
 }
 
-const Providers: React.FC<Props> = ({ children }) => {
+const Providers: React.FC<Props> = ({ children, appUrl, apiBaseUrl }) => {
   return (
-    <NuqsAdapter>
-      <QueryClientProvider client={queryClient}>
-        {children}
-        <Toaster />
-      </QueryClientProvider>
-    </NuqsAdapter>
+    <ConfigContext.Provider value={{ appUrl, apiBaseUrl }}>
+      <NuqsAdapter>
+        <QueryClientProvider client={queryClient}>
+          {children}
+          <Toaster />
+        </QueryClientProvider>
+      </NuqsAdapter>
+    </ConfigContext.Provider>
   )
 }
 

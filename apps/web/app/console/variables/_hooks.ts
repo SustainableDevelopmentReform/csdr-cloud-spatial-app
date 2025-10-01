@@ -7,45 +7,46 @@ import {
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useCallback, useState } from 'react'
 import { z } from 'zod'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
+import { Client, QueryKey, unwrapResponse } from '~/utils/apiClient'
 import { useParams, useRouter } from 'next/navigation'
+import { useApiClient } from '../../../hooks/useApiClient'
 
 export type VariableListItem = NonNullable<
-  InferResponseType<typeof client.api.v0.variable.$get, 200>['data']
+  InferResponseType<Client['api']['v0']['variable']['$get'], 200>['data']
 >['data'][0]
 export type VariableDetail = NonNullable<
-  InferResponseType<(typeof client.api.v0.variable)[':id']['$get'], 200>['data']
+  InferResponseType<Client['api']['v0']['variable'][':id']['$get'], 200>['data']
 >
 
 export type UpdateVariablePayload = NonNullable<
-  InferRequestType<(typeof client.api.v0.variable)[':id']['$patch']>['json']
+  InferRequestType<Client['api']['v0']['variable'][':id']['$patch']>['json']
 >
 
 export type CreateVariablePayload = NonNullable<
-  InferRequestType<(typeof client.api.v0.variable)['$post']>['json']
+  InferRequestType<Client['api']['v0']['variable']['$post']>['json']
 >
 
 export type VariableCategoryListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['variable-category']['$get'],
+    Client['api']['v0']['variable-category']['$get'],
     200
   >['data']
 >['data'][0]
 export type VariableCategoryDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['variable-category'][':id']['$get'],
+    Client['api']['v0']['variable-category'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateVariableCategoryPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v0)['variable-category'][':id']['$patch']
+    Client['api']['v0']['variable-category'][':id']['$patch']
   >['json']
 >
 
 export type CreateVariableCategoryPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0)['variable-category']['$post']>['json']
+  InferRequestType<Client['api']['v0']['variable-category']['$post']>['json']
 >
 
 const variableParamsSchema = z.object({
@@ -67,6 +68,7 @@ export const useVariableParams = (
 }
 
 export const useVariables = () => {
+  const client = useApiClient()
   const [page, setPage] = useState(1)
 
   const { data } = useQuery({
@@ -94,6 +96,7 @@ export const useVariables = () => {
 
 // Note - for the moment we just return all categories in a single query
 export const useVariableCategories = () => {
+  const client = useApiClient()
   const { data } = useQuery({
     queryKey: [QueryKey.VariableCategory],
     queryFn: async () => {
@@ -113,7 +116,7 @@ export const useVariableCategories = () => {
 
 export const useVariable = (id?: string) => {
   const { variableId } = useVariableParams(id)
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.Variable, variableId],
     queryFn: async () => {
@@ -134,7 +137,7 @@ export const useVariable = (id?: string) => {
 
 export const useVariableCategory = (id?: string) => {
   const { variableCategoryId } = useVariableParams(undefined, id)
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.VariableCategory, variableCategoryId],
     queryFn: async () => {
@@ -155,6 +158,7 @@ export const useVariableCategory = (id?: string) => {
 
 export const useCreateVariable = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateVariablePayload) => {
       const res = client.api.v0.variable.$post({
@@ -171,6 +175,7 @@ export const useCreateVariable = () => {
 
 export const useCreateVariableCategory = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateVariableCategoryPayload) => {
       const res = client.api.v0['variable-category'].$post({
@@ -190,7 +195,7 @@ export const useCreateVariableCategory = () => {
 export const useUpdateVariable = (_variableId?: string) => {
   const { variableId } = useVariableParams(_variableId)
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateVariablePayload) => {
       if (!variableId) return
@@ -217,7 +222,7 @@ export const useUpdateVariableCategory = (_variableCategoryId?: string) => {
     _variableCategoryId,
   )
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateVariableCategoryPayload) => {
       if (!variableCategoryId) return
@@ -245,6 +250,7 @@ export const useDeleteVariable = (
   const { variableId } = useVariableParams(_variableId)
   const queryClient = useQueryClient()
   const router = useRouter()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!variableId) return
@@ -280,6 +286,7 @@ export const useDeleteVariableCategory = (
   )
   const queryClient = useQueryClient()
   const router = useRouter()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!variableCategoryId) return
