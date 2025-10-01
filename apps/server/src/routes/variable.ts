@@ -19,7 +19,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createVariableSchema, updateVariableSchema } from '../schemas/zod'
+import { createVariableSchema, updateVariableSchema } from '@repo/schemas/crud'
 
 export const baseVariableQuery = {
   columns: {

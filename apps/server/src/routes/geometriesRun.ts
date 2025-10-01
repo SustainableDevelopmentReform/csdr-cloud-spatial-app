@@ -29,7 +29,7 @@ import {
 import {
   createGeometriesRunSchema,
   updateGeometriesRunSchema,
-} from '../schemas/zod'
+} from '@repo/schemas/crud'
 import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
 
 export const baseGeometriesRunQuery = {

@@ -20,7 +20,7 @@ import {
   useCreateGeometries,
   useGeometriesLink,
 } from './_hooks'
-import { createGeometriesSchema } from '@repo/server/schemas/zod'
+import { createGeometriesSchema } from '@repo/schemas/crud'
 
 const GeometriesFeature = () => {
   const { data, page, setPage } = useAllGeometries()

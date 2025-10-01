@@ -18,7 +18,7 @@ import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { formatDateTime } from '../utils/date'
 import { CrudFormAction, FormAction } from './crud-form-action'
-import { baseCreateResourceSchema } from '@repo/server/schemas/zod'
+import { baseCreateResourceSchema } from '@repo/schemas/crud'
 
 export interface CrudFormConfig<
   Data extends z.infer<typeof baseCreateResourceSchema>,

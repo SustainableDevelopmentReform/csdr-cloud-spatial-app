@@ -9,7 +9,7 @@ import React, { useState } from 'react'
 import { z } from 'zod'
 import { CrudForm, CrudFormProps } from './crud-form'
 import { Button } from '@repo/ui/components/ui/button'
-import { baseCreateResourceSchema } from '@repo/server/schemas/zod'
+import { baseCreateResourceSchema } from '@repo/schemas/crud'
 
 interface CrudFormDialogProps<
   Data extends z.infer<typeof baseCreateResourceSchema>,

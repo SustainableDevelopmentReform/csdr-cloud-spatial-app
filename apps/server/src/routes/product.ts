@@ -21,7 +21,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createProductSchema, updateProductSchema } from '../schemas/zod'
+import { createProductSchema, updateProductSchema } from '@repo/schemas/crud'
 import { fullDatasetQuery, fullDatasetSchema } from './dataset'
 import { fullGeometriesQuery, fullGeometriesSchema } from './geometries'
 import {

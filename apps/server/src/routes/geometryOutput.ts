@@ -12,7 +12,7 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas'
-import { MultiPolygonSchema, PolygonSchema } from '../schemas/geojson'
+import { MultiPolygonSchema, PolygonSchema } from '@repo/schemas/geojson'
 import {
   baseColumns,
   baseIdResourceSchema,
@@ -28,7 +28,7 @@ import {
   createGeometryOutputSchema,
   createManyGeometryOutputSchema,
   updateGeometryOutputSchema,
-} from '../schemas/zod'
+} from '@repo/schemas/crud'
 
 export const geometryOutputQuery = {
   columns: {
