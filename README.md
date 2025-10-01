@@ -70,61 +70,42 @@ pnpm test:unit
 
 ## 📦 Deployment
 
-### Deploy easily using Docker Compose:
-
-```bash
-# App wil run on port 3000
-docker-compose up --build
-```
-
-### Single Container Option
+### Single Container
 
 Using single container will make your final image even smaller (only 150 MB).
+
+This will run
+
+- web app on port `3000`
+- backend app on port `4000`
 
 ```bash
 # Build the image
 docker build -t csdr-cloud-spatial-app -f docker/single-file.Dockerfile .
 
-# Run container
-docker run --name csdr-cloud-spatial-app --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 csdr-cloud-spatial-app
+# Run container (using local DB)
+docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app
 ```
+
+### Multi Container
+
+Docs TODO
 
 ### Run migration and seed in production
 
 #### Single container mode
 
-```bash
-# Run /bin/sh in docker
-docker exec -it csdr-cloud-spatial-app /bin/sh
+There are two commands to run the migration and seed in production:
 
-# Make sure you are inside the migrate or seed folder
-
-# run this if you want to run migrate
-cd backend/migrate
-
-# run this if you want to run seed
-cd backend/seed
-
-# Run migration or seed
-node index.js
-```
-
-#### Docker compose mode
+- To migrate the database, run `node /app/backend/migrate/index.js`
+- To seed the database, run `node /app/backend/seed/index.js`
 
 ```bash
-# Run /bin/sh in docker
-docker compose exec -it server /bin/sh
+# To migrate the database
+docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app node /app/backend/migrate/index.js
 
-# Make sure you are inside the migrate or seed folder
-
-# run this if you want to run migrate
-cd migrate
-
-# run this if you want to run seed
-cd seed
-
-# Run migration or seed
-node index.js
+# To seed the database
+docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app node /app/backend/seed/index.js
 ```
 
 ## 💽 Database Schema (Drizzle)
