@@ -3,7 +3,7 @@ name: Build Docker Image
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: sustainabledevelopmentreform/csdr-cloud-spatial-app # ${{ github.repository }}
-  AWS_ROLE_TO_ASSUME: arn:aws:iam::891612567384:role/ecr-csdr-cloud-spatial-role-federated
+  AWS_ROLE_TO_ASSUME: arn:aws:iam::891612567384:role/ecr-csdr-cloud-spatial-app-role-federated
 
 on:
   workflow_dispatch:
