@@ -17,7 +17,7 @@ import {
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
-import { createDatasetRunSchema } from '@repo/server/schemas/zod'
+import { createDatasetRunSchema } from '@repo/schemas/crud'
 
 const columnHelper = createColumnHelper<DatasetRunListItem>()
 

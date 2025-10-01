@@ -14,6 +14,7 @@
     "@icons-pack/react-simple-icons": "catalog:",
     "@repo/server": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@repo/schemas": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.8",
     "@tanstack/react-query": "^5.66.7",
     "@tanstack/react-table": "^8.21.2",

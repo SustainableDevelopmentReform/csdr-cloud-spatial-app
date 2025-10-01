@@ -27,7 +27,7 @@ import {
   useVariables,
   VariableListItem,
 } from './_hooks'
-import { createVariableSchema } from '@repo/server/schemas/zod'
+import { createVariableSchema } from '@repo/schemas/crud'
 
 const VariableFeature = () => {
   const { data, page, setPage } = useVariables()

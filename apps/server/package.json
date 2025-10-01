@@ -2,25 +2,31 @@
   "name": "@repo/server",
   "version": "0.0.0",
   "exports": {
+    "./app": {
+      "import": {
+        "types": "./dist/types/app.d.ts"
+      }
+    },
     "./hc": {
       "import": {
-        "default": "./dist/hc.js",
-        "types": "./dist/hc.d.ts"
+        "types": "./dist/types/hc.d.ts"
       }
     },
     "./schemas/zod": {
       "import": {
-        "default": "./dist/schemas/zod.js",
-        "types": "./dist/schemas/zod.d.ts"
+        "types": "./dist/types/schemas/zod.d.ts"
       }
     }
   },
   "scripts": {
     "start": "NODE_ENV=production tsx src/index.ts",
     "dev": "pnpm --filter @repo/server --parallel \"/^dev:.*/\"",
-    "dev:tsc": "tsc -p tsconfig.build.json --watch",
+    "dev:types": "tsc -p tsconfig.build-types.json --watch",
     "dev:server": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm build:types && pnpm --filter @repo/server --parallel \"/^build:distributable.*/\"",
+    "build:distributable-app": "ncc build src/index.ts -o dist/app -m -s",
+    "build:distributable-scripts": "ncc build scripts/migrate.ts -o dist/migrate -m && ncc build scripts/seed.ts -o dist/seed -m",
+    "build:types": "tsc -p tsconfig.build-types.json",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "create:migration": "drizzle-kit generate",
@@ -40,6 +46,7 @@
     "@types/pg": "^8.11.11",
     "@types/react": "catalog:react19",
     "@types/simple-oauth2": "^5.0.7",
+    "@vercel/ncc": "^0.38.3",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "^3.0.6"
@@ -49,8 +56,9 @@
     "@aws-sdk/lib-storage": "^3.750.0",
     "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@hono/node-server": "^1.13.8",
-    "@hono/zod-openapi": "^1.1.3",
+    "@hono/zod-openapi": "catalog:",
     "@hono/zod-validator": "^0.7.3",
+    "@repo/schemas": "workspace:*",
     "@react-email/components": "^0.0.33",
     "@scalar/hono-api-reference": "^0.9.19",
     "@t3-oss/env-core": "^0.13.8",

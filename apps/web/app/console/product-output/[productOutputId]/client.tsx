@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { updateProductOutputSchema } from '@repo/server/schemas/zod'
+import { updateProductOutputSchema } from '@repo/schemas/crud'
 import { bbox } from '@turf/turf'
 import { Layer, Map, Source } from '@vis.gl/react-maplibre'
 import { ArrowUpRightIcon } from 'lucide-react'

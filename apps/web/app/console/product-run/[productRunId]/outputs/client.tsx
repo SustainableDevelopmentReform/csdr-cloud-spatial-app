@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createProductOutputSchema } from '@repo/server/schemas/zod'
+import { createProductOutputSchema } from '@repo/schemas/crud'
 import { CalendarSelect } from '@repo/ui/components/ui/calendar-select'
 import {
   FormControl,
