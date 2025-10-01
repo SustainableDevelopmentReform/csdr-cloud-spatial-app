@@ -1,10 +1,8 @@
 'use client'
 
-import { Trash2, Upload, User2 } from 'lucide-react'
-import { Dialog, DialogContent } from '@repo/ui/components/ui/dialog'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Button } from '@repo/ui/components/ui/button'
+import { Dialog, DialogContent } from '@repo/ui/components/ui/dialog'
 import {
   Form,
   FormControl,
@@ -14,14 +12,12 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { Button } from '@repo/ui/components/ui/button'
 import { useMutation } from '@tanstack/react-query'
-import { client, unwrapResponse } from '~/utils/fetcher'
+import { Trash2, User2 } from 'lucide-react'
 import React, { useState } from 'react'
-import { browseFile } from '~/utils'
-import { ofetch } from 'ofetch'
-import { toast } from '@repo/ui/components/ui/sonner'
-import { authClient } from '../../../utils/auth'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { useAuthClient } from '~/hooks/useAuthClient'
 
 interface AccountSettingsProps {}
 
@@ -33,6 +29,7 @@ const profileSchema = z.object({
 type Profile = z.infer<typeof profileSchema>
 
 const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
+  const authClient = useAuthClient()
   const { data } = authClient.useSession()
   const user = data?.user
   const [isOpen, setOpen] = useState(false)

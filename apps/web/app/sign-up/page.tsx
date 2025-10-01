@@ -1,12 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useAuthClient } from '~/hooks/useAuthClient'
 import Link from '../../components/link'
-import { authClient } from '../../utils/auth'
 import SignupForm from './_components/form'
 
 const Page = () => {
   const router = useRouter()
+  const authClient = useAuthClient()
   return (
     <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       <div className="font-bold text-2xl mb-8 -mt-8 w-full">

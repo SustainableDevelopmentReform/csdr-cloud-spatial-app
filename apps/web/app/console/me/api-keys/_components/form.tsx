@@ -9,8 +9,8 @@ import {
 import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import React, { useState } from 'react'
-import { QueryKey } from '~/utils/fetcher'
-import { authClient } from '../../../../../utils/auth'
+import { QueryKey } from '~/utils/apiClient'
+import { useAuthClient } from '~/hooks/useAuthClient'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@repo/ui/components/ui/button'
@@ -45,6 +45,7 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
   onClose,
   onOpen,
 }) => {
+  const authClient = useAuthClient()
   const [apiKey, setApiKey] = useState<string | undefined>()
 
   const queryClient = useQueryClient()

@@ -29,8 +29,8 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
-import { QueryKey } from '~/utils/fetcher'
-import { authClient } from '../../../../utils/auth'
+import { useAuthClient } from '~/hooks/useAuthClient'
+import { QueryKey } from '~/utils/apiClient'
 import { useUser } from '../_hooks'
 // import AssignOrgForm from './_components/assign-org-form'
 import {
@@ -49,6 +49,7 @@ const formSchema = z.object({
 type Data = z.infer<typeof formSchema>
 
 const UserProfile = () => {
+  const authClient = useAuthClient()
   const params = useParams<{ id: string }>()
   const id = params?.id
   const router = useRouter()
@@ -75,7 +76,6 @@ const UserProfile = () => {
 
   const updateUser = useMutation({
     mutationFn: async (data: Data) => {
-      console.log(data)
       const res = await authClient.admin.updateUser({
         userId: id,
         data: {
@@ -176,7 +176,6 @@ const UserProfile = () => {
   })
 
   function onSubmit(data: Data) {
-    console.log(data)
     updateUser.mutate(data)
   }
 

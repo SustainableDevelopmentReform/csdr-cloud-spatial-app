@@ -4,11 +4,11 @@ import { Button } from '@repo/ui/components/ui/button'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { LogOutIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { authClient } from '~/utils/auth'
+import { useAuthClient } from '~/hooks/useAuthClient'
 
 export const SignOutButton = () => {
   const router = useRouter()
-
+  const authClient = useAuthClient()
   return (
     <Button
       onClick={async () => {

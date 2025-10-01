@@ -1,0 +1,28 @@
+# Development Caddyfile with TLS
+{
+
+}
+
+csdr.localhost {
+    tls internal
+
+    # Forward /api/ to host.docker.internal:4000, preserving /api/ in the path
+    handle /api/* {
+        reverse_proxy host.docker.internal:4000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Forward all other requests to host.docker.internal:3000
+    handle {
+        reverse_proxy host.docker.internal:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}

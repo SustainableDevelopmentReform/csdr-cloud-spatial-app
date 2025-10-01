@@ -10,69 +10,68 @@ import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { z } from 'zod'
-import { client, QueryKey, unwrapResponse } from '~/utils/fetcher'
+import { Client, QueryKey, unwrapResponse } from '~/utils/apiClient'
 import { DatasetButton } from '../datasets/_components/dataset-button'
 import { useDataset, useDatasetRun } from '../datasets/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { useGeometries, useGeometriesRun } from '../geometries/_hooks'
 import { GeometriesRunButton } from '../geometries/_components/geometries-run-button'
 import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
+import { useApiClient } from '../../../hooks/useApiClient'
 
 export type ProductListItem = NonNullable<
-  InferResponseType<typeof client.api.v0.product.$get, 200>['data']
+  InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
 >['data'][0]
 export type ProductDetail = NonNullable<
-  InferResponseType<(typeof client.api.v0.product)[':id']['$get'], 200>['data']
+  InferResponseType<Client['api']['v0']['product'][':id']['$get'], 200>['data']
 >
 
 export type ProductRunListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v0.product)[':id']['runs']['$get'],
+    Client['api']['v0']['product'][':id']['runs']['$get'],
     200
   >['data']
 >['data'][0]
 export type ProductRunDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['product-run'][':id']['$get'],
+    Client['api']['v0']['product-run'][':id']['$get'],
     200
   >['data']
 >
 
 export type ProductOutputListItem = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['product-run'][':id']['outputs']['$get'],
+    Client['api']['v0']['product-run'][':id']['outputs']['$get'],
     200
   >['data']
 >['data'][0]
 export type ProductOutputDetail = NonNullable<
   InferResponseType<
-    (typeof client.api.v0)['product-output'][':id']['$get'],
+    Client['api']['v0']['product-output'][':id']['$get'],
     200
   >['data']
 >
 
 export type UpdateProductPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0.product)[':id']['$patch']>['json']
+  InferRequestType<Client['api']['v0']['product'][':id']['$patch']>['json']
 >
 export type UpdateProductRunPayload = NonNullable<
-  InferRequestType<
-    (typeof client.api.v0)['product-run'][':id']['$patch']
-  >['json']
+  InferRequestType<Client['api']['v0']['product-run'][':id']['$patch']>['json']
 >
 export type UpdateProductOutputPayload = NonNullable<
   InferRequestType<
-    (typeof client.api.v0)['product-output'][':id']['$patch']
+    Client['api']['v0']['product-output'][':id']['$patch']
   >['json']
 >
 
 export type CreateProductPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0.product)['$post']>['json']
+  InferRequestType<Client['api']['v0']['product']['$post']>['json']
 >
 export type CreateProductRunPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0)['product-run']['$post']>['json']
+  InferRequestType<Client['api']['v0']['product-run']['$post']>['json']
 >
 export type CreateProductRunOutputPayload = NonNullable<
-  InferRequestType<(typeof client.api.v0)['product-output']['$post']>['json']
+  InferRequestType<Client['api']['v0']['product-output']['$post']>['json']
 >
 
 const productParamsSchema = z.object({
@@ -110,7 +109,7 @@ export const useProductParams = (
 
 export const useProducts = () => {
   const [page, setPage] = useState(1)
-
+  const client = useApiClient()
   const searchParams = useSearchParams()
 
   const { datasetId, geometriesId } = productQuerySchema.parse(
@@ -152,6 +151,7 @@ export const useProducts = () => {
 }
 
 export const useProductRuns = (_productId?: string) => {
+  const client = useApiClient()
   const params = useParams()
   const [page, setPage] = useState(1)
 
@@ -221,6 +221,7 @@ export const useProductRuns = (_productId?: string) => {
 }
 
 export const useProductOutputs = (_productRunId?: string) => {
+  const client = useApiClient()
   const params = useParams()
   const { productRunId } = _productRunId
     ? { productRunId: _productRunId }
@@ -257,7 +258,7 @@ export const useProductOutputs = (_productRunId?: string) => {
 
 export const useProduct = (_productId?: string) => {
   const { productId } = useProductParams(_productId)
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.Product, productId],
     queryFn: async () => {
@@ -278,7 +279,7 @@ export const useProduct = (_productId?: string) => {
 
 export const useProductRun = (_productRunId?: string) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.ProductRun, productRunId],
     queryFn: async () => {
@@ -303,7 +304,7 @@ export const useProductOutput = (_productOutputId?: string) => {
     undefined,
     _productOutputId,
   )
-
+  const client = useApiClient()
   return useQuery({
     queryKey: [QueryKey.ProductOutput, productOutputId],
     queryFn: async () => {
@@ -324,6 +325,7 @@ export const useProductOutput = (_productOutputId?: string) => {
 
 export const useCreateProduct = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateProductPayload) => {
       const res = client.api.v0.product.$post({
@@ -340,6 +342,7 @@ export const useCreateProduct = () => {
 
 export const useCreateProductRun = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateProductRunPayload) => {
       const res = client.api.v0['product-run'].$post({
@@ -358,6 +361,7 @@ export const useCreateProductRun = () => {
 
 export const useCreateProductRunOutput = () => {
   const queryClient = useQueryClient()
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateProductRunOutputPayload) => {
       const res = client.api.v0['product-output'].$post({
@@ -386,7 +390,7 @@ export const useCreateProductRunOutput = () => {
 export const useUpdateProduct = (_productId?: string) => {
   const { productId } = useProductParams(_productId)
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateProductPayload) => {
       if (!productId) return
@@ -410,7 +414,7 @@ export const useUpdateProduct = (_productId?: string) => {
 export const useUpdateProductRun = (_productRunId?: string) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateProductRunPayload) => {
       if (!productRunId) return
@@ -438,7 +442,7 @@ export const useUpdateProductOutput = (_productOutputId?: string) => {
     _productOutputId,
   )
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: UpdateProductOutputPayload) => {
       if (!productOutputId) return
@@ -463,7 +467,7 @@ export const useRefreshProductRunSummary = (
   run?: ProductRunLinkParams | null,
 ) => {
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!run) return
@@ -490,7 +494,7 @@ export const useRefreshProductRunSummary = (
 }
 export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
   const queryClient = useQueryClient()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!run) return
@@ -523,7 +527,7 @@ export const useDeleteProduct = (
   const { productId } = useProductParams(_productId)
   const queryClient = useQueryClient()
   const router = useRouter()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!productId) return
@@ -556,7 +560,7 @@ export const useDeleteProductRun = (
   const { productRunId } = useProductParams(undefined, _productRunId)
   const queryClient = useQueryClient()
   const router = useRouter()
-
+  const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
       if (!productRunId) return

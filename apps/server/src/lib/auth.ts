@@ -1,4 +1,4 @@
-import { betterAuth } from 'better-auth'
+import { betterAuth, BetterAuthOptions } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import {
   admin,
@@ -36,8 +36,8 @@ const plugins: Plugins = [
 ]
 
 const authConfig = {
-  baseURL: 'http://localhost:4000',
-  trustedOrigins: ['http://localhost:3000'],
+  baseURL: env.INTERNAL_BACKEND_URL,
+  trustedOrigins: env.TRUSTED_ORIGINS,
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema,
@@ -67,7 +67,7 @@ const authConfig = {
     // cookiePrefix: 'csdr-dev',
     useSecureCookies: true,
   },
-}
+} satisfies BetterAuthOptions
 
 export const auth = betterAuth(authConfig) as ReturnType<
   typeof betterAuth<typeof authConfig>
