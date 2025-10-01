@@ -19,7 +19,10 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createGeometriesSchema, updateGeometriesSchema } from '../schemas/zod'
+import {
+  createGeometriesSchema,
+  updateGeometriesSchema,
+} from '@repo/schemas/crud'
 import {
   baseGeometriesRunQuery,
   baseGeometriesRunSchema,

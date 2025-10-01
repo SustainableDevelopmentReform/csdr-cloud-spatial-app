@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createGeometryOutputSchema } from '@repo/server/schemas/zod'
+import { createGeometryOutputSchema } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,

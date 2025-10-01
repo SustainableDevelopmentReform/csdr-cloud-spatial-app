@@ -1,8 +1,6 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema } from './geojson'
 
-// TODO: move these to a separate package
-
 export const baseCreateResourceSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),

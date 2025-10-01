@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { updateGeometriesRunSchema } from '@repo/server/schemas/zod'
+import { updateGeometriesRunSchema } from '@repo/schemas/crud'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'

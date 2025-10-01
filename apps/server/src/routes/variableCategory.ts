@@ -16,7 +16,7 @@ import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   createVariableCategorySchema,
   updateVariableCategorySchema,
-} from '../schemas/zod'
+} from '@repo/schemas/crud'
 
 const variableCategoryQuery = {
   columns: {

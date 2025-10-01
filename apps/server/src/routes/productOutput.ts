@@ -26,7 +26,7 @@ import {
   createManyProductOutputSchema,
   createProductOutputSchema,
   updateProductOutputSchema,
-} from '../schemas/zod'
+} from '@repo/schemas/crud'
 import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
 

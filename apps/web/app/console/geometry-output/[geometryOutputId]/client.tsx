@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { updateGeometryOutputSchema } from '@repo/server/schemas/zod'
+import { updateGeometryOutputSchema } from '@repo/schemas/crud'
 import { FormItem, FormLabel, FormMessage } from '@repo/ui/components/ui/form'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { bbox } from '@turf/turf'

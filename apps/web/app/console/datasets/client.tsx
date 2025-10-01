@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createDatasetSchema } from '@repo/server/schemas/zod'
+import { createDatasetSchema } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,

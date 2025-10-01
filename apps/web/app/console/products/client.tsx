@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createProductSchema } from '@repo/server/schemas/zod'
+import { createProductSchema } from '@repo/schemas/crud'
 import {
   FormField,
   FormItem,

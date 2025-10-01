@@ -29,7 +29,10 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createProductRunSchema, updateProductRunSchema } from '../schemas/zod'
+import {
+  createProductRunSchema,
+  updateProductRunSchema,
+} from '@repo/schemas/crud'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 import {
   baseGeometriesRunQuery,
