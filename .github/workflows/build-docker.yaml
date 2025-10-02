@@ -87,6 +87,7 @@ jobs:
         uses: docker/build-push-action@v6.15.0
         with:
           context: .
+          file: docker/single-file.Dockerfile
           push: true
           build-args: |
             DOCKER_IMAGE=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}
