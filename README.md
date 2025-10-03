@@ -83,8 +83,17 @@ This will run
 # Build the image
 docker build -t csdr-cloud-spatial-app -f docker/single-file.Dockerfile .
 
-# Run container (using local DB)
+# Run locally built container (using local DB)
 docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app
+```
+
+#### Run using published image
+
+```bash
+# Log into ECR
+aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com
+
+docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
 ```
 
 ### Multi Container

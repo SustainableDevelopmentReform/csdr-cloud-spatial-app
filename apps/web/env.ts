@@ -22,3 +22,10 @@ export const env = createEnv({
       process.env.DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND,
   },
 })
+
+export function getApiBaseUrl() {
+  return env.DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND &&
+    env.INTERNAL_BACKEND_URL
+    ? env.INTERNAL_BACKEND_URL
+    : env.APP_URL
+}
