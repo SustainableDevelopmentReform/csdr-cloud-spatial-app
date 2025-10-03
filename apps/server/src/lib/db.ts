@@ -3,6 +3,8 @@ import pg from 'pg'
 import * as schema from '~/schemas'
 import { env } from '../env'
 
+console.log(env)
+
 const pool = new pg.Pool({
   host: env.DATABASE_HOST,
   port: env.DATABASE_PORT,

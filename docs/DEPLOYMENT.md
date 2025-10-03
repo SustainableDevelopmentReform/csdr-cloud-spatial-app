@@ -45,7 +45,7 @@ The backend app need to be accessible on `APP_URL` at `/api` (for example `https
 
 ```bash
 # Run the container (using local .env file)
-docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=csdr-dev csdr-cloud-spatial-app
+docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal csdr-cloud-spatial-app
 ```
 
 ### Run using published image from ECR
@@ -58,7 +58,7 @@ aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS
 docker pull --platform linux/amd64 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
 
 # Run the container (using local .env file)
-docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=csdr-dev 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
+docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
 ```
 
 ### Local development with caddy
