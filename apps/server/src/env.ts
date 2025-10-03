@@ -38,8 +38,13 @@ export const env = createEnv({
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
-    TRUSTED_ORIGINS: process.env.TRUSTED_ORIGINS,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
+    DATABASE_HOST: process.env.DATABASE_HOST,
+    DATABASE_PORT: process.env.DATABASE_PORT,
+    DATABASE_USER: process.env.DATABASE_USER,
+    DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
+    DATABASE_NAME: process.env.DATABASE_NAME,
+    TRUSTED_ORIGINS: process.env.TRUSTED_ORIGINS,
     DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND:
       process.env.DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND,
     PORT: process.env.PORT,
