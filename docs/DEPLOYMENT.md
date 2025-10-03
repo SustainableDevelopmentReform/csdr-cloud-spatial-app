@@ -50,6 +50,9 @@ docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.doc
 # Log into ECR
 aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com
 
+# Pull the latest image
+docker pull --platform linux/amd64 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
+
 # Run the container (using local .env file)
 docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
 ```
