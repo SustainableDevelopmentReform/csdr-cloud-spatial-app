@@ -32,8 +32,6 @@ Start up postgres container with docker compose:
 docker-compose -f docker-compose-dev.yml up -d
 ```
 
-You can then set the `DATABASE_URL` inside `.env` file to `postgresql://admin:admin@localhost:5431/csdr-dev`
-
 **Important**: before run `pnpm seed` you have to set values for `INITIAL_USER_EMAIL` and `INITIAL_USER_NAME` inside `.env` file.
 
 - This will default to `csdr-admin` and `admin@example.com`

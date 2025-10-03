@@ -6,7 +6,11 @@ services:
       dockerfile: ./docker/server.Dockerfile
     environment:
       - DEFAULT_ORG_ID=${DEFAULT_ORG_ID}
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
       - S3_SPACES_ENDPOINT=${S3_SPACES_ENDPOINT}
       - S3_SPACES_SECRET_KEY=${S3_SPACES_SECRET_KEY}
@@ -31,7 +35,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - '3000:80'
+      - "3000:80"
     volumes:
       - ./nginx/nginx-with-compose.conf:/etc/nginx/conf.d/default.conf
     depends_on:
