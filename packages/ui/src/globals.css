@@ -4,6 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './components/tip-tap/styles/_variables.css';
+@import './components/tip-tap/styles/_keyframe-animations.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;
