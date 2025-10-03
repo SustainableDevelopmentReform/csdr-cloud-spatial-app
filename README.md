@@ -26,7 +26,7 @@ cp .env.example.local .env
 
 ### Setting up Database
 
-To make the process of installing dependencies easier, we offer a `docker-compose-dev.yml` with a Postgres container.
+Start up postgres container with docker compose:
 
 ```bash
 docker-compose -f docker-compose-dev.yml up -d
@@ -48,11 +48,11 @@ pnpm seed
 
 ### Development
 
+Run the app with:
+
 ```bash
 pnpm dev
 ```
-
-Frontend and backend start together with full type safety and no CORS issues.
 
 ### Production Build
 
@@ -62,7 +62,7 @@ pnpm build
 
 ### Testing
 
-**Important**: Before run the test, you need to create another database specific for testing purpose, so your database that is used for development won't losing the data.
+**Important**: Before running the tests, you need to create another database to avoid losing data.
 
 ```bash
 pnpm test:unit
@@ -70,51 +70,9 @@ pnpm test:unit
 
 ## 📦 Deployment
 
-### Single Container
+Full deployment docs are available in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
-Using single container will make your final image even smaller (only 150 MB).
-
-This will run
-
-- web app on port `3000`
-- backend app on port `4000`
-
-```bash
-# Build the image
-docker build -t csdr-cloud-spatial-app -f docker/single-file.Dockerfile .
-
-# Run locally built container (using local DB)
-docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app
-```
-
-#### Run using published image
-
-```bash
-# Log into ECR
-aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com
-
-docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
-```
-
-### Multi Container
-
-Docs TODO
-
-### Run migration and seed in production
-
-#### Single container mode
-
-There are two commands to run the migration and seed in production:
-
-```bash
-# To migrate the database
-docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/migrate/ && node index.js"
-
-# To seed the database
-docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_URL=postgresql://admin:admin@host.docker.internal:5431/csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/seed/ && node index.js"
-```
-
-## 💽 Database Schema (Drizzle)
+## 💽 Database (Drizzle)
 
 Drizzle schema is located in [`apps/server/src/schemas` folder](./apps/server/src/schemas)
 
