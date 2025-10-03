@@ -6,8 +6,15 @@ import pg from 'pg'
 import * as schema from '~/schemas'
 import { isEmail } from '~/utils'
 import { hashPassword } from 'better-auth/crypto'
+import { env } from '../src/env'
 
-export const client = new pg.Client(process.env.DATABASE_URL)
+export const client = new pg.Client({
+  host: env.DATABASE_HOST,
+  port: env.DATABASE_PORT,
+  user: env.DATABASE_USER,
+  password: env.DATABASE_PASSWORD,
+  database: env.DATABASE_NAME,
+})
 console.log('Connect to DB')
 await client.connect()
 export const db = drizzle(client, { schema })
