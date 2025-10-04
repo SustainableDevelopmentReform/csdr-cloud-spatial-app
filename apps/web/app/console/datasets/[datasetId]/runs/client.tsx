@@ -23,7 +23,7 @@ const columnHelper = createColumnHelper<DatasetRunListItem>()
 
 const DatasetRunFeature = () => {
   const { data: dataset } = useDataset()
-  const { data, page, setPage } = useDatasetRuns()
+  const { data, query, setSearchParams } = useDatasetRuns()
   const createDatasetRun = useCreateDatasetRun()
   const datasetLink = useDatasetRunLink()
 
@@ -72,8 +72,8 @@ const DatasetRunFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>

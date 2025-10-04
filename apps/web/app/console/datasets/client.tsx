@@ -19,7 +19,7 @@ import { DatasetButton } from './_components/dataset-button'
 import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
 
 const DatasetFeature = () => {
-  const { data, page, setPage } = useDatasets()
+  const { data, query, setSearchParams } = useDatasets()
   const createDataset = useCreateDataset()
 
   const datasetLink = useDatasetLink()
@@ -82,8 +82,8 @@ const DatasetFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>

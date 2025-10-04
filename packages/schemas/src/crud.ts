@@ -31,6 +31,8 @@ export const baseUpdateResourceSchema = z.object({
   description: z.string().nullable().optional(),
 })
 
+export const datasetQuerySchema = paginatedQuerySchema
+
 export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
   sourceMetadataUrl: z.string().optional(),
@@ -40,11 +42,15 @@ export const updateDatasetSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
+export const datasetRunQuerySchema = paginatedQuerySchema
+
 export const createDatasetRunSchema = baseCreateRunResourceSchema.extend({
   datasetId: z.string(),
 })
 
 export const updateDatasetRunSchema = baseUpdateResourceSchema
+
+export const geometriesQuerySchema = paginatedQuerySchema
 
 export const createGeometriesSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
@@ -55,6 +61,8 @@ export const updateGeometriesSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
+export const geometriesRunQuerySchema = paginatedQuerySchema
+
 export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   // Override dataType to be geoparquet
   dataType: z.enum(['geoparquet']).optional(),
@@ -62,6 +70,8 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
 })
 
 export const updateGeometriesRunSchema = baseUpdateResourceSchema
+
+export const geometryOutputQuerySchema = paginatedQuerySchema
 
 export const createGeometryOutputSchema = baseCreateResourceSchema.extend({
   name: z.string(),
@@ -152,6 +162,8 @@ export const createManyProductOutputSchema = z.object({
     }),
   ),
 })
+
+export const variableQuerySchema = paginatedQuerySchema
 
 export const createVariableSchema = baseCreateResourceSchema.extend({
   name: z.string(),

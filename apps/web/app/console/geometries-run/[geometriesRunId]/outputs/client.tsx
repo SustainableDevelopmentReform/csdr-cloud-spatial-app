@@ -30,7 +30,7 @@ import {
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
 const GeometryOutputFeature = () => {
-  const { data, page, setPage } = useGeometryOutputs()
+  const { data, query, setSearchParams } = useGeometryOutputs()
   const createGeometryOutput = useCreateGeometryOutput()
   const { data: geometriesRun } = useGeometriesRun()
   const geometryOutputLink = useGeometryOutputLink()
@@ -114,8 +114,8 @@ const GeometryOutputFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>

@@ -23,7 +23,7 @@ import {
 import { createGeometriesSchema } from '@repo/schemas/crud'
 
 const GeometriesFeature = () => {
-  const { data, page, setPage } = useAllGeometries()
+  const { data, query, setSearchParams } = useAllGeometries()
   const createGeometries = useCreateGeometries()
   const geometriesLink = useGeometriesLink()
 
@@ -87,8 +87,8 @@ const GeometriesFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>
