@@ -1,23 +1,30 @@
 'use client'
 
 import {
+  productOutputQuerySchema,
+  productQuerySchema,
+  productRunQuerySchema,
+} from '@repo/schemas/crud'
+import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { useCallback } from 'react'
 import { z } from 'zod'
-import { Client, QueryKey, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/apiClient'
+import { getSearchParams } from '~/utils/browser'
+import { useApiClient } from '../../../hooks/useApiClient'
+import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { DatasetButton } from '../datasets/_components/dataset-button'
+import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
 import { useDataset, useDatasetRun } from '../datasets/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
-import { useGeometries, useGeometriesRun } from '../geometries/_hooks'
 import { GeometriesRunButton } from '../geometries/_components/geometries-run-button'
-import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
-import { useApiClient } from '../../../hooks/useApiClient'
+import { useGeometries, useGeometriesRun } from '../geometries/_hooks'
 
 export type ProductListItem = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -80,17 +87,25 @@ const productParamsSchema = z.object({
   productOutputId: z.string().optional(),
 })
 
-const productQuerySchema = z.object({
-  datasetId: z.string().optional(),
-  geometriesId: z.string().optional(),
-})
+const queryKeys = {
+  productAll: ['product'] as const,
+  productDetail: (productId: string | undefined) =>
+    [...queryKeys.productAll, productId] as const,
+  productList: (query: z.infer<typeof productQuerySchema>) =>
+    [...queryKeys.productAll, { query }] as const,
+  productRunAll: ['productRun'] as const,
+  productRunDetail: (productRunId: string | undefined) =>
+    [...queryKeys.productRunAll, productRunId] as const,
+  productRunList: (query: z.infer<typeof productRunQuerySchema>) =>
+    [...queryKeys.productRunAll, { query }] as const,
+  productOutputAll: ['productOutput'] as const,
+  productOutputDetail: (productOutputId: string | undefined) =>
+    [...queryKeys.productOutputAll, productOutputId] as const,
+  productOutputList: (query: z.infer<typeof productOutputQuerySchema>) =>
+    [...queryKeys.productOutputAll, { query }] as const,
+}
 
-const productRunQuerySchema = z.object({
-  datasetRunId: z.string().optional(),
-  geometriesRunId: z.string().optional(),
-})
-
-export const useProductParams = (
+const useProductParams = (
   _productId?: string,
   _productRunId?: string,
   _productOutputId?: string,
@@ -108,26 +123,19 @@ export const useProductParams = (
 }
 
 export const useProducts = () => {
-  const [page, setPage] = useState(1)
   const client = useApiClient()
-  const searchParams = useSearchParams()
 
-  const { datasetId, geometriesId } = productQuerySchema.parse(
-    Object.fromEntries(searchParams ?? []),
-  )
+  const { query, setSearchParams } =
+    useQueryWithSearchParams(productQuerySchema)
 
-  const { data: dataset } = useDataset(datasetId)
-  const { data: geometries } = useGeometries(geometriesId)
+  const { data: dataset } = useDataset(query.datasetId)
+  const { data: geometries } = useGeometries(query.geometriesId)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.Product, datasetId, geometriesId],
+    queryKey: queryKeys.productList(query),
     queryFn: async () => {
       const res = client.api.v0.product.$get({
-        query: {
-          page,
-          datasetId,
-          geometriesId,
-        },
+        query,
       })
 
       const json = await unwrapResponse(res)
@@ -139,8 +147,8 @@ export const useProducts = () => {
 
   return {
     data,
-    page,
-    setPage,
+    query,
+    setSearchParams,
     filters: [
       dataset && <DatasetButton dataset={dataset} key={dataset.id} />,
       geometries && (
@@ -152,32 +160,21 @@ export const useProducts = () => {
 
 export const useProductRuns = (_productId?: string) => {
   const client = useApiClient()
-  const params = useParams()
-  const [page, setPage] = useState(1)
-
-  const { productId } = _productId
-    ? { productId: _productId }
-    : productParamsSchema.parse(params)
-
-  const searchParams = useSearchParams()
-
-  const { geometriesRunId, datasetRunId } = productRunQuerySchema.parse(
-    Object.fromEntries(searchParams ?? []),
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    productRunQuerySchema,
   )
 
-  const { data: datasetRun } = useDatasetRun(datasetRunId)
-  const { data: geometriesRun } = useGeometriesRun(geometriesRunId)
+  const { productId } = useProductParams(_productId)
+
+  const { data: datasetRun } = useDatasetRun(query.datasetRunId)
+  const { data: geometriesRun } = useGeometriesRun(query.geometriesRunId)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.ProductRun, productId, datasetRunId, geometriesRunId],
+    queryKey: queryKeys.productRunList(query),
     queryFn: async () => {
       if (!productId) return null
       const res = client.api.v0['product'][':id']['runs'].$get({
-        query: {
-          page,
-          datasetRunId,
-          geometriesRunId,
-        },
+        query,
         param: {
           id: productId,
         },
@@ -192,8 +189,8 @@ export const useProductRuns = (_productId?: string) => {
 
   return {
     data,
-    page,
-    setPage,
+    query,
+    setSearchParams,
     filters: [
       datasetRun && (
         <DatasetButton
@@ -220,23 +217,23 @@ export const useProductRuns = (_productId?: string) => {
   }
 }
 
-export const useProductOutputs = (_productRunId?: string) => {
+export const useProductOutputs = (
+  _productRunId?: string,
+  _query?: z.infer<typeof productOutputQuerySchema>,
+) => {
   const client = useApiClient()
-  const params = useParams()
-  const { productRunId } = _productRunId
-    ? { productRunId: _productRunId }
-    : productParamsSchema.parse(params)
-
-  const [page, setPage] = useState(1)
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    productOutputQuerySchema,
+    _query,
+  )
 
   const { data } = useQuery({
-    queryKey: [QueryKey.ProductOutput],
+    queryKey: queryKeys.productOutputList(query),
     queryFn: async () => {
       if (!productRunId) return null
       const res = client.api.v0['product-run'][':id']['outputs'].$get({
-        query: {
-          page,
-        },
+        query,
         param: {
           id: productRunId,
         },
@@ -251,8 +248,8 @@ export const useProductOutputs = (_productRunId?: string) => {
 
   return {
     data,
-    page,
-    setPage,
+    query,
+    setSearchParams,
   }
 }
 
@@ -260,7 +257,7 @@ export const useProduct = (_productId?: string) => {
   const { productId } = useProductParams(_productId)
   const client = useApiClient()
   return useQuery({
-    queryKey: [QueryKey.Product, productId],
+    queryKey: queryKeys.productDetail(productId),
     queryFn: async () => {
       if (!productId || productId === '*') return null
       const res = client.api.v0.product[':id'].$get({
@@ -281,7 +278,7 @@ export const useProductRun = (_productRunId?: string) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
   const client = useApiClient()
   return useQuery({
-    queryKey: [QueryKey.ProductRun, productRunId],
+    queryKey: queryKeys.productRunDetail(productRunId),
     queryFn: async () => {
       if (!productRunId) return null
       const res = client.api.v0['product-run'][':id'].$get({
@@ -306,7 +303,7 @@ export const useProductOutput = (_productOutputId?: string) => {
   )
   const client = useApiClient()
   return useQuery({
-    queryKey: [QueryKey.ProductOutput, productOutputId],
+    queryKey: queryKeys.productOutputDetail(productOutputId),
     queryFn: async () => {
       if (!productOutputId) return null
       const res = client.api.v0['product-output'][':id'].$get({
@@ -334,7 +331,7 @@ export const useCreateProduct = () => {
       await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product],
+        queryKey: queryKeys.productAll,
       })
     },
   })
@@ -350,10 +347,10 @@ export const useCreateProductRun = () => {
       })
       await unwrapResponse(res, 201)
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun],
+        queryKey: queryKeys.productRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, data.productId],
+        queryKey: queryKeys.productDetail(data.productId),
       })
     },
   })
@@ -369,20 +366,14 @@ export const useCreateProductRunOutput = () => {
       })
       await unwrapResponse(res, 201)
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductOutput],
+        queryKey: queryKeys.productOutputAll,
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun, data.productRunId],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun],
+        queryKey: queryKeys.productRunDetail(data.productRunId),
       })
       // queryClient.invalidateQueries({
-      //   queryKey: [QueryKey.Product, data.productRun.productId],
+      //   queryKey: queryKeys.productDetail(data.productRun.productId),
       // })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product],
-      })
     },
   })
 }
@@ -402,10 +393,7 @@ export const useUpdateProduct = (_productId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, productId],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product],
+        queryKey: queryKeys.productAll,
       })
     },
   })
@@ -426,11 +414,11 @@ export const useUpdateProductRun = (_productRunId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun, productRunId],
+        queryKey: queryKeys.productRunAll,
       })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun],
-      })
+      // queryClient.invalidateQueries({
+      //   queryKey: queryKeys.productDetail(payload.productId),
+      // })
     },
   })
 }
@@ -454,11 +442,14 @@ export const useUpdateProductOutput = (_productOutputId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductOutput, productOutputId],
+        queryKey: queryKeys.productOutputAll,
       })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductOutput],
-      })
+      // queryClient.invalidateQueries({
+      //   queryKey: queryKeys.productRunDetail(payload.productRunId),
+      // })
+      // queryClient.invalidateQueries({
+      //   queryKey: queryKeys.productDetail(payload.productRun.productId),
+      // })
     },
   })
 }
@@ -478,16 +469,10 @@ export const useRefreshProductRunSummary = (
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun, run?.id],
+        queryKey: queryKeys.productRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, run?.product.id],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product],
+        queryKey: queryKeys.productAll,
       })
     },
   })
@@ -505,16 +490,10 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun, run?.id],
+        queryKey: queryKeys.productRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, run?.product.id],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product],
+        queryKey: queryKeys.productAll,
       })
     },
   })
@@ -541,10 +520,7 @@ export const useDeleteProduct = (
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, productId],
+        queryKey: queryKeys.productAll,
       })
       if (redirect) {
         router.push(redirect)
@@ -574,11 +550,11 @@ export const useDeleteProductRun = (
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.ProductRun],
+        queryKey: queryKeys.productRunAll,
       })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Product, productRunId],
-      })
+      // queryClient.invalidateQueries({
+      //   queryKey: queryKeys.productDetail(data.productRun.productId),
+      // })
       if (redirect) {
         router.push(redirect)
       }
@@ -591,7 +567,7 @@ export const PRODUCTS_BASE_PATH = '/console/products'
 export const useProductsLink = () =>
   useCallback(
     (query?: z.infer<typeof productQuerySchema>) =>
-      `${PRODUCTS_BASE_PATH}?${new URLSearchParams(query ?? {}).toString()}`,
+      `${PRODUCTS_BASE_PATH}?${getSearchParams(query ?? {})}`,
     [],
   )
 
@@ -609,7 +585,7 @@ export const useProductRunsLink = () =>
       product: ProductLinkParams | null,
       query?: z.infer<typeof productRunQuerySchema>,
     ) =>
-      `${PRODUCTS_BASE_PATH}/${product?.id ?? '*'}/runs?${new URLSearchParams(query ?? {}).toString()}`,
+      `${PRODUCTS_BASE_PATH}/${product?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
     [],
   )
 

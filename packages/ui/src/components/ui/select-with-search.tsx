@@ -30,6 +30,7 @@ export interface SelectWithSearchProps {
   noResult?: React.ReactNode
   open?: boolean
   setOpen?: (open: boolean) => void
+  disabled?: boolean
 }
 
 export function EmptyResult() {
@@ -47,6 +48,7 @@ export function SelectWithSearch({
   noResult,
   open: openProp,
   setOpen: setOpenProp,
+  disabled,
 }: SelectWithSearchProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -59,6 +61,7 @@ export function SelectWithSearch({
           aria-expanded={openProp ?? open}
           className="w-full justify-between"
           animate={false}
+          disabled={disabled}
         >
           {value
             ? (options?.find((option) => option.id === value)?.name ??

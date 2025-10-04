@@ -1,6 +1,11 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema } from './geojson'
 
+export const paginatedQuerySchema = z.object({
+  page: z.coerce.number().positive().optional(),
+  size: z.coerce.number().optional(),
+})
+
 export const baseCreateResourceSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
@@ -90,6 +95,11 @@ export const updateGeometryOutputSchema = baseUpdateResourceSchema.omit({
   name: true,
 })
 
+export const productQuerySchema = paginatedQuerySchema.extend({
+  datasetId: z.string().optional(),
+  geometriesId: z.string().optional(),
+})
+
 export const createProductSchema = baseCreateResourceSchema.extend({
   datasetId: z.string(),
   geometriesId: z.string(),
@@ -101,6 +111,11 @@ export const updateProductSchema = baseUpdateResourceSchema.extend({
   timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
 })
 
+export const productRunQuerySchema = paginatedQuerySchema.extend({
+  datasetRunId: z.string().optional(),
+  geometriesRunId: z.string().optional(),
+})
+
 export const createProductRunSchema = baseCreateRunResourceSchema.extend({
   dataType: z.enum(['parquet']).optional(),
   productId: z.string(),
@@ -110,10 +125,16 @@ export const createProductRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateProductRunSchema = baseUpdateResourceSchema
 
+export const productOutputQuerySchema = paginatedQuerySchema.extend({
+  geometryOutputId: z.string().optional(),
+  variableId: z.string().optional(),
+  timePoint: z.iso.datetime().optional(),
+})
+
 export const createProductOutputSchema = baseCreateResourceSchema.extend({
   productRunId: z.string(),
   geometryOutputId: z.string(),
-  value: z.number(),
+  value: z.coerce.number(),
   variableId: z.string(),
   timePoint: z.iso.datetime(),
 })

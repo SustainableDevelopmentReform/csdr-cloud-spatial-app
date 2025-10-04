@@ -42,7 +42,7 @@ import { useVariables } from '../../../variables/_hooks'
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 const ProductOutputFeature = () => {
-  const { data, page, setPage } = useProductOutputs()
+  const { data, query, setSearchParams } = useProductOutputs()
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
   const productLink = useProductOutputLink()
@@ -222,8 +222,8 @@ const ProductOutputFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(p) => setSearchParams({ page: p })}
         />
       </div>
     </div>

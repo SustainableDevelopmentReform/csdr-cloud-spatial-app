@@ -91,7 +91,7 @@ const columns = [
 ] as ColumnDef<ProductListItem>[]
 
 const ProductFeature = () => {
-  const { data, page, setPage, filters } = useProducts()
+  const { data, query, setSearchParams, filters } = useProducts()
   const { data: datasets } = useDatasets()
   const { data: geometries } = useAllGeometries()
   const productLink = useProductLink()
@@ -188,8 +188,8 @@ const ProductFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>
