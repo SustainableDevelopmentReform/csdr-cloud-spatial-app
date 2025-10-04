@@ -1,3 +1,4 @@
+import { variableQuerySchema } from '@repo/schemas/crud'
 import {
   keepPreviousData,
   useMutation,
@@ -5,11 +6,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
-import { Client, QueryKey, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/apiClient'
 import { useParams, useRouter } from 'next/navigation'
 import { useApiClient } from '../../../hooks/useApiClient'
+import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { getSearchParams } from '~/utils/browser'
 
 export type VariableListItem = NonNullable<
   InferResponseType<Client['api']['v0']['variable']['$get'], 200>['data']
@@ -54,7 +57,18 @@ const variableParamsSchema = z.object({
   variableCategoryId: z.string().optional(),
 })
 
-export const useVariableParams = (
+const queryKeys = {
+  variableAll: ['variable'] as const,
+  variableDetail: (variableId: string | undefined) =>
+    [...queryKeys.variableAll, variableId] as const,
+  variableList: (query: z.infer<typeof variableQuerySchema>) =>
+    [...queryKeys.variableAll, { query }] as const,
+  variableCategoryAll: ['variableCategory'] as const,
+  variableCategoryDetail: (variableCategoryId: string | undefined) =>
+    [...queryKeys.variableCategoryAll, variableCategoryId] as const,
+}
+
+const useVariableParams = (
   _variableId?: string,
   _variableCategoryId?: string,
 ) => {
@@ -69,15 +83,14 @@ export const useVariableParams = (
 
 export const useVariables = () => {
   const client = useApiClient()
-  const [page, setPage] = useState(1)
+  const { query, setSearchParams } =
+    useQueryWithSearchParams(variableQuerySchema)
 
   const { data } = useQuery({
-    queryKey: [QueryKey.Variable],
+    queryKey: queryKeys.variableList(query),
     queryFn: async () => {
       const res = client.api.v0.variable.$get({
-        query: {
-          page,
-        },
+        query,
       })
 
       const json = await unwrapResponse(res)
@@ -89,8 +102,8 @@ export const useVariables = () => {
 
   return {
     data,
-    page,
-    setPage,
+    query,
+    setSearchParams,
   }
 }
 
@@ -98,7 +111,7 @@ export const useVariables = () => {
 export const useVariableCategories = () => {
   const client = useApiClient()
   const { data } = useQuery({
-    queryKey: [QueryKey.VariableCategory],
+    queryKey: queryKeys.variableCategoryAll,
     queryFn: async () => {
       const res = client.api.v0['variable-category'].$get()
 
@@ -118,7 +131,7 @@ export const useVariable = (id?: string) => {
   const { variableId } = useVariableParams(id)
   const client = useApiClient()
   return useQuery({
-    queryKey: [QueryKey.Variable, variableId],
+    queryKey: queryKeys.variableDetail(variableId),
     queryFn: async () => {
       if (!variableId) return null
       const res = client.api.v0.variable[':id'].$get({
@@ -139,7 +152,7 @@ export const useVariableCategory = (id?: string) => {
   const { variableCategoryId } = useVariableParams(undefined, id)
   const client = useApiClient()
   return useQuery({
-    queryKey: [QueryKey.VariableCategory, variableCategoryId],
+    queryKey: queryKeys.variableCategoryDetail(variableCategoryId),
     queryFn: async () => {
       if (!variableCategoryId) return null
       const res = client.api.v0['variable-category'][':id'].$get({
@@ -167,7 +180,7 @@ export const useCreateVariable = () => {
       await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Variable],
+        queryKey: queryKeys.variableAll,
       })
     },
   })
@@ -184,7 +197,7 @@ export const useCreateVariableCategory = () => {
       const variableCategory = await unwrapResponse(res, 201)
 
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.VariableCategory],
+        queryKey: queryKeys.variableCategoryAll,
       })
 
       return variableCategory.data
@@ -207,10 +220,7 @@ export const useUpdateVariable = (_variableId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Variable, variableId],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Variable],
+        queryKey: queryKeys.variableAll,
       })
     },
   })
@@ -234,10 +244,7 @@ export const useUpdateVariableCategory = (_variableCategoryId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.VariableCategory, variableCategoryId],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.VariableCategory],
+        queryKey: queryKeys.variableCategoryAll,
       })
     },
   })
@@ -264,10 +271,7 @@ export const useDeleteVariable = (
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.Variable],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.Variable, variableId],
+        queryKey: queryKeys.variableAll,
       })
       if (redirect) {
         router.push(redirect)
@@ -300,10 +304,7 @@ export const useDeleteVariableCategory = (
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.VariableCategory],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [QueryKey.VariableCategory, variableCategoryId],
+        queryKey: queryKeys.variableCategoryAll,
       })
       if (redirect) {
         router.push(redirect)
@@ -318,15 +319,24 @@ export type VariableCategoryLinkParams = Pick<
   'id' | 'name'
 >
 
+export const VARIABLES_BASE_PATH = '/console/variables'
+
+export const useVariablesLink = () =>
+  useCallback(
+    (query?: z.infer<typeof variableQuerySchema>) =>
+      `${VARIABLES_BASE_PATH}?${getSearchParams(query ?? {})}`,
+    [],
+  )
+
 export const useVariableLink = () =>
   useCallback(
-    (variable: VariableLinkParams) => `/console/variables/${variable.id}`,
+    (variable: VariableLinkParams) => `${VARIABLES_BASE_PATH}/${variable.id}`,
     [],
   )
 
 export const useVariableCategoryLink = () =>
   useCallback(
     (variableCategory: VariableCategoryLinkParams) =>
-      `/console/variables/categories/${variableCategory.id}`,
+      `${VARIABLES_BASE_PATH}/categories/${variableCategory.id}`,
     [],
   )

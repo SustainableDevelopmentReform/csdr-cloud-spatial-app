@@ -96,13 +96,17 @@ const queryKeys = {
   productRunAll: ['productRun'] as const,
   productRunDetail: (productRunId: string | undefined) =>
     [...queryKeys.productRunAll, productRunId] as const,
-  productRunList: (query: z.infer<typeof productRunQuerySchema>) =>
-    [...queryKeys.productRunAll, { query }] as const,
+  productRunList: (
+    productId: string | undefined,
+    query: z.infer<typeof productRunQuerySchema>,
+  ) => [...queryKeys.productRunAll, productId, { query }] as const,
   productOutputAll: ['productOutput'] as const,
   productOutputDetail: (productOutputId: string | undefined) =>
     [...queryKeys.productOutputAll, productOutputId] as const,
-  productOutputList: (query: z.infer<typeof productOutputQuerySchema>) =>
-    [...queryKeys.productOutputAll, { query }] as const,
+  productOutputList: (
+    productRunId: string | undefined,
+    query: z.infer<typeof productOutputQuerySchema>,
+  ) => [...queryKeys.productOutputAll, productRunId, { query }] as const,
 }
 
 const useProductParams = (
@@ -170,7 +174,7 @@ export const useProductRuns = (_productId?: string) => {
   const { data: geometriesRun } = useGeometriesRun(query.geometriesRunId)
 
   const { data } = useQuery({
-    queryKey: queryKeys.productRunList(query),
+    queryKey: queryKeys.productRunList(productId, query),
     queryFn: async () => {
       if (!productId) return null
       const res = client.api.v0['product'][':id']['runs'].$get({
@@ -229,7 +233,7 @@ export const useProductOutputs = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.productOutputList(query),
+    queryKey: queryKeys.productOutputList(productRunId, query),
     queryFn: async () => {
       if (!productRunId) return null
       const res = client.api.v0['product-run'][':id']['outputs'].$get({

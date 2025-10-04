@@ -30,7 +30,7 @@ import {
 import { createVariableSchema } from '@repo/schemas/crud'
 
 const VariableFeature = () => {
-  const { data, page, setPage } = useVariables()
+  const { data, query, setSearchParams } = useVariables()
   const { data: variableCategories } = useVariableCategories()
   const createVariable = useCreateVariable()
   const createVariableCategory = useCreateVariableCategory()
@@ -124,8 +124,8 @@ const VariableFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>
