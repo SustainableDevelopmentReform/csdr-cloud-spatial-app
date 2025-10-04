@@ -1,4 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  createProductRunSchema,
+  paginatedQuerySchema,
+  productOutputQuerySchema,
+  updateProductRunSchema,
+} from '@repo/schemas/crud'
 import { avg, count, desc, eq, max, min } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -29,10 +35,6 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import {
-  createProductRunSchema,
-  updateProductRunSchema,
-} from '@repo/schemas/crud'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 import {
   baseGeometriesRunQuery,
@@ -203,10 +205,7 @@ const app = createOpenAPIApp()
       middleware: [authMiddleware({ permission: 'read:productOutput' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: productOutputQuerySchema,
       },
       responses: {
         200: {

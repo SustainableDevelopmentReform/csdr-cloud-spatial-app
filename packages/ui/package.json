@@ -6,9 +6,18 @@
     "./globals.css": "./src/globals.css",
     "./postcss.config": "./postcss.config.mjs",
     "./tailwind.config": "./tailwind.config.ts",
-    "./lib/*": "./src/lib/*.ts",
-    "./hooks/*": "./src/hooks/*.ts",
-    "./components/*": "./src/components/*"
+    "./lib/*": {
+      "types": "./src/lib/*.ts",
+      "default": "./src/lib/*.ts"
+    },
+    "./hooks/*": {
+      "types": "./src/hooks/*.ts",
+      "default": "./src/hooks/*.ts"
+    },
+    "./components/*": {
+      "types": "./src/components/*.tsx",
+      "default": "./src/components/*"
+    }
   },
   "scripts": {
     "ui": "pnpm dlx shadcn@latest",

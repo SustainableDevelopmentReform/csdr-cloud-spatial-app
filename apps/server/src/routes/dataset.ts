@@ -19,7 +19,11 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createDatasetSchema, updateDatasetSchema } from '@repo/schemas/crud'
+import {
+  createDatasetSchema,
+  paginatedQuerySchema,
+  updateDatasetSchema,
+} from '@repo/schemas/crud'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
 
 export const baseDatasetQuery = {
@@ -66,10 +70,7 @@ const app = createOpenAPIApp()
         }),
       ],
       request: {
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: paginatedQuerySchema,
       },
       responses: {
         200: {
@@ -181,10 +182,7 @@ const app = createOpenAPIApp()
         params: z.object({
           id: z.string().min(1),
         }),
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: paginatedQuerySchema,
       },
       responses: {
         200: {

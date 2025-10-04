@@ -1,4 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  createVariableSchema,
+  paginatedQuerySchema,
+  updateVariableSchema,
+} from '@repo/schemas/crud'
 import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -19,7 +24,6 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createVariableSchema, updateVariableSchema } from '@repo/schemas/crud'
 
 export const baseVariableQuery = {
   columns: {
@@ -52,10 +56,7 @@ const app = createOpenAPIApp()
       path: '/',
       middleware: [authMiddleware({ permission: 'read:variable' })],
       request: {
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: paginatedQuerySchema,
       },
       responses: {
         200: {

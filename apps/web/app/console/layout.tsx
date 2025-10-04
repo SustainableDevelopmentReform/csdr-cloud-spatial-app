@@ -48,6 +48,12 @@ const SIDEBAR_CONFIG = [
     href: '/console/variables',
     roles: ['admin', 'user'],
   },
+  {
+    text: 'Reports',
+    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
+    href: '/console/reports',
+    roles: ['admin', 'user'],
+  },
 
   // {
   //   text: 'Organizations',

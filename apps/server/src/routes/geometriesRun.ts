@@ -28,6 +28,7 @@ import {
 } from '../schemas/util'
 import {
   createGeometriesRunSchema,
+  paginatedQuerySchema,
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
@@ -132,10 +133,7 @@ const app = createOpenAPIApp()
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: paginatedQuerySchema,
       },
       responses: {
         200: {

@@ -11,9 +11,9 @@ import {
 } from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
-import { cn } from '@repo/ui/lib/utils'
 import { UseMutationResult } from '@tanstack/react-query'
 import { ComponentProps } from 'react'
+import { Action } from './action'
 
 export type CrudFormAction = {
   title: string
@@ -31,13 +31,13 @@ export type CrudFormAction = {
 
 export const FormAction = (props: CrudFormAction) => {
   return (
-    <div className={cn(props.disabled && 'opacity-50')}>
-      <div className="font-medium">{props.title}</div>
-      <div className="mb-3">{props.description}</div>
+    <Action {...props}>
       {props.confirmDialog ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant={props.buttonVariant}>{props.buttonTitle}</Button>
+            <Button variant={props.buttonVariant} className="w-fit">
+              {props.buttonTitle}
+            </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -67,6 +67,7 @@ export const FormAction = (props: CrudFormAction) => {
           variant={props.buttonVariant}
           onClick={() => props.mutation.mutateAsync()}
           disabled={props.disabled}
+          className="w-fit"
         >
           {props.mutation.isPending ? (
             <LoadingIcon>'Loading...'</LoadingIcon>
@@ -75,6 +76,6 @@ export const FormAction = (props: CrudFormAction) => {
           )}
         </Button>
       )}
-    </div>
+    </Action>
   )
 }

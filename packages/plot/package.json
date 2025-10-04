@@ -1,0 +1,30 @@
+{
+  "name": "@repo/plot",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./plot/*": {
+      "types": "./src/plot/*.tsx",
+      "default": "./src/plot/*"
+    }
+  },
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/d3": "^7.4.3",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:react19",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@observablehq/plot": "^0.6.17",
+    "clsx": "^2.1.1",
+    "d3": "^7.9.0"
+  }
+}

@@ -1,4 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  createProductSchema,
+  productQuerySchema,
+  productRunQuerySchema,
+  updateProductSchema,
+} from '@repo/schemas/crud'
 import { and, count, desc, eq, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -21,7 +27,6 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { createProductSchema, updateProductSchema } from '@repo/schemas/crud'
 import { fullDatasetQuery, fullDatasetSchema } from './dataset'
 import { fullGeometriesQuery, fullGeometriesSchema } from './geometries'
 import {
@@ -83,12 +88,7 @@ const app = createOpenAPIApp()
       path: '/',
       middleware: [authMiddleware({ permission: 'read:product' })],
       request: {
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-          datasetId: z.string().optional(),
-          geometriesId: z.string().optional(),
-        }),
+        query: productQuerySchema,
       },
       responses: {
         200: {
@@ -211,12 +211,7 @@ const app = createOpenAPIApp()
       middleware: [authMiddleware({ permission: 'read:productRun' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-          datasetRunId: z.string().optional(),
-          geometriesRunId: z.string().optional(),
-        }),
+        query: productRunQuerySchema,
       },
       responses: {
         200: {

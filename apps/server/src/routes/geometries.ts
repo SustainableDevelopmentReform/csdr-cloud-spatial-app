@@ -21,6 +21,7 @@ import {
 } from '../schemas/util'
 import {
   createGeometriesSchema,
+  paginatedQuerySchema,
   updateGeometriesSchema,
 } from '@repo/schemas/crud'
 import {
@@ -68,10 +69,7 @@ const app = createOpenAPIApp()
       path: '/',
       middleware: [authMiddleware({ permission: 'read:geometries' })],
       request: {
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: paginatedQuerySchema,
       },
       responses: {
         200: {
@@ -181,10 +179,7 @@ const app = createOpenAPIApp()
       middleware: [authMiddleware({ permission: 'read:productRun' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({
-          page: z.coerce.number().positive().optional(),
-          size: z.coerce.number().optional(),
-        }),
+        query: paginatedQuerySchema,
       },
       responses: {
         200: {

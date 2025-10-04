@@ -32,7 +32,7 @@ import {
 const columnHelper = createColumnHelper<ProductRunListItem>()
 
 const ProductRunFeature = () => {
-  const { data, page, setPage, filters } = useProductRuns()
+  const { data, query, setSearchParams, filters } = useProductRuns()
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
 
@@ -148,8 +148,8 @@ const ProductRunFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={page}
-          onPageChange={setPage}
+          currentPage={query.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
         />
       </div>
     </div>
