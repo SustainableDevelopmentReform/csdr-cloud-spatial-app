@@ -1,11 +1,11 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
   createProductRunSchema,
-  paginatedQuerySchema,
+  productOutputExportQuerySchema,
   productOutputQuerySchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
-import { avg, count, desc, eq, max, min } from 'drizzle-orm'
+import { and, avg, count, desc, eq, max, min, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -40,7 +40,11 @@ import {
   baseGeometriesRunQuery,
   baseGeometriesRunSchema,
 } from './geometriesRun'
-import { productOutputQuery, productOutputSchema } from './productOutput'
+import {
+  productOutputExportSchema,
+  productOutputQuery,
+  productOutputSchema,
+} from './productOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
 
 export const baseProductRunOutputSummaryQuery = {
@@ -229,18 +233,36 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { page = 1, size = 10 } = c.req.valid('query')
+      const {
+        page = 1,
+        size = 10,
+        variableId,
+        geometryOutputId,
+        timePoint,
+      } = c.req.valid('query')
       const skip = (page - 1) * size
+
+      const filters: SQL[] = [eq(productOutput.productRunId, id)]
+
+      if (variableId) {
+        filters.push(eq(productOutput.variableId, variableId))
+      }
+      if (geometryOutputId) {
+        filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
+      }
+      if (timePoint) {
+        filters.push(eq(productOutput.timePoint, new Date(timePoint)))
+      }
 
       const totalCount = await db
         .select({ count: count() })
         .from(productOutput)
-        .where(eq(productOutput.productRunId, id))
+        .where(and(...filters))
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.productOutput.findMany({
         ...productOutputQuery,
-        where: (productOutput, { eq }) => eq(productOutput.productRunId, id),
+        where: and(...filters),
         limit: size,
         offset: skip,
         orderBy: desc(productOutput.createdAt),
@@ -252,6 +274,75 @@ const app = createOpenAPIApp()
           pageCount,
           data,
           totalCount: totalCount[0]!.count,
+        },
+        200,
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Export outputs for a product run.',
+      method: 'get',
+      path: '/:id/outputs/export',
+      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: productOutputExportQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully exported outputs for a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  data: z.array(productOutputExportSchema),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to export product outputs'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { variableId, geometryOutputId, timePoint } = c.req.valid('query')
+
+      const filters: SQL[] = [eq(productOutput.productRunId, id)]
+
+      if (variableId) {
+        filters.push(eq(productOutput.variableId, variableId))
+      }
+      if (geometryOutputId) {
+        filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
+      }
+      if (timePoint) {
+        filters.push(eq(productOutput.timePoint, new Date(timePoint)))
+      }
+
+      const data = await db.query.productOutput.findMany({
+        columns: {
+          id: true,
+          variableId: true,
+          timePoint: true,
+          geometryOutputId: true,
+          value: true,
+        },
+        where: and(...filters),
+        orderBy: () => [
+          desc(productOutput.variableId),
+          desc(productOutput.timePoint),
+          desc(productOutput.geometryOutputId),
+        ],
+      })
+
+      return generateJsonResponse(
+        c,
+        {
+          data,
         },
         200,
       )

@@ -141,6 +141,11 @@ export const productOutputQuerySchema = paginatedQuerySchema.extend({
   timePoint: z.iso.datetime().optional(),
 })
 
+export const productOutputExportQuerySchema = z.object({
+  variableId: z.string(),
+  geometryOutputId: z.string(),
+})
+
 export const createProductOutputSchema = baseCreateResourceSchema.extend({
   productRunId: z.string(),
   geometryOutputId: z.string(),

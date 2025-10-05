@@ -3,7 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@repo/*": [
+      "@repo/plot": [
+        "./src/index.ts"
+      ],
+      "@repo/plot/*": [
         "./src/*"
       ]
     }
