@@ -47,6 +47,7 @@ export function CalendarSelect({
               setOpen(false)
             }}
             className="w-full"
+            timeZone="UTC"
           />
         </PopoverContent>
       </Popover>

@@ -1,14 +1,16 @@
 import * as Plot from '@observablehq/plot'
 import { useEffect, useRef } from 'react'
 
-export function LinePlot({
+export function LinePlot<T extends { id: string; value: number }>({
   data,
   x,
   y,
+  onSelect,
 }: {
-  data: Plot.Data
+  data: T[]
   x: Plot.ChannelValueSpec
   y: Plot.ChannelValueSpec
+  onSelect: (dataPoint: T) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -33,9 +35,8 @@ export function LinePlot({
     })
     containerRef.current?.append(chart)
 
-    chart.addEventListener('input', (event) => {
-      console.log(event)
-      console.log(chart.value)
+    chart.addEventListener('input', () => {
+      onSelect(chart.value)
     })
     return () => chart.remove()
   }, [data])

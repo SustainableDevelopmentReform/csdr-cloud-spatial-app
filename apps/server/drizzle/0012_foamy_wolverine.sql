@@ -1,0 +1,1 @@
+ALTER TABLE "product_output_summary" ADD COLUMN "time_points" timestamp[];

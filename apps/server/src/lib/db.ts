@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
-import * as schema from '~/schemas'
+import * as schema from '~/schemas/db'
 import { env } from '../env'
 
 const pool = new pg.Pool({

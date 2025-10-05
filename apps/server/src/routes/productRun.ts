@@ -23,7 +23,7 @@ import {
   productOutputSummary,
   productOutputSummaryVariable,
   productRun,
-} from '../schemas'
+} from '../schemas/db'
 import {
   baseIdResourceSchema,
   baseIdResourceSchemaWithMainRunId,
@@ -41,9 +41,9 @@ import {
   baseGeometriesRunSchema,
 } from './geometriesRun'
 import {
+  baseProductOutputQuery,
+  baseProductOutputSchema,
   productOutputExportSchema,
-  productOutputQuery,
-  productOutputSchema,
 } from './productOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
 
@@ -53,6 +53,7 @@ export const baseProductRunOutputSummaryQuery = {
     startTime: true,
     endTime: true,
     outputCount: true,
+    timePoints: true,
   },
   with: {
     variables: {
@@ -114,6 +115,7 @@ export const baseProductRunOutputSummarySchema = z
     startTime: z.date().nullable(),
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
+    timePoints: z.array(z.date()).nullable(),
     variables: z.array(
       z.object({
         variable: baseVariableSchema,
@@ -127,6 +129,7 @@ export const fullProductRunOutputSummarySchema = z
     startTime: z.date().nullable(),
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
+    timePoints: z.array(z.date()).nullable(),
     variables: z.array(
       z.object({
         minValue: z.number().nullable(),
@@ -220,7 +223,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(productOutputSchema),
+                  data: z.array(baseProductOutputSchema),
                 }),
               ),
             },
@@ -261,7 +264,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.productOutput.findMany({
-        ...productOutputQuery,
+        ...baseProductOutputQuery,
         where: and(...filters),
         limit: size,
         offset: skip,
@@ -599,6 +602,18 @@ const app = createOpenAPIApp()
 
         const stats = summaryStats[0]
 
+        // 2. Select all unique time points
+        const timePoints = await tx
+          .selectDistinctOn([productOutput.timePoint], {
+            timePoint: productOutput.timePoint,
+          })
+          .from(productOutput)
+          .where(eq(productOutput.productRunId, id))
+
+        const timePointsArray = timePoints.map(
+          (timePoint) => timePoint.timePoint,
+        )
+
         // 2. Update or insert into productOutputSummary
         if (stats && stats.outputCount > 0) {
           await tx
@@ -607,6 +622,7 @@ const app = createOpenAPIApp()
               productRunId: id,
               startTime: stats.startTime,
               endTime: stats.endTime,
+              timePoints: timePointsArray,
               outputCount: stats.outputCount,
               lastUpdated: new Date(),
             })
@@ -615,6 +631,7 @@ const app = createOpenAPIApp()
               set: {
                 startTime: stats.startTime,
                 endTime: stats.endTime,
+                timePoints: timePointsArray,
                 outputCount: stats.outputCount,
                 lastUpdated: new Date(),
               },

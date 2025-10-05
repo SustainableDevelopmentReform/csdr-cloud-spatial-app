@@ -11,7 +11,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometryOutput } from '../schemas'
+import { geometryOutput } from '../schemas/db'
 import { MultiPolygonSchema, PolygonSchema } from '@repo/schemas/geojson'
 import {
   baseColumns,
@@ -30,11 +30,10 @@ import {
   updateGeometryOutputSchema,
 } from '@repo/schemas/crud'
 
-export const geometryOutputQuery = {
+export const baseGeometryOutputQuery = {
   columns: {
     ...baseColumns,
     properties: true,
-    geometry: true,
   },
   with: {
     geometriesRun: {
@@ -48,18 +47,33 @@ export const geometryOutputQuery = {
   },
 } satisfies QueryForTable<'geometryOutput'>
 
-export const geometryOutputSchema = baseResourceSchema
+export const fullGeometryOutputQuery = {
+  columns: {
+    ...baseGeometryOutputQuery.columns,
+    geometry: true,
+  },
+  with: {
+    ...baseGeometryOutputQuery.with,
+  },
+} satisfies QueryForTable<'geometryOutput'>
+
+export const baseGeometryOutputSchema = baseResourceSchema
   .extend({
     properties: z.any(),
-    geometry: z.union([
-      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-      MultiPolygonSchema.openapi({ title: 'GeoJSON MultiPolygon' }),
-    ]),
     geometriesRun: baseIdResourceSchema.extend({
       geometries: baseIdResourceSchemaWithMainRunId,
     }),
   })
-  .openapi('GeometryOutputSchema')
+  .openapi('GeometryOutputBase')
+
+export const fullGeometryOutputSchema = baseGeometryOutputSchema
+  .extend({
+    geometry: z.union([
+      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
+      MultiPolygonSchema.openapi({ title: 'GeoJSON MultiPolygon' }),
+    ]),
+  })
+  .openapi('GeometryOutputFull')
 
 const app = createOpenAPIApp()
   .openapi(
@@ -76,7 +90,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a geometry output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(geometryOutputSchema),
+              schema: createResponseSchema(fullGeometryOutputSchema),
             },
           },
         },
@@ -90,7 +104,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.geometryOutput.findFirst({
         where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
-        ...geometryOutputQuery,
+        ...fullGeometryOutputQuery,
       })
 
       if (!record) {
@@ -127,7 +141,7 @@ const app = createOpenAPIApp()
           content: {
             'application/json': {
               schema: createResponseSchema(
-                geometryOutputSchema
+                fullGeometryOutputSchema
                   .omit({ geometry: true, geometriesRun: true })
                   .optional(),
               ),
@@ -187,7 +201,7 @@ const app = createOpenAPIApp()
             'application/json': {
               schema: createResponseSchema(
                 z.array(
-                  geometryOutputSchema.omit({
+                  fullGeometryOutputSchema.omit({
                     geometry: true,
                     geometriesRun: true,
                   }),
@@ -255,7 +269,7 @@ const app = createOpenAPIApp()
           content: {
             'application/json': {
               schema: createResponseSchema(
-                geometryOutputSchema
+                fullGeometryOutputSchema
                   .omit({ geometry: true, geometriesRun: true })
                   .optional(),
               ),

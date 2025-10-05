@@ -66,10 +66,14 @@ export const geometriesRunQuerySchema = paginatedQuerySchema
 export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   // Override dataType to be geoparquet
   dataType: z.enum(['geoparquet']).optional(),
+  dataPmtilesUrl: z.string().optional(),
   geometriesId: z.string(),
 })
 
-export const updateGeometriesRunSchema = baseUpdateResourceSchema
+export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({
+  // Temporarily allow dataPmtilesUrl to be updated
+  dataPmtilesUrl: z.string().optional(),
+})
 
 export const geometryOutputQuerySchema = paginatedQuerySchema
 
@@ -143,7 +147,8 @@ export const productOutputQuerySchema = paginatedQuerySchema.extend({
 
 export const productOutputExportQuerySchema = z.object({
   variableId: z.string(),
-  geometryOutputId: z.string(),
+  geometryOutputId: z.string().optional(),
+  timePoint: z.iso.datetime().optional(),
 })
 
 export const createProductOutputSchema = baseCreateResourceSchema.extend({

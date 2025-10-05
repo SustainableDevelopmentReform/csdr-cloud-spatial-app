@@ -2,6 +2,14 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateGeometriesRunSchema } from '@repo/schemas/crud'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
@@ -9,18 +17,21 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/crud-form'
 import { CrudFormAction } from '../../../../components/crud-form-action'
 import { CrudFormRunFields } from '../../../../components/crud-form-run-fields'
+import { useConfig } from '../../../../components/providers'
 import { DetailCard } from '../../_components/detail-cards'
+import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../../geometries/_components/geometries-run-summary-card'
 import {
-  useGeometriesRun,
-  useUpdateGeometriesRun,
   useDeleteGeometriesRun,
+  useGeometriesRun,
   useGeometryRunOutputsLink,
   useSetGeometriesMainRun,
+  useUpdateGeometriesRun,
 } from '../../geometries/_hooks'
 import { useProductRunsLink } from '../../products/_hooks'
 
 const GeometriesRunDetails = () => {
+  const { dataBaseUrl } = useConfig()
   const { data: geometriesRun } = useGeometriesRun()
   const updateGeometriesRun = useUpdateGeometriesRun()
   const deleteGeometriesRun = useDeleteGeometriesRun(
@@ -58,29 +69,32 @@ const GeometriesRunDetails = () => {
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <GeometriesRunSummaryCard run={geometriesRun} />
-        <div className="grid grid-cols-1 grid-rows-3 gap-4">
-          {geometriesRun && (
-            <DetailCard
-              title={`${geometriesRun?.outputCount} ${pluralize(geometriesRun?.outputCount, 'output', 'outputs')}`}
-              description="Geometry Outputs"
-              actionText="Open"
-              actionLink={geometryRunOutputsLink(geometriesRun)}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {geometriesRun && (
-            <DetailCard
-              title={`${geometriesRun?.productRunCount} ${pluralize(geometriesRun?.productRunCount, 'product run', 'product runs')}`}
-              description="Used by Products Runs"
-              actionText="Open"
-              actionLink={productRunsLink(null, {
-                geometriesRunId: geometriesRun?.id,
-              })}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
+      <div className="flex flex-col gap-4">
+        <GeometriesMapViewer geometriesRun={geometriesRun} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <GeometriesRunSummaryCard run={geometriesRun} />
+          <div className="grid grid-cols-1 grid-rows-3 gap-4">
+            {geometriesRun && (
+              <DetailCard
+                title={`${geometriesRun?.outputCount} ${pluralize(geometriesRun?.outputCount, 'output', 'outputs')}`}
+                description="Geometry Outputs"
+                actionText="Open"
+                actionLink={geometryRunOutputsLink(geometriesRun)}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {geometriesRun && (
+              <DetailCard
+                title={`${geometriesRun?.productRunCount} ${pluralize(geometriesRun?.productRunCount, 'product run', 'product runs')}`}
+                description="Used by Products Runs"
+                actionText="Open"
+                actionLink={productRunsLink(null, {
+                  geometriesRunId: geometriesRun?.id,
+                })}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -93,6 +107,19 @@ const GeometriesRunDetails = () => {
         actions={formActions}
       >
         <CrudFormRunFields form={form} readOnlyFields={'all'} />
+        <FormField
+          control={form.control}
+          name={'dataPmtilesUrl'}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data PMTiles URL</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </CrudForm>
     </div>
   )

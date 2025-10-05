@@ -16,7 +16,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { variable } from '../schemas'
+import { variable } from '../schemas/db'
 import {
   baseColumns,
   baseResourceSchema,

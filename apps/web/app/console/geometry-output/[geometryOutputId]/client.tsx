@@ -5,11 +5,11 @@ import { updateGeometryOutputSchema } from '@repo/schemas/crud'
 import { FormItem, FormLabel, FormMessage } from '@repo/ui/components/ui/form'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { bbox } from '@turf/turf'
-import { Layer, Map, Source } from '@vis.gl/react-maplibre'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import { Layer, Source } from '@vis.gl/react-maplibre'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/crud-form'
+import { MapViewer } from '../../../../components/map-viewer'
 import { GeometryOutputCard } from '../../_components/geometry-output-card'
 import {
   useGeometryOutput,
@@ -49,13 +49,11 @@ const GeometriesRunDetails = () => {
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="rounded-lg overflow-hidden">
         {geometryBbox && (
-          <Map
+          <MapViewer
             initialViewState={{
               bounds: geometryBbox as [number, number, number, number],
               fitBoundsOptions: { padding: 100 },
             }}
-            style={{ width: '100%', height: '400px' }}
-            mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
           >
             <Source id="geojson" type="geojson" data={geometry as any} />
             <Layer
@@ -76,7 +74,7 @@ const GeometriesRunDetails = () => {
                 'fill-opacity': 0.2,
               }}
             />
-          </Map>
+          </MapViewer>
         )}
       </div>
 

@@ -8,7 +8,7 @@ import {
   twoFactor,
 } from 'better-auth/plugins'
 import { env } from '~/env'
-import * as schema from '~/schemas'
+import * as schema from '~/schemas/db'
 import { db } from './db'
 
 export type Plugins = [

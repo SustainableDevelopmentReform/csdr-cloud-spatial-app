@@ -1,4 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  createGeometriesRunSchema,
+  paginatedQuerySchema,
+  updateGeometriesRunSchema,
+} from '@repo/schemas/crud'
 import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -16,7 +21,7 @@ import {
   geometriesRun,
   geometryOutput,
   productRun,
-} from '../schemas'
+} from '../schemas/db'
 import {
   baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
@@ -27,15 +32,14 @@ import {
   updatePayload,
 } from '../schemas/util'
 import {
-  createGeometriesRunSchema,
-  paginatedQuerySchema,
-  updateGeometriesRunSchema,
-} from '@repo/schemas/crud'
-import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
+  baseGeometryOutputQuery,
+  baseGeometryOutputSchema,
+} from './geometryOutput'
 
 export const baseGeometriesRunQuery = {
   columns: {
     ...baseRunColumns,
+    dataPmtilesUrl: true,
   },
   with: {
     geometries: {
@@ -49,6 +53,7 @@ export const fullGeometriesRunQuery = baseGeometriesRunQuery
 export const baseGeometriesRunSchema = baseRunResourceSchema
   .extend({
     geometries: baseIdResourceSchemaWithMainRunId,
+    dataPmtilesUrl: z.string().nullable(),
   })
   .openapi('GeometriesRunBase')
 
@@ -144,7 +149,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(geometryOutputSchema),
+                  data: z.array(baseGeometryOutputSchema),
                 }),
               ),
             },
@@ -169,7 +174,7 @@ const app = createOpenAPIApp()
       const pageCount = Math.ceil(totalCount[0]!.count / size)
 
       const data = await db.query.geometryOutput.findMany({
-        ...geometryOutputQuery,
+        ...baseGeometryOutputQuery,
         where: (geometryOutput, { eq }) =>
           eq(geometryOutput.geometriesRunId, id),
         limit: size,
