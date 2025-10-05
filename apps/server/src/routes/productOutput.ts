@@ -85,6 +85,16 @@ export const productOutputSchema = baseResourceSchema
   })
   .openapi('ProductOutputSchema')
 
+export const productOutputExportSchema = z
+  .object({
+    id: z.string(),
+    variableId: z.string(),
+    timePoint: z.iso.datetime(),
+    geometryOutputId: z.string(),
+    value: z.number(),
+  })
+  .openapi('ProductOutputExportSchema')
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({

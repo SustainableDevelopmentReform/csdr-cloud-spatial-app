@@ -1,11 +1,20 @@
 import * as Plot from '@observablehq/plot'
 import { useEffect, useRef } from 'react'
 
-export function LinePlot({ data }: { data: Plot.Data }) {
+export function LinePlot({
+  data,
+  x,
+  y,
+}: {
+  data: Plot.Data
+  x: Plot.ChannelValueSpec
+  y: Plot.ChannelValueSpec
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const chart = Plot.plot({
+      margin: 50,
       style: {
         background: 'transparent',
       },
@@ -17,11 +26,17 @@ export function LinePlot({ data }: { data: Plot.Data }) {
         scheme: 'burd',
       },
       marks: [
+        Plot.dot(data, Plot.pointer({ x, y, fill: 'red', r: 8 })),
         Plot.ruleY([0]),
-        Plot.dot(data, { x: 'Date', y: 'Anomaly', stroke: 'Anomaly' }),
+        Plot.line(data, { x, y }),
       ],
     })
     containerRef.current?.append(chart)
+
+    chart.addEventListener('input', (event) => {
+      console.log(event)
+      console.log(chart.value)
+    })
     return () => chart.remove()
   }, [data])
 

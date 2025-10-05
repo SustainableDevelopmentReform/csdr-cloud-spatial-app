@@ -3,10 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
-    "./plot/*": {
-      "types": "./src/plot/*.tsx",
-      "default": "./src/plot/*"
-    }
+    "./*": "./src/*.tsx"
   },
   "scripts": {
     "lint": "eslint ."

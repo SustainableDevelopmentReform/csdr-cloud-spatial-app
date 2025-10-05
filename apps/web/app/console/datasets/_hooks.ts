@@ -59,12 +59,12 @@ const queryKeys = {
   datasetAll: ['dataset'] as const,
   datasetDetail: (datasetId: string | undefined) =>
     [...queryKeys.datasetAll, datasetId] as const,
-  datasetList: (query: z.infer<typeof datasetQuerySchema>) =>
+  datasetList: (query: z.infer<typeof datasetQuerySchema> | undefined) =>
     [...queryKeys.datasetAll, { query }] as const,
   datasetRunAll: ['datasetRun'] as const,
   datasetRunDetail: (datasetRunId: string | undefined) =>
     [...queryKeys.datasetRunAll, datasetRunId] as const,
-  datasetRunList: (query: z.infer<typeof datasetRunQuerySchema>) =>
+  datasetRunList: (query: z.infer<typeof datasetRunQuerySchema> | undefined) =>
     [...queryKeys.datasetRunAll, { query }] as const,
 }
 
@@ -87,6 +87,7 @@ export const useDatasets = () => {
   const { data } = useQuery({
     queryKey: queryKeys.datasetList(query),
     queryFn: async () => {
+      if (!query) return null
       const res = client.api.v0.dataset.$get({
         query,
       })
@@ -115,7 +116,7 @@ export const useDatasetRuns = (_datasetId?: string) => {
   const { data } = useQuery({
     queryKey: queryKeys.datasetRunList(query),
     queryFn: async () => {
-      if (!datasetId) return null
+      if (!datasetId || !query) return null
       const res = client.api.v0['dataset'][':id']['runs'].$get({
         query,
         param: {

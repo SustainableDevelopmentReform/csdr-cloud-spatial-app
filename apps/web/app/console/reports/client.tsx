@@ -1,18 +1,20 @@
 'use client'
 
+import { LinePlot } from '@repo/plot/LinePlot'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { useState } from 'react'
-import {
-  ProductListItem,
-  useProductOutputs,
-  useProducts,
-} from '../products/_hooks'
-import { VariableListItem } from '../variables/_hooks'
-import { Action } from '../../../components/action'
+import { FieldGroup } from '../../../components/action'
+import { formatDateTime } from '../../../utils/date'
 import {
   GeometryOutputListItem,
   useGeometryOutputs,
 } from '../geometries/_hooks'
+import {
+  ProductListItem,
+  useProductOutputsExport,
+  useProducts,
+} from '../products/_hooks'
+import { VariableListItem } from '../variables/_hooks'
 
 const ProductFeature = () => {
   const { data: products } = useProducts()
@@ -28,14 +30,19 @@ const ProductFeature = () => {
   const [selectedGeometry, setSelectedGeometry] =
     useState<GeometryOutputListItem | null>(null)
 
-  const { data: productOutputs } = useProductOutputs(
+  const { data: productOutputs } = useProductOutputsExport(
     selectedProduct?.mainRun?.id,
+    {
+      variableId: selectedVariable?.id,
+      geometryOutputId: selectedGeometry?.id,
+    },
+    !!(selectedProduct && selectedVariable && selectedGeometry),
   )
 
   return (
     <>
       <div className="flex flex-col gap-3">
-        <Action title="Select Product">
+        <FieldGroup title="Select Product">
           <SelectWithSearch
             options={products?.data}
             value={selectedProduct?.id ?? null}
@@ -43,11 +50,13 @@ const ProductFeature = () => {
               setSelectedProduct(
                 products?.data?.find((product) => product.id === value) ?? null,
               )
+              setSelectedVariable(null)
+              setSelectedGeometry(null)
             }}
             onSearch={() => {}}
           />
-        </Action>
-        <Action title="Select Variable" disabled={!selectedProduct}>
+        </FieldGroup>
+        <FieldGroup title="Select Variable" disabled={!selectedProduct}>
           <SelectWithSearch
             options={selectedProduct?.mainRun?.outputSummary?.variables.map(
               (variable) => variable.variable,
@@ -63,8 +72,8 @@ const ProductFeature = () => {
             onSearch={() => {}}
             disabled={!selectedProduct}
           />
-        </Action>
-        <Action
+        </FieldGroup>
+        <FieldGroup
           title="Select Geometry"
           disabled={!selectedProduct || !selectedVariable}
         >
@@ -81,7 +90,13 @@ const ProductFeature = () => {
             onSearch={() => {}}
             disabled={!selectedProduct || !selectedVariable}
           />
-        </Action>
+        </FieldGroup>
+
+        {productOutputs?.data.length && (
+          <div className="mt-8">
+            <LinePlot data={productOutputs?.data} x="timePoint" y="value" />
+          </div>
+        )}
       </div>
     </>
   )

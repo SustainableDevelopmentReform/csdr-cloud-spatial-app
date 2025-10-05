@@ -13,7 +13,7 @@ import { Button } from '@repo/ui/components/ui/button'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 import { UseMutationResult } from '@tanstack/react-query'
 import { ComponentProps } from 'react'
-import { Action } from './action'
+import { FieldGroup } from './action'
 
 export type CrudFormAction = {
   title: string
@@ -31,7 +31,7 @@ export type CrudFormAction = {
 
 export const FormAction = (props: CrudFormAction) => {
   return (
-    <Action {...props}>
+    <FieldGroup {...props}>
       {props.confirmDialog ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -76,6 +76,6 @@ export const FormAction = (props: CrudFormAction) => {
           )}
         </Button>
       )}
-    </Action>
+    </FieldGroup>
   )
 }

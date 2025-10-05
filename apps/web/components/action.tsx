@@ -1,6 +1,6 @@
 import { cn } from '@repo/ui/lib/utils'
 
-export type ActionProps = {
+export type FieldGroupProps = {
   title: string
   description?: string
   disabled?: boolean
@@ -8,7 +8,7 @@ export type ActionProps = {
   children: React.ReactNode
 }
 
-export const Action = (props: ActionProps) => {
+export const FieldGroup = (props: FieldGroupProps) => {
   return (
     <div
       className={cn(

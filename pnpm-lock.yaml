@@ -347,6 +347,9 @@ importers:
       d3:
         specifier: ^7.9.0
         version: 7.9.0
+      react:
+        specifier: ^19
+        version: 19.0.0
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*

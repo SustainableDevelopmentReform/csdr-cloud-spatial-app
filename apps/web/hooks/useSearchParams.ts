@@ -8,19 +8,36 @@ import { getSearchParams } from '../utils/browser'
 
 export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
   schema: T,
-  override?: z.infer<T>,
+  override?: Partial<z.infer<T>>,
 ) => {
   const router = useRouter()
   const searchParams = useSearchParamsNext()
-  const searchParamsParsed = schema.parse(
-    Object.fromEntries(searchParams ?? []),
+  const parsedResult = schema.safeParse({
+    ...Object.fromEntries(searchParams ?? []),
+    ...override,
+  })
+
+  const setSearchParams = useCallback(
+    (params: Partial<z.infer<T>>, replace = false) => {
+      const searchParams = getSearchParams({
+        ...(replace ? {} : parsedResult.data),
+        ...params,
+      })
+
+      router.push(`?${searchParams}`)
+    },
+    [],
   )
 
-  const setSearchParams = useCallback((params: z.infer<T>) => {
-    const searchParams = getSearchParams(params)
+  console.log({
+    ...Object.fromEntries(searchParams ?? []),
+    ...override,
+  })
+  console.log(parsedResult)
 
-    router.push(`?${searchParams}`)
-  }, [])
-
-  return { query: { ...searchParamsParsed, ...override }, setSearchParams }
+  return {
+    query: parsedResult.data,
+    error: parsedResult.error,
+    setSearchParams,
+  }
 }

@@ -94,21 +94,21 @@ const queryKeys = {
   geometriesAll: ['geometries'] as const,
   geometriesDetail: (geometriesId: string | undefined) =>
     [...queryKeys.geometriesAll, geometriesId] as const,
-  geometriesList: (query: z.infer<typeof geometriesQuerySchema>) =>
+  geometriesList: (query: z.infer<typeof geometriesQuerySchema> | undefined) =>
     [...queryKeys.geometriesAll, { query }] as const,
   geometriesRunAll: ['geometriesRun'] as const,
   geometriesRunDetail: (geometriesRunId: string | undefined) =>
     [...queryKeys.geometriesRunAll, geometriesRunId] as const,
   geometriesRunList: (
     geometriesId: string | undefined,
-    query: z.infer<typeof geometriesRunQuerySchema>,
+    query: z.infer<typeof geometriesRunQuerySchema> | undefined,
   ) => [...queryKeys.geometriesRunAll, geometriesId, { query }] as const,
   geometryOutputAll: ['geometryOutput'] as const,
   geometryOutputDetail: (geometryOutputId: string | undefined) =>
     [...queryKeys.geometryOutputAll, geometryOutputId] as const,
   geometryOutputList: (
     geometriesRunId: string | undefined,
-    query: z.infer<typeof geometryOutputQuerySchema>,
+    query: z.infer<typeof geometryOutputQuerySchema> | undefined,
   ) => [...queryKeys.geometryOutputAll, geometriesRunId, { query }] as const,
 }
 
@@ -137,6 +137,7 @@ export const useAllGeometries = () => {
   const { data } = useQuery({
     queryKey: queryKeys.geometriesList(query),
     queryFn: async () => {
+      if (!query) return null
       const res = client.api.v0.geometries.$get({
         query,
       })
@@ -165,7 +166,7 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
   const { data } = useQuery({
     queryKey: queryKeys.geometriesRunList(geometriesId, query),
     queryFn: async () => {
-      if (!geometriesId) return null
+      if (!geometriesId || !query) return null
       const res = client.api.v0['geometries'][':id']['runs'].$get({
         query,
         param: {
@@ -197,7 +198,7 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
   const { data } = useQuery({
     queryKey: queryKeys.geometryOutputList(geometriesRunId, query),
     queryFn: async () => {
-      if (!geometriesRunId) return null
+      if (!geometriesRunId || !query) return null
       const res = client.api.v0['geometries-run'][':id']['outputs'].$get({
         query,
         param: {

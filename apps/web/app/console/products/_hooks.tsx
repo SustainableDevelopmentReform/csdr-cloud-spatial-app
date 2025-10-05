@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  productOutputExportQuerySchema,
   productOutputQuerySchema,
   productQuerySchema,
   productRunQuerySchema,
@@ -52,6 +53,12 @@ export type ProductOutputListItem = NonNullable<
     200
   >['data']
 >['data'][0]
+export type ProductOutputExportListItem = NonNullable<
+  InferResponseType<
+    Client['api']['v0']['product-run'][':id']['outputs']['export']['$get'],
+    200
+  >['data']
+>['data'][0]
 export type ProductOutputDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['product-output'][':id']['$get'],
@@ -91,21 +98,25 @@ const queryKeys = {
   productAll: ['product'] as const,
   productDetail: (productId: string | undefined) =>
     [...queryKeys.productAll, productId] as const,
-  productList: (query: z.infer<typeof productQuerySchema>) =>
+  productList: (query: z.infer<typeof productQuerySchema> | undefined) =>
     [...queryKeys.productAll, { query }] as const,
   productRunAll: ['productRun'] as const,
   productRunDetail: (productRunId: string | undefined) =>
     [...queryKeys.productRunAll, productRunId] as const,
   productRunList: (
     productId: string | undefined,
-    query: z.infer<typeof productRunQuerySchema>,
+    query: z.infer<typeof productRunQuerySchema> | undefined,
   ) => [...queryKeys.productRunAll, productId, { query }] as const,
   productOutputAll: ['productOutput'] as const,
   productOutputDetail: (productOutputId: string | undefined) =>
     [...queryKeys.productOutputAll, productOutputId] as const,
   productOutputList: (
     productRunId: string | undefined,
-    query: z.infer<typeof productOutputQuerySchema>,
+    query: z.infer<typeof productOutputQuerySchema> | undefined,
+  ) => [...queryKeys.productOutputAll, productRunId, { query }] as const,
+  productOutputExportList: (
+    productRunId: string | undefined,
+    query: z.infer<typeof productOutputExportQuerySchema> | undefined,
   ) => [...queryKeys.productOutputAll, productRunId, { query }] as const,
 }
 
@@ -132,12 +143,13 @@ export const useProducts = () => {
   const { query, setSearchParams } =
     useQueryWithSearchParams(productQuerySchema)
 
-  const { data: dataset } = useDataset(query.datasetId)
-  const { data: geometries } = useGeometries(query.geometriesId)
+  const { data: dataset } = useDataset(query?.datasetId)
+  const { data: geometries } = useGeometries(query?.geometriesId)
 
   const { data } = useQuery({
     queryKey: queryKeys.productList(query),
     queryFn: async () => {
+      if (!query) return null
       const res = client.api.v0.product.$get({
         query,
       })
@@ -170,13 +182,13 @@ export const useProductRuns = (_productId?: string) => {
 
   const { productId } = useProductParams(_productId)
 
-  const { data: datasetRun } = useDatasetRun(query.datasetRunId)
-  const { data: geometriesRun } = useGeometriesRun(query.geometriesRunId)
+  const { data: datasetRun } = useDatasetRun(query?.datasetRunId)
+  const { data: geometriesRun } = useGeometriesRun(query?.geometriesRunId)
 
   const { data } = useQuery({
     queryKey: queryKeys.productRunList(productId, query),
     queryFn: async () => {
-      if (!productId) return null
+      if (!productId || !query) return null
       const res = client.api.v0['product'][':id']['runs'].$get({
         query,
         param: {
@@ -235,7 +247,7 @@ export const useProductOutputs = (
   const { data } = useQuery({
     queryKey: queryKeys.productOutputList(productRunId, query),
     queryFn: async () => {
-      if (!productRunId) return null
+      if (!productRunId || !query) return null
       const res = client.api.v0['product-run'][':id']['outputs'].$get({
         query,
         param: {
@@ -246,6 +258,54 @@ export const useProductOutputs = (
       const json = await unwrapResponse(res)
 
       return json.data
+    },
+    placeholderData: keepPreviousData,
+  })
+
+  return {
+    data,
+    query,
+    setSearchParams,
+  }
+}
+
+export const useProductOutputsExport = (
+  _productRunId?: string,
+  _query?: Partial<z.infer<typeof productOutputExportQuerySchema>>,
+  fetch = true,
+) => {
+  const client = useApiClient()
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    productOutputExportQuerySchema,
+    _query,
+  )
+
+  const { data } = useQuery({
+    queryKey: queryKeys.productOutputExportList(productRunId, query),
+    queryFn: async () => {
+      if (!productRunId || !query || !fetch) return null
+      const res = client.api.v0['product-run'][':id']['outputs']['export'].$get(
+        {
+          query,
+          param: {
+            id: productRunId,
+          },
+        },
+      )
+
+      const json = await unwrapResponse(res)
+
+      // Parse dates
+      const parsedData = json.data.data.map((item) => ({
+        ...item,
+        timePoint: new Date(item.timePoint),
+      }))
+
+      return {
+        ...json.data,
+        data: parsedData,
+      }
     },
     placeholderData: keepPreviousData,
   })
