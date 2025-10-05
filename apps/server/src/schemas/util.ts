@@ -1,6 +1,6 @@
 import { DBQueryConfig, ExtractTablesWithRelations } from 'drizzle-orm'
 import { z } from '@hono/zod-openapi'
-import * as schema from './index'
+import * as schema from './db'
 
 type TableSchema = ExtractTablesWithRelations<typeof schema>
 

@@ -9,7 +9,7 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
-import { createContext } from 'react'
+import { createContext, useContext } from 'react'
 
 function handleError(data: any) {
   if ('statusCode' in data) {
@@ -75,20 +75,32 @@ export const queryClient = new QueryClient({
 export const ConfigContext = createContext<{
   appUrl: string
   apiBaseUrl: string
+  dataBaseUrl: string | undefined
 }>({
   appUrl: '',
   apiBaseUrl: '',
+  dataBaseUrl: undefined,
 })
+
+export const useConfig = () => {
+  return useContext(ConfigContext)
+}
 
 interface Props {
   children?: React.ReactNode
   appUrl: string
   apiBaseUrl: string
+  dataBaseUrl: string | undefined
 }
 
-const Providers: React.FC<Props> = ({ children, appUrl, apiBaseUrl }) => {
+const Providers: React.FC<Props> = ({
+  children,
+  appUrl,
+  apiBaseUrl,
+  dataBaseUrl,
+}) => {
   return (
-    <ConfigContext.Provider value={{ appUrl, apiBaseUrl }}>
+    <ConfigContext.Provider value={{ appUrl, apiBaseUrl, dataBaseUrl }}>
       <NuqsAdapter>
         <QueryClientProvider client={queryClient}>
           {children}

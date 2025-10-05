@@ -7,7 +7,7 @@ import BaseCrudTable from '../../../../../components/crud-table'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createGeometriesRunSchema } from '@repo/schemas/crud'
-import { useForm } from 'react-hook-form'
+import { Path, useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
@@ -18,6 +18,14 @@ import {
   useGeometriesRunLink,
   useGeometriesRuns,
 } from '../../_hooks'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
@@ -65,6 +73,19 @@ const GeometriesRunFeature = () => {
           entityNamePlural="geometries runs"
         >
           <CrudFormRunFields form={form} />
+          <FormField
+            control={form.control}
+            name={'dataPmtilesUrl'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data PMTiles URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </CrudFormDialog>
       </div>
       <div className="mt-8">

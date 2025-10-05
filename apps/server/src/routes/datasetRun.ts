@@ -11,7 +11,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { dataset, datasetRun, productRun } from '../schemas'
+import { dataset, datasetRun, productRun } from '../schemas/db'
 import {
   baseIdResourceSchemaWithMainRunId,
   baseRunColumns,

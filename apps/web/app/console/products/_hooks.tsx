@@ -54,10 +54,7 @@ export type ProductOutputListItem = NonNullable<
   >['data']
 >['data'][0]
 export type ProductOutputExportListItem = NonNullable<
-  InferResponseType<
-    Client['api']['v0']['product-run'][':id']['outputs']['export']['$get'],
-    200
-  >['data']
+  ReturnType<typeof useProductOutputsExport>['data']
 >['data'][0]
 export type ProductOutputDetail = NonNullable<
   InferResponseType<

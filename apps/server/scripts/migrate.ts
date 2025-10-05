@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import * as schema from '~/schemas'
+import * as schema from '~/schemas/db'
 import pg from 'pg'
 import { env } from '../src/env'
 

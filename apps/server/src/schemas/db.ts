@@ -304,6 +304,7 @@ export const geometriesRun = pgTable(
   'geometries_run',
   {
     ...runBaseColumns,
+    dataPmtilesUrl: text('data_pmtiles_url'),
     dataType: geometriesRunDataType('data_type'),
     geometriesId: text('geometries_id')
       .notNull()
@@ -418,6 +419,10 @@ export const productOutputSummary = pgTable(
       mode: 'date',
       withTimezone: false,
     }),
+    timePoints: timestamp('time_points', {
+      mode: 'date',
+      withTimezone: false,
+    }).array(),
     outputCount: integer('output_count').notNull().default(0),
     lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   },

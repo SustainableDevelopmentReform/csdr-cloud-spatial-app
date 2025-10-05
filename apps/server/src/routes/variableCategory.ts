@@ -11,7 +11,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { variableCategory } from '../schemas'
+import { variableCategory } from '../schemas/db'
 import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   createVariableCategorySchema,

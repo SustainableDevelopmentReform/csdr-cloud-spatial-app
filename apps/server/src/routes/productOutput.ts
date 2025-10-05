@@ -10,7 +10,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { productOutput } from '../schemas'
+import { productOutput } from '../schemas/db'
 import {
   baseColumns,
   baseIdResourceSchema,
@@ -27,10 +27,15 @@ import {
   createProductOutputSchema,
   updateProductOutputSchema,
 } from '@repo/schemas/crud'
-import { geometryOutputQuery, geometryOutputSchema } from './geometryOutput'
+import {
+  baseGeometryOutputQuery,
+  baseGeometryOutputSchema,
+  fullGeometryOutputQuery,
+  fullGeometryOutputSchema,
+} from './geometryOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
 
-export const productOutputQuery = {
+export const baseProductOutputQuery = {
   columns: {
     ...baseColumns,
     value: true,
@@ -63,11 +68,19 @@ export const productOutputQuery = {
     },
 
     variable: baseVariableQuery,
-    geometryOutput: geometryOutputQuery,
+    geometryOutput: baseGeometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
 
-export const productOutputSchema = baseResourceSchema
+export const fullProductOutputQuery = {
+  columns: baseProductOutputQuery.columns,
+  with: {
+    ...baseProductOutputQuery.with,
+    geometryOutput: fullGeometryOutputQuery,
+  },
+} satisfies QueryForTable<'productOutput'>
+
+export const baseProductOutputSchema = baseResourceSchema
   .extend({
     value: z.number(),
     timePoint: z.iso.datetime(),
@@ -80,10 +93,16 @@ export const productOutputSchema = baseResourceSchema
         geometries: baseIdResourceSchemaWithMainRunId,
       }),
     }),
-    geometryOutput: geometryOutputSchema,
+    geometryOutput: baseGeometryOutputSchema,
     variable: baseVariableSchema,
   })
-  .openapi('ProductOutputSchema')
+  .openapi('ProductOutputBase')
+
+export const fullProductOutputSchema = baseProductOutputSchema
+  .extend({
+    geometryOutput: fullGeometryOutputSchema,
+  })
+  .openapi('ProductOutputFull')
 
 export const productOutputExportSchema = z
   .object({
@@ -110,7 +129,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(productOutputSchema),
+              schema: createResponseSchema(fullProductOutputSchema),
             },
           },
         },
@@ -124,7 +143,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await db.query.productOutput.findFirst({
         where: (productOutput, { eq }) => eq(productOutput.id, id),
-        ...productOutputQuery,
+        ...fullProductOutputQuery,
       })
 
       if (!record) {
@@ -160,7 +179,7 @@ const app = createOpenAPIApp()
           content: {
             'application/json': {
               schema: createResponseSchema(
-                productOutputSchema
+                fullProductOutputSchema
                   .omit({
                     geometryOutput: true,
                     productRun: true,
@@ -227,7 +246,7 @@ const app = createOpenAPIApp()
             'application/json': {
               schema: createResponseSchema(
                 z.array(
-                  productOutputSchema.omit({
+                  fullProductOutputSchema.omit({
                     geometryOutput: true,
                     productRun: true,
                     variable: true,
@@ -298,7 +317,7 @@ const app = createOpenAPIApp()
           content: {
             'application/json': {
               schema: createResponseSchema(
-                productOutputSchema
+                fullProductOutputSchema
                   .omit({
                     geometryOutput: true,
                     productRun: true,

@@ -11,7 +11,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometries, geometriesRun, product } from '../schemas'
+import { geometries, geometriesRun, product } from '../schemas/db'
 import {
   baseColumns,
   baseResourceSchema,

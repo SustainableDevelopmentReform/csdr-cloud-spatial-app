@@ -29,12 +29,6 @@ export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
     [],
   )
 
-  console.log({
-    ...Object.fromEntries(searchParams ?? []),
-    ...override,
-  })
-  console.log(parsedResult)
-
   return {
     query: parsedResult.data,
     error: parsedResult.error,

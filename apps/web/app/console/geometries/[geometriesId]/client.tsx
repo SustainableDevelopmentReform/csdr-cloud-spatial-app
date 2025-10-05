@@ -17,6 +17,7 @@ import {
   useGeometriesRunsLink,
   useUpdateGeometries,
 } from '../_hooks'
+import GeometriesMapViewer from '../_components/geometries-map-viewer'
 
 const GeometriesDetails = () => {
   const { data: geometries } = useGeometries()
@@ -37,28 +38,31 @@ const GeometriesDetails = () => {
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <GeometriesRunSummaryCard run={geometries?.mainRun} mainRun />
-        <div className="grid grid-cols-1 grid-rows-3 gap-4">
-          {geometries && (
-            <DetailCard
-              title={`${geometries?.runCount} ${pluralize(geometries?.runCount, 'run', 'runs')}`}
-              description="Geometries Runs"
-              actionText="Open"
-              actionLink={geometriesRunsLink(geometries)}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {geometries && (
-            <DetailCard
-              title={`${geometries?.productCount} ${pluralize(geometries?.productCount, 'product', 'products')}`}
-              description="Products"
-              actionText="Open"
-              actionLink={productsLink({ geometriesId: geometries.id })}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {geometries && <SourcesCard resource={geometries} />}
+      <div className="flex flex-col gap-4">
+        <GeometriesMapViewer geometriesRun={geometries?.mainRun} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <GeometriesRunSummaryCard run={geometries?.mainRun} mainRun />
+          <div className="grid grid-cols-1 grid-rows-3 gap-4">
+            {geometries && (
+              <DetailCard
+                title={`${geometries?.runCount} ${pluralize(geometries?.runCount, 'run', 'runs')}`}
+                description="Geometries Runs"
+                actionText="Open"
+                actionLink={geometriesRunsLink(geometries)}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {geometries && (
+              <DetailCard
+                title={`${geometries?.productCount} ${pluralize(geometries?.productCount, 'product', 'products')}`}
+                description="Products"
+                actionText="Open"
+                actionLink={productsLink({ geometriesId: geometries.id })}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {geometries && <SourcesCard resource={geometries} />}
+          </div>
         </div>
       </div>
       <CrudForm

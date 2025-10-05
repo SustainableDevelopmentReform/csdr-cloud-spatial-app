@@ -31,10 +31,10 @@ import {
 import { ProductOutputButton } from '../../../products/_components/product-output-button'
 import {
   ProductOutputListItem,
-  useProductOutputs,
   useCreateProductRunOutput,
-  useProductRun,
   useProductOutputLink,
+  useProductOutputs,
+  useProductRun,
 } from '../../../products/_hooks'
 import { VariableButton } from '../../../variables/_components/variable-button'
 import { useVariables } from '../../../variables/_hooks'
@@ -200,7 +200,9 @@ const ProductOutputFeature = () => {
                 <CalendarSelect
                   label="Time Point"
                   value={new Date(field.value)}
-                  onChange={(event) => field.onChange(event?.toISOString())}
+                  onChange={(event) => {
+                    field.onChange(event?.toISOString().replace('+00:00', 'Z'))
+                  }}
                 />
                 <FormMessage />
               </FormItem>

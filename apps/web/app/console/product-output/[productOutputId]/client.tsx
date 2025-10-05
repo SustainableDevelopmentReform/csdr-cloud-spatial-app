@@ -15,6 +15,8 @@ import { GeometryOutputCard } from '../../_components/geometry-output-card'
 import { useGeometryOutputLink } from '../../geometries/_hooks'
 import { useProductOutput, useUpdateProductOutput } from '../../products/_hooks'
 import { VariableButton } from '../../variables/_components/variable-button'
+import { ProductOutputDependenciesCard } from '../../products/_components/product-output-dependencies-card'
+import { ProductOutputSummaryCard } from '../../products/_components/product-output-summary-card'
 
 const ProductRunDetails = () => {
   const { data: productOutput } = useProductOutput()
@@ -82,22 +84,8 @@ const ProductRunDetails = () => {
       </div>
 
       <div className="grid grid-cols-2 grid-rows-1 gap-4">
-        {productOutput && (
-          <DetailCard
-            title={productOutput.value.toString()}
-            description="Output Value"
-            footer={formatDateTime(productOutput.timePoint)}
-            subFooter={<VariableButton variable={productOutput.variable} />}
-          />
-        )}
-        {productOutput?.geometryOutput && (
-          <GeometryOutputCard
-            geometryOutput={productOutput?.geometryOutput}
-            actionText="Open"
-            actionLink={geometryOutputLink(productOutput?.geometryOutput)}
-            actionIcon={<ArrowUpRightIcon />}
-          />
-        )}
+        <ProductOutputSummaryCard productOutput={productOutput} />
+        <ProductOutputDependenciesCard productOutput={productOutput} />
       </div>
 
       <CrudForm

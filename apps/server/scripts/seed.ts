@@ -3,7 +3,7 @@
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
-import * as schema from '~/schemas'
+import * as schema from '~/schemas/db'
 import { isEmail } from '~/utils'
 import { hashPassword } from 'better-auth/crypto'
 import { env } from '../src/env'
