@@ -3,10 +3,10 @@ import { createMiddleware } from 'hono/factory'
 import { ServerError } from '../lib/error'
 
 interface AuthMiddlewareOptions {
-  permission?: string
+  permission: string
 }
 
-export const authMiddleware = (options: AuthMiddlewareOptions = {}) =>
+export const authMiddleware = (options: AuthMiddlewareOptions) =>
   createMiddleware<{
     Variables: {
       userId: string
@@ -25,7 +25,19 @@ export const authMiddleware = (options: AuthMiddlewareOptions = {}) =>
       })
     }
 
-    return await next()
+    // Allow all read permissions to logged in users
+    if (options.permission.startsWith('read:')) {
+      return await next()
+    }
+
+    if (session.user.role === 'admin') {
+      return await next()
+    }
+
+    throw new ServerError({
+      statusCode: 403,
+      message: 'User is not authorized',
+    })
   })
 
 // async function checkPermission(
