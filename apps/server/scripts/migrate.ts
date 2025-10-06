@@ -6,6 +6,7 @@ import { env } from '../src/env'
 
 async function main() {
   const client = new pg.Client({
+    ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     host: env.DATABASE_HOST,
     port: env.DATABASE_PORT,
     user: env.DATABASE_USER,
