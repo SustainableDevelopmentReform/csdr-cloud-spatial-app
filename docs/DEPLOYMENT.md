@@ -24,8 +24,6 @@ DATABASE_NAME=csdr-dev
 
 # You can use openssl to generate a random 32 character key: openssl rand -base64 32
 BETTER_AUTH_SECRET=
-
-AUTH_REQUIRE_EMAIL_VERIFICATION=false
 ```
 
 ### Build the image locally

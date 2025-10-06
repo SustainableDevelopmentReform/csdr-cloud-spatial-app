@@ -12,7 +12,11 @@ export const env = createEnv({
     DATA_BASE_URL: z.url().optional(),
     INTERNAL_BACKEND_URL: z.url().optional(),
     INTERNAL_FRONTEND_URL: z.url().optional(),
-    DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z.coerce.boolean().default(false),
+    DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,

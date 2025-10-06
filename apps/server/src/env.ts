@@ -19,7 +19,11 @@ export const env = createEnv({
       .string()
       .default('http://localhost:3000')
       .transform((val) => val.split(',')),
-    DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z.coerce.boolean().default(false),
+    DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
     PORT: z.coerce.number().default(4000),
     SMTP_PASSWORD: z.string().optional(),
     SMTP_USERNAME: z.string().optional(),
@@ -34,7 +38,11 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().optional(),
-    AUTH_REQUIRE_EMAIL_VERIFICATION: z.coerce.boolean().default(false),
+    AUTH_REQUIRE_EMAIL_VERIFICATION: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
