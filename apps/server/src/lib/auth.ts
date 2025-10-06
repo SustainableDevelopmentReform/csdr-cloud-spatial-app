@@ -43,6 +43,14 @@ const authConfig = {
     schema,
   }),
   plugins: plugins,
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+      },
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days in seconds
     updateAge: 60 * 60 * 24, // Update session every 24 hours
