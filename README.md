@@ -32,9 +32,9 @@ Start up postgres container with docker compose:
 docker-compose -f docker-compose-dev.yml up -d
 ```
 
-**Important**: before run `pnpm seed` you have to set values for `INITIAL_USER_EMAIL` and `INITIAL_USER_PASSWORD` inside `.env` file.
+**Important**: before run `pnpm seed` you have to set values for `INITIAL_USER_NAME`, `INITIAL_USER_EMAIL`, and `INITIAL_USER_PASSWORD` inside `.env` file.
 
-- This will default to `csdr-admin` and `admin@example.com`
+- This will default to `csdr-admin`, `admin@example.com`, and `admin@123`
 
 ```bash
 # Migrate DB

@@ -84,6 +84,7 @@ docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATAB
 docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/seed/ && node index.js"
 ```
 
+**Note**: Before running the seed, you need to set values for `INITIAL_USER_NAME`, `INITIAL_USER_EMAIL`, and `INITIAL_USER_PASSWORD` environment variables.
 Alternatively, you can login to the container and run the commands directly.
 
 At some stage we should automate this process when a new version of the image is deployed.
