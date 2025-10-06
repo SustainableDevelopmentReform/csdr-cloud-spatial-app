@@ -31,7 +31,7 @@ import { match } from 'ts-pattern'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import { QueryKey } from '~/utils/apiClient'
-import { useUser } from '../_hooks'
+import { userIdSchema, useUser } from '../_hooks'
 // import AssignOrgForm from './_components/assign-org-form'
 import {
   Select,
@@ -50,11 +50,11 @@ type Data = z.infer<typeof formSchema>
 
 const UserProfile = () => {
   const authClient = useAuthClient()
-  const params = useParams<{ id: string }>()
-  const id = params?.id
+  const params = useParams()
+  const { userId } = userIdSchema.parse(params)
   const router = useRouter()
 
-  const { data: user } = useUser(id)
+  const { data: user } = useUser(userId)
 
   const isSuspended = !!user?.banned
 
@@ -77,7 +77,7 @@ const UserProfile = () => {
   const updateUser = useMutation({
     mutationFn: async (data: Data) => {
       const res = await authClient.admin.updateUser({
-        userId: id,
+        userId: userId,
         data: {
           name: data.name,
           role: data.role,
@@ -89,7 +89,7 @@ const UserProfile = () => {
       }
 
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.UserProfile, id],
+        queryKey: [QueryKey.UserProfile, userId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Users],
@@ -100,10 +100,10 @@ const UserProfile = () => {
 
   const impersonateUser = useMutation({
     mutationFn: async () => {
-      if (!id) return
+      if (!userId) return
 
       const res = await authClient.admin.impersonateUser({
-        userId: id,
+        userId: userId,
       })
 
       if (res.error) {
@@ -116,10 +116,10 @@ const UserProfile = () => {
 
   const suspendUser = useMutation({
     mutationFn: async () => {
-      if (!id) return
+      if (!userId) return
 
       const res = await authClient.admin.banUser({
-        userId: id,
+        userId: userId,
       })
 
       if (res.error) {
@@ -128,17 +128,17 @@ const UserProfile = () => {
 
       toast(`User: ${user?.name} is suspended`)
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.UserProfile, id],
+        queryKey: [QueryKey.UserProfile, userId],
       })
     },
   })
 
   const restoreUser = useMutation({
     mutationFn: async () => {
-      if (!id) return
+      if (!userId) return
 
       const res = await authClient.admin.unbanUser({
-        userId: id,
+        userId: userId,
       })
 
       if (res.error) {
@@ -147,17 +147,17 @@ const UserProfile = () => {
 
       toast(`User: ${user?.name} is restored`)
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.UserProfile, id],
+        queryKey: [QueryKey.UserProfile, userId],
       })
     },
   })
 
   const deleteUser = useMutation({
     mutationFn: async () => {
-      if (!id) return
+      if (!userId) return
 
       const res = await authClient.admin.removeUser({
-        userId: id,
+        userId: userId,
       })
 
       if (res.error) {
@@ -167,7 +167,7 @@ const UserProfile = () => {
       toast(`User: ${user?.name} is deleted`)
       router.replace('/console/users')
       queryClient.invalidateQueries({
-        queryKey: [QueryKey.UserProfile, id],
+        queryKey: [QueryKey.UserProfile, userId],
       })
       queryClient.invalidateQueries({
         queryKey: [QueryKey.Users],

@@ -6,7 +6,7 @@ import { useAuthClient } from '~/hooks/useAuthClient'
 import { QueryKey } from '~/utils/apiClient'
 import { User } from '../../../utils/authClient'
 
-const userIdSchema = z.object({
+export const userIdSchema = z.object({
   userId: z.string().optional(),
 })
 
