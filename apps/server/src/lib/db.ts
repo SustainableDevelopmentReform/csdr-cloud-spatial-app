@@ -4,7 +4,7 @@ import * as schema from '~/schemas/db'
 import { env } from '../env'
 
 const pool = new pg.Pool({
-  ssl: env.NODE_ENV === 'production' ? true : false,
+  ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   host: env.DATABASE_HOST,
   port: env.DATABASE_PORT,
   user: env.DATABASE_USER,
