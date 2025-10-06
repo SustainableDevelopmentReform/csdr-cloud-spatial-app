@@ -1,5 +1,16 @@
 name: Build Docker Image
 
+# Auto-incrementing versioning strategy:
+# - EVERY build gets: build-<run_number> (e.g., build-123, build-124, ...)
+# - Main branch ALSO gets: latest
+# - Releases ALSO get: <release-tag> (e.g., v1.0.0)
+# - GitHub run_number automatically increments with each workflow run
+#
+# Example tags:
+#   Push to main:     build-123, latest
+#   Release on main:  build-123, v1.0.0, latest
+#   PR build:         build-123
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: sustainabledevelopmentreform/csdr-cloud-spatial-app # ${{ github.repository }}
@@ -21,26 +32,30 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
+      release_tag: ${{ steps.version.outputs.RELEASE_TAG }}
       docker_image_ecr: ${{ steps.version.outputs.DOCKER_IMAGE_ECR }}
       latest_tag: ${{ steps.version.outputs.LATEST_TAG }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Get version number
         id: version
         run: |
-          # Get version from the git tags, with fallback for local testing
-          if git fetch --all --tags 2>/dev/null; then
-            VERSION=$(git describe --tags 2>/dev/null || echo "v0.0.0-local")
-          else
-            echo "Warning: Could not fetch tags, using fallback version"
-            VERSION="v0.0.0-local"
+          # Auto-incrementing version based on GitHub run number
+          # Format: build-<run_number> (e.g., build-123)
+          # This is ALWAYS included
+          VERSION="build-${{ github.run_number }}"
+
+          # For releases, also capture the release tag as an additional tag
+          RELEASE_TAG=""
+          if [ "${{ github.event_name }}" = "release" ] && [ -n "${{ github.event.release.tag_name }}" ]; then
+            RELEASE_TAG="${{ github.event.release.tag_name }}"
+            echo "Release tag: ${RELEASE_TAG}"
           fi
 
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "Building with version: ${VERSION}"
 
   build-and-push:
     permissions:
@@ -51,9 +66,6 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@v4.2.2
-        with:
-          fetch-depth: 0
-          fetch-tags: true
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
@@ -67,13 +79,24 @@ jobs:
         id: ecr-tags
         run: |
           VERSION=${{ needs.version.outputs.version }}
-          DOCKER_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ vars.AWS_ECR_REPO }}:${VERSION}"
+          RELEASE_TAG=${{ needs.version.outputs.release_tag }}
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          REPO="${{ vars.AWS_ECR_REPO }}"
 
+          # Always include the build number tag
+          DOCKER_IMAGE="${REGISTRY}/${REPO}:${VERSION}"
           echo "DOCKER_IMAGE=${DOCKER_IMAGE}" >> $GITHUB_OUTPUT
+
+          # Add release tag if this is a release event
+          if [ -n "${RELEASE_TAG}" ]; then
+            echo "RELEASE_TAG_IMAGE=${REGISTRY}/${REPO}:${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          else
+            echo "RELEASE_TAG_IMAGE=" >> $GITHUB_OUTPUT
+          fi
 
           # Check if we are on the main branch and set LATEST_TAG accordingly
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            echo "LATEST_TAG=${{ steps.login-ecr.outputs.registry }}/${{ vars.AWS_ECR_REPO }}:latest" >> $GITHUB_OUTPUT
+            echo "LATEST_TAG=${REGISTRY}/${REPO}:latest" >> $GITHUB_OUTPUT
           else
             echo "LATEST_TAG=" >> $GITHUB_OUTPUT
           fi
@@ -94,6 +117,7 @@ jobs:
             COMMIT=${{ github.sha }}
           tags: |
             ${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}
+            ${{ steps.ecr-tags.outputs.RELEASE_TAG_IMAGE }}
             ${{ steps.ecr-tags.outputs.LATEST_TAG }}
           # Use both GitHub Actions cache and registry cache for better performance
           cache-from: |
