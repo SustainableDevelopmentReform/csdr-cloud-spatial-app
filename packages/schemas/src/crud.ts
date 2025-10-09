@@ -70,10 +70,7 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   geometriesId: z.string(),
 })
 
-export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({
-  // Temporarily allow dataPmtilesUrl to be updated
-  dataPmtilesUrl: z.string().optional(),
-})
+export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})
 
 export const geometryOutputQuerySchema = paginatedQuerySchema
 
