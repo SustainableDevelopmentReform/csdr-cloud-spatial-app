@@ -16,6 +16,7 @@ import { getUserServerSession } from '../../utils/getUserServerSession'
 import AccountSettingsButton from './_components/account-settings-button'
 import { GEOMETRIES_BASE_PATH } from './geometries/_hooks'
 import { DATASETS_BASE_PATH } from './datasets/_hooks'
+import { getApiBaseUrl } from '../../env'
 
 const SIDEBAR_CONFIG = [
   {
@@ -87,6 +88,7 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
   children,
 }) => {
   const { user } = await getUserServerSession()
+  const apiBaseUrl = getApiBaseUrl()
 
   return (
     <>
@@ -131,7 +133,7 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
                 </Link>
                 <Link
                   className="mb-2 block w-full text-left"
-                  href="/api/v0/scalar"
+                  href={`${apiBaseUrl}/api/v0/scalar`}
                 >
                   API Docs
                 </Link>
