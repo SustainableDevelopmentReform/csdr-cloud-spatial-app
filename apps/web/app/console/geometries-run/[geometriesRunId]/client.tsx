@@ -107,19 +107,14 @@ const GeometriesRunDetails = () => {
         actions={formActions}
       >
         <CrudFormRunFields form={form} readOnlyFields={'all'} />
-        <FormField
-          control={form.control}
-          name={'dataPmtilesUrl'}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Data PMTiles URL</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <FormItem>
+          <FormLabel>Data PMTiles URL</FormLabel>
+          <Input
+            disabled
+            value={geometriesRun?.dataPmtilesUrl ?? ''}
+            className="bg-gray-100"
+          />
+        </FormItem>
       </CrudForm>
     </div>
   )
