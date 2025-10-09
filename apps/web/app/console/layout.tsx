@@ -49,6 +49,12 @@ const SIDEBAR_CONFIG = [
     roles: ['admin', 'user'],
   },
   {
+    text: 'Data Explorer',
+    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
+    href: '/console/data-explorer',
+    roles: ['admin', 'user'],
+  },
+  {
     text: 'Reports',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: '/console/reports',
