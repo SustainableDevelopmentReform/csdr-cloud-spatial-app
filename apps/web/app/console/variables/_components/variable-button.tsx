@@ -1,5 +1,6 @@
 import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
+import { useVariableLink } from '../_hooks'
 
 export const VariableButtons = ({
   variables,
@@ -20,8 +21,9 @@ export const VariableButton = ({
 }: {
   variable: { id: string; name: string }
 }) => {
+  const variableLink = useVariableLink()
   return (
-    <BadgeLink href={`/`} variant="variable">
+    <BadgeLink href={variableLink(variable)} variant="variable">
       {variable.name}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
