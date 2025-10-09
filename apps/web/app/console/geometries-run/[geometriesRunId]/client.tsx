@@ -105,6 +105,7 @@ const GeometriesRunDetails = () => {
         entityName="Geometries Run"
         entityNamePlural="geometries runs"
         actions={formActions}
+        successMessage="Updated Geometries Run"
       >
         <CrudFormRunFields form={form} readOnlyFields={'all'} />
         <FormItem>

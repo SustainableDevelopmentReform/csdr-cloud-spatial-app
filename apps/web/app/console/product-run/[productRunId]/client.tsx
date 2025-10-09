@@ -110,6 +110,7 @@ const ProductRunDetails = () => {
           entityName="Product Run"
           entityNamePlural="product runs"
           actions={formActions}
+          successMessage="Updated Product Run"
         >
           <CrudFormRunFields form={form} readOnlyFields={'all'} />
         </CrudForm>

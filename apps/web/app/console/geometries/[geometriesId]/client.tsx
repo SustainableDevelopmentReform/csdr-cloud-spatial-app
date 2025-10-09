@@ -71,6 +71,7 @@ const GeometriesDetails = () => {
         deleteMutation={deleteGeometries}
         entityName="Geometries"
         entityNamePlural="geometries sets"
+        successMessage="Updated Geometries"
       />
     </div>
   )

@@ -224,7 +224,7 @@ const ProductOutputFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={query.page ?? 1}
+          currentPage={query?.page ?? 1}
           onPageChange={(p) => setSearchParams({ page: p })}
         />
       </div>

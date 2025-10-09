@@ -1,4 +1,5 @@
 'use client'
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,8 +8,12 @@ import {
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
 import Link from '../../../../components/link'
+import { REPORTS_BASE_PATH, useReport } from '../_hooks'
+import { ReportButton } from './report-button'
 
-export const ReportsBreadcrumbs = () => {
+export const ReportBreadcrumbs = () => {
+  const { data: report } = useReport()
+
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -20,19 +25,20 @@ export const ReportsBreadcrumbs = () => {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console/reports">Reports</Link>
+            <Link href={REPORTS_BASE_PATH}>Reports</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
-        {/* {product && (
+
+        {report && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <ProductButton product={product} />
+                <ReportButton report={report} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
-        )} */}
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   )

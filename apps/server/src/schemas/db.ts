@@ -510,6 +510,11 @@ export const variable = pgTable(
   ],
 )
 
+export const report = pgTable('report', {
+  ...baseColumns,
+  content: jsonb('content'),
+})
+
 // Relations
 export const datasetRelations = relations(dataset, ({ many, one }) => ({
   runs: many(datasetRun),

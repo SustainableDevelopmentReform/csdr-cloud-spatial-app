@@ -86,6 +86,7 @@ const ProductDetails = () => {
           entityName="Product"
           entityNamePlural="products"
           actions={formActions}
+          successMessage="Updated Product"
         />
       )}
     </div>

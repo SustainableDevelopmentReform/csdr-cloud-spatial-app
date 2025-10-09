@@ -68,6 +68,7 @@ const DatasetDetails = () => {
         deleteMutation={deleteDataset}
         entityName="Dataset"
         entityNamePlural="datasets"
+        successMessage="Updated Dataset"
       />
     </div>
   )

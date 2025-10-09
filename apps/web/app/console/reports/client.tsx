@@ -1,5 +1,58 @@
-import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
+'use client'
 
-export default function Page() {
-  return <SimpleEditor />
+import { zodResolver } from '@hookform/resolvers/zod'
+import { createReportSchema } from '@repo/schemas/crud'
+import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import Pagination from '~/components/pagination'
+import CrudFormDialog from '../../../components/crud-form-dialog'
+import BaseCrudTable from '../../../components/crud-table'
+import { ReportButton } from './_components/report-button'
+import { useCreateReport, useReportLink, useReports } from './_hooks'
+
+const ReportFeature = () => {
+  const { data, query, setSearchParams } = useReports()
+  const createReport = useCreateReport()
+
+  const reportLink = useReportLink()
+
+  const baseColumns = useMemo(() => {
+    return ['description', 'createdAt', 'updatedAt'] as const
+  }, [])
+
+  const form = useForm({
+    resolver: zodResolver(createReportSchema),
+  })
+
+  return (
+    <div>
+      <div className="flex justify-between">
+        <h1 className="text-3xl font-medium mb-2">Reports</h1>
+        <CrudFormDialog
+          form={form}
+          mutation={createReport}
+          buttonText="Add Report"
+          entityName="Report"
+          entityNamePlural="reports"
+        ></CrudFormDialog>
+      </div>
+      <div className="mt-8">
+        <BaseCrudTable
+          data={data?.data || []}
+          baseColumns={baseColumns}
+          title="Report"
+          itemLink={reportLink}
+          itemButton={(report) => <ReportButton report={report} />}
+        />
+        <Pagination
+          className="justify-end mt-4"
+          totalPages={data?.pageCount ?? 1}
+          currentPage={query?.page ?? 1}
+          onPageChange={(page) => setSearchParams({ page })}
+        />
+      </div>
+    </div>
+  )
 }
+
+export default ReportFeature

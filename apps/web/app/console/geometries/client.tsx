@@ -87,7 +87,7 @@ const GeometriesFeature = () => {
         <Pagination
           className="justify-end mt-4"
           totalPages={data?.pageCount ?? 1}
-          currentPage={query.page ?? 1}
+          currentPage={query?.page ?? 1}
           onPageChange={(page) => setSearchParams({ page })}
         />
       </div>

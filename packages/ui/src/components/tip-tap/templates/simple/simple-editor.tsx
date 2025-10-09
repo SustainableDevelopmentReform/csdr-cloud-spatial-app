@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
+import { Content, EditorContent, EditorContext, useEditor } from '@tiptap/react'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -64,16 +64,11 @@ import { useIsMobile } from '@repo/ui/hooks/use-mobile'
 import { useWindowSize } from '@repo/ui/hooks/use-window-size'
 import { useCursorVisibility } from '@repo/ui/hooks/use-cursor-visibility'
 
-// --- Components ---
-import { ThemeToggle } from './theme-toggle'
-
 // --- Lib ---
 import { handleImageUpload, MAX_FILE_SIZE } from '@repo/ui/lib/tiptap-utils'
 
 // --- Styles ---
 import '@repo/ui/components/tip-tap/templates/simple/simple-editor.scss'
-
-import content from '@repo/ui/components/tip-tap/templates/simple/data/content.json'
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -146,10 +141,6 @@ const MainToolbarContent = ({
       <Spacer />
 
       {isMobile && <ToolbarSeparator />}
-
-      <ToolbarGroup>
-        <ThemeToggle />
-      </ToolbarGroup>
     </>
   )
 }
@@ -183,7 +174,13 @@ const MobileToolbarContent = ({
   </>
 )
 
-export function SimpleEditor() {
+export function SimpleEditor({
+  onUpdate,
+  content,
+}: {
+  onUpdate: (json: any) => void
+  content: Content
+}) {
   const isMobile = useIsMobile()
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = React.useState<
@@ -192,6 +189,10 @@ export function SimpleEditor() {
   const toolbarRef = React.useRef<HTMLDivElement>(null)
 
   const editor = useEditor({
+    onUpdate: (props) => {
+      onUpdate(props.editor.state.doc.toJSON())
+    },
+
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editorProps: {

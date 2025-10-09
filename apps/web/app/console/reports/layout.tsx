@@ -1,13 +1,13 @@
 import React from 'react'
 import DetailLayout from '../../../components/detail-layout'
-import { ReportsBreadcrumbs } from './_components/breadcrumbs'
+import { ReportBreadcrumbs } from './_components/breadcrumbs'
 
-const ProductLayout: React.FC<{
+const ReportLayout: React.FC<{
   children?: React.ReactNode
 }> = async ({ children }) => {
   return (
-    <DetailLayout breadcrumbs={<ReportsBreadcrumbs />}>{children}</DetailLayout>
+    <DetailLayout breadcrumbs={<ReportBreadcrumbs />}>{children}</DetailLayout>
   )
 }
 
-export default ProductLayout
+export default ReportLayout
