@@ -58,12 +58,11 @@ const GeometryOutputFeature = () => {
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Geometry Runs</h1>
+        <h1 className="text-3xl font-medium mb-2">Geometry Outputs</h1>
         <CrudFormDialog
           form={form}
           mutation={createGeometryOutput}
           buttonText="Add Geometry Output"
-          hiddenFields={['id']}
           entityName="Geometry Output"
           entityNamePlural="geometry outputs"
         >

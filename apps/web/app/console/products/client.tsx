@@ -116,7 +116,6 @@ const ProductFeature = () => {
         <CrudFormDialog
           form={form}
           mutation={createProduct}
-          hiddenFields={['id']}
           entityName="Product"
           entityNamePlural="Products"
           buttonText="Add Product"
