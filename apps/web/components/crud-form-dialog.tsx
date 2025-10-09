@@ -60,6 +60,7 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
             setOpen(false)
             formProps.onSuccess?.()
           }}
+          successMessage={`Created ${formProps.entityName}`}
         >
           {children}
         </CrudForm>

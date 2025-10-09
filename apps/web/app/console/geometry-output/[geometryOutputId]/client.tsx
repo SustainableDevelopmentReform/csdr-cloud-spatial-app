@@ -91,6 +91,7 @@ const GeometriesRunDetails = () => {
         entityName="Geometry Output"
         entityNamePlural="Geometry Outputs"
         readOnlyFields={['id', 'metadata', 'name']}
+        successMessage="Updated Geometry Output"
       >
         <FormItem>
           <FormLabel>Properties</FormLabel>

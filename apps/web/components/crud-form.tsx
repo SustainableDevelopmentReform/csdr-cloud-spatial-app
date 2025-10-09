@@ -39,6 +39,7 @@ export interface CrudFormProps<
   actions?: CrudFormAction[]
   children?: React.ReactNode | React.ReactNode[]
   onSuccess?: () => void
+  successMessage: string
 }
 
 export const CrudForm = <
@@ -55,6 +56,7 @@ export const CrudForm = <
   hiddenFields,
   fieldLabels,
   onSuccess,
+  successMessage,
 }: CrudFormProps<Data>) => {
   // Helper function to get field label
   const getFieldLabel = (field: keyof Data): string => {
@@ -107,7 +109,7 @@ export const CrudForm = <
           onSubmit={form.handleSubmit((formData) => {
             mutation.mutate(formData, {
               onSuccess: () => {
-                toast.success(`Created ${entityName} successfully`)
+                toast.success(successMessage)
                 onSuccess?.()
               },
             })

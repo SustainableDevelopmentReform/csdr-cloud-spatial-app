@@ -26,6 +26,7 @@ import productOutput from './routes/productOutput'
 import productRun from './routes/productRun'
 import variable from './routes/variable'
 import variableCategory from './routes/variableCategory'
+import report from './routes/report'
 
 const isProduction = env.NODE_ENV === 'production'
 
@@ -78,6 +79,7 @@ const v0ApiRoutes = app
   .route('/product-output', productOutput)
   .route('/variable', variable)
   .route('/variable-category', variableCategory)
+  .route('/report', report)
 
 v0ApiRoutes.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',

@@ -195,3 +195,9 @@ export const updateVariableCategorySchema = baseUpdateResourceSchema.extend({
   parentId: z.string().optional(),
   displayOrder: z.number().optional(),
 })
+
+export const reportQuerySchema = paginatedQuerySchema
+export const createReportSchema = baseCreateResourceSchema
+export const updateReportSchema = baseUpdateResourceSchema.extend({
+  content: z.any(),
+})
