@@ -182,7 +182,7 @@ export const createVariableSchema = baseCreateResourceSchema.extend({
 export const updateVariableSchema = baseUpdateResourceSchema.extend({
   unit: z.string().optional(),
   categoryId: z.string().nullable().optional(),
-  displayOrder: z.number().optional(),
+  displayOrder: z.number().nullable().optional(),
 })
 
 export const createVariableCategorySchema = baseCreateResourceSchema.extend({

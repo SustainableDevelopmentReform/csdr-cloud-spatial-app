@@ -24,12 +24,14 @@ export const VariableCategoryButton = ({
 }: {
   variableCategory: VariableCategoryLinkParams
 }) => {
-  const variableCategoryLink = useVariableCategoryLink()
+  // const variableCategoryLink = useVariableCategoryLink()
 
-  return (
-    <BadgeLink href={variableCategoryLink(variableCategory)} variant="outline">
-      {variableCategory.name}
-      <ArrowUpRightIcon className="size-4" />
-    </BadgeLink>
-  )
+  return <div>{variableCategory.name}</div>
+
+  // return (
+  //   <BadgeLink href={variableCategoryLink(variableCategory)} variant="outline">
+  //     {variableCategory.name}
+  //     <ArrowUpRightIcon className="size-4" />
+  //   </BadgeLink>
+  // )
 }
