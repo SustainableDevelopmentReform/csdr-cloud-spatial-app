@@ -13,7 +13,7 @@ import { baseCreateResourceSchema } from '@repo/schemas/crud'
 
 interface CrudFormDialogProps<
   Data extends z.infer<typeof baseCreateResourceSchema>,
-> extends CrudFormProps<Data> {
+> extends Omit<CrudFormProps<Data>, 'successMessage'> {
   buttonText?: string
   children?: React.ReactNode
   onOpen?: () => void
@@ -55,12 +55,12 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
         <CrudForm
           hiddenFields={hiddenFields}
           readOnlyFields={readOnlyFields}
+          successMessage={`Created ${formProps.entityName}`}
           {...formProps}
           onSuccess={() => {
             setOpen(false)
             formProps.onSuccess?.()
           }}
-          successMessage={`Created ${formProps.entityName}`}
         >
           {children}
         </CrudForm>

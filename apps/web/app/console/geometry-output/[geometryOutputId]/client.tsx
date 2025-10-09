@@ -87,7 +87,6 @@ const GeometriesRunDetails = () => {
       <CrudForm
         form={form}
         mutation={updateGeometryOutput}
-        hiddenFields={['id']}
         entityName="Geometry Output"
         entityNamePlural="Geometry Outputs"
         readOnlyFields={['id', 'metadata', 'name']}
