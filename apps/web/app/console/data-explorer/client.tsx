@@ -1,15 +1,20 @@
 'use client'
 
-import { LinePlot } from '@repo/plot/LinePlot'
+import { getLinePlotCodeSnippet, LinePlot } from '@repo/plot/LinePlot'
+import { CopyButton } from '@repo/ui/components/ui/copy-button'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 import { useState } from 'react'
 import { FieldGroup } from '../../../components/action'
 import { formatDateTime } from '../../../utils/date'
+import GeometriesMapViewer from '../geometries/_components/geometries-map-viewer'
 import {
   GeometryOutputListItem,
   useGeometriesRun,
   useGeometryOutputs,
 } from '../geometries/_hooks'
+import { ProductOutputDependenciesCard } from '../products/_components/product-output-dependencies-card'
+import { ProductOutputSummaryCard } from '../products/_components/product-output-summary-card'
 import {
   ProductListItem,
   ProductOutputExportListItem,
@@ -19,9 +24,7 @@ import {
   useProducts,
 } from '../products/_hooks'
 import { VariableListItem } from '../variables/_hooks'
-import GeometriesMapViewer from '../geometries/_components/geometries-map-viewer'
-import { ProductOutputDependenciesCard } from '../products/_components/product-output-dependencies-card'
-import { ProductOutputSummaryCard } from '../products/_components/product-output-summary-card'
+import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
 
 const ProductFeature = () => {
   const { data: products } = useProducts()
@@ -197,6 +200,16 @@ const ProductFeature = () => {
             )}
           </div>
         </div>
+
+        {productOutputs?.data.length && selectedGeometry && (
+          <ObservableCellsCopy
+            cells={getLinePlotCodeSnippet({
+              data: productOutputs.data,
+              x: 'timePoint',
+              y: 'value',
+            })}
+          />
+        )}
       </div>
     </>
   )
