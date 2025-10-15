@@ -447,6 +447,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.0.4(@types/react@19.0.10))(@types/react@19.0.10)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@repo/plot':
+        specifier: workspace:*
+        version: link:../plot
       '@tiptap/extension-highlight':
         specifier: ^3.6.1
         version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))
