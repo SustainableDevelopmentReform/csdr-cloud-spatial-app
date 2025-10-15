@@ -1,7 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Content, EditorContent, EditorContext, useEditor } from '@tiptap/react'
+import {
+  Content,
+  EditorContent,
+  EditorContext,
+  Extensions,
+  useEditor,
+} from '@tiptap/react'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -25,6 +31,8 @@ import {
 
 // --- Tiptap Node ---
 import { ImageUploadNode } from '@repo/ui/components/tip-tap/node/image-upload-node/image-upload-node-extension'
+import { ChartNode } from '@repo/ui/components/tip-tap/node/chart-node/chart-node-extension'
+import type { ChartFormBuilder } from '@repo/ui/components/tip-tap/node/chart-node/chart-node-shared'
 import { HorizontalRule } from '@repo/ui/components/tip-tap/node/horizontal-rule-node/horizontal-rule-node-extension'
 import '@repo/ui/components/tip-tap/node/blockquote-node/blockquote-node.scss'
 import '@repo/ui/components/tip-tap/node/code-block-node/code-block-node.scss'
@@ -33,10 +41,12 @@ import '@repo/ui/components/tip-tap/node/list-node/list-node.scss'
 import '@repo/ui/components/tip-tap/node/image-node/image-node.scss'
 import '@repo/ui/components/tip-tap/node/heading-node/heading-node.scss'
 import '@repo/ui/components/tip-tap/node/paragraph-node/paragraph-node.scss'
+import '@repo/ui/components/tip-tap/node/chart-node/chart-node.scss'
 
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from '@repo/ui/components/tip-tap/ui/heading-dropdown-menu'
 import { ImageUploadButton } from '@repo/ui/components/tip-tap/ui/image-upload-button'
+import { ChartButton } from '@repo/ui/components/tip-tap/ui/chart-button'
 import { ListDropdownMenu } from '@repo/ui/components/tip-tap/ui/list-dropdown-menu'
 import { BlockquoteButton } from '@repo/ui/components/tip-tap/ui/blockquote-button'
 import { CodeBlockButton } from '@repo/ui/components/tip-tap/ui/code-block-button'
@@ -74,10 +84,12 @@ const MainToolbarContent = ({
   onHighlighterClick,
   onLinkClick,
   isMobile,
+  showChartButton,
 }: {
   onHighlighterClick: () => void
   onLinkClick: () => void
   isMobile: boolean
+  showChartButton: boolean
 }) => {
   return (
     <>
@@ -135,7 +147,8 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ImageUploadButton text="Add" />
+        {/* <ImageUploadButton text="Add" /> */}
+        {showChartButton && <ChartButton text="Chart" />}
       </ToolbarGroup>
 
       <Spacer />
@@ -174,19 +187,62 @@ const MobileToolbarContent = ({
   </>
 )
 
+type SimpleEditorProps = {
+  onUpdate: (json: any) => void
+  content: Content
+  chartFormBuilder?: ChartFormBuilder
+}
+
 export function SimpleEditor({
   onUpdate,
   content,
-}: {
-  onUpdate: (json: any) => void
-  content: Content
-}) {
+  chartFormBuilder,
+}: SimpleEditorProps) {
   const isMobile = useIsMobile()
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = React.useState<
     'main' | 'highlighter' | 'link'
   >('main')
   const toolbarRef = React.useRef<HTMLDivElement>(null)
+
+  const extensions = React.useMemo(() => {
+    const baseExtensions: Extensions = [
+      StarterKit.configure({
+        horizontalRule: false,
+        link: {
+          openOnClick: false,
+          enableClickSelection: true,
+        },
+      }),
+      HorizontalRule,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Highlight.configure({ multicolor: true }),
+      // Image,
+      Typography,
+      Superscript,
+      Subscript,
+      Selection,
+      // ImageUploadNode.configure({
+      //   accept: 'image/*',
+      //   maxSize: MAX_FILE_SIZE,
+      //   limit: 3,
+      //   upload: handleImageUpload,
+      //   onError: (error) => console.error('Upload failed:', error),
+      // }),
+    ]
+
+    if (chartFormBuilder) {
+      baseExtensions.push(
+        ChartNode.configure({
+          formBuilder: chartFormBuilder,
+        }),
+      )
+    }
+
+    return baseExtensions
+  }, [chartFormBuilder])
 
   const editor = useEditor({
     onUpdate: (props) => {
@@ -204,32 +260,7 @@ export function SimpleEditor({
         class: 'simple-editor',
       },
     },
-    extensions: [
-      StarterKit.configure({
-        horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
-        },
-      }),
-      HorizontalRule,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Highlight.configure({ multicolor: true }),
-      Image,
-      Typography,
-      Superscript,
-      Subscript,
-      Selection,
-      ImageUploadNode.configure({
-        accept: 'image/*',
-        maxSize: MAX_FILE_SIZE,
-        limit: 3,
-        upload: handleImageUpload,
-        onError: (error) => console.error('Upload failed:', error),
-      }),
-    ],
+    extensions,
     content,
   })
 
@@ -262,6 +293,7 @@ export function SimpleEditor({
               onHighlighterClick={() => setMobileView('highlighter')}
               onLinkClick={() => setMobileView('link')}
               isMobile={isMobile}
+              showChartButton={Boolean(chartFormBuilder)}
             />
           ) : (
             <MobileToolbarContent

@@ -52,6 +52,12 @@ export function SelectWithSearch({
 }: SelectWithSearchProps) {
   const [open, setOpen] = React.useState(false)
 
+  console.log(
+    options?.find((option) => option.id === value),
+    options,
+    value,
+  )
+
   return (
     <Popover open={openProp ?? open} onOpenChange={setOpenProp ?? setOpen}>
       <PopoverTrigger asChild>

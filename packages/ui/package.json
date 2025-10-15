@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
+    "@repo/plot": "workspace:*",
     "@hookform/resolvers": "catalog:",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-avatar": "^1.1.3",

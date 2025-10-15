@@ -3,19 +3,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateReportSchema } from '@repo/schemas/crud'
 import { useEffect } from 'react'
-import { Path, useForm } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/crud-form'
 import { useDeleteReport, useReport, useUpdateReport } from '../_hooks'
 
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
-import { Input } from '@repo/ui/components/ui/input'
+import { reportChartFormBuilder } from '../_components/form-builder'
 
 const ReportDetails = () => {
   const { data: report } = useReport()
@@ -48,6 +41,7 @@ const ReportDetails = () => {
               form.setValue('content', json)
             }}
             content={report.content}
+            chartFormBuilder={reportChartFormBuilder}
           />
         )}
       </CrudForm>
