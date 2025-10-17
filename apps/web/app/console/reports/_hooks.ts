@@ -109,7 +109,8 @@ export const useCreateReport = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.reportAll,
       })

@@ -1,5 +1,6 @@
-export type LinePlotChartConfiguration = {
-  type: 'linePlot'
+export type PlotChartConfiguration = {
+  type: 'plot'
+  subType: 'line' | 'bar' | 'grouped-bar' | 'dot'
   title?: string
   description?: string
   productRunId: string
@@ -16,6 +17,4 @@ export type MapChartConfiguration = {
   timePoint: string
 }
 
-export type ChartConfiguration =
-  | LinePlotChartConfiguration
-  | MapChartConfiguration
+export type ChartConfiguration = PlotChartConfiguration | MapChartConfiguration

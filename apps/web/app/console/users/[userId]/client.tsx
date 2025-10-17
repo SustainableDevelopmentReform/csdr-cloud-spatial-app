@@ -87,7 +87,9 @@ const UserProfile = () => {
       if (res.error) {
         throw res.error
       }
-
+      return res.data
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, userId],
       })
@@ -125,7 +127,9 @@ const UserProfile = () => {
       if (res.error) {
         throw res.error
       }
-
+      return res.data
+    },
+    onSuccess: () => {
       toast(`User: ${user?.name} is suspended`)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, userId],
@@ -144,7 +148,9 @@ const UserProfile = () => {
       if (res.error) {
         throw res.error
       }
-
+      return res.data
+    },
+    onSuccess: () => {
       toast(`User: ${user?.name} is restored`)
       queryClient.invalidateQueries({
         queryKey: [QueryKey.UserProfile, userId],
@@ -163,7 +169,9 @@ const UserProfile = () => {
       if (res.error) {
         throw res.error
       }
-
+      return res.data
+    },
+    onSuccess: () => {
       toast(`User: ${user?.name} is deleted`)
       router.replace('/console/users')
       queryClient.invalidateQueries({

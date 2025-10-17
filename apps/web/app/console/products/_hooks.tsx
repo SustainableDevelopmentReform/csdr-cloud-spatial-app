@@ -390,7 +390,8 @@ export const useCreateProduct = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.productAll,
       })
@@ -407,11 +408,13 @@ export const useCreateProductRun = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.productRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productDetail(data.productId),
+        queryKey: queryKeys.productDetail(variables.productId),
       })
     },
   })
@@ -426,14 +429,16 @@ export const useCreateProductRunOutput = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.productOutputAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunDetail(data.productRunId),
+        queryKey: queryKeys.productRunDetail(variables.productRunId),
       })
       // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productDetail(data.productRun.productId),
+      //   queryKey: queryKeys.productDetail(variables.productRun.productId),
       // })
     },
   })

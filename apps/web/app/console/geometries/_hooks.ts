@@ -295,7 +295,8 @@ export const useCreateGeometries = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.geometriesAll,
       })
@@ -312,11 +313,13 @@ export const useCreateGeometriesRun = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.geometriesRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.geometriesDetail(data.geometriesId),
+        queryKey: queryKeys.geometriesDetail(variables.geometriesId),
       })
     },
   })
@@ -331,11 +334,13 @@ export const useCreateGeometryOutput = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.geometryOutputAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.geometriesRunDetail(data.geometriesRunId),
+        queryKey: queryKeys.geometriesRunDetail(variables.geometriesRunId),
       })
     },
   })

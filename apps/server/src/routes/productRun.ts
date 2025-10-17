@@ -334,6 +334,13 @@ const app = createOpenAPIApp()
           geometryOutputId: true,
           value: true,
         },
+        with: {
+          variable: {
+            columns: {
+              name: true,
+            },
+          },
+        },
         where: and(...filters),
         orderBy: () => [
           desc(productOutput.variableId),
@@ -342,10 +349,15 @@ const app = createOpenAPIApp()
         ],
       })
 
+      const dataWithVariableName = data.map((output) => ({
+        ...output,
+        variableName: output.variable.name,
+      }))
+
       return generateJsonResponse(
         c,
         {
-          data,
+          data: dataWithVariableName,
         },
         200,
       )

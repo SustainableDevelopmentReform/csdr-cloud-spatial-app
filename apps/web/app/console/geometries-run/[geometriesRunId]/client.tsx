@@ -2,13 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateGeometriesRunSchema } from '@repo/schemas/crud'
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
+import { FormItem, FormLabel } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
@@ -17,7 +11,6 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/crud-form'
 import { CrudFormAction } from '../../../../components/crud-form-action'
 import { CrudFormRunFields } from '../../../../components/crud-form-run-fields'
-import { useConfig } from '../../../../components/providers'
 import { DetailCard } from '../../_components/detail-cards'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../../geometries/_components/geometries-run-summary-card'
@@ -31,7 +24,6 @@ import {
 import { useProductRunsLink } from '../../products/_hooks'
 
 const GeometriesRunDetails = () => {
-  const { dataBaseUrl } = useConfig()
   const { data: geometriesRun } = useGeometriesRun()
   const updateGeometriesRun = useUpdateGeometriesRun()
   const deleteGeometriesRun = useDeleteGeometriesRun(

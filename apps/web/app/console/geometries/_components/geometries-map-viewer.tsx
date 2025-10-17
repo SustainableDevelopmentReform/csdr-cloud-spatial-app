@@ -24,6 +24,8 @@ import {
   MapGeoJSONFeature,
   MapLayerMouseEvent,
 } from 'maplibre-gl'
+import { useQuery } from '@tanstack/react-query'
+import { EmptyCard } from '../../_components/empty-card'
 
 const NO_DATA_COLOR = '#eef'
 
@@ -40,27 +42,32 @@ const GeometriesMapViewer = ({
   productOutputs?: ProductOutputExportListItem[] | null
   onSelect?: (output: ProductOutputExportListItem | null) => void
 }) => {
-  const { dataBaseUrl } = useConfig()
-
   const pmtilesUrl = useMemo(() => {
-    if (!dataBaseUrl || !geometriesRun?.dataPmtilesUrl) return undefined
-    const url = new URL(dataBaseUrl)
-    url.pathname = geometriesRun?.dataPmtilesUrl
-    return url.toString()
-  }, [geometriesRun?.dataPmtilesUrl, dataBaseUrl])
+    if (!geometriesRun?.dataPmtilesUrl) return undefined
 
-  const [pmtilesHeader, setPmtilesHeader] = useState<PMTilesHeader | null>(null)
-
-  useEffect(() => {
-    const fetchHeader = async () => {
-      if (pmtilesUrl) {
-        const p = new PMTiles(pmtilesUrl)
-        const header = await p.getHeader()
-        setPmtilesHeader(header)
-      }
+    if (geometriesRun.dataPmtilesUrl.startsWith('s3://')) {
+      // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
+      const s3Url = geometriesRun.dataPmtilesUrl.replace('s3://', '')
+      const [bucket, ...pathParts] = s3Url.split('/')
+      const path = pathParts.join('/')
+      return `https://${bucket}.s3.amazonaws.com/${path}`
     }
-    fetchHeader()
-  }, [pmtilesUrl])
+
+    return geometriesRun?.dataPmtilesUrl
+  }, [geometriesRun?.dataPmtilesUrl])
+
+  const {
+    data: pmtilesHeader,
+    isLoading: isLoadingPmtilesHeader,
+    error: pmtilesHeaderError,
+  } = useQuery<PMTilesHeader | null>({
+    queryKey: ['pmtiles-header', pmtilesUrl],
+    queryFn: async () => {
+      if (!pmtilesUrl) return null
+      const p = new PMTiles(pmtilesUrl)
+      return p.getHeader()
+    },
+  })
 
   const { linePaint, fillPaint } = useMemo(() => {
     if (!variable)
@@ -112,7 +119,7 @@ const GeometriesMapViewer = ({
         'fill-opacity': 0.7,
       } satisfies FillLayerSpecification['paint'],
     }
-  }, [variable])
+  }, [variable, productRun, productOutputs])
 
   const [clickedFeature, setClickedFeature] =
     useState<MapGeoJSONFeature | null>(null)
@@ -151,46 +158,45 @@ const GeometriesMapViewer = ({
     [onSelect, clickedFeature, productOutputs],
   )
 
-  if (!geometriesRun?.dataPmtilesUrl) return null
-
+  if (isLoadingPmtilesHeader) return <EmptyCard description="Loading PMTiles" />
+  if (pmtilesHeaderError)
+    return <EmptyCard description={`Error: ${pmtilesHeaderError.message}`} />
+  if (!pmtilesHeader)
+    return (
+      <EmptyCard description="Map data not available: No valid PMTiles URL provided" />
+    )
   return (
     <div className="rounded-lg overflow-hidden w-full h-full">
-      {pmtilesHeader && (
-        <MapViewer
-          initialViewState={{
-            bounds: [
-              pmtilesHeader.minLon,
-              pmtilesHeader.minLat,
-              pmtilesHeader.maxLon,
-              pmtilesHeader.maxLat,
-            ],
-            fitBoundsOptions: { padding: 20 },
-          }}
-          interactiveLayerIds={['geometries-fill']}
-          onMouseMove={onMouseMove}
-          onClick={onMouseClick}
-        >
-          <Source
-            id="geometries"
-            type="vector"
-            url={`pmtiles://${pmtilesUrl}`}
-          />
-          <Layer
-            id="geometries-fill"
-            source="geometries"
-            source-layer="data"
-            type="fill"
-            paint={fillPaint}
-          />
-          <Layer
-            id="geometries-line"
-            source="geometries"
-            source-layer="data"
-            type="line"
-            paint={linePaint}
-          />
-        </MapViewer>
-      )}
+      <MapViewer
+        initialViewState={{
+          bounds: [
+            pmtilesHeader.minLon,
+            pmtilesHeader.minLat,
+            pmtilesHeader.maxLon,
+            pmtilesHeader.maxLat,
+          ],
+          fitBoundsOptions: { padding: 20 },
+        }}
+        interactiveLayerIds={['geometries-fill']}
+        onMouseMove={onMouseMove}
+        onClick={onMouseClick}
+      >
+        <Source id="geometries" type="vector" url={`pmtiles://${pmtilesUrl}`} />
+        <Layer
+          id="geometries-fill"
+          source="geometries"
+          source-layer="data"
+          type="fill"
+          paint={fillPaint}
+        />
+        <Layer
+          id="geometries-line"
+          source="geometries"
+          source-layer="data"
+          type="line"
+          paint={linePaint}
+        />
+      </MapViewer>
     </div>
   )
 }
