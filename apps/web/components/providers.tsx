@@ -75,11 +75,9 @@ export const queryClient = new QueryClient({
 export const ConfigContext = createContext<{
   appUrl: string
   apiBaseUrl: string
-  dataBaseUrl: string | undefined
 }>({
   appUrl: '',
   apiBaseUrl: '',
-  dataBaseUrl: undefined,
 })
 
 export const useConfig = () => {
@@ -90,17 +88,11 @@ interface Props {
   children?: React.ReactNode
   appUrl: string
   apiBaseUrl: string
-  dataBaseUrl: string | undefined
 }
 
-const Providers: React.FC<Props> = ({
-  children,
-  appUrl,
-  apiBaseUrl,
-  dataBaseUrl,
-}) => {
+const Providers: React.FC<Props> = ({ children, appUrl, apiBaseUrl }) => {
   return (
-    <ConfigContext.Provider value={{ appUrl, apiBaseUrl, dataBaseUrl }}>
+    <ConfigContext.Provider value={{ appUrl, apiBaseUrl }}>
       <NuqsAdapter>
         <QueryClientProvider client={queryClient}>
           {children}

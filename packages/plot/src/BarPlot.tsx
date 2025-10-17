@@ -85,31 +85,29 @@ export function LinePlot<T extends { id: string; value: number }>({
       Plot.ruleY([0]),
     ]
     if (type === 'line') {
-      marks.push(Plot.line(data, { x, y, stroke: 'variableName' }))
+      marks.push(Plot.line(data, { x, y, fill: 'variableName' }))
     } else if (type === 'bar') {
       marks.push(Plot.barY(data, { x, y, fill: 'variableName' }))
     } else if (type === 'grouped-bar') {
       marks.push(Plot.barY(data, { x, y, fill: 'variableName' }))
     } else if (type === 'dot') {
-      marks.push(Plot.dot(data, { x, y, fill: 'variableName', r: 6 }))
+      marks.push(
+        Plot.dot(data, Plot.pointer({ x, y, fill: 'variableName', r: 8 })),
+      )
     }
 
     marks.push(
-      Plot.dot(data, Plot.pointer({ x, y, fill: 'variableName', r: 8 })),
+      Plot.text(
+        data,
+        Plot.selectLast({
+          x,
+          y,
+          text: 'variableName',
+          textAnchor: 'start',
+          dx: 3,
+        }),
+      ),
     )
-
-    // marks.push(
-    //   Plot.text(
-    //     data,
-    //     Plot.selectLast({
-    //       x,
-    //       y,
-    //       text: 'variableName',
-    //       textAnchor: 'start',
-    //       dx: 3,
-    //     }),
-    //   ),
-    // )
 
     const chart = Plot.plot({
       margin: 50,
@@ -119,7 +117,10 @@ export function LinePlot<T extends { id: string; value: number }>({
       y: {
         grid: true,
       },
-      color: { legend: true },
+      color: {
+        type: 'diverging',
+        scheme: 'burd',
+      },
       marks,
     })
     containerRef.current?.append(chart)
@@ -128,7 +129,7 @@ export function LinePlot<T extends { id: string; value: number }>({
       onSelect(chart.value)
     })
     return () => chart.remove()
-  }, [data, onSelect, type, x, y])
+  }, [data])
 
   return <div ref={containerRef} className="w-full h-full"></div>
 }

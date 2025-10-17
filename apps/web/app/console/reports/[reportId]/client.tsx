@@ -8,7 +8,7 @@ import { CrudForm } from '../../../../components/crud-form'
 import { useDeleteReport, useReport, useUpdateReport } from '../_hooks'
 
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
-import { reportChartFormBuilder } from '../_components/form-builder'
+import { reportChartFormBuilder } from '../_components/report-chart-editor'
 
 const ReportDetails = () => {
   const { data: report } = useReport()

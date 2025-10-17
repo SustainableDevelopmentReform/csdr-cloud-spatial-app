@@ -10,5 +10,9 @@ export default {
     user: process.env.DATABASE_USER || 'admin',
     password: process.env.DATABASE_PASSWORD || 'admin',
     database: process.env.DATABASE_NAME || 'csdr-dev',
+    ssl:
+      process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false,
   },
 } satisfies Config

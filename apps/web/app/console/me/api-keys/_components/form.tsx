@@ -75,8 +75,9 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
       }
 
       setApiKey(res.data.key)
-
       toast(`API key created`)
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QueryKey.ApiKeys],
       })

@@ -108,6 +108,7 @@ export const productOutputExportSchema = z
   .object({
     id: z.string(),
     variableId: z.string(),
+    variableName: z.string(),
     timePoint: z.iso.datetime(),
     geometryOutputId: z.string(),
     value: z.number(),
