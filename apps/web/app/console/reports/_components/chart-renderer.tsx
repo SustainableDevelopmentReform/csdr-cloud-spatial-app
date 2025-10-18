@@ -143,6 +143,7 @@ const MapContainer = ({
           variable={variable}
           productRun={productRun}
           productOutputs={productOutputs?.data}
+          zoomToGeometryOutputIds={chart.geometryOutputIds}
           onSelect={(dataPoint) =>
             setSelectedProductOutputId(dataPoint?.id ?? null)
           }

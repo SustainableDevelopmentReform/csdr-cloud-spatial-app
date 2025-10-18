@@ -3,6 +3,7 @@
 import {
   geometriesQuerySchema,
   geometriesRunQuerySchema,
+  geometryOutputExportQuerySchema,
   geometryOutputQuerySchema,
 } from '@repo/schemas/crud'
 import {
@@ -33,6 +34,12 @@ export type GeometriesDetail = NonNullable<
 export type GeometriesRunListItem = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries'][':id']['runs']['$get'],
+    200
+  >['data']
+>['data'][0]
+export type GeometriesRunExportListItem = NonNullable<
+  InferResponseType<
+    Client['api']['v0']['geometries-run'][':id']['outputs']['export']['$get'],
     200
   >['data']
 >['data'][0]
@@ -109,6 +116,10 @@ const queryKeys = {
   geometryOutputList: (
     geometriesRunId: string | undefined,
     query: z.infer<typeof geometryOutputQuerySchema> | undefined,
+  ) => [...queryKeys.geometryOutputAll, geometriesRunId, { query }] as const,
+  geometryOutputExportList: (
+    geometriesRunId: string | undefined,
+    query: z.infer<typeof geometryOutputExportQuerySchema> | undefined,
   ) => [...queryKeys.geometryOutputAll, geometriesRunId, { query }] as const,
 }
 
@@ -188,14 +199,18 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
   }
 }
 
-export const useGeometryOutputs = (_geometriesRunId?: string) => {
+export const useGeometryOutputs = (
+  _geometriesRunId?: string,
+  _query?: z.infer<typeof geometryOutputQuerySchema>,
+) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     geometryOutputQuerySchema,
+    _query,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: queryKeys.geometryOutputList(geometriesRunId, query),
     queryFn: async () => {
       if (!geometriesRunId || !query) return null
@@ -214,12 +229,49 @@ export const useGeometryOutputs = (_geometriesRunId?: string) => {
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }
 }
 
+export const useGeometryOutputsExport = (
+  _geometriesRunId?: string,
+  _query?: z.infer<typeof geometryOutputExportQuerySchema>,
+) => {
+  const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
+  const client = useApiClient()
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    geometryOutputExportQuerySchema,
+    _query,
+  )
+
+  const queryResult = useQuery({
+    queryKey: queryKeys.geometryOutputExportList(geometriesRunId, query),
+    queryFn: async () => {
+      if (!geometriesRunId || !query) return null
+      const res = client.api.v0['geometries-run'][':id']['outputs'][
+        'export'
+      ].$get({
+        query,
+        param: {
+          id: geometriesRunId,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+
+      return json.data
+    },
+    placeholderData: keepPreviousData,
+  })
+
+  return {
+    ...queryResult,
+    query,
+    setSearchParams,
+  }
+}
 export const useGeometries = (_geometriesId?: string) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const client = useApiClient()

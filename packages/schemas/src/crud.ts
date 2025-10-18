@@ -72,7 +72,14 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})
 
-export const geometryOutputQuerySchema = paginatedQuerySchema
+export const geometryOutputQuerySchema = paginatedQuerySchema.extend({})
+
+export const geometryOutputExportQuerySchema = z.object({
+  geometryOutputIds: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .transform((val) => (Array.isArray(val) ? val : val ? [val] : undefined)),
+})
 
 export const createGeometryOutputSchema = baseCreateResourceSchema.extend({
   name: z.string(),
