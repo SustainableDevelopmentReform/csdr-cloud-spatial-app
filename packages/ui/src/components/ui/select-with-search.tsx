@@ -106,8 +106,12 @@ export function SelectWithSearch({
                 <CommandItem
                   value=""
                   onSelect={() => {
-                    props.multiple ? props.onSelect([]) : props.onSelect(null)
-                    setOpenProp?.(false) || setOpen(false)
+                    if (props.multiple) {
+                      props.onSelect([])
+                    } else {
+                      props.onSelect(null)
+                      setOpenProp?.(false) || setOpen(false)
+                    }
                   }}
                 >
                   {placeholder}
@@ -124,18 +128,20 @@ export function SelectWithSearch({
                   key={option.id}
                   value={option.id}
                   onSelect={(currentValue) => {
-                    props.multiple
-                      ? props.onSelect(
-                          props.value.includes(currentValue)
-                            ? props.value.filter(
-                                (value) => value !== currentValue,
-                              )
-                            : [...props.value, currentValue],
-                        )
-                      : props.onSelect(
-                          currentValue === props.value ? null : currentValue,
-                        )
-                    setOpenProp?.(false) || setOpen(false)
+                    if (props.multiple) {
+                      props.onSelect(
+                        props.value.includes(currentValue)
+                          ? props.value.filter(
+                              (value) => value !== currentValue,
+                            )
+                          : [...props.value, currentValue],
+                      )
+                    } else {
+                      props.onSelect(
+                        currentValue === props.value ? null : currentValue,
+                      )
+                      setOpenProp?.(false) || setOpen(false)
+                    }
                   }}
                 >
                   {option.name ?? option.id}
