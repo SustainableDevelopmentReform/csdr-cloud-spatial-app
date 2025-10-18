@@ -5,6 +5,7 @@ import {
   ChartConfiguration,
   PlotChartConfiguration,
   MapChartConfiguration,
+  TableChartConfiguration,
 } from '@repo/plot/types'
 import { Button } from '@repo/ui/components/ui/button'
 import {
@@ -30,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { FieldGroup } from '../../../../components/action'
@@ -40,10 +41,8 @@ import { ProductRunSelect } from '../../products/_components/product-run-select'
 import { ProductSelect } from '../../products/_components/product-select'
 import { VariablesSelect } from '../../variables/_components/variables-select'
 
-const linePlotSchema = z
+const multiSeriesSelectionSchema = z
   .object({
-    type: z.literal('plot'),
-    subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
     productId: z.string(),
     productRunId: z.string(),
     variableIds: z.array(z.string()).optional(),
@@ -69,7 +68,12 @@ const linePlotSchema = z
         input: data.geometryOutputIds,
       })
     }
-  }) satisfies z.ZodType<PlotChartConfiguration>
+  })
+
+const linePlotSchema = multiSeriesSelectionSchema.extend({
+  type: z.literal('plot'),
+  subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
+}) satisfies z.ZodType<PlotChartConfiguration>
 
 const mapSchema = z.object({
   type: z.literal('map'),
@@ -79,9 +83,15 @@ const mapSchema = z.object({
   timePoint: z.string(),
 }) satisfies z.ZodType<MapChartConfiguration>
 
+const tablePlotSchema = multiSeriesSelectionSchema.extend({
+  type: z.literal('table'),
+  groupBy: z.enum(['variableName', 'geometryOutputName']),
+}) satisfies z.ZodType<TableChartConfiguration>
+
 const chartSchema = z.union([
   linePlotSchema,
   mapSchema,
+  tablePlotSchema,
 ]) satisfies z.ZodType<ChartConfiguration>
 
 export const ChartFormDialog = ({
@@ -102,6 +112,23 @@ export const ChartFormDialog = ({
     resolver: zodResolver(chartSchema),
     defaultValues: chart ?? undefined,
   })
+  const chartType = form.watch('type')
+  const groupBy = form.watch('groupBy')
+
+  useEffect(() => {
+    if (chartType === 'table' && !groupBy) {
+      form.setValue('groupBy', 'variableName', {
+        shouldValidate: true,
+        shouldDirty: false,
+      })
+    }
+  }, [chartType, groupBy, form])
+
+  useEffect(() => {
+    if (chartType !== 'table' && form.getValues('groupBy')) {
+      form.resetField('groupBy')
+    }
+  }, [chartType, form])
 
   return (
     <Dialog
@@ -146,13 +173,36 @@ export const ChartFormDialog = ({
                     <FormLabel>Chart Type</FormLabel>
                     <Select
                       value={field.value}
-                      onValueChange={(value) => field.onChange(value)}
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        if (value === 'plot') {
+                          form.resetField('subType')
+                          form.resetField('variableId')
+                          form.resetField('timePoint')
+                        } else if (value === 'map') {
+                          form.resetField('subType')
+                          form.resetField('groupBy')
+                          form.resetField('variableIds')
+                          form.resetField('geometryOutputIds')
+                        } else if (value === 'table') {
+                          form.resetField('subType')
+                          form.resetField('variableId')
+                          form.resetField('timePoint')
+                          if (!form.getValues('groupBy')) {
+                            form.setValue('groupBy', 'variableName', {
+                              shouldValidate: true,
+                              shouldDirty: false,
+                            })
+                          }
+                        }
+                      }}
                     >
                       <SelectTrigger id="report-chart-type">
                         <SelectValue placeholder="Select a chart type" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="plot">Line plot</SelectItem>
+                        <SelectItem value="table">Table</SelectItem>
                         <SelectItem value="map">Map</SelectItem>
                       </SelectContent>
                     </Select>
@@ -161,7 +211,7 @@ export const ChartFormDialog = ({
               />
             </FieldGroup>
 
-            {form.getValues('type') === 'plot' && (
+            {chartType === 'plot' && (
               <FieldGroup className="flex-1" title="Sub Type">
                 <FormField
                   control={form.control}
@@ -185,6 +235,57 @@ export const ChartFormDialog = ({
                           <SelectItem value="dot">Dot</SelectItem>
                         </SelectContent>
                       </Select>
+                    </FormItem>
+                  )}
+                />
+              </FieldGroup>
+            )}
+
+            {chartType === 'table' && (
+              <FieldGroup className="flex-1" title="Grouping">
+                <FormField
+                  control={form.control}
+                  name="groupBy"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Group By</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => {
+                          field.onChange(value)
+                          if (value === 'variableName') {
+                            const geometryOutputs =
+                              form.getValues('geometryOutputIds')
+                            if ((geometryOutputs?.length ?? 0) > 1) {
+                              form.setValue(
+                                'geometryOutputIds',
+                                geometryOutputs?.slice(0, 1),
+                                { shouldValidate: true },
+                              )
+                            }
+                          } else if (value === 'geometryOutputName') {
+                            const variableIds = form.getValues('variableIds')
+                            if ((variableIds?.length ?? 0) > 1) {
+                              form.setValue(
+                                'variableIds',
+                                variableIds?.slice(0, 1),
+                                { shouldValidate: true },
+                              )
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="report-chart-group-by">
+                          <SelectValue placeholder="Select grouping dimension" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="variableName">Variable</SelectItem>
+                          <SelectItem value="geometryOutputName">
+                            Geometry Output
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -233,23 +334,39 @@ export const ChartFormDialog = ({
               )}
             />
 
-            {form.getValues('type') === 'plot' ? (
+            {(chartType === 'plot' || chartType === 'table') && (
               <FormField
                 control={form.control}
                 name={'variableIds'}
-                render={({ field }) => (
-                  <FormItem>
-                    <VariablesSelect
-                      productRunId={form.getValues('productRunId')}
-                      value={field.value ?? []}
-                      multiple
-                      onSelect={(value) => field.onChange(value)}
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const isMultiple =
+                    chartType === 'plot' || groupBy === 'variableName'
+                  return (
+                    <FormItem>
+                      {isMultiple ? (
+                        <VariablesSelect
+                          productRunId={form.getValues('productRunId')}
+                          value={field.value ?? []}
+                          multiple
+                          onSelect={(value) => field.onChange(value)}
+                        />
+                      ) : (
+                        <VariablesSelect
+                          productRunId={form.getValues('productRunId')}
+                          value={field.value?.[0] ?? null}
+                          onSelect={(value) =>
+                            field.onChange(value ? [value] : undefined)
+                          }
+                        />
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
               />
-            ) : (
+            )}
+
+            {chartType === 'map' && (
               <FormField
                 control={form.control}
                 name={'variableId'}
@@ -265,26 +382,40 @@ export const ChartFormDialog = ({
                 )}
               />
             )}
-            {form.getValues('type') === 'plot' && (
+
+            {(chartType === 'plot' || chartType === 'table') && (
               <FormField
                 control={form.control}
                 name={'geometryOutputIds'}
-                render={({ field }) => (
-                  <FormItem>
-                    <ProductGeometryOutputSelect
-                      {...field}
-                      productRunId={form.getValues('productRunId')}
-                      value={field.value ?? []}
-                      multiple
-                      onSelect={(value) => field.onChange(value)}
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const isMultiple =
+                    chartType === 'plot' || groupBy === 'geometryOutputName'
+                  return (
+                    <FormItem>
+                      {isMultiple ? (
+                        <ProductGeometryOutputSelect
+                          productRunId={form.getValues('productRunId')}
+                          value={field.value ?? []}
+                          multiple
+                          onSelect={(value) => field.onChange(value)}
+                        />
+                      ) : (
+                        <ProductGeometryOutputSelect
+                          productRunId={form.getValues('productRunId')}
+                          value={field.value?.[0] ?? null}
+                          onSelect={(value) =>
+                            field.onChange(value ? [value] : undefined)
+                          }
+                        />
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
               />
             )}
 
-            {form.getValues('type') === 'map' && (
+            {chartType === 'map' && (
               <FormField
                 control={form.control}
                 name={'timePoint'}

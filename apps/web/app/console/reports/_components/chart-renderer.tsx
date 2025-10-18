@@ -5,7 +5,9 @@ import {
   ChartConfiguration,
   MapChartConfiguration,
   PlotChartConfiguration,
+  TableChartConfiguration,
 } from '@repo/plot/types'
+import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
 import { cn } from '@repo/ui/lib/utils'
 import { useState } from 'react'
@@ -153,6 +155,45 @@ const MapContainer = ({
   )
 }
 
+const TablePlotContainer = ({
+  chart,
+  config,
+}: {
+  chart: TableChartConfiguration
+  config?: ChartConfig
+}) => {
+  const [selectedProductOutputId, setSelectedProductOutputId] = useState<
+    string | undefined | null
+  >(null)
+  const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
+    variableId: chart.variableIds,
+    geometryOutputId: chart.geometryOutputIds,
+  })
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        className={cn(
+          config?.showSelectedPointDetails &&
+            'grid grid-cols-2 grid-rows-1 gap-4',
+        )}
+      >
+        <TablePlot
+          data={productOutputs?.data ?? []}
+          groupBy={chart.groupBy}
+          selectedId={selectedProductOutputId ?? undefined}
+          onSelect={(record) => setSelectedProductOutputId(record?.id ?? null)}
+        />
+        {config?.showSelectedPointDetails && (
+          <SelectedPointDetails productOutputId={selectedProductOutputId} />
+        )}
+      </div>
+      {config?.showCodeSnippet && (
+        <ObservableCellsCopy cells={getTablePlotCodeSnippet()} />
+      )}
+    </div>
+  )
+}
+
 interface ChartConfig {
   showCodeSnippet: boolean
   showSelectedPointDetails: boolean
@@ -175,6 +216,9 @@ export const ChartRenderer = ({
     }
     case 'map': {
       return <MapContainer chart={chart} config={config} />
+    }
+    case 'table': {
+      return <TablePlotContainer chart={chart} config={config} />
     }
     default:
       return <UnsupportedChart type={(chart as any).type} />
