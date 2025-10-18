@@ -32,8 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useMemo, useState } from 'react'
+import { useForm, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { FieldGroup } from '../../../../components/action'
 import { ProductGeometryOutputSelect } from '../../products/_components/product-geometry-output-select'
@@ -41,6 +41,7 @@ import { ProductOutputTimeSelect } from '../../products/_components/product-outp
 import { ProductRunSelect } from '../../products/_components/product-run-select'
 import { ProductSelect } from '../../products/_components/product-select'
 import { VariablesSelect } from '../../variables/_components/variables-select'
+import { ChartRenderer } from './chart-renderer'
 
 const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
   { value: 'timePoint', label: 'Time' },
@@ -153,6 +154,30 @@ const chartSchema = z.discriminatedUnion('type', [
   mapSchema,
   tablePlotSchema,
 ]) satisfies z.ZodType<ChartConfiguration>
+
+const ChartPreview = ({
+  form,
+}: {
+  form: UseFormReturn<z.infer<typeof chartSchema>>
+}) => {
+  const formValues = form.watch()
+
+  const parsedFormValues = useMemo(() => {
+    return form.formState.isValid ? chartSchema.safeParse(formValues) : null
+  }, [form.formState.isValid, formValues])
+
+  return (
+    <FieldGroup className="flex-1" title="Preview">
+      {parsedFormValues?.success ? (
+        <ChartRenderer chart={parsedFormValues.data} />
+      ) : (
+        <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
+          Invalid chart configuration
+        </div>
+      )}
+    </FieldGroup>
+  )
+}
 
 export const ChartFormDialog = ({
   buttonText,
@@ -410,6 +435,7 @@ export const ChartFormDialog = ({
                         <VariablesSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
+                          placeholder={'All Variables'}
                           multiple
                           onSelect={(value) => field.onChange(value)}
                         />
@@ -458,6 +484,7 @@ export const ChartFormDialog = ({
                         <ProductGeometryOutputSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
+                          placeholder={'All Geometry Outputs'}
                           multiple
                           onSelect={(value) => field.onChange(value)}
                         />
@@ -496,6 +523,7 @@ export const ChartFormDialog = ({
                         <ProductOutputTimeSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
+                          placeholder={'All Time Points'}
                           multiple
                           onSelect={(value) => field.onChange(value)}
                         />
@@ -531,6 +559,9 @@ export const ChartFormDialog = ({
                 )}
               />
             )}
+
+            <ChartPreview form={form} />
+
             <DialogFooter>
               <Button
                 type="button"

@@ -6,6 +6,7 @@ import { useProductRun } from '../_hooks'
 type ProductOutputTimeSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
+  placeholder?: string
 } & (
   | {
       value: string[]
@@ -28,11 +29,12 @@ export const ProductOutputTimeSelect = ({
   return (
     <FieldGroup
       className="flex-1"
-      title="Select Time Point"
+      title={`Select Time Point${props.multiple ? '(s)' : ''}`}
       disabled={!!(!productRun || disabled)}
     >
       {props.multiple ? (
         <SelectWithSearch
+          placeholder={props.placeholder}
           options={productRun?.outputSummary?.timePoints?.map((timePoint) => ({
             id: timePoint,
             name: formatDateTime(timePoint),
@@ -45,6 +47,7 @@ export const ProductOutputTimeSelect = ({
         />
       ) : (
         <SelectWithSearch
+          placeholder={props.placeholder}
           options={productRun?.outputSummary?.timePoints?.map((timePoint) => ({
             id: timePoint,
             name: formatDateTime(timePoint),

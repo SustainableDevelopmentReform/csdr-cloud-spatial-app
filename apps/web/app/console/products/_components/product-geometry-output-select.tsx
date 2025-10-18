@@ -6,6 +6,7 @@ import { useProductRun } from '../_hooks'
 type ProductGeometryOutputSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
+  placeholder?: string
 } & (
   | {
       value: string[]
@@ -30,9 +31,13 @@ export const ProductGeometryOutputSelect = ({
   )
 
   return (
-    <FieldGroup title="Select Geometry" disabled={!productRun || disabled}>
+    <FieldGroup
+      title={`Select Geometry${props.multiple ? '(s)' : ''}`}
+      disabled={disabled}
+    >
       {props.multiple ? (
         <SelectWithSearch
+          placeholder={props.placeholder}
           options={geometryOutputs?.data}
           value={props.value ?? []}
           onSelect={props.onSelect}
@@ -42,6 +47,7 @@ export const ProductGeometryOutputSelect = ({
         />
       ) : (
         <SelectWithSearch
+          placeholder={props.placeholder}
           options={geometryOutputs?.data}
           value={props.value ?? null}
           onSelect={props.onSelect}
