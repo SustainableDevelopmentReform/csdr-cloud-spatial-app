@@ -66,9 +66,9 @@ const linePlotSchema = multiSeriesSelectionSchema
   })
   .superRefine((data, context) => {
     const multipleVariablesSelected =
-      (data.variableIds?.length ?? 0 > 1) || !data.variableIds?.length
+      (data.variableIds?.length ?? 0) > 1 || !data.variableIds?.length
     const multipleGeometryOutputsSelected =
-      (data.geometryOutputIds?.length ?? 0 > 1) ||
+      (data.geometryOutputIds?.length ?? 0) > 1 ||
       !data.geometryOutputIds?.length
 
     if (multipleVariablesSelected && multipleGeometryOutputsSelected) {
@@ -110,15 +110,6 @@ const tablePlotSchema = multiSeriesSelectionSchema
     const multipleTimePointsSelected =
       (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
 
-    if (data.xDimension === data.yDimension) {
-      context.addIssue({
-        code: 'custom',
-        message: 'X and Y dimensions must be different',
-        path: ['yDimension'],
-        input: data.yDimension,
-      })
-    }
-
     const allowsMultipleVariables =
       data.xDimension === 'variableName' || data.yDimension === 'variableName'
     if (!allowsMultipleVariables && multipleVariablesSelected) {
@@ -157,7 +148,7 @@ const tablePlotSchema = multiSeriesSelectionSchema
     }
   }) satisfies z.ZodType<TableChartConfiguration>
 
-const chartSchema = z.union([
+const chartSchema = z.discriminatedUnion('type', [
   linePlotSchema,
   mapSchema,
   tablePlotSchema,
@@ -180,6 +171,8 @@ export const ChartFormDialog = ({
   const form = useForm<z.infer<typeof chartSchema>>({
     resolver: zodResolver(chartSchema),
     defaultValues: chart ?? undefined,
+    mode: 'all',
+    criteriaMode: 'all',
   })
   const chartType = form.watch('type')
   const xDimension = form.watch('xDimension')
