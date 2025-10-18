@@ -1,38 +1,53 @@
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { FieldGroup } from '../../../../components/action'
 import { useProductRun } from '../../products/_hooks'
-import { VariableListItem } from '../_hooks'
+
+type VariablesSelectProps = {
+  productRunId: string | null | undefined
+  disabled?: boolean
+} & (
+  | {
+      value: string[]
+      onSelect: (value: string[]) => void
+      multiple: true
+    }
+  | {
+      value: string | null
+      onSelect: (value: string | null) => void
+      multiple?: false
+    }
+)
 
 export const VariablesSelect = ({
   productRunId,
-  value,
-  onChange,
   disabled,
-}: {
-  productRunId: string | null | undefined
-  value: string | null | undefined
-  onChange: (id: string | null, variable: VariableListItem | null) => void
-  disabled?: boolean
-}) => {
+  ...props
+}: VariablesSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
   return (
     <FieldGroup title="Select Variable" disabled={!productRun || disabled}>
-      <SelectWithSearch
-        options={productRun?.outputSummary?.variables.map(
-          (variable) => variable.variable,
-        )}
-        value={value ?? null}
-        onSelect={(value) => {
-          onChange(
-            value,
-            productRun?.outputSummary?.variables.find(
-              (variable) => variable.variable.id === value,
-            )?.variable ?? null,
-          )
-        }}
-        onSearch={() => {}}
-        disabled={!productRun}
-      />
+      {props.multiple ? (
+        <SelectWithSearch
+          options={productRun?.outputSummary?.variables.map(
+            (variable) => variable.variable,
+          )}
+          value={props.value ?? []}
+          onSelect={props.onSelect}
+          onSearch={() => {}}
+          disabled={!productRun}
+          multiple
+        />
+      ) : (
+        <SelectWithSearch
+          options={productRun?.outputSummary?.variables.map(
+            (variable) => variable.variable,
+          )}
+          value={props.value ?? null}
+          onSelect={props.onSelect}
+          onSearch={() => {}}
+          disabled={!productRun}
+        />
+      )}
     </FieldGroup>
   )
 }

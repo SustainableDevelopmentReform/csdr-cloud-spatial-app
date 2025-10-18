@@ -3,27 +3,23 @@
 import { getLinePlotCodeSnippet, LinePlot } from '@repo/plot/LinePlot'
 import {
   ChartConfiguration,
-  PlotChartConfiguration,
   MapChartConfiguration,
+  PlotChartConfiguration,
 } from '@repo/plot/types'
+import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
+import { cn } from '@repo/ui/lib/utils'
+import { useState } from 'react'
+import { EmptyCard } from '../../_components/empty-card'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { useGeometriesRun } from '../../geometries/_hooks'
+import { ProductOutputDependenciesCard } from '../../products/_components/product-output-dependencies-card'
+import { ProductOutputSummaryCard } from '../../products/_components/product-output-summary-card'
 import {
-  ProductOutputDetail,
-  ProductOutputExportListItem,
   useProductOutput,
   useProductOutputsExport,
   useProductRun,
 } from '../../products/_hooks'
 import { useVariable } from '../../variables/_hooks'
-import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
-import { ProductOutputSummaryCard } from '../../products/_components/product-output-summary-card'
-import { ProductOutputDependenciesCard } from '../../products/_components/product-output-dependencies-card'
-import { useState } from 'react'
-import { EmptyCard } from '../../_components/empty-card'
-import { cn } from '@repo/ui/lib/utils'
-
-const noop = () => {}
 
 const ChartPlaceholder = () => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
@@ -73,8 +69,8 @@ const LinePlotContainer = ({
     string | undefined | null
   >(null)
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
-    variableId: chart.variableId,
-    geometryOutputId: chart.geometryOutputId,
+    variableId: chart.variableIds,
+    geometryOutputId: chart.geometryOutputIds,
   })
   return (
     <div className="flex flex-col gap-2">
@@ -88,6 +84,11 @@ const LinePlotContainer = ({
           data={productOutputs?.data ?? []}
           x={'timePoint'}
           y={'value'}
+          groupBy={
+            (chart.geometryOutputIds?.length ?? 0) > 1
+              ? 'geometryOutputName'
+              : 'variableName'
+          }
           type={chart.subType}
           onSelect={(dataPoint) =>
             setSelectedProductOutputId(dataPoint?.id ?? null)

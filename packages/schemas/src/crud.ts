@@ -143,8 +143,8 @@ export const productOutputQuerySchema = paginatedQuerySchema.extend({
 })
 
 export const productOutputExportQuerySchema = z.object({
-  variableId: z.string(),
-  geometryOutputId: z.string().optional(),
+  variableId: z.union([z.string(), z.array(z.string())]).optional(),
+  geometryOutputId: z.union([z.string(), z.array(z.string())]).optional(),
   timePoint: z.iso.datetime().optional(),
 })
 

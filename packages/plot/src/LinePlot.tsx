@@ -68,12 +68,14 @@ export function LinePlot<T extends { id: string; value: number }>({
   data,
   x,
   y,
+  groupBy,
   onSelect,
   type,
 }: {
   data: T[]
-  x: Plot.ChannelValueSpec
-  y: Plot.ChannelValueSpec
+  x: string
+  y: string
+  groupBy: string
   onSelect: (dataPoint: T) => void
   type: 'line' | 'bar' | 'grouped-bar' | 'dot'
 }) {
@@ -85,18 +87,16 @@ export function LinePlot<T extends { id: string; value: number }>({
       Plot.ruleY([0]),
     ]
     if (type === 'line') {
-      marks.push(Plot.line(data, { x, y, stroke: 'variableName' }))
+      marks.push(Plot.line(data, { x, y, stroke: groupBy }))
     } else if (type === 'bar') {
-      marks.push(Plot.barY(data, { x, y, fill: 'variableName' }))
+      marks.push(Plot.barY(data, { x, y, fill: groupBy }))
     } else if (type === 'grouped-bar') {
-      marks.push(Plot.barY(data, { x, y, fill: 'variableName' }))
+      marks.push(Plot.barY(data, { x, y, fill: groupBy, fx: groupBy }))
     } else if (type === 'dot') {
-      marks.push(Plot.dot(data, { x, y, fill: 'variableName', r: 6 }))
+      marks.push(Plot.dot(data, { x, y, fill: groupBy, r: 6 }))
     }
 
-    marks.push(
-      Plot.dot(data, Plot.pointer({ x, y, fill: 'variableName', r: 8 })),
-    )
+    marks.push(Plot.dot(data, Plot.pointer({ x, y, fill: groupBy, r: 8 })))
 
     // marks.push(
     //   Plot.text(
@@ -104,7 +104,7 @@ export function LinePlot<T extends { id: string; value: number }>({
     //     Plot.selectLast({
     //       x,
     //       y,
-    //       text: 'variableName',
+    //       text: groupBy,
     //       textAnchor: 'start',
     //       dx: 3,
     //     }),

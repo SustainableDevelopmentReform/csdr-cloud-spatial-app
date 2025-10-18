@@ -4,8 +4,8 @@ export type PlotChartConfiguration = {
   title?: string
   description?: string
   productRunId: string
-  variableId: string
-  geometryOutputId: string
+  variableIds?: string[]
+  geometryOutputIds?: string[]
 }
 
 export type MapChartConfiguration = {
