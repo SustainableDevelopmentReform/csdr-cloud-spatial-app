@@ -94,6 +94,12 @@ const mapSchema = baseChartSchema.extend({
   type: z.literal('map'),
   variableId: z.string(),
   timePoint: z.string(),
+  geometryOutputIds: z
+    .array(z.string())
+    .optional()
+    .refine((val) => (val?.length ?? 0) <= 10, {
+      message: 'At most 10 geometry outputs can be selected',
+    }),
 }) satisfies z.ZodType<MapChartConfiguration>
 
 const tablePlotSchema = multiSeriesSelectionSchema
@@ -209,6 +215,7 @@ export const ChartFormDialog = ({
 
   const allowsMultipleGeometry =
     chartType === 'plot' ||
+    chartType === 'map' ||
     (chartType === 'table' &&
       (xDimension === 'geometryOutputName' ||
         yDimension === 'geometryOutputName'))
@@ -471,37 +478,41 @@ export const ChartFormDialog = ({
               />
             )}
 
-            {(chartType === 'plot' || chartType === 'table') && (
-              <FormField
-                control={form.control}
-                name={'geometryOutputIds'}
-                render={({ field }) => {
-                  const isMultiple = allowsMultipleGeometry
-                  return (
-                    <FormItem>
-                      {isMultiple ? (
-                        <ProductGeometryOutputSelect
-                          productRunId={form.getValues('productRunId')}
-                          value={field.value ?? []}
-                          placeholder={'All Geometry Outputs'}
-                          multiple
-                          onSelect={(value) => field.onChange(value)}
-                        />
-                      ) : (
-                        <ProductGeometryOutputSelect
-                          productRunId={form.getValues('productRunId')}
-                          value={field.value?.[0] ?? null}
-                          onSelect={(value) =>
-                            field.onChange(value ? [value] : undefined)
-                          }
-                        />
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )
-                }}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name={'geometryOutputIds'}
+              render={({ field }) => {
+                const isMultiple = allowsMultipleGeometry
+                return (
+                  <FormItem>
+                    {isMultiple ? (
+                      <ProductGeometryOutputSelect
+                        title={
+                          chartType === 'map'
+                            ? 'Zoom to selected geometry'
+                            : undefined
+                        }
+                        productRunId={form.getValues('productRunId')}
+                        value={field.value ?? []}
+                        placeholder={'All Geometry Outputs'}
+                        multiple
+                        onSelect={(value) => field.onChange(value)}
+                      />
+                    ) : (
+                      <ProductGeometryOutputSelect
+                        productRunId={form.getValues('productRunId')}
+                        value={field.value?.[0] ?? null}
+                        onSelect={(value) =>
+                          field.onChange(value ? [value] : undefined)
+                        }
+                      />
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+
             {(chartType === 'plot' || chartType === 'table') && (
               <FormField
                 control={form.control}

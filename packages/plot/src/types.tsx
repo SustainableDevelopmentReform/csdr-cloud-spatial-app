@@ -15,6 +15,7 @@ export type MapChartConfiguration = {
   productRunId: string
   variableId: string
   timePoint: string
+  geometryOutputIds?: string[]
 }
 
 export type TableChartDimension =

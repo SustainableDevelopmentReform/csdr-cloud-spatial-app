@@ -53,6 +53,8 @@ export type ProductOutputListItem = NonNullable<
     200
   >['data']
 >['data'][0]
+
+// Note we parse dates in the hook - so we use the return type of the hook
 export type ProductOutputExportListItem = NonNullable<
   ReturnType<typeof useProductOutputsExport>['data']
 >['data'][0]

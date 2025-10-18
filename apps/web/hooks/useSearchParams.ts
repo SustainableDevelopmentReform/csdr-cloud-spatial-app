@@ -26,7 +26,7 @@ export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
 
       router.push(`?${searchParams}`)
     },
-    [],
+    [parsedResult.data, router],
   )
 
   return {

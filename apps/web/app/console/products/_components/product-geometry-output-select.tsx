@@ -4,6 +4,7 @@ import { useGeometryOutputs } from '../../geometries/_hooks'
 import { useProductRun } from '../_hooks'
 
 type ProductGeometryOutputSelectProps = {
+  title?: string
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
@@ -21,6 +22,7 @@ type ProductGeometryOutputSelectProps = {
 )
 
 export const ProductGeometryOutputSelect = ({
+  title,
   productRunId,
   disabled,
   ...props
@@ -32,7 +34,7 @@ export const ProductGeometryOutputSelect = ({
 
   return (
     <FieldGroup
-      title={`Select Geometry${props.multiple ? '(s)' : ''}`}
+      title={title ?? `Select Geometry${props.multiple ? '(s)' : ''}`}
       disabled={disabled}
     >
       {props.multiple ? (
