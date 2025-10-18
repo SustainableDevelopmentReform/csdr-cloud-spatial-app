@@ -168,6 +168,7 @@ const TablePlotContainer = ({
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableIds,
     geometryOutputId: chart.geometryOutputIds,
+    timePoint: chart.timePoint,
   })
   return (
     <div className="flex flex-col gap-2">
@@ -179,7 +180,8 @@ const TablePlotContainer = ({
       >
         <TablePlot
           data={productOutputs?.data ?? []}
-          groupBy={chart.groupBy}
+          xDimension={chart.xDimension}
+          yDimension={chart.yDimension}
           selectedId={selectedProductOutputId ?? undefined}
           onSelect={(record) => setSelectedProductOutputId(record?.id ?? null)}
         />

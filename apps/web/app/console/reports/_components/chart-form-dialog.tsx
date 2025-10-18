@@ -3,9 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ChartConfiguration,
-  PlotChartConfiguration,
   MapChartConfiguration,
+  PlotChartConfiguration,
   TableChartConfiguration,
+  TableChartDimension,
 } from '@repo/plot/types'
 import { Button } from '@repo/ui/components/ui/button'
 import {
@@ -31,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { FieldGroup } from '../../../../components/action'
@@ -41,18 +42,36 @@ import { ProductRunSelect } from '../../products/_components/product-run-select'
 import { ProductSelect } from '../../products/_components/product-select'
 import { VariablesSelect } from '../../variables/_components/variables-select'
 
-const multiSeriesSelectionSchema = z
-  .object({
-    productId: z.string(),
-    productRunId: z.string(),
-    variableIds: z.array(z.string()).optional(),
-    geometryOutputIds: z.array(z.string()).optional(),
+const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
+  { value: 'timePoint', label: 'Time' },
+  { value: 'variableName', label: 'Variable' },
+  { value: 'geometryOutputName', label: 'Geometry' },
+]
+
+const baseChartSchema = z.object({
+  productId: z.string(),
+  productRunId: z.string(),
+})
+
+const multiSeriesSelectionSchema = baseChartSchema.extend({
+  variableIds: z.array(z.string()).optional(),
+  geometryOutputIds: z.array(z.string()).optional(),
+  timePoints: z.array(z.string()).optional(),
+})
+
+const linePlotSchema = multiSeriesSelectionSchema
+  .extend({
+    type: z.literal('plot'),
+    subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
   })
   .superRefine((data, context) => {
-    if (
-      (data.variableIds?.length ?? 0) > 1 &&
-      (data.geometryOutputIds?.length ?? 0) > 1
-    ) {
+    const multipleVariablesSelected =
+      (data.variableIds?.length ?? 0 > 1) || !data.variableIds?.length
+    const multipleGeometryOutputsSelected =
+      (data.geometryOutputIds?.length ?? 0 > 1) ||
+      !data.geometryOutputIds?.length
+
+    if (multipleVariablesSelected && multipleGeometryOutputsSelected) {
       context.addIssue({
         code: 'custom',
         message:
@@ -68,25 +87,75 @@ const multiSeriesSelectionSchema = z
         input: data.geometryOutputIds,
       })
     }
-  })
+  }) satisfies z.ZodType<PlotChartConfiguration>
 
-const linePlotSchema = multiSeriesSelectionSchema.extend({
-  type: z.literal('plot'),
-  subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
-}) satisfies z.ZodType<PlotChartConfiguration>
-
-const mapSchema = z.object({
+const mapSchema = baseChartSchema.extend({
   type: z.literal('map'),
-  productId: z.string(),
-  productRunId: z.string(),
   variableId: z.string(),
   timePoint: z.string(),
 }) satisfies z.ZodType<MapChartConfiguration>
 
-const tablePlotSchema = multiSeriesSelectionSchema.extend({
-  type: z.literal('table'),
-  groupBy: z.enum(['variableName', 'geometryOutputName']),
-}) satisfies z.ZodType<TableChartConfiguration>
+const tablePlotSchema = multiSeriesSelectionSchema
+  .extend({
+    type: z.literal('table'),
+    xDimension: z.enum(['timePoint', 'variableName', 'geometryOutputName']),
+    yDimension: z.enum(['timePoint', 'variableName', 'geometryOutputName']),
+  })
+  .superRefine((data, context) => {
+    const multipleVariablesSelected =
+      (data.variableIds?.length ?? 0) > 1 || !data.variableIds?.length
+    const multipleGeometryOutputsSelected =
+      (data.geometryOutputIds?.length ?? 0) > 1 ||
+      !data.geometryOutputIds?.length
+    const multipleTimePointsSelected =
+      (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
+
+    if (data.xDimension === data.yDimension) {
+      context.addIssue({
+        code: 'custom',
+        message: 'X and Y dimensions must be different',
+        path: ['yDimension'],
+        input: data.yDimension,
+      })
+    }
+
+    const allowsMultipleVariables =
+      data.xDimension === 'variableName' || data.yDimension === 'variableName'
+    if (!allowsMultipleVariables && multipleVariablesSelected) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Select a single variable when it is not used as an axis dimension',
+        path: ['variableIds'],
+        input: data.variableIds,
+      })
+    }
+
+    const allowsMultipleGeometry =
+      data.xDimension === 'geometryOutputName' ||
+      data.yDimension === 'geometryOutputName'
+    if (!allowsMultipleGeometry && multipleGeometryOutputsSelected) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Select a single geometry output when it is not used as an axis dimension',
+        path: ['geometryOutputIds'],
+        input: data.geometryOutputIds,
+      })
+    }
+
+    const allowsMultipleTimePoints =
+      data.xDimension === 'timePoint' || data.yDimension === 'timePoint'
+    if (!allowsMultipleTimePoints && multipleTimePointsSelected) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Select a single time point when it is not used as an axis dimension',
+        path: ['timePoints'],
+        input: data.timePoints,
+      })
+    }
+  }) satisfies z.ZodType<TableChartConfiguration>
 
 const chartSchema = z.union([
   linePlotSchema,
@@ -113,22 +182,24 @@ export const ChartFormDialog = ({
     defaultValues: chart ?? undefined,
   })
   const chartType = form.watch('type')
-  const groupBy = form.watch('groupBy')
+  const xDimension = form.watch('xDimension')
+  const yDimension = form.watch('yDimension')
 
-  useEffect(() => {
-    if (chartType === 'table' && !groupBy) {
-      form.setValue('groupBy', 'variableName', {
-        shouldValidate: true,
-        shouldDirty: false,
-      })
-    }
-  }, [chartType, groupBy, form])
+  const allowsMultipleVariables =
+    chartType === 'plot' ||
+    (chartType === 'table' &&
+      (xDimension === 'variableName' || yDimension === 'variableName'))
 
-  useEffect(() => {
-    if (chartType !== 'table' && form.getValues('groupBy')) {
-      form.resetField('groupBy')
-    }
-  }, [chartType, form])
+  const allowsMultipleGeometry =
+    chartType === 'plot' ||
+    (chartType === 'table' &&
+      (xDimension === 'geometryOutputName' ||
+        yDimension === 'geometryOutputName'))
+
+  const allowsMultipleTimePoints =
+    chartType === 'plot' ||
+    (chartType === 'table' &&
+      (xDimension === 'timePoint' || yDimension === 'timePoint'))
 
   return (
     <Dialog
@@ -151,11 +222,13 @@ export const ChartFormDialog = ({
         <Form {...form}>
           <form
             className="grid gap-3 border-b border-gray-200 pb-8"
-            onSubmit={form.handleSubmit((values) => {
-              onSubmit(values)
+            onSubmit={(e) => {
+              form.handleSubmit(onSubmit)(e)
               setOpen(false)
               onClose?.()
-            })}
+              e.preventDefault()
+              e.stopPropagation()
+            }}
           >
             <DialogHeader>
               <DialogTitle>{buttonText}</DialogTitle>
@@ -174,27 +247,9 @@ export const ChartFormDialog = ({
                     <Select
                       value={field.value}
                       onValueChange={(value) => {
-                        field.onChange(value)
-                        if (value === 'plot') {
-                          form.resetField('subType')
-                          form.resetField('variableId')
-                          form.resetField('timePoint')
-                        } else if (value === 'map') {
-                          form.resetField('subType')
-                          form.resetField('groupBy')
-                          form.resetField('variableIds')
-                          form.resetField('geometryOutputIds')
-                        } else if (value === 'table') {
-                          form.resetField('subType')
-                          form.resetField('variableId')
-                          form.resetField('timePoint')
-                          if (!form.getValues('groupBy')) {
-                            form.setValue('groupBy', 'variableName', {
-                              shouldValidate: true,
-                              shouldDirty: false,
-                            })
-                          }
-                        }
+                        form.reset({
+                          type: value,
+                        } as z.infer<typeof chartSchema>)
                       }}
                     >
                       <SelectTrigger id="report-chart-type">
@@ -242,53 +297,69 @@ export const ChartFormDialog = ({
             )}
 
             {chartType === 'table' && (
-              <FieldGroup className="flex-1" title="Grouping">
-                <FormField
-                  control={form.control}
-                  name="groupBy"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group By</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value)
-                          if (value === 'variableName') {
-                            const geometryOutputs =
-                              form.getValues('geometryOutputIds')
-                            if ((geometryOutputs?.length ?? 0) > 1) {
-                              form.setValue(
-                                'geometryOutputIds',
-                                geometryOutputs?.slice(0, 1),
-                                { shouldValidate: true },
-                              )
-                            }
-                          } else if (value === 'geometryOutputName') {
-                            const variableIds = form.getValues('variableIds')
-                            if ((variableIds?.length ?? 0) > 1) {
-                              form.setValue(
-                                'variableIds',
-                                variableIds?.slice(0, 1),
-                                { shouldValidate: true },
-                              )
-                            }
+              <FieldGroup className="flex-1" title="Table Axes">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="xDimension"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>X (Columns)</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) =>
+                            field.onChange(value as TableChartDimension)
                           }
-                        }}
-                      >
-                        <SelectTrigger id="report-chart-group-by">
-                          <SelectValue placeholder="Select grouping dimension" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="variableName">Variable</SelectItem>
-                          <SelectItem value="geometryOutputName">
-                            Geometry Output
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        >
+                          <SelectTrigger id="report-chart-x-dimension">
+                            <SelectValue placeholder="Select column dimension" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tableDimensionOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="yDimension"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Y (Rows)</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) =>
+                            field.onChange(value as TableChartDimension)
+                          }
+                        >
+                          <SelectTrigger id="report-chart-y-dimension">
+                            <SelectValue placeholder="Select row dimension" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tableDimensionOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </FieldGroup>
             )}
 
@@ -339,8 +410,7 @@ export const ChartFormDialog = ({
                 control={form.control}
                 name={'variableIds'}
                 render={({ field }) => {
-                  const isMultiple =
-                    chartType === 'plot' || groupBy === 'variableName'
+                  const isMultiple = allowsMultipleVariables
                   return (
                     <FormItem>
                       {isMultiple ? (
@@ -388,8 +458,7 @@ export const ChartFormDialog = ({
                 control={form.control}
                 name={'geometryOutputIds'}
                 render={({ field }) => {
-                  const isMultiple =
-                    chartType === 'plot' || groupBy === 'geometryOutputName'
+                  const isMultiple = allowsMultipleGeometry
                   return (
                     <FormItem>
                       {isMultiple ? (
@@ -414,6 +483,44 @@ export const ChartFormDialog = ({
                 }}
               />
             )}
+            {(chartType === 'plot' || chartType === 'table') && (
+              <FormField
+                control={form.control}
+                name={'timePoints'}
+                rules={{
+                  deps: [
+                    'geometryOutputIds',
+                    'variableIds',
+                    'xDimension',
+                    'yDimension',
+                  ],
+                }}
+                render={({ field }) => {
+                  const isMultiple = allowsMultipleTimePoints
+                  return (
+                    <FormItem>
+                      {isMultiple ? (
+                        <ProductOutputTimeSelect
+                          productRunId={form.getValues('productRunId')}
+                          value={field.value ?? []}
+                          multiple
+                          onSelect={(value) => field.onChange(value)}
+                        />
+                      ) : (
+                        <ProductOutputTimeSelect
+                          productRunId={form.getValues('productRunId')}
+                          value={field.value?.[0] ?? null}
+                          onSelect={(value) =>
+                            field.onChange(value ? [value] : undefined)
+                          }
+                        />
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
+              />
+            )}
 
             {chartType === 'map' && (
               <FormField
@@ -423,7 +530,8 @@ export const ChartFormDialog = ({
                   <FormItem>
                     <ProductOutputTimeSelect
                       productRunId={form.getValues('productRunId')}
-                      {...field}
+                      value={field.value ?? null}
+                      onSelect={(value) => field.onChange(value)}
                     />
                     <FormMessage />
                   </FormItem>
