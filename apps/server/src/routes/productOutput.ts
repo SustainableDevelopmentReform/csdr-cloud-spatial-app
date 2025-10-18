@@ -111,6 +111,7 @@ export const productOutputExportSchema = z
     variableName: z.string(),
     timePoint: z.iso.datetime(),
     geometryOutputId: z.string(),
+    geometryOutputName: z.string(),
     value: z.number(),
   })
   .openapi('ProductOutputExportSchema')

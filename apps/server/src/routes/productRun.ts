@@ -5,7 +5,7 @@ import {
   productOutputQuerySchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
-import { and, avg, count, desc, eq, max, min, SQL } from 'drizzle-orm'
+import { and, avg, count, desc, eq, inArray, max, min, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -317,11 +317,18 @@ const app = createOpenAPIApp()
       const filters: SQL[] = [eq(productOutput.productRunId, id)]
 
       if (variableId) {
-        filters.push(eq(productOutput.variableId, variableId))
+        const variableIds = Array.isArray(variableId)
+          ? variableId
+          : [variableId]
+        filters.push(inArray(productOutput.variableId, variableIds))
       }
       if (geometryOutputId) {
-        filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
+        const geometryOutputIds = Array.isArray(geometryOutputId)
+          ? geometryOutputId
+          : [geometryOutputId]
+        filters.push(inArray(productOutput.geometryOutputId, geometryOutputIds))
       }
+
       if (timePoint) {
         filters.push(eq(productOutput.timePoint, new Date(timePoint)))
       }
@@ -340,6 +347,11 @@ const app = createOpenAPIApp()
               name: true,
             },
           },
+          geometryOutput: {
+            columns: {
+              name: true,
+            },
+          },
         },
         where: and(...filters),
         orderBy: () => [
@@ -352,6 +364,7 @@ const app = createOpenAPIApp()
       const dataWithVariableName = data.map((output) => ({
         ...output,
         variableName: output.variable.name,
+        geometryOutputName: output.geometryOutput.name,
       }))
 
       return generateJsonResponse(

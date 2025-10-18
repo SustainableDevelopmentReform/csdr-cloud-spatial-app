@@ -19,11 +19,9 @@ import {
   PopoverTrigger,
 } from '@repo/ui/components/ui/popover'
 
-export interface SelectWithSearchProps {
+export type SelectWithSearchProps = {
   options?: { id: string; name?: string }[]
-  value: string | null
   onSearch: (value: string | null) => void
-  onSelect: (value: string | null) => void
   placeholder?: string
   allowUndefined?: boolean
   className?: string
@@ -31,7 +29,18 @@ export interface SelectWithSearchProps {
   open?: boolean
   setOpen?: (open: boolean) => void
   disabled?: boolean
-}
+} & (
+  | {
+      value: string[]
+      onSelect: (value: string[]) => void
+      multiple: true
+    }
+  | {
+      value: string | null
+      onSelect: (value: string | null) => void
+      multiple?: false
+    }
+)
 
 export function EmptyResult() {
   return 'No options found.'
@@ -39,9 +48,7 @@ export function EmptyResult() {
 
 export function SelectWithSearch({
   options,
-  value,
   onSearch,
-  onSelect,
   placeholder = 'Select an option',
   allowUndefined,
   className,
@@ -49,14 +56,11 @@ export function SelectWithSearch({
   open: openProp,
   setOpen: setOpenProp,
   disabled,
+  ...props
 }: SelectWithSearchProps) {
   const [open, setOpen] = React.useState(false)
 
-  console.log(
-    options?.find((option) => option.id === value),
-    options,
-    value,
-  )
+  const selectedValues = props.multiple ? props.value : [props.value]
 
   return (
     <Popover open={openProp ?? open} onOpenChange={setOpenProp ?? setOpen}>
@@ -69,15 +73,25 @@ export function SelectWithSearch({
           animate={false}
           disabled={disabled}
         >
-          {value
-            ? (options?.find((option) => option.id === value)?.name ??
-              options?.find((option) => option.id === value)?.id)
-            : placeholder}
+          <div className="flex flex-wrap gap-2 max-w-full overflow-x-hidden">
+            {selectedValues.length > 0
+              ? selectedValues
+                  .map(
+                    (value) =>
+                      options?.find((option) => option.id === value)?.name ??
+                      value,
+                  )
+                  .join(', ')
+              : placeholder}
+          </div>
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn('p-0 w-[--radix-popper-anchor-width]', className)}
+        className={cn(
+          'p-0 w-[--radix-popper-anchor-width] max-w-full overflow-x-hidden',
+          className,
+        )}
       >
         <Command className="w-full">
           <CommandInput
@@ -92,7 +106,7 @@ export function SelectWithSearch({
                 <CommandItem
                   value=""
                   onSelect={() => {
-                    onSelect('')
+                    props.multiple ? props.onSelect([]) : props.onSelect(null)
                     setOpenProp?.(false) || setOpen(false)
                   }}
                 >
@@ -100,7 +114,7 @@ export function SelectWithSearch({
                   <Check
                     className={cn(
                       'ml-auto',
-                      value === null ? 'opacity-100' : 'opacity-0',
+                      props.value === null ? 'opacity-100' : 'opacity-0',
                     )}
                   />
                 </CommandItem>
@@ -110,7 +124,17 @@ export function SelectWithSearch({
                   key={option.id}
                   value={option.id}
                   onSelect={(currentValue) => {
-                    onSelect(currentValue === value ? '' : currentValue)
+                    props.multiple
+                      ? props.onSelect(
+                          props.value.includes(currentValue)
+                            ? props.value.filter(
+                                (value) => value !== currentValue,
+                              )
+                            : [...props.value, currentValue],
+                        )
+                      : props.onSelect(
+                          currentValue === props.value ? null : currentValue,
+                        )
                     setOpenProp?.(false) || setOpen(false)
                   }}
                 >
@@ -118,7 +142,13 @@ export function SelectWithSearch({
                   <Check
                     className={cn(
                       'ml-auto',
-                      value === option.id ? 'opacity-100' : 'opacity-0',
+                      props.multiple
+                        ? props.value.includes(option.id)
+                          ? 'opacity-100'
+                          : 'opacity-0'
+                        : props.value === option.id
+                          ? 'opacity-100'
+                          : 'opacity-0',
                     )}
                   />
                 </CommandItem>

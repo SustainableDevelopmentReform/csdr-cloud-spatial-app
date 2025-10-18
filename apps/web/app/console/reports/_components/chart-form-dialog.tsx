@@ -40,14 +40,36 @@ import { ProductRunSelect } from '../../products/_components/product-run-select'
 import { ProductSelect } from '../../products/_components/product-select'
 import { VariablesSelect } from '../../variables/_components/variables-select'
 
-const linePlotSchema = z.object({
-  type: z.literal('plot'),
-  subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
-  productId: z.string(),
-  productRunId: z.string(),
-  variableId: z.string(),
-  geometryOutputId: z.string(),
-}) satisfies z.ZodType<PlotChartConfiguration>
+const linePlotSchema = z
+  .object({
+    type: z.literal('plot'),
+    subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
+    productId: z.string(),
+    productRunId: z.string(),
+    variableIds: z.array(z.string()).optional(),
+    geometryOutputIds: z.array(z.string()).optional(),
+  })
+  .superRefine((data, context) => {
+    if (
+      (data.variableIds?.length ?? 0) > 1 &&
+      (data.geometryOutputIds?.length ?? 0) > 1
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Can only have multiple variables or multiple geometry outputs - not both',
+        path: ['variableIds'],
+        input: data.variableIds,
+      })
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Can only have multiple variables or multiple geometry outputs - not both',
+        path: ['geometryOutputIds'],
+        input: data.geometryOutputIds,
+      })
+    }
+  }) satisfies z.ZodType<PlotChartConfiguration>
 
 const mapSchema = z.object({
   type: z.literal('map'),
@@ -98,15 +120,15 @@ export const ChartFormDialog = ({
           {buttonText}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <Form {...form}>
           <form
             className="grid gap-3 border-b border-gray-200 pb-8"
-            onSubmit={(e) => {
-              form.handleSubmit(onSubmit)(e)
+            onSubmit={form.handleSubmit((values) => {
+              onSubmit(values)
               setOpen(false)
               onClose?.()
-            }}
+            })}
           >
             <DialogHeader>
               <DialogTitle>{buttonText}</DialogTitle>
@@ -180,7 +202,8 @@ export const ChartFormDialog = ({
                       field.onChange(id)
                       form.resetField('productRunId')
                       form.resetField('variableId')
-                      form.resetField('geometryOutputId')
+                      form.resetField('variableIds')
+                      form.resetField('geometryOutputIds')
                       form.resetField('timePoint')
                     }}
                   />
@@ -200,7 +223,8 @@ export const ChartFormDialog = ({
                     onChange={(id, productRun) => {
                       field.onChange(id)
                       form.resetField('variableId')
-                      form.resetField('geometryOutputId')
+                      form.resetField('variableIds')
+                      form.resetField('geometryOutputIds')
                       form.resetField('timePoint')
                     }}
                   />
@@ -209,29 +233,50 @@ export const ChartFormDialog = ({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name={'variableId'}
-              render={({ field }) => (
-                <FormItem>
-                  <VariablesSelect
-                    productRunId={form.getValues('productRunId')}
-                    {...field}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {form.getValues('type') === 'plot' ? (
+              <FormField
+                control={form.control}
+                name={'variableIds'}
+                render={({ field }) => (
+                  <FormItem>
+                    <VariablesSelect
+                      productRunId={form.getValues('productRunId')}
+                      value={field.value ?? []}
+                      multiple
+                      onSelect={(value) => field.onChange(value)}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name={'variableId'}
+                render={({ field }) => (
+                  <FormItem>
+                    <VariablesSelect
+                      productRunId={form.getValues('productRunId')}
+                      value={field.value ?? null}
+                      onSelect={(value) => field.onChange(value)}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             {form.getValues('type') === 'plot' && (
               <FormField
                 control={form.control}
-                name={'geometryOutputId'}
+                name={'geometryOutputIds'}
                 render={({ field }) => (
                   <FormItem>
                     <ProductGeometryOutputSelect
-                      productRunId={form.getValues('productRunId')}
                       {...field}
+                      productRunId={form.getValues('productRunId')}
+                      value={field.value ?? []}
+                      multiple
+                      onSelect={(value) => field.onChange(value)}
                     />
                     <FormMessage />
                   </FormItem>
