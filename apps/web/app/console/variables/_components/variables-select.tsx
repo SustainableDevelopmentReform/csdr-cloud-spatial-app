@@ -5,6 +5,7 @@ import { useProductRun } from '../../products/_hooks'
 type VariablesSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
+  placeholder?: string
 } & (
   | {
       value: string[]
@@ -25,9 +26,13 @@ export const VariablesSelect = ({
 }: VariablesSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
   return (
-    <FieldGroup title="Select Variable" disabled={!productRun || disabled}>
+    <FieldGroup
+      title={`Select Variable${props.multiple ? '(s)' : ''}`}
+      disabled={disabled}
+    >
       {props.multiple ? (
         <SelectWithSearch
+          placeholder={props.placeholder}
           options={productRun?.outputSummary?.variables.map(
             (variable) => variable.variable,
           )}
@@ -39,6 +44,7 @@ export const VariablesSelect = ({
         />
       ) : (
         <SelectWithSearch
+          placeholder={props.placeholder}
           options={productRun?.outputSummary?.variables.map(
             (variable) => variable.variable,
           )}
