@@ -1,6 +1,6 @@
 import clsx from 'clsx'
-import { rgb } from 'd3-color'
 import { extent } from 'd3-array'
+import { rgb } from 'd3-color'
 import { scaleSequential } from 'd3-scale'
 import { interpolateViridis } from 'd3-scale-chromatic'
 import { useMemo } from 'react'
@@ -14,7 +14,8 @@ type BaseTableRecord = {
 }
 
 export const DEFAULT_TABLE_DATA_PROPS = {
-  groupBy: 'variableName' as const,
+  xDimension: 'variableName' as const,
+  yDimension: 'timePoint' as const,
   data: [
     {
       id: 'sample-1',
@@ -42,7 +43,7 @@ export const DEFAULT_TABLE_DATA_PROPS = {
       timePoint: '2024-01-01T06:00:00Z',
       value: 41,
       variableName: 'Humidity',
-      geometryOutputName: 'Region A',
+      geometryOutputName: 'Region B',
     },
   ],
 }
@@ -66,6 +67,12 @@ const numberFormatter = new Intl.NumberFormat(undefined, {
 const LIGHT_TEXT_COLOR = '#F9FAFB'
 const DARK_TEXT_COLOR = '#111827'
 
+const dimensionLabels = {
+  timePoint: 'Time',
+  variableName: 'Variable',
+  geometryOutputName: 'Geometry',
+} as const
+
 function getContrastingTextColor(color: string) {
   const parsedColor = rgb(color)
   if (!parsedColor.displayable()) {
@@ -77,7 +84,7 @@ function getContrastingTextColor(color: string) {
 }
 
 function getRelativeLuminance(r: number, g: number, b: number) {
-  const values = [r, g, b].map((channel) => {
+  const values: [number, number, number] = [r, g, b].map((channel) => {
     if (channel <= 0.04045) {
       return channel / 12.92
     }
@@ -87,26 +94,86 @@ function getRelativeLuminance(r: number, g: number, b: number) {
   return 0.2126 * linearR + 0.7152 * linearG + 0.0722 * linearB
 }
 
-type TablePlotGroupBy = 'variableName' | 'geometryOutputName'
+export type TablePlotDimension =
+  | 'timePoint'
+  | 'variableName'
+  | 'geometryOutputName'
+
+type DimensionMeta = {
+  key: string
+  label: string
+  sortValue: number | string
+}
 
 type TablePlotRow<T> = {
-  time: Date
-  label: string
+  meta: DimensionMeta
   cells: Record<string, T | undefined>
+}
+
+type NormalizedTableRecord = BaseTableRecord & { timePoint: Date }
+
+function getDimensionMeta(
+  record: NormalizedTableRecord,
+  dimension: TablePlotDimension,
+): DimensionMeta | null {
+  switch (dimension) {
+    case 'timePoint': {
+      const time = record.timePoint
+      const key = time.toISOString()
+      return {
+        key,
+        label: dateFormatter.format(time),
+        sortValue: time.getTime(),
+      }
+    }
+    case 'variableName': {
+      const value = record.variableName
+      if (!value) return null
+      return {
+        key: value,
+        label: value,
+        sortValue: value.toLowerCase(),
+      }
+    }
+    case 'geometryOutputName': {
+      const value = record.geometryOutputName
+      if (!value) return null
+      return {
+        key: value,
+        label: value,
+        sortValue: value.toLowerCase(),
+      }
+    }
+    default:
+      return null
+  }
+}
+
+function compareDimensionMeta(
+  dimension: TablePlotDimension,
+  a: DimensionMeta,
+  b: DimensionMeta,
+) {
+  if (dimension === 'timePoint') {
+    return (a.sortValue as number) - (b.sortValue as number)
+  }
+  return String(a.sortValue).localeCompare(String(b.sortValue))
 }
 
 export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   data,
-  groupBy,
+  xDimension,
+  yDimension,
   selectedId,
   onSelect,
 }: {
   data: T[]
-  groupBy: TablePlotGroupBy
+  xDimension: TablePlotDimension
+  yDimension: TablePlotDimension
   selectedId?: string | null
   onSelect?: (record: T | null) => void
 }) {
-  const normalizedData = useMemo(() => {
+  const normalizedData = useMemo<NormalizedTableRecord[]>(() => {
     return data.map((record) => {
       const time =
         record.timePoint instanceof Date
@@ -120,46 +187,43 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     })
   }, [data])
 
-  const columnKey = groupBy
-
   const { columns, rows } = useMemo(() => {
-    const columnOrder: string[] = []
+    const columnMap = new Map<string, DimensionMeta>()
     const rowMap = new Map<string, TablePlotRow<T>>()
 
     for (const record of normalizedData) {
-      const columnName = (record as any)[columnKey] as string | undefined
-      if (!columnName) continue
+      const columnMeta = getDimensionMeta(record, xDimension)
+      const rowMeta = getDimensionMeta(record, yDimension)
 
-      if (!columnOrder.includes(columnName)) {
-        columnOrder.push(columnName)
+      if (!columnMeta || !rowMeta) continue
+
+      if (!columnMap.has(columnMeta.key)) {
+        columnMap.set(columnMeta.key, columnMeta)
       }
 
-      const time = record.timePoint as Date
-      const rowKey = time.toISOString()
-      const existingRow = rowMap.get(rowKey)
-
-      if (existingRow) {
-        existingRow.cells[columnName] = record
-      } else {
+      const rowKey = rowMeta.key
+      if (!rowMap.has(rowKey)) {
         rowMap.set(rowKey, {
-          time,
-          label: dateFormatter.format(time),
-          cells: {
-            [columnName]: record,
-          },
+          meta: rowMeta,
+          cells: {},
         })
       }
+
+      rowMap.get(rowKey)!.cells[columnMeta.key] = record as T
     }
 
-    const rows = Array.from(rowMap.values()).sort(
-      (a, b) => a.time.getTime() - b.time.getTime(),
+    const sortedColumns = Array.from(columnMap.values()).sort((a, b) =>
+      compareDimensionMeta(xDimension, a, b),
+    )
+    const sortedRows = Array.from(rowMap.values()).sort((a, b) =>
+      compareDimensionMeta(yDimension, a.meta, b.meta),
     )
 
     return {
-      columns: columnOrder,
-      rows,
+      columns: sortedColumns,
+      rows: sortedRows,
     }
-  }, [columnKey, normalizedData])
+  }, [normalizedData, xDimension, yDimension])
 
   const valueExtent = useMemo(() => {
     const values = normalizedData
@@ -193,26 +257,31 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
         <thead className="bg-muted/40">
           <tr>
             <th className="sticky left-0 z-10 border-b border-border bg-muted/40 px-4 py-2 text-left font-semibold">
-              Time
+              {dimensionLabels[yDimension]}
             </th>
             {columns.map((column) => (
               <th
-                key={column}
+                key={column.key}
                 className="border-b border-l border-border px-4 py-2 text-left font-semibold"
               >
-                {column}
+                {column.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.time.toISOString()} className="border-b border-border">
+          {rows.map((row, index) => (
+            <tr
+              key={row.meta.key}
+              className={clsx(
+                index < rows.length - 1 && 'border-b border-border',
+              )}
+            >
               <th className="sticky left-0 z-10 border-r border-border bg-background px-4 py-2 text-left font-medium">
-                {row.label}
+                {row.meta.label}
               </th>
               {columns.map((column) => {
-                const cell = row.cells[column]
+                const cell = row.cells[column.key]
                 const value = cell?.value
                 const hasValue =
                   typeof value === 'number' && Number.isFinite(value)
@@ -226,7 +295,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
 
                 return (
                   <td
-                    key={column}
+                    key={column.key}
                     className={clsx(
                       'border-l border-border px-4 py-2 text-right transition',
                       onSelect && 'cursor-pointer hover:brightness-95',

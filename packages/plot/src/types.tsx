@@ -17,7 +17,10 @@ export type MapChartConfiguration = {
   timePoint: string
 }
 
-export type TableChartGroupBy = 'variableName' | 'geometryOutputName'
+export type TableChartDimension =
+  | 'timePoint'
+  | 'variableName'
+  | 'geometryOutputName'
 
 export type TableChartConfiguration = {
   type: 'table'
@@ -26,7 +29,9 @@ export type TableChartConfiguration = {
   productRunId: string
   variableIds?: string[]
   geometryOutputIds?: string[]
-  groupBy: TableChartGroupBy
+  xDimension: TableChartDimension
+  yDimension: TableChartDimension
+  timePoint?: string
 }
 
 export type ChartConfiguration =

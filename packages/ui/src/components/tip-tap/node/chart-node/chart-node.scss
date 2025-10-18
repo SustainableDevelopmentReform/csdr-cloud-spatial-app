@@ -6,6 +6,7 @@
   border-radius: var(--tt-radius-md, 0.5rem);
   padding: 1rem;
   background: var(--tt-surface-raised, rgba(255, 255, 255, 0.9));
+  margin-top: 0.5rem;
 
   .dark & {
     border-color: var(--tt-gray-dark-a-300, rgba(255, 255, 255, 0.16));
@@ -57,7 +58,6 @@
 
   &__body {
     border-radius: var(--tt-radius-sm, 0.25rem);
-    min-height: 240px;
     position: relative;
     overflow: hidden;
 
