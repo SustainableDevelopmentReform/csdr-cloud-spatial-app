@@ -116,8 +116,7 @@ const tablePlotSchema = multiSeriesSelectionSchema
     if (!allowsMultipleVariables && multipleVariablesSelected) {
       context.addIssue({
         code: 'custom',
-        message:
-          'Select a single variable when it is not used as an axis dimension',
+        message: 'Variable is not used as a table axis, one must be selected.',
         path: ['variableIds'],
         input: data.variableIds,
       })
@@ -130,7 +129,7 @@ const tablePlotSchema = multiSeriesSelectionSchema
       context.addIssue({
         code: 'custom',
         message:
-          'Select a single geometry output when it is not used as an axis dimension',
+          'Geometry output is not used as a table axis, one must be selected.',
         path: ['geometryOutputIds'],
         input: data.geometryOutputIds,
       })
@@ -142,7 +141,7 @@ const tablePlotSchema = multiSeriesSelectionSchema
       context.addIssue({
         code: 'custom',
         message:
-          'Select a single time point when it is not used as an axis dimension',
+          'Time point is not used as a table axis, one must be selected.',
         path: ['timePoints'],
         input: data.timePoints,
       })
