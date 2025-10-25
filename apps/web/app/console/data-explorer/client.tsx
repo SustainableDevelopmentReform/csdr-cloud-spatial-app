@@ -1,7 +1,13 @@
 'use client'
 
-import { ChartConfiguration } from '@repo/plot/types'
+import { ChartConfiguration, PlotChartConfiguration } from '@repo/plot/types'
 import { Button } from '@repo/ui/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@repo/ui/components/ui/dropdown-menu'
 import { useCallback, useMemo, useState } from 'react'
 import {
   Responsive as ResponsiveGrid,
@@ -9,6 +15,7 @@ import {
   Layout,
   Layouts,
 } from 'react-grid-layout'
+import { Cog, Hand, Pointer, Trash } from 'lucide-react'
 import { ChartRenderer } from '../reports/_components/chart-renderer'
 import { ChartFormDialog } from '../reports/_components/chart-form-dialog'
 
@@ -77,6 +84,64 @@ const removeItemFromLayouts = (
     return acc
   }, {} as ResponsiveLayouts)
 
+type ChartGridItemProps = {
+  id: string
+  chart: ChartConfiguration
+  layout: Layout
+  onRemove: (id: string) => void
+  onUpdate: (id: string, chart: ChartConfiguration) => void
+}
+
+const ChartGridItem = ({
+  id,
+  chart,
+  layout,
+  onRemove,
+  onUpdate,
+}: ChartGridItemProps) => {
+  return (
+    <>
+      <div
+        key={id}
+        data-grid={layout}
+        className="grid-item-toolbar pointer-events-none absolute left-4 right-4 top-4 z-10 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+      >
+        <div className="grid-item-handle flex w-full cursor-grab select-none items-center gap-3 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur transition active:cursor-grabbing">
+          <Hand className="h-4 w-4" />
+          <span className="truncate">Drag to reposition...</span>
+          <div className="ml-auto flex items-center gap-2 text-muted-foreground grid-item-action">
+            <ChartFormDialog
+              buttonText="Edit chart"
+              chart={chart}
+              onSubmit={(nextChart) => onUpdate(id, nextChart)}
+            />
+
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="text-destructive focus:text-destructive rounded-full"
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                event.nativeEvent.stopImmediatePropagation()
+                onRemove(id)
+              }}
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+        <div className="flex-1 overflow-auto p-2 h-full">
+          <ChartRenderer chart={chart} />
+        </div>
+      </div>
+    </>
+  )
+}
+
 const ProductFeature = () => {
   const [layouts, setLayouts] = useState<ResponsiveLayouts>(() =>
     emptyLayouts(),
@@ -99,6 +164,22 @@ const ProductFeature = () => {
     })
     setLayouts((prev) => removeItemFromLayouts(prev, id))
   }, [])
+
+  const handleUpdateChart = useCallback(
+    (id: string, nextChart: ChartConfiguration) => {
+      setCharts((prev) => {
+        if (!prev[id]) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          [id]: nextChart,
+        }
+      })
+    },
+    [],
+  )
 
   const orderedCharts = useMemo(() => {
     const activeLayouts = layouts[activeBreakpoint] ?? []
@@ -177,29 +258,20 @@ const ProductFeature = () => {
           onLayoutChange={(_, nextLayouts) => {
             setLayouts(cloneLayouts(nextLayouts))
           }}
-          draggableHandle=".grid-item-header"
+          draggableCancel=".grid-item-action"
+          draggableHandle=".grid-item-handle"
           isBounded
         >
           {orderedCharts.map(({ id, chart, layout }) => (
-            <div
-              key={id}
-              data-grid={layout}
-              className="flex h-full flex-col overflow-hidden"
-            >
-              <div className="grid-item-header flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-                <span>Chart</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="-my-1 text-xs"
-                  onClick={() => handleRemoveChart(id)}
-                >
-                  Remove
-                </Button>
-              </div>
-              <div className="flex-1 overflow-auto p-2">
-                <ChartRenderer chart={chart} />
-              </div>
+            <div key={id} data-grid={layout} className="group relative h-full">
+              <ChartGridItem
+                key={id}
+                id={id}
+                chart={chart}
+                layout={layout}
+                onRemove={handleRemoveChart}
+                onUpdate={handleUpdateChart}
+              />
             </div>
           ))}
         </ResponsiveGridLayout>

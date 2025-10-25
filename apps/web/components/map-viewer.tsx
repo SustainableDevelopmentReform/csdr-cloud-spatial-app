@@ -22,7 +22,7 @@ export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
       // }}
       ref={props.ref}
       {...props}
-      style={{ width: '100%', height: '400px' }}
+      style={{ width: '100%', height: '100%' }}
       mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
     />
   )

@@ -46,7 +46,11 @@ const GeometriesRunDetails = () => {
         disabled: geometriesRun?.id === geometriesRun?.geometries.mainRunId,
       },
     ],
-    [setGeometriesMainRun],
+    [
+      geometriesRun?.geometries.mainRunId,
+      geometriesRun?.id,
+      setGeometriesMainRun,
+    ],
   )
 
   const form = useForm({
@@ -62,7 +66,7 @@ const GeometriesRunDetails = () => {
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="flex flex-col gap-4">
-        <GeometriesMapViewer geometriesRun={geometriesRun} />
+        <GeometriesMapViewer geometriesRun={geometriesRun} className="h-96" />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <GeometriesRunSummaryCard run={geometriesRun} />
           <div className="grid grid-cols-1 grid-rows-3 gap-4">

@@ -131,9 +131,10 @@ const MapContainer = ({
     string | undefined | null
   >(null)
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 h-full">
       <div
         className={cn(
+          'h-full',
           config?.showSelectedPointDetails &&
             'grid grid-cols-2 grid-rows-1 gap-4',
         )}
