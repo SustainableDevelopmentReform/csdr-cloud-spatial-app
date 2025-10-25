@@ -63,9 +63,11 @@ const SelectedPointDetails = ({
 const LinePlotContainer = ({
   chart,
   config,
+  className,
 }: {
   chart: PlotChartConfiguration
   config?: ChartConfig
+  className?: string
 }) => {
   const [selectedProductOutputId, setSelectedProductOutputId] = useState<
     string | undefined | null
@@ -75,7 +77,7 @@ const LinePlotContainer = ({
     geometryOutputId: chart.geometryOutputIds,
   })
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-2', className)}>
       <div
         className={cn(
           config?.showSelectedPointDetails &&
@@ -116,9 +118,11 @@ const LinePlotContainer = ({
 const MapContainer = ({
   chart,
   config,
+  className,
 }: {
   chart: MapChartConfiguration
   config?: ChartConfig
+  className?: string
 }) => {
   const { data: productRun } = useProductRun(chart.productRunId)
   const { data: geometriesRun } = useGeometriesRun(productRun?.geometriesRun.id)
@@ -131,7 +135,7 @@ const MapContainer = ({
     string | undefined | null
   >(null)
   return (
-    <div className="flex flex-col gap-2 h-full">
+    <div className={cn('flex flex-col gap-2 h-full', className)}>
       <div
         className={cn(
           'h-full',
@@ -160,9 +164,11 @@ const MapContainer = ({
 const TablePlotContainer = ({
   chart,
   config,
+  className,
 }: {
   chart: TableChartConfiguration
   config?: ChartConfig
+  className?: string
 }) => {
   const [selectedProductOutputId, setSelectedProductOutputId] = useState<
     string | undefined | null
@@ -173,7 +179,7 @@ const TablePlotContainer = ({
     timePoint: chart.timePoint,
   })
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-2', className)}>
       <div
         className={cn(
           config?.showSelectedPointDetails &&
@@ -206,9 +212,11 @@ interface ChartConfig {
 export const ChartRenderer = ({
   chart,
   config,
+  className,
 }: {
   chart: ChartConfiguration | null
   config?: ChartConfig
+  className?: string
 }) => {
   if (!chart) {
     return <ChartPlaceholder />
@@ -216,13 +224,27 @@ export const ChartRenderer = ({
 
   switch (chart.type) {
     case 'plot': {
-      return <LinePlotContainer chart={chart} config={config} />
+      return (
+        <LinePlotContainer
+          chart={chart}
+          config={config}
+          className={className}
+        />
+      )
     }
     case 'map': {
-      return <MapContainer chart={chart} config={config} />
+      return (
+        <MapContainer chart={chart} config={config} className={className} />
+      )
     }
     case 'table': {
-      return <TablePlotContainer chart={chart} config={config} />
+      return (
+        <TablePlotContainer
+          chart={chart}
+          config={config}
+          className={className}
+        />
+      )
     }
     default:
       return <UnsupportedChart type={(chart as any).type} />

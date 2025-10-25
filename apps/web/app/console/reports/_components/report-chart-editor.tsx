@@ -6,7 +6,14 @@ import { ChartFormDialog } from './chart-form-dialog'
 import { ChartRenderer } from './chart-renderer'
 
 const renderChart = (chart: ChartConfiguration | null) => {
-  return <ChartRenderer chart={chart} />
+  return (
+    <div>
+      <ChartRenderer
+        chart={chart}
+        className={chart?.type === 'map' ? 'h-96 relative' : undefined}
+      />
+    </div>
+  )
 }
 
 const useReportChartEditor = ({
