@@ -29,6 +29,7 @@ import {
   ProductRunDetail,
 } from '../../products/_hooks'
 import { VariableListItem } from '../../variables/_hooks'
+import { cn } from '@repo/ui/lib/utils'
 
 const NO_DATA_COLOR = '#eef'
 
@@ -39,6 +40,7 @@ const GeometriesMapViewer = ({
   productOutputs,
   zoomToGeometryOutputIds,
   onSelect,
+  className,
 }: {
   geometriesRun?: GeometriesRunListItem | null
   variable?: VariableListItem | null
@@ -46,6 +48,7 @@ const GeometriesMapViewer = ({
   productOutputs?: ProductOutputExportListItem[] | null
   zoomToGeometryOutputIds?: string[] | null
   onSelect?: (output: ProductOutputExportListItem | null) => void
+  className?: string
 }) => {
   const {
     data: geometryOutputsToZoomTo,
@@ -89,8 +92,6 @@ const GeometriesMapViewer = ({
     if (isLoadingPmtilesHeader || isLoadingGeometryOutputsToZoomTo)
       return undefined
 
-    console.log(geometryOutputsToZoomTo?.data)
-
     if (
       geometryOutputsToZoomTo?.data?.length &&
       geometryOutputsToZoomTo.data.length > 0
@@ -112,7 +113,6 @@ const GeometriesMapViewer = ({
     }
 
     if (pmtilesHeader) {
-      console.log('pmtiles header')
       return [
         pmtilesHeader.minLon,
         pmtilesHeader.minLat,
@@ -271,7 +271,7 @@ const GeometriesMapViewer = ({
     )
 
   return (
-    <div className="rounded-lg overflow-hidden w-full h-full">
+    <div className={cn('rounded-lg overflow-hidden w-full h-full', className)}>
       <MapViewer
         ref={mapRef}
         initialViewState={{

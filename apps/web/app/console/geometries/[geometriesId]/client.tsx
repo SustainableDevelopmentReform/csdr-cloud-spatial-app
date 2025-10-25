@@ -39,7 +39,10 @@ const GeometriesDetails = () => {
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="flex flex-col gap-4">
-        <GeometriesMapViewer geometriesRun={geometries?.mainRun} />
+        <GeometriesMapViewer
+          geometriesRun={geometries?.mainRun}
+          className="h-96"
+        />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <GeometriesRunSummaryCard run={geometries?.mainRun} mainRun />
           <div className="grid grid-cols-1 grid-rows-3 gap-4">

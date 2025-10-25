@@ -172,7 +172,7 @@ const ChartPreview = ({
   }, [form.formState.isValid, formValues])
 
   return (
-    <FieldGroup className="flex-1" title="Preview">
+    <FieldGroup className="flex-1 min-h-96" title="Preview">
       {parsedFormValues?.success ? (
         <ChartRenderer chart={parsedFormValues.data} />
       ) : (
