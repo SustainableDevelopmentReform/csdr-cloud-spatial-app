@@ -1,3 +1,4 @@
+import { Label } from '@repo/ui/components/ui/label'
 import { cn } from '@repo/ui/lib/utils'
 
 export type FieldGroupProps = {
@@ -17,7 +18,7 @@ export const FieldGroup = (props: FieldGroupProps) => {
         props.className,
       )}
     >
-      <div className="font-medium">{props.title}</div>
+      <Label>{props.title}</Label>
       {props.description && <div className="mb-3">{props.description}</div>}
       {props.children}
     </div>

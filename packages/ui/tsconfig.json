@@ -9,7 +9,8 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "../../apps/web/components/delete-alert-dialog.tsx"
   ],
   "exclude": [
     "node_modules",

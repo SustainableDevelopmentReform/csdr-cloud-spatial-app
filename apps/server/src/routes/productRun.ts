@@ -330,7 +330,13 @@ const app = createOpenAPIApp()
       }
 
       if (timePoint) {
-        filters.push(eq(productOutput.timePoint, new Date(timePoint)))
+        const timePoints = Array.isArray(timePoint) ? timePoint : [timePoint]
+        filters.push(
+          inArray(
+            productOutput.timePoint,
+            timePoints.map((timePoint) => new Date(timePoint)),
+          ),
+        )
       }
 
       const data = await db.query.productOutput.findMany({
