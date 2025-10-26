@@ -1,9 +1,12 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema } from './geojson'
 
-export const paginatedQuerySchema = z.object({
+export const baseQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
   size: z.coerce.number().optional(),
+  search: z.string().optional(),
+  sort: z.string().optional(),
+  order: z.enum(['asc', 'desc']).optional(),
 })
 
 export const baseCreateResourceSchema = z.object({
@@ -31,7 +34,7 @@ export const baseUpdateResourceSchema = z.object({
   description: z.string().nullable().optional(),
 })
 
-export const datasetQuerySchema = paginatedQuerySchema
+export const datasetQuerySchema = baseQuerySchema
 
 export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
@@ -42,7 +45,7 @@ export const updateDatasetSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
-export const datasetRunQuerySchema = paginatedQuerySchema
+export const datasetRunQuerySchema = baseQuerySchema
 
 export const createDatasetRunSchema = baseCreateRunResourceSchema.extend({
   datasetId: z.string(),
@@ -50,7 +53,7 @@ export const createDatasetRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateDatasetRunSchema = baseUpdateResourceSchema
 
-export const geometriesQuerySchema = paginatedQuerySchema
+export const geometriesQuerySchema = baseQuerySchema
 
 export const createGeometriesSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
@@ -61,7 +64,7 @@ export const updateGeometriesSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
-export const geometriesRunQuerySchema = paginatedQuerySchema
+export const geometriesRunQuerySchema = baseQuerySchema
 
 export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   // Override dataType to be geoparquet
@@ -72,7 +75,7 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})
 
-export const geometryOutputQuerySchema = paginatedQuerySchema.extend({})
+export const geometryOutputQuerySchema = baseQuerySchema.extend({})
 
 export const geometryOutputExportQuerySchema = z.object({
   geometryOutputIds: z
@@ -113,7 +116,7 @@ export const updateGeometryOutputSchema = baseUpdateResourceSchema.omit({
   name: true,
 })
 
-export const productQuerySchema = paginatedQuerySchema.extend({
+export const productQuerySchema = baseQuerySchema.extend({
   datasetId: z.string().optional(),
   geometriesId: z.string().optional(),
 })
@@ -129,7 +132,7 @@ export const updateProductSchema = baseUpdateResourceSchema.extend({
   timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
 })
 
-export const productRunQuerySchema = paginatedQuerySchema.extend({
+export const productRunQuerySchema = baseQuerySchema.extend({
   datasetRunId: z.string().optional(),
   geometriesRunId: z.string().optional(),
 })
@@ -143,7 +146,7 @@ export const createProductRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateProductRunSchema = baseUpdateResourceSchema
 
-export const productOutputQuerySchema = paginatedQuerySchema.extend({
+export const productOutputQuerySchema = baseQuerySchema.extend({
   geometryOutputId: z.string().optional(),
   variableId: z.string().optional(),
   timePoint: z.iso.datetime().optional(),
@@ -177,7 +180,7 @@ export const createManyProductOutputSchema = z.object({
   ),
 })
 
-export const variableQuerySchema = paginatedQuerySchema
+export const variableQuerySchema = baseQuerySchema
 
 export const createVariableSchema = baseCreateResourceSchema.extend({
   name: z.string(),
@@ -203,7 +206,7 @@ export const updateVariableCategorySchema = baseUpdateResourceSchema.extend({
   displayOrder: z.number().optional(),
 })
 
-export const reportQuerySchema = paginatedQuerySchema
+export const reportQuerySchema = baseQuerySchema
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
   content: z.any(),
@@ -232,7 +235,7 @@ export const dashboardContentSchema = z.object({
   layout: dashboardLayoutSchema,
 })
 
-export const dashboardQuerySchema = paginatedQuerySchema
+export const dashboardQuerySchema = baseQuerySchema
 export const createDashboardSchema = baseCreateResourceSchema.extend({
   content: dashboardContentSchema,
 })
