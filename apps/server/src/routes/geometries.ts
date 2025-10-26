@@ -1,4 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  createGeometriesSchema,
+  geometriesQuerySchema,
+  geometriesRunQuerySchema,
+  updateGeometriesSchema,
+} from '@repo/schemas/crud'
 import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -19,11 +25,6 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import {
-  createGeometriesSchema,
-  paginatedQuerySchema,
-  updateGeometriesSchema,
-} from '@repo/schemas/crud'
 import {
   baseGeometriesRunQuery,
   baseGeometriesRunSchema,
@@ -69,7 +70,7 @@ const app = createOpenAPIApp()
       path: '/',
       middleware: [authMiddleware({ permission: 'read:geometries' })],
       request: {
-        query: paginatedQuerySchema,
+        query: geometriesQuerySchema,
       },
       responses: {
         200: {
@@ -179,7 +180,7 @@ const app = createOpenAPIApp()
       middleware: [authMiddleware({ permission: 'read:productRun' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: paginatedQuerySchema,
+        query: geometriesRunQuerySchema,
       },
       responses: {
         200: {

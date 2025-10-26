@@ -167,7 +167,7 @@ const BaseCrudTable = <
         size: 80,
       }),
     ].filter(Boolean) as ColumnDef<T>[]
-  }, [baseColumns, extraColumns, title])
+  }, [baseColumns, extraColumns, itemButton, itemLink, title])
 
   const table = useReactTable({
     data,

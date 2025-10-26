@@ -21,7 +21,8 @@ import {
 } from '../schemas/util'
 import {
   createDatasetSchema,
-  paginatedQuerySchema,
+  datasetQuerySchema,
+  datasetRunQuerySchema,
   updateDatasetSchema,
 } from '@repo/schemas/crud'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
@@ -70,7 +71,7 @@ const app = createOpenAPIApp()
         }),
       ],
       request: {
-        query: paginatedQuerySchema,
+        query: datasetQuerySchema,
       },
       responses: {
         200: {
@@ -182,7 +183,7 @@ const app = createOpenAPIApp()
         params: z.object({
           id: z.string().min(1),
         }),
-        query: paginatedQuerySchema,
+        query: datasetRunQuerySchema,
       },
       responses: {
         200: {

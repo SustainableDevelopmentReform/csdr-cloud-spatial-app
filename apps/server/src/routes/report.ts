@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
   createReportSchema,
-  paginatedQuerySchema,
+  reportQuerySchema,
   updateReportSchema,
 } from '@repo/schemas/crud'
 import { count, desc, eq } from 'drizzle-orm'
@@ -48,7 +48,7 @@ const app = createOpenAPIApp()
       path: '/',
       middleware: [authMiddleware({ permission: 'read:report' })],
       request: {
-        query: paginatedQuerySchema,
+        query: reportQuerySchema,
       },
       responses: {
         200: {
