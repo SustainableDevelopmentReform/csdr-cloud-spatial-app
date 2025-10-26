@@ -38,6 +38,7 @@ import {
   geometryOutputExportQuery,
   geometryOutputExportSchema,
 } from './geometryOutput'
+import { parseQuery } from '../utils/query'
 
 export const baseGeometriesRunQuery = {
   columns: {
@@ -165,25 +166,19 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const filters: SQL[] = [eq(geometryOutput.geometriesRunId, id)]
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(geometryOutput)
-        .where(and(...filters))
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        geometryOutput,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(geometryOutput.createdAt),
+          searchableColumns: [geometryOutput.name],
+        },
+      )
 
       const data = await db.query.geometryOutput.findMany({
         ...baseGeometryOutputQuery,
-        where: and(...filters),
-        limit: size,
-        offset: skip,
-        orderBy: desc(geometryOutput.createdAt),
+        ...query,
+        where: and(eq(geometryOutput.geometriesRunId, id), query.where),
       })
 
       return generateJsonResponse(
@@ -191,7 +186,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )

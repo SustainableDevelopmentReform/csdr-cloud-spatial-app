@@ -220,6 +220,8 @@ const ProductOutputFeature = () => {
           itemButton={(productOutput) => (
             <ProductOutputButton productOutput={productOutput} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

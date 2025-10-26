@@ -183,6 +183,8 @@ const ProductFeature = () => {
           title="Product"
           itemLink={productLink}
           itemButton={(product) => <ProductButton product={product} />}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

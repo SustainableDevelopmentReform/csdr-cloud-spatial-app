@@ -5,7 +5,7 @@ import {
   geometriesRunQuerySchema,
   updateGeometriesSchema,
 } from '@repo/schemas/crud'
-import { count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -29,6 +29,7 @@ import {
   baseGeometriesRunQuery,
   baseGeometriesRunSchema,
 } from './geometriesRun'
+import { parseQuery } from '../utils/query'
 
 export const baseGeometriesQuery = {
   columns: {
@@ -93,21 +94,18 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(geometries)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        geometries,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(geometries.createdAt),
+          searchableColumns: [geometries.name],
+        },
+      )
 
       const data = await db.query.geometries.findMany({
         ...baseGeometriesQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(geometries.createdAt),
+        ...query,
       })
 
       return generateJsonResponse(
@@ -115,7 +113,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )
@@ -204,23 +202,19 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(geometriesRun)
-        .where(eq(geometriesRun.geometriesId, id))
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        geometriesRun,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(geometriesRun.createdAt),
+          searchableColumns: [geometriesRun.name],
+        },
+      )
 
       const data = await db.query.geometriesRun.findMany({
         ...baseGeometriesRunQuery,
-        where: (geometriesRun, { eq }) => eq(geometriesRun.geometriesId, id),
-        limit: size,
-        offset: skip,
-        orderBy: desc(geometriesRun.createdAt),
+        ...query,
+        where: and(eq(geometriesRun.geometriesId, id), query.where),
       })
 
       return generateJsonResponse(
@@ -228,7 +222,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )

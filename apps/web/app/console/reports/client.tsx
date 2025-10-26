@@ -43,6 +43,8 @@ const ReportFeature = () => {
           title="Report"
           itemLink={reportLink}
           itemButton={(report) => <ReportButton report={report} />}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

@@ -144,6 +144,8 @@ const ProductRunFeature = () => {
               <ProductRunButton productRun={productRun} />
             </div>
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

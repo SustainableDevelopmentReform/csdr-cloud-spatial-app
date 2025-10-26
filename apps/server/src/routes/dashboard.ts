@@ -25,6 +25,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { parseQuery } from '../utils/query'
 
 export const baseDashboardQuery = {
   columns: {
@@ -80,17 +81,18 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db.select({ count: count() }).from(dashboard)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        dashboard,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(dashboard.createdAt),
+          searchableColumns: [dashboard.name],
+        },
+      )
 
       const data = await db.query.dashboard.findMany({
         ...baseDashboardQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(dashboard.createdAt),
+        ...query,
       })
 
       return generateJsonResponse(
@@ -98,7 +100,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )

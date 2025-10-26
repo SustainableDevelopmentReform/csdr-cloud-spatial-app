@@ -5,7 +5,7 @@ export const baseQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
   size: z.coerce.number().optional(),
   search: z.string().optional(),
-  sort: z.string().optional(),
+  sort: z.enum(['name', 'createdAt', 'updatedAt']).optional(),
   order: z.enum(['asc', 'desc']).optional(),
 })
 
