@@ -78,6 +78,10 @@ const DatasetFeature = () => {
           title="Dataset"
           itemLink={datasetLink}
           itemButton={(dataset) => <DatasetButton dataset={dataset} />}
+          query={query}
+          onSortChange={(query) =>
+            setSearchParams({ sort: query.sort, order: query.order })
+          }
         />
         <Pagination
           className="justify-end mt-4"

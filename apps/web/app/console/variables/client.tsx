@@ -120,6 +120,8 @@ const VariableFeature = () => {
           title="Variable"
           itemLink={variableLink}
           itemButton={(variable) => <VariableButton variable={variable} />}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

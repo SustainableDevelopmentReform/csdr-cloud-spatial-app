@@ -68,6 +68,8 @@ const DatasetRunFeature = () => {
           itemButton={(datasetRun) => (
             <DatasetRunButton datasetRun={datasetRun} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

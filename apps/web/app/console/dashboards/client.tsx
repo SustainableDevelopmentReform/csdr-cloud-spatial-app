@@ -48,6 +48,8 @@ const DashboardFeature = () => {
           title="Dashboard"
           itemLink={dashboardLink}
           itemButton={(dashboard) => <DashboardButton dashboard={dashboard} />}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

@@ -83,6 +83,8 @@ const GeometriesFeature = () => {
           itemButton={(geometries) => (
             <GeometriesButton geometries={geometries} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

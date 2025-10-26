@@ -109,6 +109,8 @@ const GeometryOutputFeature = () => {
           itemButton={(geometryOutput) => (
             <GeometryOutputButton geometryOutput={geometryOutput} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"
