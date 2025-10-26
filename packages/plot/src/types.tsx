@@ -6,6 +6,7 @@ export type PlotChartConfiguration = {
   productRunId: string
   variableIds?: string[]
   geometryOutputIds?: string[]
+  timePoints?: string[]
 }
 
 export type MapChartConfiguration = {
@@ -32,7 +33,7 @@ export type TableChartConfiguration = {
   geometryOutputIds?: string[]
   xDimension: TableChartDimension
   yDimension: TableChartDimension
-  timePoint?: string
+  timePoints?: string[]
 }
 
 export type ChartConfiguration =

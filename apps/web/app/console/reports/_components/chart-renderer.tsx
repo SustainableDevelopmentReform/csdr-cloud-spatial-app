@@ -10,7 +10,7 @@ import {
 import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
 import { cn } from '@repo/ui/lib/utils'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { EmptyCard } from '../../_components/empty-card'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { useGeometriesRun } from '../../geometries/_hooks'
@@ -75,7 +75,19 @@ const LinePlotContainer = ({
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableIds,
     geometryOutputId: chart.geometryOutputIds,
+    timePoint: chart.timePoints,
   })
+
+  const multipleGeometryOutputs = useMemo(() => {
+    let firstGeometryOutputId: string | undefined
+    return productOutputs?.data?.some((output) => {
+      if (!firstGeometryOutputId) {
+        firstGeometryOutputId = output.geometryOutputId
+      }
+      return output.geometryOutputId !== firstGeometryOutputId
+    })
+  }, [productOutputs?.data])
+
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <div
@@ -89,9 +101,7 @@ const LinePlotContainer = ({
           x={'timePoint'}
           y={'value'}
           groupBy={
-            (chart.geometryOutputIds?.length ?? 0) > 1
-              ? 'geometryOutputName'
-              : 'variableName'
+            multipleGeometryOutputs ? 'geometryOutputName' : 'variableName'
           }
           type={chart.subType}
           onSelect={(dataPoint) =>
@@ -176,7 +186,7 @@ const TablePlotContainer = ({
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableIds,
     geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoint,
+    timePoint: chart.timePoints,
   })
   return (
     <div className={cn('flex flex-col gap-2', className)}>

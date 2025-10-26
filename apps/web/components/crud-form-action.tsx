@@ -14,6 +14,7 @@ import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 import { UseMutationResult } from '@tanstack/react-query'
 import { ComponentProps } from 'react'
 import { FieldGroup } from './action'
+import { DeleteAlertDialog } from './delete-alert-dialog'
 
 export type CrudFormAction = {
   title: string
@@ -33,35 +34,12 @@ export const FormAction = (props: CrudFormAction) => {
   return (
     <FieldGroup {...props}>
       {props.confirmDialog ? (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant={props.buttonVariant} className="w-fit">
-              {props.buttonTitle}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {props.confirmDialog.title ?? 'Are you sure?'}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {props.confirmDialog.description}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>
-                {props.confirmDialog.buttonCancelTitle ?? 'Cancel'}
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={() => props.mutation.mutateAsync()}>
-                {props.mutation.isPending ? (
-                  <LoadingIcon>'Loading...'</LoadingIcon>
-                ) : (
-                  'Continue'
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteAlertDialog
+          buttonVariant={props.buttonVariant}
+          buttonTitle={props.buttonTitle}
+          confirmDialog={props.confirmDialog}
+          mutation={props.mutation}
+        />
       ) : (
         <Button
           variant={props.buttonVariant}

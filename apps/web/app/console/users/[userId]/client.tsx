@@ -40,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
+import { DeleteAlertDialog } from '../../../../components/delete-alert-dialog'
 
 const formSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
@@ -331,29 +332,16 @@ const UserProfile = () => {
           <div className="mb-3">
             Permanently remove the user from all organizations and applications.
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">Delete user</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete{' '}
-                  {user?.name} account and remove {user?.name} data from our
-                  servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteUser.mutate()}>
-                  {match(deleteUser)
-                    .with({ isPending: true }, () => 'Loading...')
-                    .otherwise(() => 'Continue')}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <DeleteAlertDialog
+            buttonVariant="destructive"
+            buttonTitle="Delete user"
+            confirmDialog={{
+              title: 'Are you absolutely sure?',
+              description: `This action cannot be undone. This will permanently delete ${user?.name} account and remove ${user?.name} data from our servers.`,
+              buttonCancelTitle: 'Cancel',
+            }}
+            mutation={deleteUser}
+          />
         </div>
       </div>
     </div>

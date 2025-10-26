@@ -152,7 +152,7 @@ export const productOutputQuerySchema = paginatedQuerySchema.extend({
 export const productOutputExportQuerySchema = z.object({
   variableId: z.union([z.string(), z.array(z.string())]).optional(),
   geometryOutputId: z.union([z.string(), z.array(z.string())]).optional(),
-  timePoint: z.iso.datetime().optional(),
+  timePoint: z.union([z.iso.datetime(), z.array(z.iso.datetime())]).optional(),
 })
 
 export const createProductOutputSchema = baseCreateResourceSchema.extend({
@@ -207,4 +207,35 @@ export const reportQuerySchema = paginatedQuerySchema
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
   content: z.any(),
+})
+
+const gridLayoutItemSchema = z.object({
+  i: z.string(),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  minH: z.number().optional(),
+  minW: z.number().optional(),
+  maxH: z.number().optional(),
+  maxW: z.number().optional(),
+  static: z.boolean().optional(),
+  isDraggable: z.boolean().optional(),
+  isResizable: z.boolean().optional(),
+  moved: z.boolean().optional(),
+})
+
+export const dashboardLayoutSchema = z.array(gridLayoutItemSchema)
+
+export const dashboardContentSchema = z.object({
+  charts: z.record(z.string(), z.any()),
+  layout: dashboardLayoutSchema,
+})
+
+export const dashboardQuerySchema = paginatedQuerySchema
+export const createDashboardSchema = baseCreateResourceSchema.extend({
+  content: dashboardContentSchema,
+})
+export const updateDashboardSchema = baseUpdateResourceSchema.extend({
+  content: dashboardContentSchema.optional(),
 })

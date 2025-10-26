@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { FieldGroup } from '../../../../components/action'
@@ -42,6 +42,7 @@ import { ProductRunSelect } from '../../products/_components/product-run-select'
 import { ProductSelect } from '../../products/_components/product-select'
 import { VariablesSelect } from '../../variables/_components/variables-select'
 import { ChartRenderer } from './chart-renderer'
+import { ProductDetail, ProductListItem } from '../../products/_hooks'
 
 const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
   { value: 'timePoint', label: 'Time' },
@@ -225,6 +226,40 @@ export const ChartFormDialog = ({
     (chartType === 'table' &&
       (xDimension === 'timePoint' || yDimension === 'timePoint'))
 
+  const setDefaultsForProduct = useCallback(
+    (product: ProductListItem) => {
+      form.setValue('productId', product.id)
+      if (product.mainRunId) form.setValue('productRunId', product.mainRunId)
+
+      // Use the first variable if available
+      const firstVariable = product.mainRun?.outputSummary?.variables?.[0]
+      if (firstVariable) {
+        form.setValue('variableId', firstVariable.variable.id)
+        form.setValue('variableIds', [firstVariable.variable.id])
+      } else {
+        form.resetField('variableId')
+        form.resetField('variableIds')
+      }
+      form.resetField('geometryOutputIds')
+
+      // If there is only one time point, set it and the time points array
+      if (product.mainRun?.outputSummary?.timePoints?.length === 1) {
+        form.setValue(
+          'timePoint',
+          product.mainRun?.outputSummary?.timePoints?.[0] ?? '',
+        )
+        form.setValue(
+          'timePoints',
+          product.mainRun?.outputSummary?.timePoints ?? [],
+        )
+      } else {
+        form.resetField('timePoint')
+        form.resetField('timePoints')
+      }
+    },
+    [form],
+  )
+
   return (
     <Dialog
       open={open}
@@ -261,63 +296,58 @@ export const ChartFormDialog = ({
               </DialogDescription>
             </DialogHeader>
 
-            <FieldGroup className="flex-1" title="Select Chart Type">
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Chart Type</FormLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value)
+                      form.resetField('subType')
+                      form.resetField('xDimension')
+                      form.resetField('yDimension')
+                    }}
+                  >
+                    <SelectTrigger id="report-chart-type">
+                      <SelectValue placeholder="Select a chart type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="plot">Line plot</SelectItem>
+                      <SelectItem value="table">Table</SelectItem>
+                      <SelectItem value="map">Map</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            {chartType === 'plot' && (
               <FormField
                 control={form.control}
-                name="type"
+                name="subType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Chart Type</FormLabel>
+                    <FormLabel>Sub Type</FormLabel>
                     <Select
                       value={field.value}
-                      onValueChange={(value) => {
-                        form.reset({
-                          type: value,
-                        } as z.infer<typeof chartSchema>)
-                      }}
+                      onValueChange={(value) => field.onChange(value)}
                     >
-                      <SelectTrigger id="report-chart-type">
-                        <SelectValue placeholder="Select a chart type" />
+                      <SelectTrigger id="report-chart-sub-type">
+                        <SelectValue placeholder="Select a sub type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="plot">Line plot</SelectItem>
-                        <SelectItem value="table">Table</SelectItem>
-                        <SelectItem value="map">Map</SelectItem>
+                        <SelectItem value="line">Line</SelectItem>
+                        <SelectItem value="bar">Bar</SelectItem>
+                        <SelectItem value="grouped-bar">Grouped Bar</SelectItem>
+                        <SelectItem value="dot">Dot</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
                 )}
               />
-            </FieldGroup>
-
-            {chartType === 'plot' && (
-              <FieldGroup className="flex-1" title="Sub Type">
-                <FormField
-                  control={form.control}
-                  name="subType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub Type</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => field.onChange(value)}
-                      >
-                        <SelectTrigger id="report-chart-sub-type">
-                          <SelectValue placeholder="Select a sub type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="line">Line</SelectItem>
-                          <SelectItem value="bar">Bar</SelectItem>
-                          <SelectItem value="grouped-bar">
-                            Grouped Bar
-                          </SelectItem>
-                          <SelectItem value="dot">Dot</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-              </FieldGroup>
             )}
 
             {chartType === 'table' && (
@@ -396,11 +426,7 @@ export const ChartFormDialog = ({
                     {...field}
                     onChange={(id, product) => {
                       field.onChange(id)
-                      form.resetField('productRunId')
-                      form.resetField('variableId')
-                      form.resetField('variableIds')
-                      form.resetField('geometryOutputIds')
-                      form.resetField('timePoint')
+                      if (product) setDefaultsForProduct(product)
                     }}
                   />
                   <FormMessage />

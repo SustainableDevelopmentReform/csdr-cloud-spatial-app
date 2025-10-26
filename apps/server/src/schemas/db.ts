@@ -515,6 +515,11 @@ export const report = pgTable('report', {
   content: jsonb('content'),
 })
 
+export const dashboard = pgTable('dashboard', {
+  ...baseColumns,
+  content: jsonb('content').notNull(),
+})
+
 // Relations
 export const datasetRelations = relations(dataset, ({ many, one }) => ({
   runs: many(datasetRun),
