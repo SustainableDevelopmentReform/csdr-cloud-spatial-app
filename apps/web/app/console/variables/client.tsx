@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createVariableSchema } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,
@@ -12,10 +13,10 @@ import { Input } from '@repo/ui/components/ui/input'
 import { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import Pagination from '~/components/pagination'
 import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
+import { SearchInput } from '../../../components/search-input'
 import { SelectWithSearchWithCreate } from '../../../components/select-with-search-with-create'
 import { VariableButton } from './_components/variable-button'
 import { VariableCategoryButton } from './_components/variable-category-button'
@@ -27,11 +28,9 @@ import {
   useVariables,
   VariableListItem,
 } from './_hooks'
-import { createVariableSchema } from '@repo/schemas/crud'
-import { SearchInput } from '../../../components/search-input'
 
 const VariableFeature = () => {
-  const { data, query, setSearchParams } = useVariables()
+  const { data, query, setSearchParams } = useVariables(undefined, true)
   const { data: variableCategories } = useVariableCategories()
   const createVariable = useCreateVariable()
   const createVariableCategory = useCreateVariableCategory()

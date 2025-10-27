@@ -39,7 +39,11 @@ import { VariablesSelect } from '../../../variables/_components/variables-select
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 const ProductOutputFeature = () => {
-  const { data, query, setSearchParams } = useProductOutputs()
+  const { data, query, setSearchParams } = useProductOutputs(
+    undefined,
+    undefined,
+    true,
+  )
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
   const productLink = useProductOutputLink()

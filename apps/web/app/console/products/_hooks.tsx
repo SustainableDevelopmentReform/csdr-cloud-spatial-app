@@ -136,11 +136,17 @@ const useProductParams = (
   }
 }
 
-export const useProducts = () => {
+export const useProducts = (
+  _query?: z.infer<typeof productQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
 
-  const { query, setSearchParams } =
-    useQueryWithSearchParams(productQuerySchema)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    productQuerySchema,
+    _query,
+    useSearchParams,
+  )
 
   const { data: dataset } = useDataset(query?.datasetId)
   const { data: geometries } = useGeometries(query?.geometriesId)
@@ -173,10 +179,16 @@ export const useProducts = () => {
   }
 }
 
-export const useProductRuns = (_productId?: string) => {
+export const useProductRuns = (
+  _productId?: string,
+  _query?: z.infer<typeof productRunQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     productRunQuerySchema,
+    _query,
+    useSearchParams,
   )
 
   const { productId } = useProductParams(_productId)
@@ -235,12 +247,14 @@ export const useProductRuns = (_productId?: string) => {
 export const useProductOutputs = (
   _productRunId?: string,
   _query?: z.infer<typeof productOutputQuerySchema>,
+  useSearchParams?: boolean,
 ) => {
   const client = useApiClient()
   const { productRunId } = useProductParams(undefined, _productRunId)
   const { query, setSearchParams } = useQueryWithSearchParams(
     productOutputQuerySchema,
     _query,
+    useSearchParams,
   )
 
   const { data } = useQuery({
@@ -271,19 +285,20 @@ export const useProductOutputs = (
 export const useProductOutputsExport = (
   _productRunId?: string,
   _query?: Partial<z.infer<typeof productOutputExportQuerySchema>>,
-  fetch = true,
+  useSearchParams?: boolean,
 ) => {
   const client = useApiClient()
   const { productRunId } = useProductParams(undefined, _productRunId)
   const { query, setSearchParams } = useQueryWithSearchParams(
     productOutputExportQuerySchema,
     _query,
+    useSearchParams,
   )
 
   const { data } = useQuery({
     queryKey: queryKeys.productOutputExportList(productRunId, query),
     queryFn: async () => {
-      if (!productRunId || !query || !fetch) return null
+      if (!productRunId || !query) return null
       const res = client.api.v0['product-run'][':id']['outputs']['export'].$get(
         {
           query,

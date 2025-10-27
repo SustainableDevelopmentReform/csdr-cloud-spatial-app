@@ -139,10 +139,15 @@ export const useGeometriesParams = (
   }
 }
 
-export const useAllGeometries = () => {
+export const useAllGeometries = (
+  _query?: z.infer<typeof geometriesQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     geometriesQuerySchema,
+    _query,
+    useSearchParams,
   )
 
   const { data } = useQuery({
@@ -167,11 +172,17 @@ export const useAllGeometries = () => {
   }
 }
 
-export const useGeometriesRuns = (_geometriesId?: string) => {
+export const useGeometriesRuns = (
+  _geometriesId?: string,
+  _query?: z.infer<typeof geometriesRunQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     geometriesRunQuerySchema,
+    _query,
+    useSearchParams,
   )
 
   const { data } = useQuery({
@@ -202,12 +213,14 @@ export const useGeometriesRuns = (_geometriesId?: string) => {
 export const useGeometryOutputs = (
   _geometriesRunId?: string,
   _query?: z.infer<typeof geometryOutputQuerySchema>,
+  useSearchParams?: boolean,
 ) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     geometryOutputQuerySchema,
     _query,
+    useSearchParams,
   )
 
   const queryResult = useQuery({
@@ -238,12 +251,14 @@ export const useGeometryOutputs = (
 export const useGeometryOutputsExport = (
   _geometriesRunId?: string,
   _query?: z.infer<typeof geometryOutputExportQuerySchema>,
+  useSearchParams?: boolean,
 ) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     geometryOutputExportQuerySchema,
     _query,
+    useSearchParams,
   )
 
   const queryResult = useQuery({

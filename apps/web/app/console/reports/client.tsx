@@ -12,7 +12,7 @@ import { useCreateReport, useReportLink, useReports } from './_hooks'
 import { SearchInput } from '../../../components/search-input'
 
 const ReportFeature = () => {
-  const { data, query, setSearchParams } = useReports()
+  const { data, query, setSearchParams } = useReports(undefined, true)
   const createReport = useCreateReport()
 
   const reportLink = useReportLink()

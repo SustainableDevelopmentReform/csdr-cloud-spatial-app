@@ -56,11 +56,17 @@ const useDashboardParams = (_dashboardId?: string) => {
   }
 }
 
-export const useDashboards = () => {
+export const useDashboards = (
+  _query?: z.infer<typeof dashboardQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
 
-  const { query, setSearchParams } =
-    useQueryWithSearchParams(dashboardQuerySchema)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    dashboardQuerySchema,
+    _query,
+    useSearchParams,
+  )
 
   const { data } = useQuery({
     queryKey: queryKeys.dashboardList(query),

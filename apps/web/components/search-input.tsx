@@ -26,7 +26,7 @@ export const SearchInput = ({
   const debounced = useDebounceCallback(onChange, debounce)
 
   return (
-    <InputGroup className={cn('max-w-52', className)}>
+    <InputGroup className={cn('max-w-sm', className)}>
       <InputGroupInput
         placeholder={placeholder}
         defaultValue={value}

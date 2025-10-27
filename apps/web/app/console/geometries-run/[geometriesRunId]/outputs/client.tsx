@@ -31,7 +31,11 @@ import { SearchInput } from '../../../../../components/search-input'
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
 const GeometryOutputFeature = () => {
-  const { data, query, setSearchParams } = useGeometryOutputs()
+  const { data, query, setSearchParams } = useGeometryOutputs(
+    undefined,
+    undefined,
+    true,
+  )
   const createGeometryOutput = useCreateGeometryOutput()
   const { data: geometriesRun } = useGeometriesRun()
   const geometryOutputLink = useGeometryOutputLink()

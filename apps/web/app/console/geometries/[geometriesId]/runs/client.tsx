@@ -31,7 +31,11 @@ import { SearchInput } from '../../../../../components/search-input'
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
 const GeometriesRunFeature = () => {
-  const { data, query, setSearchParams } = useGeometriesRuns()
+  const { data, query, setSearchParams } = useGeometriesRuns(
+    undefined,
+    undefined,
+    true,
+  )
   const { data: geometries } = useGeometries()
   const createGeometriesRun = useCreateGeometriesRun()
   const geometriesLink = useGeometriesRunLink()

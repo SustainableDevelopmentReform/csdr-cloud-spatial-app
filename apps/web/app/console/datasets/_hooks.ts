@@ -78,11 +78,17 @@ const useDatasetParams = (_datasetId?: string, _datasetRunId?: string) => {
   }
 }
 
-export const useDatasets = () => {
+export const useDatasets = (
+  _query?: z.infer<typeof datasetQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
 
-  const { query, setSearchParams } =
-    useQueryWithSearchParams(datasetQuerySchema)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    datasetQuerySchema,
+    _query,
+    useSearchParams,
+  )
 
   const { data } = useQuery({
     queryKey: queryKeys.datasetList(query),
@@ -106,11 +112,17 @@ export const useDatasets = () => {
   }
 }
 
-export const useDatasetRuns = (_datasetId?: string) => {
+export const useDatasetRuns = (
+  _datasetId?: string,
+  _query?: z.infer<typeof datasetRunQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const { datasetId } = useDatasetParams(_datasetId)
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     datasetRunQuerySchema,
+    _query,
+    useSearchParams,
   )
 
   const { data } = useQuery({
