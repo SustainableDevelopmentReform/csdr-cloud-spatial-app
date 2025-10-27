@@ -10,6 +10,7 @@ import BaseCrudTable from '../../../components/crud-table'
 import { useCreateDashboard, useDashboardLink, useDashboards } from './_hooks'
 import { createEmptyDashboardContent } from './_components/dashboard-grid-editor'
 import { DashboardButton } from './_components/dashboard-button'
+import { SearchInput } from '../../../components/search-input'
 
 const DashboardFeature = () => {
   const { data, query, setSearchParams } = useDashboards()
@@ -41,7 +42,12 @@ const DashboardFeature = () => {
           hiddenFields={['content', 'metadata']}
         />
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search dashboards"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}

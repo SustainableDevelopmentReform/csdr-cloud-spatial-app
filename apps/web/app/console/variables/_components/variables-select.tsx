@@ -1,9 +1,7 @@
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { FieldGroup } from '../../../../components/action'
-import { useProductRun } from '../../products/_hooks'
-
+import { useVariables } from '../_hooks'
+import { SelectWithSearch } from '../../../../components/select-with-search'
 type VariablesSelectProps = {
-  productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
 } & (
@@ -20,11 +18,10 @@ type VariablesSelectProps = {
 )
 
 export const VariablesSelect = ({
-  productRunId,
   disabled,
   ...props
 }: VariablesSelectProps) => {
-  const { data: productRun } = useProductRun(productRunId ?? undefined)
+  const { data: variables, setSearchParams } = useVariables()
   return (
     <FieldGroup
       title={`Select Variable${props.multiple ? '(s)' : ''}`}
@@ -33,25 +30,21 @@ export const VariablesSelect = ({
       {props.multiple ? (
         <SelectWithSearch
           placeholder={props.placeholder}
-          options={productRun?.outputSummary?.variables.map(
-            (variable) => variable.variable,
-          )}
+          options={variables?.data}
           value={props.value ?? []}
           onSelect={props.onSelect}
-          onSearch={() => {}}
-          disabled={!productRun}
+          onSearch={(value) => setSearchParams({ search: value })}
+          disabled={!variables}
           multiple
         />
       ) : (
         <SelectWithSearch
           placeholder={props.placeholder}
-          options={productRun?.outputSummary?.variables.map(
-            (variable) => variable.variable,
-          )}
+          options={variables?.data}
           value={props.value ?? null}
           onSelect={props.onSelect}
-          onSearch={() => {}}
-          disabled={!productRun}
+          onSearch={(value) => setSearchParams({ search: value })}
+          disabled={!variables}
         />
       )}
     </FieldGroup>

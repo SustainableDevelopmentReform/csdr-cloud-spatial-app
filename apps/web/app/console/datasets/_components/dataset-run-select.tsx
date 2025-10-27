@@ -1,29 +1,30 @@
 import { FieldGroup } from '../../../../components/action'
-import { ProductRunListItem, useProductRuns } from '../_hooks'
 import { SelectWithSearch } from '../../../../components/select-with-search'
-export const ProductRunSelect = ({
+import { DatasetRunListItem, useDatasetRuns } from '../_hooks'
+
+export const DatasetRunSelect = ({
   value,
-  productId,
+  datasetId,
   onChange,
   disabled,
 }: {
   value: string | null | undefined
-  productId: string | null | undefined
-  onChange: (id: string | null, productRun: ProductRunListItem | null) => void
+  datasetId: string | null | undefined
+  onChange: (id: string | null, datasetRun: DatasetRunListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: productRuns, setSearchParams } = useProductRuns(
-    productId ?? undefined,
+  const { data: datasetRuns, setSearchParams } = useDatasetRuns(
+    datasetId ?? undefined,
   )
   return (
-    <FieldGroup title="Select Product Run" disabled={disabled}>
+    <FieldGroup title="Select Dataset Run" disabled={disabled}>
       <SelectWithSearch
-        options={productRuns?.data}
+        options={datasetRuns?.data}
         value={value ?? null}
         onSelect={(value) => {
           onChange(
             value,
-            productRuns?.data?.find((productRun) => productRun.id === value) ??
+            datasetRuns?.data?.find((datasetRun) => datasetRun.id === value) ??
               null,
           )
         }}

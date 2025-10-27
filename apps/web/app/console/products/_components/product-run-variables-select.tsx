@@ -1,9 +1,7 @@
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { FieldGroup } from '../../../../components/action'
-import { formatDateTime } from '../../../../utils/date'
 import { useProductRun } from '../_hooks'
-
-type ProductOutputTimeSelectProps = {
+import { SelectWithSearch } from '../../../../components/select-with-search'
+type ProductRunVariablesSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
@@ -20,42 +18,37 @@ type ProductOutputTimeSelectProps = {
     }
 )
 
-export const ProductOutputTimeSelect = ({
+export const ProductRunVariablesSelect = ({
   productRunId,
   disabled,
   ...props
-}: ProductOutputTimeSelectProps) => {
+}: ProductRunVariablesSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
   return (
     <FieldGroup
-      className="flex-1"
-      title={`Select Time Point${props.multiple ? '(s)' : ''}`}
-      disabled={!!(!productRun || disabled)}
+      title={`Select Variable${props.multiple ? '(s)' : ''}`}
+      disabled={disabled}
     >
       {props.multiple ? (
         <SelectWithSearch
           placeholder={props.placeholder}
-          options={productRun?.outputSummary?.timePoints?.map((timePoint) => ({
-            id: timePoint,
-            name: formatDateTime(timePoint),
-          }))}
+          options={productRun?.outputSummary?.variables.map(
+            (variable) => variable.variable,
+          )}
           value={props.value ?? []}
           onSelect={props.onSelect}
-          onSearch={() => {}}
-          disabled={!productRun || disabled}
+          disabled={!productRun}
           multiple
         />
       ) : (
         <SelectWithSearch
           placeholder={props.placeholder}
-          options={productRun?.outputSummary?.timePoints?.map((timePoint) => ({
-            id: timePoint,
-            name: formatDateTime(timePoint),
-          }))}
+          options={productRun?.outputSummary?.variables.map(
+            (variable) => variable.variable,
+          )}
           value={props.value ?? null}
           onSelect={props.onSelect}
-          onSearch={() => {}}
-          disabled={!productRun || disabled}
+          disabled={!productRun}
         />
       )}
     </FieldGroup>
