@@ -19,6 +19,7 @@ import React from 'react'
 import Table from '../../../../../components/table'
 import { ApiKey, useDeleteApiKey } from '../../_hooks'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
+import { DeleteAlertDialog } from '../../../../../components/delete-alert-dialog'
 
 interface UsersTableProps {
   data: ApiKey[]
@@ -61,32 +62,17 @@ const columns = [
     cell: (info) => {
       const deleteApiKey = useDeleteApiKey(info.row.original.id)
       return (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm">
-              Delete API Key
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete this
-                API key.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteApiKey.mutate()}>
-                {deleteApiKey.isPending ? (
-                  <LoadingIcon>Deleting...</LoadingIcon>
-                ) : (
-                  'Continue'
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteAlertDialog
+          buttonVariant="destructive"
+          buttonTitle="Delete API Key"
+          confirmDialog={{
+            title: 'Delete API Key',
+            description:
+              'Are you absolutely sure you want to delete this API key? This action cannot be undone.',
+            buttonCancelTitle: 'Cancel',
+          }}
+          mutation={deleteApiKey}
+        />
       )
     },
     size: 80,

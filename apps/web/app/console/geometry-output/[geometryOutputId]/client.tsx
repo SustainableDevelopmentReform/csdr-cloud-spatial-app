@@ -47,7 +47,7 @@ const GeometriesRunDetails = () => {
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="rounded-lg overflow-hidden">
+      <div className="rounded-lg overflow-hidden h-96">
         {geometryBbox && (
           <MapViewer
             initialViewState={{

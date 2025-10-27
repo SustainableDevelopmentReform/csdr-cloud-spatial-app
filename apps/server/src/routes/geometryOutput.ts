@@ -57,6 +57,15 @@ export const fullGeometryOutputQuery = {
   },
 } satisfies QueryForTable<'geometryOutput'>
 
+export const geometryOutputExportQuery = {
+  columns: {
+    id: true,
+    name: true,
+    properties: true,
+    geometry: true,
+  },
+} satisfies QueryForTable<'geometryOutput'>
+
 export const baseGeometryOutputSchema = baseResourceSchema
   .extend({
     properties: z.any(),
@@ -66,14 +75,27 @@ export const baseGeometryOutputSchema = baseResourceSchema
   })
   .openapi('GeometryOutputBase')
 
+const geometrySchema = z
+  .union([
+    PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
+    MultiPolygonSchema.openapi({ title: 'GeoJSON MultiPolygon' }),
+  ])
+  .openapi('GeometrySchema')
+
 export const fullGeometryOutputSchema = baseGeometryOutputSchema
   .extend({
-    geometry: z.union([
-      PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-      MultiPolygonSchema.openapi({ title: 'GeoJSON MultiPolygon' }),
-    ]),
+    geometry: geometrySchema,
   })
   .openapi('GeometryOutputFull')
+
+export const geometryOutputExportSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    properties: z.any(),
+    geometry: geometrySchema,
+  })
+  .openapi('GeometryOutputExportSchema')
 
 const app = createOpenAPIApp()
   .openapi(

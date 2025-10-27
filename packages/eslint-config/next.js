@@ -9,6 +9,7 @@ module.exports = {
     require.resolve('@vercel/style-guide/eslint/next'),
     'turbo',
     'plugin:@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended',
   ],
   globals: {
     React: true,
@@ -18,7 +19,7 @@ module.exports = {
     node: true,
     browser: true,
   },
-  plugins: ['only-warn'],
+  plugins: ['only-warn', 'react-hooks'],
   settings: {
     'import/resolver': {
       typescript: {
@@ -35,5 +36,7 @@ module.exports = {
   rules: {
     'no-unused-vars': 'off',
     '@typescript-eslint/no-unused-vars': ['error'],
+    'react-hooks/rules-of-hooks': 'error',
+    'react-hooks/exhaustive-deps': 'error',
   },
 }

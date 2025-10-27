@@ -26,6 +26,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { SearchInput } from '../../../../../components/search-input'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
@@ -88,7 +89,12 @@ const GeometriesRunFeature = () => {
           />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search geometries runs"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
@@ -98,6 +104,8 @@ const GeometriesRunFeature = () => {
           itemButton={(geometriesRun) => (
             <GeometriesRunButton geometriesRun={geometriesRun} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

@@ -27,7 +27,7 @@ const UserFeature = () => {
           <Button>Add user</Button>
         </UserForm>
       </div>
-      <div className="mt-8">
+      <div>
         <div className="flex items-center mb-4 gap-4">
           <form
             onSubmit={(e) => {

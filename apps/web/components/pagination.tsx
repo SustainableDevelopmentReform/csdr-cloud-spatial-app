@@ -15,6 +15,8 @@ const Pagination: React.FC<PaginationProps> = ({
   totalPages,
   onPageChange,
 }) => {
+  if (totalPages < 1) return null
+
   return (
     <div className={cn('flex items-center gap-3', className)}>
       <div>

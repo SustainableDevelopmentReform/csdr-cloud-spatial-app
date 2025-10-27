@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -21,10 +21,12 @@ import {
 } from '../schemas/util'
 import {
   createDatasetSchema,
-  paginatedQuerySchema,
+  datasetQuerySchema,
+  datasetRunQuerySchema,
   updateDatasetSchema,
 } from '@repo/schemas/crud'
 import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
+import { parseQuery } from '../utils/query'
 
 export const baseDatasetQuery = {
   columns: {
@@ -70,7 +72,7 @@ const app = createOpenAPIApp()
         }),
       ],
       request: {
-        query: paginatedQuerySchema,
+        query: datasetQuerySchema,
       },
       responses: {
         200: {
@@ -93,21 +95,18 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(dataset)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        dataset,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(dataset.createdAt),
+          searchableColumns: [dataset.name],
+        },
+      )
 
       const data = await db.query.dataset.findMany({
         ...baseDatasetQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(dataset.createdAt),
+        ...query,
       })
 
       return generateJsonResponse(
@@ -115,7 +114,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )
@@ -182,7 +181,7 @@ const app = createOpenAPIApp()
         params: z.object({
           id: z.string().min(1),
         }),
-        query: paginatedQuerySchema,
+        query: datasetRunQuerySchema,
       },
       responses: {
         200: {
@@ -206,23 +205,19 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(datasetRun)
-        .where(eq(datasetRun.datasetId, id))
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        datasetRun,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(datasetRun.createdAt),
+          searchableColumns: [datasetRun.name],
+        },
+      )
 
       const data = await db.query.datasetRun.findMany({
         ...baseDatasetRunQuery,
-        where: (datasetRun, { eq }) => eq(datasetRun.datasetId, id),
-        limit: size,
-        offset: skip,
-        orderBy: desc(datasetRun.createdAt),
+        ...query,
+        where: and(eq(datasetRun.datasetId, id), query.where),
       })
 
       return generateJsonResponse(
@@ -230,7 +225,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )

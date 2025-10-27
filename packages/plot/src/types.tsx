@@ -1,10 +1,12 @@
-export type LinePlotChartConfiguration = {
-  type: 'linePlot'
+export type PlotChartConfiguration = {
+  type: 'plot'
+  subType: 'line' | 'bar' | 'grouped-bar' | 'dot'
   title?: string
   description?: string
   productRunId: string
-  variableId: string
-  geometryOutputId: string
+  variableIds?: string[]
+  geometryOutputIds?: string[]
+  timePoints?: string[]
 }
 
 export type MapChartConfiguration = {
@@ -14,8 +16,27 @@ export type MapChartConfiguration = {
   productRunId: string
   variableId: string
   timePoint: string
+  geometryOutputIds?: string[]
+}
+
+export type TableChartDimension =
+  | 'timePoint'
+  | 'variableName'
+  | 'geometryOutputName'
+
+export type TableChartConfiguration = {
+  type: 'table'
+  title?: string
+  description?: string
+  productRunId: string
+  variableIds?: string[]
+  geometryOutputIds?: string[]
+  xDimension: TableChartDimension
+  yDimension: TableChartDimension
+  timePoints?: string[]
 }
 
 export type ChartConfiguration =
-  | LinePlotChartConfiguration
+  | PlotChartConfiguration
   | MapChartConfiguration
+  | TableChartConfiguration

@@ -1,10 +1,11 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
   createGeometriesRunSchema,
-  paginatedQuerySchema,
+  geometryOutputExportQuerySchema,
+  geometryOutputQuerySchema,
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
-import { count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -34,7 +35,10 @@ import {
 import {
   baseGeometryOutputQuery,
   baseGeometryOutputSchema,
+  geometryOutputExportQuery,
+  geometryOutputExportSchema,
 } from './geometryOutput'
+import { parseQuery } from '../utils/query'
 
 export const baseGeometriesRunQuery = {
   columns: {
@@ -138,7 +142,7 @@ const app = createOpenAPIApp()
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: paginatedQuerySchema,
+        query: geometryOutputQuerySchema,
       },
       responses: {
         200: {
@@ -162,24 +166,19 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(geometryOutput)
-        .where(eq(geometryOutput.geometriesRunId, id))
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        geometryOutput,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(geometryOutput.createdAt),
+          searchableColumns: [geometryOutput.name],
+        },
+      )
 
       const data = await db.query.geometryOutput.findMany({
         ...baseGeometryOutputQuery,
-        where: (geometryOutput, { eq }) =>
-          eq(geometryOutput.geometriesRunId, id),
-        limit: size,
-        offset: skip,
-        orderBy: desc(geometryOutput.createdAt),
+        ...query,
+        where: and(eq(geometryOutput.geometriesRunId, id), query.where),
       })
 
       return generateJsonResponse(
@@ -187,7 +186,60 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
+        },
+        200,
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Export outputs for a geometries run.',
+      method: 'get',
+      path: '/:id/outputs/export',
+      middleware: [authMiddleware({ permission: 'read:geometryOutput' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: geometryOutputExportQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully exported outputs for a geometries run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  data: z.array(geometryOutputExportSchema),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to export geometry outputs'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { geometryOutputIds } = c.req.valid('query')
+
+      const filters: SQL[] = [eq(geometryOutput.geometriesRunId, id)]
+
+      if (geometryOutputIds) {
+        filters.push(inArray(geometryOutput.id, geometryOutputIds))
+      }
+
+      const data = await db.query.geometryOutput.findMany({
+        ...geometryOutputExportQuery,
+        where: and(...filters),
+        orderBy: desc(geometryOutput.createdAt),
+      })
+
+      return generateJsonResponse(
+        c,
+        {
+          data,
         },
         200,
       )

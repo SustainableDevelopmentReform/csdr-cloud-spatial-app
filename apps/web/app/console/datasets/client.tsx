@@ -17,6 +17,7 @@ import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { DatasetButton } from './_components/dataset-button'
 import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
+import { SearchInput } from '../../../components/search-input'
 
 const DatasetFeature = () => {
   const { data, query, setSearchParams } = useDatasets()
@@ -71,13 +72,22 @@ const DatasetFeature = () => {
           />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search datasets"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
           title="Dataset"
           itemLink={datasetLink}
           itemButton={(dataset) => <DatasetButton dataset={dataset} />}
+          query={query}
+          onSortChange={(query) =>
+            setSearchParams({ sort: query.sort, order: query.order })
+          }
         />
         <Pagination
           className="justify-end mt-4"

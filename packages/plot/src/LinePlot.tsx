@@ -68,16 +68,49 @@ export function LinePlot<T extends { id: string; value: number }>({
   data,
   x,
   y,
+  groupBy,
   onSelect,
+  type,
 }: {
   data: T[]
-  x: Plot.ChannelValueSpec
-  y: Plot.ChannelValueSpec
+  x: string
+  y: string
+  groupBy: string
   onSelect: (dataPoint: T) => void
+  type: 'line' | 'bar' | 'grouped-bar' | 'dot'
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const marks: Plot.Markish[] = [
+      Plot.dot(data, Plot.pointer({ x, y, fill: 'red', r: 8 })),
+      Plot.ruleY([0]),
+    ]
+    if (type === 'line') {
+      marks.push(Plot.line(data, { x, y, stroke: groupBy }))
+    } else if (type === 'bar') {
+      marks.push(Plot.barY(data, { x, y, fill: groupBy }))
+    } else if (type === 'grouped-bar') {
+      marks.push(Plot.barY(data, { x, y, fill: groupBy, fx: groupBy }))
+    } else if (type === 'dot') {
+      marks.push(Plot.dot(data, { x, y, fill: groupBy, r: 6 }))
+    }
+
+    marks.push(Plot.dot(data, Plot.pointer({ x, y, fill: groupBy, r: 8 })))
+
+    // marks.push(
+    //   Plot.text(
+    //     data,
+    //     Plot.selectLast({
+    //       x,
+    //       y,
+    //       text: groupBy,
+    //       textAnchor: 'start',
+    //       dx: 3,
+    //     }),
+    //   ),
+    // )
+
     const chart = Plot.plot({
       margin: 50,
       style: {
@@ -86,15 +119,8 @@ export function LinePlot<T extends { id: string; value: number }>({
       y: {
         grid: true,
       },
-      color: {
-        type: 'diverging',
-        scheme: 'burd',
-      },
-      marks: [
-        Plot.dot(data, Plot.pointer({ x, y, fill: 'red', r: 8 })),
-        Plot.ruleY([0]),
-        Plot.line(data, { x, y }),
-      ],
+      color: { legend: true },
+      marks,
     })
     containerRef.current?.append(chart)
 
@@ -102,7 +128,7 @@ export function LinePlot<T extends { id: string; value: number }>({
       onSelect(chart.value)
     })
     return () => chart.remove()
-  }, [data])
+  }, [data, onSelect, type, x, y])
 
   return <div ref={containerRef} className="w-full h-full"></div>
 }

@@ -9,7 +9,6 @@ export const env = createEnv({
   },
   server: {
     APP_URL: z.url().default('http://localhost:3000'),
-    DATA_BASE_URL: z.url().optional(),
     INTERNAL_BACKEND_URL: z.url().optional(),
     INTERNAL_FRONTEND_URL: z.url().optional(),
     DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z
@@ -20,7 +19,6 @@ export const env = createEnv({
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
-    DATA_BASE_URL: process.env.DATA_BASE_URL,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
     INTERNAL_FRONTEND_URL: process.env.INTERNAL_FRONTEND_URL,
     NODE_ENV: process.env.NODE_ENV,
