@@ -1,29 +1,26 @@
 import { FieldGroup } from '../../../../components/action'
-import { ProductRunListItem, useProductRuns } from '../_hooks'
 import { SelectWithSearch } from '../../../../components/select-with-search'
-export const ProductRunSelect = ({
+import { GeometriesListItem, useAllGeometries } from '../_hooks'
+
+export const GeometriesSelect = ({
   value,
-  productId,
   onChange,
   disabled,
 }: {
   value: string | null | undefined
-  productId: string | null | undefined
-  onChange: (id: string | null, productRun: ProductRunListItem | null) => void
+  onChange: (id: string | null, geometries: GeometriesListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: productRuns, setSearchParams } = useProductRuns(
-    productId ?? undefined,
-  )
+  const { data: geometries, setSearchParams } = useAllGeometries()
   return (
-    <FieldGroup title="Select Product Run" disabled={disabled}>
+    <FieldGroup title="Select Geometries" disabled={disabled}>
       <SelectWithSearch
-        options={productRuns?.data}
+        options={geometries?.data}
         value={value ?? null}
         onSelect={(value) => {
           onChange(
             value,
-            productRuns?.data?.find((productRun) => productRun.id === value) ??
+            geometries?.data?.find((geometries) => geometries.id === value) ??
               null,
           )
         }}

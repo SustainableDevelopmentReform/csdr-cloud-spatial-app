@@ -1,10 +1,8 @@
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { FieldGroup } from '../../../../components/action'
-import { useGeometryOutputs } from '../../geometries/_hooks'
+import { formatDateTime } from '../../../../utils/date'
 import { useProductRun } from '../_hooks'
-
-type ProductGeometryOutputSelectProps = {
-  title?: string
+import { SelectWithSearch } from '../../../../components/select-with-search'
+type ProductOutputTimeSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
@@ -21,40 +19,40 @@ type ProductGeometryOutputSelectProps = {
     }
 )
 
-export const ProductGeometryOutputSelect = ({
-  title,
+export const ProductOutputTimeSelect = ({
   productRunId,
   disabled,
   ...props
-}: ProductGeometryOutputSelectProps) => {
+}: ProductOutputTimeSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
-  const { data: geometryOutputs } = useGeometryOutputs(
-    productRun?.geometriesRun.id,
-  )
-
   return (
     <FieldGroup
-      title={title ?? `Select Geometry${props.multiple ? '(s)' : ''}`}
-      disabled={disabled}
+      className="flex-1"
+      title={`Select Time Point${props.multiple ? '(s)' : ''}`}
+      disabled={!!(!productRun || disabled)}
     >
       {props.multiple ? (
         <SelectWithSearch
           placeholder={props.placeholder}
-          options={geometryOutputs?.data}
+          options={productRun?.outputSummary?.timePoints?.map((timePoint) => ({
+            id: timePoint,
+            name: formatDateTime(timePoint),
+          }))}
           value={props.value ?? []}
           onSelect={props.onSelect}
-          onSearch={() => {}}
-          disabled={!productRun}
+          disabled={!productRun || disabled}
           multiple
         />
       ) : (
         <SelectWithSearch
           placeholder={props.placeholder}
-          options={geometryOutputs?.data}
+          options={productRun?.outputSummary?.timePoints?.map((timePoint) => ({
+            id: timePoint,
+            name: formatDateTime(timePoint),
+          }))}
           value={props.value ?? null}
           onSelect={props.onSelect}
-          onSearch={() => {}}
-          disabled={!productRun}
+          disabled={!productRun || disabled}
         />
       )}
     </FieldGroup>

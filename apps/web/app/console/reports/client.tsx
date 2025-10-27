@@ -9,6 +9,7 @@ import CrudFormDialog from '../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../components/crud-table'
 import { ReportButton } from './_components/report-button'
 import { useCreateReport, useReportLink, useReports } from './_hooks'
+import { SearchInput } from '../../../components/search-input'
 
 const ReportFeature = () => {
   const { data, query, setSearchParams } = useReports()
@@ -36,7 +37,12 @@ const ReportFeature = () => {
           entityNamePlural="reports"
         ></CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search reports"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}

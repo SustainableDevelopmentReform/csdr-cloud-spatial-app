@@ -36,13 +36,13 @@ import { useCallback, useMemo, useState } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { FieldGroup } from '../../../../components/action'
-import { ProductGeometryOutputSelect } from '../../products/_components/product-geometry-output-select'
-import { ProductOutputTimeSelect } from '../../products/_components/product-output-time-select'
+import { ProductGeometryOutputSelect } from '../../products/_components/product-run-geometry-output-select'
 import { ProductRunSelect } from '../../products/_components/product-run-select'
+import { ProductOutputTimeSelect } from '../../products/_components/product-run-time-select'
+import { ProductRunVariablesSelect } from '../../products/_components/product-run-variables-select'
 import { ProductSelect } from '../../products/_components/product-select'
-import { VariablesSelect } from '../../variables/_components/variables-select'
+import { ProductListItem } from '../../products/_hooks'
 import { ChartRenderer } from './chart-renderer'
-import { ProductDetail, ProductListItem } from '../../products/_hooks'
 
 const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
   { value: 'timePoint', label: 'Time' },
@@ -464,7 +464,7 @@ export const ChartFormDialog = ({
                   return (
                     <FormItem>
                       {isMultiple ? (
-                        <VariablesSelect
+                        <ProductRunVariablesSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
                           placeholder={'All Variables'}
@@ -472,7 +472,7 @@ export const ChartFormDialog = ({
                           onSelect={(value) => field.onChange(value)}
                         />
                       ) : (
-                        <VariablesSelect
+                        <ProductRunVariablesSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value?.[0] ?? null}
                           onSelect={(value) =>
@@ -493,7 +493,7 @@ export const ChartFormDialog = ({
                 name={'variableId'}
                 render={({ field }) => (
                   <FormItem>
-                    <VariablesSelect
+                    <ProductRunVariablesSelect
                       productRunId={form.getValues('productRunId')}
                       value={field.value ?? null}
                       onSelect={(value) => field.onChange(value)}

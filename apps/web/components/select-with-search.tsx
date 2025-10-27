@@ -18,10 +18,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@repo/ui/components/ui/popover'
+import { useDebounceCallback } from 'usehooks-ts'
 
 export type SelectWithSearchProps = {
   options?: { id: string; name?: string }[]
-  onSearch: (value: string | null) => void
+  onSearch?: (value: string | undefined) => void
   placeholder?: string
   allowUndefined?: boolean
   className?: string
@@ -62,6 +63,8 @@ export function SelectWithSearch({
 
   const selectedValues = props.multiple ? props.value : [props.value]
 
+  const debouncedOnSearch = useDebounceCallback(onSearch ?? (() => {}), 500)
+
   return (
     <Popover open={openProp ?? open} onOpenChange={setOpenProp ?? setOpen}>
       <PopoverTrigger asChild>
@@ -93,11 +96,11 @@ export function SelectWithSearch({
           className,
         )}
       >
-        <Command className="w-full">
+        <Command className="w-full" shouldFilter={!onSearch}>
           <CommandInput
             placeholder={placeholder}
             className="h-9"
-            onValueChange={onSearch}
+            onValueChange={debouncedOnSearch}
           />
           <CommandList>
             <CommandEmpty>{noResult ?? <EmptyResult />}</CommandEmpty>

@@ -8,7 +8,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/ui/components/ui/form'
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
@@ -16,8 +15,9 @@ import Pagination from '~/components/pagination'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/crud-table'
-import { useDatasetRuns } from '../../../datasets/_hooks'
-import { useGeometriesRuns } from '../../../geometries/_hooks'
+import { SearchInput } from '../../../../../components/search-input'
+import { DatasetRunSelect } from '../../../datasets/_components/dataset-run-select'
+import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
 import { VariableButtons } from '../../../variables/_components/variable-button'
 import { ProductButton } from '../../_components/product-button'
 import { ProductRunButton } from '../../_components/product-run-button'
@@ -37,8 +37,6 @@ const ProductRunFeature = () => {
   const productLink = useProductRunLink()
 
   const { data: product } = useProduct()
-  const { data: datasetRuns } = useDatasetRuns(product?.dataset.id)
-  const { data: geometriesRuns } = useGeometriesRuns(product?.geometries.id)
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
@@ -100,12 +98,10 @@ const ProductRunFeature = () => {
               name="datasetRunId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dataset Run</FormLabel>
-                  <SelectWithSearch
-                    options={datasetRuns?.data}
+                  <DatasetRunSelect
+                    datasetId={product?.dataset.id}
                     value={field.value}
-                    onSelect={field.onChange}
-                    onSearch={() => {}}
+                    onChange={field.onChange}
                   />
                   <FormMessage />
                 </FormItem>
@@ -116,12 +112,10 @@ const ProductRunFeature = () => {
               name="geometriesRunId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Geometries Run</FormLabel>
-                  <SelectWithSearch
-                    options={geometriesRuns?.data}
+                  <GeometriesRunSelect
+                    geometriesId={product?.geometries.id}
                     value={field.value}
-                    onSelect={field.onChange}
-                    onSearch={() => {}}
+                    onChange={field.onChange}
                   />
                   <FormMessage />
                 </FormItem>
@@ -131,7 +125,12 @@ const ProductRunFeature = () => {
           </CrudFormDialog>
         )}
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search product runs"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
