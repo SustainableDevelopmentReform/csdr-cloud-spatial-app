@@ -61,7 +61,7 @@ const queryKeys = {
   variableAll: ['variable'] as const,
   variableDetail: (variableId: string | undefined) =>
     [...queryKeys.variableAll, variableId] as const,
-  variableList: (query: z.infer<typeof variableQuerySchema>) =>
+  variableList: (query: z.infer<typeof variableQuerySchema> | undefined) =>
     [...queryKeys.variableAll, { query }] as const,
   variableCategoryAll: ['variableCategory'] as const,
   variableCategoryDetail: (variableCategoryId: string | undefined) =>
@@ -81,14 +81,21 @@ const useVariableParams = (
   }
 }
 
-export const useVariables = () => {
+export const useVariables = (
+  _query?: z.infer<typeof variableQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
-  const { query, setSearchParams } =
-    useQueryWithSearchParams(variableQuerySchema)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    variableQuerySchema,
+    _query,
+    useSearchParams,
+  )
 
   const { data } = useQuery({
     queryKey: queryKeys.variableList(query),
     queryFn: async () => {
+      if (!query) return null
       const res = client.api.v0.variable.$get({
         query,
       })

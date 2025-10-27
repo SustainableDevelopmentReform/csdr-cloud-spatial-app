@@ -20,7 +20,7 @@ import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
 import { SearchInput } from '../../../components/search-input'
 
 const DatasetFeature = () => {
-  const { data, query, setSearchParams } = useDatasets()
+  const { data, query, setSearchParams } = useDatasets(undefined, true)
   const createDataset = useCreateDataset()
 
   const datasetLink = useDatasetLink()

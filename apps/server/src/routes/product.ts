@@ -252,8 +252,8 @@ const app = createOpenAPIApp()
 
       const data = await db.query.productRun.findMany({
         ...baseProductRunQuery,
-        where: and(query.where, ...filters),
         ...query,
+        where: and(query.where, ...filters),
       })
 
       return generateJsonResponse(

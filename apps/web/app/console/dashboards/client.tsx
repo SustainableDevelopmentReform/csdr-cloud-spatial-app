@@ -13,7 +13,7 @@ import { DashboardButton } from './_components/dashboard-button'
 import { SearchInput } from '../../../components/search-input'
 
 const DashboardFeature = () => {
-  const { data, query, setSearchParams } = useDashboards()
+  const { data, query, setSearchParams } = useDashboards(undefined, true)
   const createDashboard = useCreateDashboard()
 
   const dashboardLink = useDashboardLink()

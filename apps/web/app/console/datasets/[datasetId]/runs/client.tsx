@@ -24,7 +24,11 @@ const columnHelper = createColumnHelper<DatasetRunListItem>()
 
 const DatasetRunFeature = () => {
   const { data: dataset } = useDataset()
-  const { data, query, setSearchParams } = useDatasetRuns()
+  const { data, query, setSearchParams } = useDatasetRuns(
+    undefined,
+    undefined,
+    true,
+  )
   const createDatasetRun = useCreateDatasetRun()
   const datasetLink = useDatasetRunLink()
 
@@ -43,7 +47,7 @@ const DatasetRunFeature = () => {
   useEffect(() => {
     if (!dataset) return
     form.setValue('datasetId', dataset.id)
-  }, [dataset])
+  }, [dataset, form])
 
   return (
     <div>

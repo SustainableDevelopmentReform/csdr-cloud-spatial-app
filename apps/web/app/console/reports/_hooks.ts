@@ -52,10 +52,17 @@ const useReportParams = (_reportId?: string) => {
   }
 }
 
-export const useReports = () => {
+export const useReports = (
+  _query?: z.infer<typeof reportQuerySchema>,
+  useSearchParams?: boolean,
+) => {
   const client = useApiClient()
 
-  const { query, setSearchParams } = useQueryWithSearchParams(reportQuerySchema)
+  const { query, setSearchParams } = useQueryWithSearchParams(
+    reportQuerySchema,
+    _query,
+    useSearchParams,
+  )
 
   const { data } = useQuery({
     queryKey: queryKeys.reportList(query),

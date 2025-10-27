@@ -91,7 +91,7 @@ const columns = [
 ] as ColumnDef<ProductListItem>[]
 
 const ProductFeature = () => {
-  const { data, query, setSearchParams, filters } = useProducts()
+  const { data, query, setSearchParams, filters } = useProducts(undefined, true)
   const productLink = useProductLink()
   const createProduct = useCreateProduct()
   const baseColumns = useMemo(() => {

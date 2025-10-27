@@ -24,7 +24,7 @@ import { createGeometriesSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../components/search-input'
 
 const GeometriesFeature = () => {
-  const { data, query, setSearchParams } = useAllGeometries()
+  const { data, query, setSearchParams } = useAllGeometries(undefined, true)
   const createGeometries = useCreateGeometries()
   const geometriesLink = useGeometriesLink()
 

@@ -32,7 +32,11 @@ import {
 const columnHelper = createColumnHelper<ProductRunListItem>()
 
 const ProductRunFeature = () => {
-  const { data, query, setSearchParams, filters } = useProductRuns()
+  const { data, query, setSearchParams, filters } = useProductRuns(
+    undefined,
+    undefined,
+    true,
+  )
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
 
