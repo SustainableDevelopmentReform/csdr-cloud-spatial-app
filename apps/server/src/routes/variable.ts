@@ -1,8 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
   createVariableSchema,
-  paginatedQuerySchema,
   updateVariableSchema,
+  variableQuerySchema,
 } from '@repo/schemas/crud'
 import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
@@ -24,6 +24,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { parseQuery } from '../utils/query'
 
 export const baseVariableQuery = {
   columns: {
@@ -56,7 +57,7 @@ const app = createOpenAPIApp()
       path: '/',
       middleware: [authMiddleware({ permission: 'read:variable' })],
       request: {
-        query: paginatedQuerySchema,
+        query: variableQuerySchema,
       },
       responses: {
         200: {
@@ -79,21 +80,18 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { page = 1, size = 10 } = c.req.valid('query')
-      const skip = (page - 1) * size
-
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(variable)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        variable,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(variable.createdAt),
+          searchableColumns: [variable.name],
+        },
+      )
 
       const data = await db.query.variable.findMany({
         ...baseVariableQuery,
-        limit: size,
-        offset: skip,
-        orderBy: desc(variable.createdAt),
+        ...query,
       })
 
       return generateJsonResponse(
@@ -101,7 +99,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )

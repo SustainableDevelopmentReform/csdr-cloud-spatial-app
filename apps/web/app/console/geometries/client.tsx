@@ -21,6 +21,7 @@ import {
   useGeometriesLink,
 } from './_hooks'
 import { createGeometriesSchema } from '@repo/schemas/crud'
+import { SearchInput } from '../../../components/search-input'
 
 const GeometriesFeature = () => {
   const { data, query, setSearchParams } = useAllGeometries()
@@ -74,7 +75,12 @@ const GeometriesFeature = () => {
           />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search geometries"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
@@ -83,6 +89,8 @@ const GeometriesFeature = () => {
           itemButton={(geometries) => (
             <GeometriesButton geometries={geometries} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

@@ -189,7 +189,8 @@ export const useCreateDataset = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.datasetAll,
       })
@@ -206,12 +207,13 @@ export const useCreateDatasetRun = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.datasetRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetDetail(data.datasetId),
+        queryKey: queryKeys.datasetDetail(variables.datasetId),
       })
     },
   })

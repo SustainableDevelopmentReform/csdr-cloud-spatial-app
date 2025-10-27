@@ -3,12 +3,12 @@ import {
   EmptyResult,
   SelectWithSearch,
   SelectWithSearchProps,
-} from '@repo/ui/components/ui/select-with-search'
+} from './select-with-search'
 import { UseMutationResult } from '@tanstack/react-query'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 import { useState } from 'react'
 
-interface SelectWithSearchWithCreateProps extends SelectWithSearchProps {
+type SelectWithSearchWithCreateProps = SelectWithSearchProps & {
   entityName: string
   createMutation?: UseMutationResult<
     { id: string } | undefined,

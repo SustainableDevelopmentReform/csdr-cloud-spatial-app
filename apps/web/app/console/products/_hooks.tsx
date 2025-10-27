@@ -53,6 +53,8 @@ export type ProductOutputListItem = NonNullable<
     200
   >['data']
 >['data'][0]
+
+// Note we parse dates in the hook - so we use the return type of the hook
 export type ProductOutputExportListItem = NonNullable<
   ReturnType<typeof useProductOutputsExport>['data']
 >['data'][0]
@@ -390,7 +392,8 @@ export const useCreateProduct = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.productAll,
       })
@@ -407,11 +410,13 @@ export const useCreateProductRun = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.productRunAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productDetail(data.productId),
+        queryKey: queryKeys.productDetail(variables.productId),
       })
     },
   })
@@ -426,14 +431,16 @@ export const useCreateProductRunOutput = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
+    },
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.productOutputAll,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunDetail(data.productRunId),
+        queryKey: queryKeys.productRunDetail(variables.productRunId),
       })
       // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productDetail(data.productRun.productId),
+      //   queryKey: queryKeys.productDetail(variables.productRun.productId),
       // })
     },
   })

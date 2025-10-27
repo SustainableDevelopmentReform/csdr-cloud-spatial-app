@@ -2,6 +2,10 @@ import { is, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { PgTimestampString, type SelectedFields } from 'drizzle-orm/pg-core'
 import { type SelectResultFields } from 'drizzle-orm/query-builders/select.types'
 
+import type { dataset, datasetRun } from '../schemas/db'
+
+export type CSDRTables = typeof dataset | typeof datasetRun
+
 export function jsonBuildObject<T extends SelectedFields>(
   shape: T,
 ): SQL<SelectResultFields<T>> {

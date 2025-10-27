@@ -18,6 +18,7 @@ import {
   useDatasetRuns,
 } from '../../_hooks'
 import { createDatasetRunSchema } from '@repo/schemas/crud'
+import { SearchInput } from '../../../../../components/search-input'
 
 const columnHelper = createColumnHelper<DatasetRunListItem>()
 
@@ -58,7 +59,12 @@ const DatasetRunFeature = () => {
           <CrudFormRunFields form={form} />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search dataset runs"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
@@ -68,6 +74,8 @@ const DatasetRunFeature = () => {
           itemButton={(datasetRun) => (
             <DatasetRunButton datasetRun={datasetRun} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

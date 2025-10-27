@@ -5,7 +5,7 @@ import {
   productOutputQuerySchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
-import { and, avg, count, desc, eq, max, min, SQL } from 'drizzle-orm'
+import { and, avg, count, desc, eq, inArray, max, min, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -46,6 +46,7 @@ import {
   productOutputExportSchema,
 } from './productOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
+import { parseQuery } from '../utils/query'
 
 export const baseProductRunOutputSummaryQuery = {
   columns: {
@@ -236,15 +237,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const {
-        page = 1,
-        size = 10,
-        variableId,
-        geometryOutputId,
-        timePoint,
-      } = c.req.valid('query')
-      const skip = (page - 1) * size
+      const { variableId, geometryOutputId, timePoint } = c.req.valid('query')
 
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        productOutput,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(productOutput.createdAt),
+          searchableColumns: [productOutput.name],
+        },
+      )
       const filters: SQL[] = [eq(productOutput.productRunId, id)]
 
       if (variableId) {
@@ -257,18 +259,10 @@ const app = createOpenAPIApp()
         filters.push(eq(productOutput.timePoint, new Date(timePoint)))
       }
 
-      const totalCount = await db
-        .select({ count: count() })
-        .from(productOutput)
-        .where(and(...filters))
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
-
       const data = await db.query.productOutput.findMany({
         ...baseProductOutputQuery,
-        where: and(...filters),
-        limit: size,
-        offset: skip,
-        orderBy: desc(productOutput.createdAt),
+        ...query,
+        where: and(query.where, ...filters),
       })
 
       return generateJsonResponse(
@@ -276,7 +270,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )
@@ -317,13 +311,26 @@ const app = createOpenAPIApp()
       const filters: SQL[] = [eq(productOutput.productRunId, id)]
 
       if (variableId) {
-        filters.push(eq(productOutput.variableId, variableId))
+        const variableIds = Array.isArray(variableId)
+          ? variableId
+          : [variableId]
+        filters.push(inArray(productOutput.variableId, variableIds))
       }
       if (geometryOutputId) {
-        filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
+        const geometryOutputIds = Array.isArray(geometryOutputId)
+          ? geometryOutputId
+          : [geometryOutputId]
+        filters.push(inArray(productOutput.geometryOutputId, geometryOutputIds))
       }
+
       if (timePoint) {
-        filters.push(eq(productOutput.timePoint, new Date(timePoint)))
+        const timePoints = Array.isArray(timePoint) ? timePoint : [timePoint]
+        filters.push(
+          inArray(
+            productOutput.timePoint,
+            timePoints.map((timePoint) => new Date(timePoint)),
+          ),
+        )
       }
 
       const data = await db.query.productOutput.findMany({
@@ -334,6 +341,18 @@ const app = createOpenAPIApp()
           geometryOutputId: true,
           value: true,
         },
+        with: {
+          variable: {
+            columns: {
+              name: true,
+            },
+          },
+          geometryOutput: {
+            columns: {
+              name: true,
+            },
+          },
+        },
         where: and(...filters),
         orderBy: () => [
           desc(productOutput.variableId),
@@ -342,10 +361,16 @@ const app = createOpenAPIApp()
         ],
       })
 
+      const dataWithVariableName = data.map((output) => ({
+        ...output,
+        variableName: output.variable.name,
+        geometryOutputName: output.geometryOutput.name,
+      }))
+
       return generateJsonResponse(
         c,
         {
-          data,
+          data: dataWithVariableName,
         },
         200,
       )

@@ -11,24 +11,21 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/pagination'
 import CrudFormDialog from '../../../../../components/crud-form-dialog'
 import BaseCrudTable from '../../../../../components/crud-table'
+import { SearchInput } from '../../../../../components/search-input'
 import { formatDateTime } from '../../../../../utils/date'
 import { DatasetButton } from '../../../datasets/_components/dataset-button'
 import { DatasetRunButton } from '../../../datasets/_components/dataset-run-button'
 import { GeometriesButton } from '../../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../../geometries/_components/geometries-run-button'
 import { GeometryOutputButton } from '../../../geometries/_components/geometry-output-button'
-import {
-  useGeometriesLink,
-  useGeometryOutputs,
-} from '../../../geometries/_hooks'
 import { ProductOutputButton } from '../../../products/_components/product-output-button'
+import { ProductGeometryOutputSelect } from '../../../products/_components/product-run-geometry-output-select'
 import {
   ProductOutputListItem,
   useCreateProductRunOutput,
@@ -37,7 +34,7 @@ import {
   useProductRun,
 } from '../../../products/_hooks'
 import { VariableButton } from '../../../variables/_components/variable-button'
-import { useVariables } from '../../../variables/_hooks'
+import { VariablesSelect } from '../../../variables/_components/variables-select'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -46,11 +43,7 @@ const ProductOutputFeature = () => {
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
   const productLink = useProductOutputLink()
-  const geometriesLink = useGeometriesLink()
-  const { data: geometryOutputs } = useGeometryOutputs(
-    productRun?.geometriesRun.id,
-  )
-  const { data: variables } = useVariables()
+
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
   }, [])
@@ -122,7 +115,7 @@ const ProductOutputFeature = () => {
           size: 120,
         }),
       ] as ColumnDef<ProductOutputListItem>[],
-    [geometriesLink],
+    [],
   )
 
   const form = useForm({
@@ -133,7 +126,7 @@ const ProductOutputFeature = () => {
     if (productRun) {
       form.setValue('productRunId', productRun.id)
     }
-  }, [productRun])
+  }, [form, productRun])
 
   return (
     <div>
@@ -151,12 +144,10 @@ const ProductOutputFeature = () => {
             name="geometryOutputId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Geometry Output</FormLabel>
-                <SelectWithSearch
-                  options={geometryOutputs?.data}
+                <ProductGeometryOutputSelect
+                  productRunId={productRun?.id}
                   value={field.value}
                   onSelect={field.onChange}
-                  onSearch={() => {}}
                 />
                 <FormMessage />
               </FormItem>
@@ -167,12 +158,9 @@ const ProductOutputFeature = () => {
             name="variableId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Variable</FormLabel>
-                <SelectWithSearch
-                  options={variables?.data}
+                <VariablesSelect
                   value={field.value}
                   onSelect={field.onChange}
-                  onSearch={() => {}}
                 />
                 <FormMessage />
               </FormItem>
@@ -210,7 +198,12 @@ const ProductOutputFeature = () => {
           />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search product outputs"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
@@ -220,6 +213,8 @@ const ProductOutputFeature = () => {
           itemButton={(productOutput) => (
             <ProductOutputButton productOutput={productOutput} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

@@ -178,7 +178,8 @@ export const useCreateVariable = () => {
         json: data,
       })
       await unwrapResponse(res, 201)
-
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.variableAll,
       })
@@ -195,12 +196,12 @@ export const useCreateVariableCategory = () => {
         json: data,
       })
       const variableCategory = await unwrapResponse(res, 201)
-
+      return variableCategory.data
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.variableCategoryAll,
       })
-
-      return variableCategory.data
     },
   })
 }

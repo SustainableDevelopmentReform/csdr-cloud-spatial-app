@@ -35,6 +35,7 @@ import {
   fullProductRunQuery,
   fullProductRunSchema,
 } from './productRun'
+import { parseQuery } from '../utils/query'
 
 const baseProductQuery = {
   columns: {
@@ -111,13 +112,15 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const {
-        page = 1,
-        size = 10,
-        datasetId,
-        geometriesId,
-      } = c.req.valid('query')
-      const skip = (page - 1) * size
+      const { datasetId, geometriesId } = c.req.valid('query')
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        product,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(product.createdAt),
+          searchableColumns: [product.name],
+        },
+      )
 
       const filters: SQL[] = []
       if (datasetId) {
@@ -127,22 +130,10 @@ const app = createOpenAPIApp()
         filters.push(eq(product.geometriesId, geometriesId))
       }
 
-      // Get total count
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(product)
-        .where(and(...filters))
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
-
-      // Get products with all related data using Drizzle query API
       const data = await db.query.product.findMany({
         ...baseProductQuery,
-        where: and(...filters),
-        limit: size,
-        offset: skip,
-        orderBy: desc(product.createdAt),
+        ...query,
+        where: and(query.where, ...filters),
       })
 
       return generateJsonResponse(
@@ -150,7 +141,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )
@@ -237,20 +228,16 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const productId = id === '*' ? undefined : id
-      const {
-        page = 1,
-        size = 10,
-        datasetRunId,
-        geometriesRunId,
-      } = c.req.valid('query')
-      const skip = (page - 1) * size
+      const { datasetRunId, geometriesRunId } = c.req.valid('query')
 
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(productRun)
-      const pageCount = Math.ceil(totalCount[0]!.count / size)
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        productRun,
+        c.req.valid('query'),
+        {
+          defaultOrderBy: desc(productRun.createdAt),
+          searchableColumns: [productRun.name],
+        },
+      )
 
       const filters: SQL[] = []
       if (productId) {
@@ -265,10 +252,8 @@ const app = createOpenAPIApp()
 
       const data = await db.query.productRun.findMany({
         ...baseProductRunQuery,
-        where: and(...filters),
-        limit: size,
-        offset: skip,
-        orderBy: desc(productRun.createdAt),
+        where: and(query.where, ...filters),
+        ...query,
       })
 
       return generateJsonResponse(
@@ -276,7 +261,7 @@ const app = createOpenAPIApp()
         {
           pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )

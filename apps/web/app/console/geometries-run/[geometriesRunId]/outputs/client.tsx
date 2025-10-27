@@ -26,6 +26,7 @@ import {
   useGeometryOutputLink,
   useGeometryOutputs,
 } from '../../../geometries/_hooks'
+import { SearchInput } from '../../../../../components/search-input'
 
 const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
@@ -99,7 +100,12 @@ const GeometryOutputFeature = () => {
           />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search geometry outputs"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
@@ -109,6 +115,8 @@ const GeometryOutputFeature = () => {
           itemButton={(geometryOutput) => (
             <GeometryOutputButton geometryOutput={geometryOutput} />
           )}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

@@ -28,6 +28,7 @@ import {
   VariableListItem,
 } from './_hooks'
 import { createVariableSchema } from '@repo/schemas/crud'
+import { SearchInput } from '../../../components/search-input'
 
 const VariableFeature = () => {
   const { data, query, setSearchParams } = useVariables()
@@ -112,7 +113,12 @@ const VariableFeature = () => {
           />
         </CrudFormDialog>
       </div>
-      <div className="mt-8">
+      <div>
+        <SearchInput
+          placeholder="Search variables"
+          value={query?.search ?? ''}
+          onChange={(e) => setSearchParams({ search: e.target.value })}
+        />
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}
@@ -120,6 +126,8 @@ const VariableFeature = () => {
           title="Variable"
           itemLink={variableLink}
           itemButton={(variable) => <VariableButton variable={variable} />}
+          query={query}
+          onSortChange={setSearchParams}
         />
         <Pagination
           className="justify-end mt-4"

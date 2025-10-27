@@ -6,6 +6,7 @@ interface Props<T> {
 }
 
 const Table = <T,>({ table }: Props<T>) => {
+  const rows = table.getRowModel().rows
   return (
     <table className="w-full">
       <thead>
@@ -27,7 +28,17 @@ const Table = <T,>({ table }: Props<T>) => {
         ))}
       </thead>
       <tbody>
-        {table.getRowModel().rows.map((row) => (
+        {rows.length === 0 && (
+          <tr>
+            <td
+              colSpan={table.getAllColumns().length}
+              className="text-center py-4"
+            >
+              No items found
+            </td>
+          </tr>
+        )}
+        {rows.map((row) => (
           <tr key={row.id}>
             {row.getVisibleCells().map((cell) => (
               <td
