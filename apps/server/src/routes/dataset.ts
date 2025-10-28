@@ -1,9 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, count, desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -59,6 +58,41 @@ export const fullDatasetSchema = baseDatasetSchema
     mainRun: baseDatasetRunSchema.nullable(),
   })
   .openapi('DatasetFull')
+
+const datasetNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get dataset',
+    description: "Dataset you're looking for is not found",
+  })
+
+const fetchFullDataset = async (id: string) => {
+  const record = await db.query.dataset.findFirst({
+    where: (dataset, { eq }) => eq(dataset.id, id),
+    ...fullDatasetQuery,
+  })
+
+  if (!record) {
+    return null
+  }
+
+  const [runCount, productCount] = await Promise.all([
+    db.$count(datasetRun, eq(datasetRun.datasetId, id)),
+    db.$count(product, eq(product.datasetId, id)),
+  ])
+
+  return { ...record, runCount, productCount }
+}
+
+const fetchFullDatasetOrThrow = async (id: string) => {
+  const fullDataset = await fetchFullDataset(id)
+
+  if (!fullDataset) {
+    throw datasetNotFoundError()
+  }
+
+  return fullDataset
+}
 
 const app = createOpenAPIApp()
   .openapi(
@@ -148,23 +182,9 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.dataset.findFirst({
-        where: (dataset, { eq }) => eq(dataset.id, id),
-        ...fullDatasetQuery,
-      })
+      const record = await fetchFullDatasetOrThrow(id)
 
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get dataset',
-          description: "Dataset you're looking for is not found",
-        })
-      }
-
-      const runCount = await db.$count(datasetRun, eq(datasetRun.datasetId, id))
-      const productCount = await db.$count(product, eq(product.datasetId, id))
-
-      return generateJsonResponse(c, { ...record, runCount, productCount }, 200)
+      return generateJsonResponse(c, record, 200)
     },
   )
   .openapi(
@@ -256,7 +276,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a dataset.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseDatasetSchema.optional()),
+              schema: createResponseSchema(fullDatasetSchema),
             },
           },
         },
@@ -272,7 +292,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newDataset, 201, 'Dataset created')
+      if (!newDataset) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create dataset',
+          description: 'Dataset insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullDatasetOrThrow(newDataset.id)
+
+      return generateJsonResponse(c, record, 201, 'Dataset created')
     },
   )
   .openapi(
@@ -301,7 +331,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a dataset.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseDatasetSchema.optional()),
+              schema: createResponseSchema(fullDatasetSchema),
             },
           },
         },
@@ -321,7 +351,13 @@ const app = createOpenAPIApp()
         .where(eq(dataset.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Dataset updated')
+      if (!record) {
+        throw datasetNotFoundError()
+      }
+
+      const fullRecord = await fetchFullDatasetOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Dataset updated')
     },
   )
   .openapi(
@@ -342,7 +378,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a dataset.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullDatasetSchema),
             },
           },
         },
@@ -354,9 +390,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullDatasetOrThrow(id)
+
       await db.delete(dataset).where(eq(dataset.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Dataset deleted')
+      return generateJsonResponse(c, record, 200, 'Dataset deleted')
     },
   )
 

@@ -4,11 +4,10 @@ import {
   updateVariableSchema,
   variableQuerySchema,
 } from '@repo/schemas/crud'
-import { count, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -48,6 +47,32 @@ export const baseVariableSchema = baseResourceSchema
     categoryId: z.string().nullable(),
   })
   .openapi('VariableSchemaBase')
+
+const variableNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get variable',
+    description: "variable you're looking for is not found",
+  })
+
+const fetchFullVariable = async (id: string) => {
+  const record = await db.query.variable.findFirst({
+    where: (variable, { eq }) => eq(variable.id, id),
+    ...baseVariableQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullVariableOrThrow = async (id: string) => {
+  const record = await fetchFullVariable(id)
+
+  if (!record) {
+    throw variableNotFoundError()
+  }
+
+  return record
+}
 
 const app = createOpenAPIApp()
   .openapi(
@@ -132,18 +157,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.variable.findFirst({
-        where: (variable, { eq }) => eq(variable.id, id),
-        ...baseVariableQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get variable',
-          description: "variable you're looking for is not found",
-        })
-      }
+      const record = await fetchFullVariableOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -170,7 +184,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a variable.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(baseVariableSchema),
             },
           },
         },
@@ -190,7 +204,17 @@ const app = createOpenAPIApp()
         .values(createPayload(data))
         .returning()
 
-      return generateJsonResponse(c, newVariable, 201, 'Variable created')
+      if (!newVariable) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create variable',
+          description: 'Variable insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullVariableOrThrow(newVariable.id)
+
+      return generateJsonResponse(c, record, 201, 'Variable created')
     },
   )
 
@@ -216,7 +240,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a variable.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(baseVariableSchema),
             },
           },
         },
@@ -242,7 +266,13 @@ const app = createOpenAPIApp()
         .where(eq(variable.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Variable updated')
+      if (!record) {
+        throw variableNotFoundError()
+      }
+
+      const fullRecord = await fetchFullVariableOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Variable updated')
     },
   )
 
@@ -260,7 +290,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a variable.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(baseVariableSchema),
             },
           },
         },
@@ -272,9 +302,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullVariableOrThrow(id)
+
       await db.delete(variable).where(eq(variable.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Variable deleted')
+      return generateJsonResponse(c, record, 200, 'Variable deleted')
     },
   )
 

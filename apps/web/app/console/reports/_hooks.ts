@@ -35,12 +35,12 @@ const reportParamsSchema = z.object({
   reportId: z.string().optional(),
 })
 
-const queryKeys = {
-  reportAll: ['report'] as const,
-  reportDetail: (reportId: string | undefined) =>
-    [...queryKeys.reportAll, reportId] as const,
-  reportList: (query: z.infer<typeof reportQuerySchema> | undefined) =>
-    [...queryKeys.reportAll, { query }] as const,
+const reportQueryKeys = {
+  all: ['report'] as const,
+  list: (query: z.infer<typeof reportQuerySchema> | undefined) =>
+    [...reportQueryKeys.all, 'list', { query }] as const,
+  detail: (reportId: string | undefined) =>
+    [...reportQueryKeys.all, 'detail', reportId] as const,
 }
 
 const useReportParams = (_reportId?: string) => {
@@ -65,7 +65,7 @@ export const useReports = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.reportList(query),
+    queryKey: reportQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
       const res = client.api.v0.report.$get({
@@ -77,6 +77,7 @@ export const useReports = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!query,
   })
 
   return {
@@ -90,7 +91,7 @@ export const useReport = (id?: string) => {
   const { reportId } = useReportParams(id)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.reportDetail(reportId),
+    queryKey: reportQueryKeys.detail(reportId),
     queryFn: async () => {
       if (!reportId) return null
       const res = client.api.v0.report[':id'].$get({
@@ -104,6 +105,7 @@ export const useReport = (id?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!reportId,
   })
 }
 
@@ -119,7 +121,7 @@ export const useCreateReport = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.reportAll,
+        queryKey: reportQueryKeys.all,
       })
     },
   })
@@ -140,7 +142,7 @@ export const useUpdateReport = (_reportId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.reportAll,
+        queryKey: reportQueryKeys.all,
       })
     },
   })
@@ -166,8 +168,13 @@ export const useDeleteReport = (
       return await unwrapResponse(res)
     },
     onSuccess: () => {
+      if (reportId) {
+        queryClient.removeQueries({
+          queryKey: reportQueryKeys.detail(reportId),
+        })
+      }
       queryClient.invalidateQueries({
-        queryKey: queryKeys.reportAll,
+        queryKey: reportQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)

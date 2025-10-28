@@ -8,7 +8,6 @@ import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -40,6 +39,32 @@ export const baseReportSchema = baseResourceSchema.openapi('ReportSchemaBase')
 const fullReportSchema = baseReportSchema
   .extend({ content: z.any() })
   .openapi('ReportSchemaFull')
+
+const reportNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get report',
+    description: "report you're looking for is not found",
+  })
+
+const fetchFullReport = async (id: string) => {
+  const record = await db.query.report.findFirst({
+    where: (report, { eq }) => eq(report.id, id),
+    ...fullReportQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullReportOrThrow = async (id: string) => {
+  const record = await fetchFullReport(id)
+
+  if (!record) {
+    throw reportNotFoundError()
+  }
+
+  return record
+}
 
 const app = createOpenAPIApp()
   .openapi(
@@ -124,18 +149,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.report.findFirst({
-        where: (report, { eq }) => eq(report.id, id),
-        ...fullReportQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get report',
-          description: "report you're looking for is not found",
-        })
-      }
+      const record = await fetchFullReportOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -162,7 +176,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a report.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullReportSchema),
             },
           },
         },
@@ -181,7 +195,17 @@ const app = createOpenAPIApp()
         .values(createPayload(data))
         .returning()
 
-      return generateJsonResponse(c, newReport, 201, 'Report created')
+      if (!newReport) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create report',
+          description: 'Report insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullReportOrThrow(newReport.id)
+
+      return generateJsonResponse(c, record, 201, 'Report created')
     },
   )
 
@@ -207,7 +231,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a report.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullReportSchema),
             },
           },
         },
@@ -230,7 +254,13 @@ const app = createOpenAPIApp()
         .where(eq(report.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Report updated')
+      if (!record) {
+        throw reportNotFoundError()
+      }
+
+      const fullRecord = await fetchFullReportOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Report updated')
     },
   )
 
@@ -248,7 +278,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a report.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullReportSchema),
             },
           },
         },
@@ -260,9 +290,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullReportOrThrow(id)
+
       await db.delete(report).where(eq(report.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Report deleted')
+      return generateJsonResponse(c, record, 200, 'Report deleted')
     },
   )
 

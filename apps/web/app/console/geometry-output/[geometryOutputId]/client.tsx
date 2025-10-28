@@ -97,11 +97,7 @@ const GeometriesRunDetails = () => {
           <Textarea
             className={'font-mono bg-gray-100'}
             disabled={true}
-            value={
-              geometryOutput?.properties === 'object'
-                ? JSON.stringify(geometryOutput?.properties, null, 2)
-                : geometryOutput?.properties
-            }
+            value={JSON.stringify(geometryOutput?.properties, null, 2)}
           />
           <FormMessage />
         </FormItem>

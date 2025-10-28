@@ -55,17 +55,24 @@ const datasetParamsSchema = z.object({
   datasetRunId: z.string().optional(),
 })
 
-const queryKeys = {
-  datasetAll: ['dataset'] as const,
-  datasetDetail: (datasetId: string | undefined) =>
-    [...queryKeys.datasetAll, datasetId] as const,
-  datasetList: (query: z.infer<typeof datasetQuerySchema> | undefined) =>
-    [...queryKeys.datasetAll, { query }] as const,
-  datasetRunAll: ['datasetRun'] as const,
-  datasetRunDetail: (datasetRunId: string | undefined) =>
-    [...queryKeys.datasetRunAll, datasetRunId] as const,
-  datasetRunList: (query: z.infer<typeof datasetRunQuerySchema> | undefined) =>
-    [...queryKeys.datasetRunAll, { query }] as const,
+export const datasetQueryKeys = {
+  all: ['dataset'] as const,
+  list: (query: z.infer<typeof datasetQuerySchema> | undefined) =>
+    [...datasetQueryKeys.all, 'list', { query }] as const,
+  detail: (datasetId: string | undefined) =>
+    [...datasetQueryKeys.all, 'detail', datasetId] as const,
+}
+
+export const datasetRunQueryKeys = {
+  all: ['datasetRun'] as const,
+  scope: (datasetId: string | undefined) =>
+    [...datasetRunQueryKeys.all, datasetId] as const,
+  list: (
+    datasetId: string | undefined,
+    query: z.infer<typeof datasetRunQuerySchema> | undefined,
+  ) => [...datasetRunQueryKeys.scope(datasetId), 'list', { query }] as const,
+  detail: (datasetRunId: string | undefined) =>
+    [...datasetRunQueryKeys.all, 'detail', datasetRunId] as const,
 }
 
 const useDatasetParams = (_datasetId?: string, _datasetRunId?: string) => {
@@ -91,7 +98,7 @@ export const useDatasets = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.datasetList(query),
+    queryKey: datasetQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
       const res = client.api.v0.dataset.$get({
@@ -103,6 +110,7 @@ export const useDatasets = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!query,
   })
 
   return {
@@ -126,7 +134,7 @@ export const useDatasetRuns = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.datasetRunList(query),
+    queryKey: datasetRunQueryKeys.list(datasetId, query),
     queryFn: async () => {
       if (!datasetId || !query) return null
       const res = client.api.v0['dataset'][':id']['runs'].$get({
@@ -141,6 +149,7 @@ export const useDatasetRuns = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!datasetId && !!query,
   })
 
   return {
@@ -154,7 +163,7 @@ export const useDataset = (id?: string) => {
   const { datasetId } = useDatasetParams(id)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.datasetDetail(datasetId),
+    queryKey: datasetQueryKeys.detail(datasetId),
     queryFn: async () => {
       if (!datasetId) return null
       const res = client.api.v0.dataset[':id'].$get({
@@ -168,6 +177,7 @@ export const useDataset = (id?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!datasetId,
   })
 }
 
@@ -175,7 +185,7 @@ export const useDatasetRun = (_datasetRunId?: string) => {
   const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.datasetRunDetail(datasetRunId),
+    queryKey: datasetRunQueryKeys.detail(datasetRunId),
     queryFn: async () => {
       if (!datasetRunId) return null
       const res = client.api.v0['dataset-run'][':id'].$get({
@@ -189,6 +199,7 @@ export const useDatasetRun = (_datasetRunId?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!datasetRunId,
   })
 }
 
@@ -204,7 +215,7 @@ export const useCreateDataset = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetAll,
+        queryKey: datasetQueryKeys.all,
       })
     },
   })
@@ -222,10 +233,10 @@ export const useCreateDatasetRun = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetRunAll,
+        queryKey: datasetRunQueryKeys.scope(variables.datasetId),
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetDetail(variables.datasetId),
+        queryKey: datasetQueryKeys.detail(variables.datasetId),
       })
     },
   })
@@ -246,14 +257,14 @@ export const useUpdateDataset = (_datasetId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetAll,
+        queryKey: datasetQueryKeys.all,
       })
     },
   })
 }
 
 export const useUpdateDatasetRun = (_datasetRunId?: string) => {
-  const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
+  const { datasetId, datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
@@ -267,7 +278,10 @@ export const useUpdateDatasetRun = (_datasetRunId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetRunAll,
+        queryKey: datasetRunQueryKeys.detail(datasetRunId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: datasetRunQueryKeys.scope(datasetId),
       })
     },
   })
@@ -285,11 +299,15 @@ export const useSetDatasetMainRun = (run?: DatasetRunLinkParams | null) => {
       return await unwrapResponse(res)
     },
     onSuccess: () => {
+      if (!run) return
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetRunAll,
+        queryKey: datasetRunQueryKeys.detail(run.id),
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetAll,
+        queryKey: datasetRunQueryKeys.scope(run.dataset?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: datasetQueryKeys.detail(run.dataset?.id),
       })
     },
   })
@@ -315,8 +333,16 @@ export const useDeleteDataset = (
       return await unwrapResponse(res)
     },
     onSuccess: () => {
+      if (datasetId) {
+        queryClient.removeQueries({
+          queryKey: datasetQueryKeys.detail(datasetId),
+        })
+        queryClient.removeQueries({
+          queryKey: datasetRunQueryKeys.scope(datasetId),
+        })
+      }
       queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetAll,
+        queryKey: datasetQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -329,7 +355,7 @@ export const useDeleteDatasetRun = (
   _datasetRunId?: string,
   redirect: string | null = null,
 ) => {
-  const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
+  const { datasetId, datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const queryClient = useQueryClient()
   const router = useRouter()
   const client = useApiClient()
@@ -345,9 +371,19 @@ export const useDeleteDatasetRun = (
       return await unwrapResponse(res)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.datasetRunAll,
-      })
+      if (datasetRunId) {
+        queryClient.removeQueries({
+          queryKey: datasetRunQueryKeys.detail(datasetRunId),
+        })
+      }
+      if (datasetId) {
+        queryClient.invalidateQueries({
+          queryKey: datasetRunQueryKeys.scope(datasetId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: datasetQueryKeys.detail(datasetId),
+        })
+      }
       if (redirect) {
         router.push(redirect)
       }

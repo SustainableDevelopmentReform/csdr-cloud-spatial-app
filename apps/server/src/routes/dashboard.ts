@@ -9,7 +9,6 @@ import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -49,6 +48,32 @@ const fullDashboardSchema = baseDashboardSchema
     content: dashboardContentSchema,
   })
   .openapi('DashboardSchemaFull')
+
+const dashboardNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get dashboard',
+    description: "dashboard you're looking for is not found",
+  })
+
+const fetchFullDashboard = async (id: string) => {
+  const record = await db.query.dashboard.findFirst({
+    where: (dashboard, { eq }) => eq(dashboard.id, id),
+    ...fullDashboardQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullDashboardOrThrow = async (id: string) => {
+  const record = await fetchFullDashboard(id)
+
+  if (!record) {
+    throw dashboardNotFoundError()
+  }
+
+  return record
+}
 
 const app = createOpenAPIApp()
   .openapi(
@@ -133,18 +158,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.dashboard.findFirst({
-        where: (dashboard, { eq }) => eq(dashboard.id, id),
-        ...fullDashboardQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get dashboard',
-          description: "dashboard you're looking for is not found",
-        })
-      }
+      const record = await fetchFullDashboardOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -171,7 +185,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a dashboard.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullDashboardSchema),
             },
           },
         },
@@ -187,7 +201,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newDashboard, 201, 'Dashboard created')
+      if (!newDashboard) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create dashboard',
+          description: 'Dashboard insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullDashboardOrThrow(newDashboard.id)
+
+      return generateJsonResponse(c, record, 201, 'Dashboard created')
     },
   )
 
@@ -213,7 +237,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a dashboard.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(fullDashboardSchema),
             },
           },
         },
@@ -233,7 +257,13 @@ const app = createOpenAPIApp()
         .where(eq(dashboard.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Dashboard updated')
+      if (!record) {
+        throw dashboardNotFoundError()
+      }
+
+      const fullRecord = await fetchFullDashboardOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Dashboard updated')
     },
   )
 
@@ -251,7 +281,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a dashboard.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullDashboardSchema),
             },
           },
         },
@@ -263,9 +293,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullDashboardOrThrow(id)
+
       await db.delete(dashboard).where(eq(dashboard.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Dashboard deleted')
+      return generateJsonResponse(c, record, 200, 'Dashboard deleted')
     },
   )
 

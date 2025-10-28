@@ -1,9 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -97,6 +96,32 @@ export const geometryOutputExportSchema = z
   })
   .openapi('GeometryOutputExportSchema')
 
+const geometryOutputNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get geometryOutput',
+    description: "geometryOutput you're looking for is not found",
+  })
+
+const fetchFullGeometryOutput = async (id: string) => {
+  const record = await db.query.geometryOutput.findFirst({
+    where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
+    ...fullGeometryOutputQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullGeometryOutputOrThrow = async (id: string) => {
+  const record = await fetchFullGeometryOutput(id)
+
+  if (!record) {
+    throw geometryOutputNotFoundError()
+  }
+
+  return record
+}
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -124,18 +149,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.geometryOutput.findFirst({
-        where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
-        ...fullGeometryOutputQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get geometryOutput',
-          description: "geometryOutput you're looking for is not found",
-        })
-      }
+      const record = await fetchFullGeometryOutputOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -162,11 +176,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a geometry output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                fullGeometryOutputSchema
-                  .omit({ geometry: true, geometriesRun: true })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullGeometryOutputSchema),
             },
           },
         },
@@ -192,12 +202,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(
-        c,
-        newGeometryOutput,
-        201,
-        'Geometry output created',
-      )
+      if (!newGeometryOutput) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create geometryOutput',
+          description: 'Geometry output insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullGeometryOutputOrThrow(newGeometryOutput.id)
+
+      return generateJsonResponse(c, record, 201, 'Geometry output created')
     },
   )
   .openapi(
@@ -221,14 +236,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created multiple geometry outputs.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.array(
-                  fullGeometryOutputSchema.omit({
-                    geometry: true,
-                    geometriesRun: true,
-                  }),
-                ),
-              ),
+              schema: createResponseSchema(z.array(fullGeometryOutputSchema)),
             },
           },
         },
@@ -259,9 +267,35 @@ const app = createOpenAPIApp()
         )
         .returning()
 
+      const ids = newGeometryOutputs.map((output) => output.id)
+
+      const fullRecords = ids.length
+        ? await db.query.geometryOutput.findMany({
+            ...fullGeometryOutputQuery,
+            where: inArray(geometryOutput.id, ids),
+          })
+        : []
+
+      const recordMap = new Map(
+        fullRecords.map((record) => [record.id, record]),
+      )
+
+      const orderedRecords = ids.map((id) => {
+        const record = recordMap.get(id)
+        if (!record) {
+          throw new ServerError({
+            statusCode: 500,
+            message: 'Failed to retrieve geometry outputs',
+            description: `Geometry output with ID ${id} not found after creation`,
+          })
+        }
+
+        return record
+      })
+
       return generateJsonResponse(
         c,
-        newGeometryOutputs,
+        orderedRecords,
         201,
         'Geometry output created',
       )
@@ -290,11 +324,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a geometry output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                fullGeometryOutputSchema
-                  .omit({ geometry: true, geometriesRun: true })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullGeometryOutputSchema),
             },
           },
         },
@@ -314,7 +344,13 @@ const app = createOpenAPIApp()
         .where(eq(geometryOutput.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Geometry output updated')
+      if (!record) {
+        throw geometryOutputNotFoundError()
+      }
+
+      const fullRecord = await fetchFullGeometryOutputOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Geometry output updated')
     },
   )
 
@@ -332,7 +368,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a geometry output.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullGeometryOutputSchema),
             },
           },
         },
@@ -344,9 +380,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullGeometryOutputOrThrow(id)
+
       await db.delete(geometryOutput).where(eq(geometryOutput.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Geometry output deleted')
+      return generateJsonResponse(c, record, 200, 'Geometry output deleted')
     },
   )
 
