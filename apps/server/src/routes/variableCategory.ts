@@ -3,7 +3,6 @@ import { count, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -30,6 +29,32 @@ const variableCategoryQuery = {
     },
   },
 } satisfies QueryForTable<'variableCategory'>
+
+const variableCategoryNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get variableCategory',
+    description: "variableCategory you're looking for is not found",
+  })
+
+const fetchFullVariableCategory = async (id: string) => {
+  const record = await db.query.variableCategory.findFirst({
+    where: (variableCategory, { eq }) => eq(variableCategory.id, id),
+    ...variableCategoryQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullVariableCategoryOrThrow = async (id: string) => {
+  const record = await fetchFullVariableCategory(id)
+
+  if (!record) {
+    throw variableCategoryNotFoundError()
+  }
+
+  return record
+}
 
 const app = createOpenAPIApp()
   .openapi(
@@ -109,18 +134,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.variableCategory.findFirst({
-        where: (variableCategory, { eq }) => eq(variableCategory.id, id),
-        ...variableCategoryQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get variableCategory',
-          description: "variableCategory you're looking for is not found",
-        })
-      }
+      const record = await fetchFullVariableCategoryOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -168,12 +182,19 @@ const app = createOpenAPIApp()
         .values({ ...data, id })
         .returning()
 
-      return generateJsonResponse(
-        c,
-        newVariableCategory,
-        201,
-        'Variable category created',
+      if (!newVariableCategory) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create variableCategory',
+          description: 'Variable category insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullVariableCategoryOrThrow(
+        newVariableCategory.id,
       )
+
+      return generateJsonResponse(c, record, 201, 'Variable category created')
     },
   )
 
@@ -222,7 +243,18 @@ const app = createOpenAPIApp()
         .where(eq(variableCategory.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Variable category updated')
+      if (!record) {
+        throw variableCategoryNotFoundError()
+      }
+
+      const fullRecord = await fetchFullVariableCategoryOrThrow(record.id)
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Variable category updated',
+      )
     },
   )
 
@@ -244,7 +276,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a variable category.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(z.any()),
             },
           },
         },
@@ -256,9 +288,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullVariableCategoryOrThrow(id)
+
       await db.delete(variableCategory).where(eq(variableCategory.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Variable category deleted')
+      return generateJsonResponse(c, record, 200, 'Variable category deleted')
     },
   )
 

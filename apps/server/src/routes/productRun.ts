@@ -9,7 +9,6 @@ import { and, avg, count, desc, eq, inArray, max, min, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -161,6 +160,32 @@ export const fullProductRunSchema = baseProductRunSchema
   })
   .openapi('ProductRunFull')
 
+const productRunNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get productRun',
+    description: "productRun you're looking for is not found",
+  })
+
+const fetchFullProductRun = async (id: string) => {
+  const record = await db.query.productRun.findFirst({
+    where: (productRun, { eq }) => eq(productRun.id, id),
+    ...fullProductRunQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullProductRunOrThrow = async (id: string) => {
+  const record = await fetchFullProductRun(id)
+
+  if (!record) {
+    throw productRunNotFoundError()
+  }
+
+  return record
+}
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -188,18 +213,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.productRun.findFirst({
-        where: (productRun, { eq }) => eq(productRun.id, id),
-        ...fullProductRunQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get productRun',
-          description: "productRun you're looking for is not found",
-        })
-      }
+      const record = await fetchFullProductRunOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -398,16 +412,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseProductRunSchema
-                  .omit({
-                    outputSummary: true,
-                    datasetRun: true,
-                    geometriesRun: true,
-                    product: true,
-                  })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullProductRunSchema),
             },
           },
         },
@@ -423,7 +428,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newProductRun, 201, 'Product run created')
+      if (!newProductRun) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create productRun',
+          description: 'Product run insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullProductRunOrThrow(newProductRun.id)
+
+      return generateJsonResponse(c, record, 201, 'Product run created')
     },
   )
 
@@ -449,16 +464,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseProductRunSchema
-                  .omit({
-                    outputSummary: true,
-                    datasetRun: true,
-                    geometriesRun: true,
-                    product: true,
-                  })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullProductRunSchema),
             },
           },
         },
@@ -478,7 +484,13 @@ const app = createOpenAPIApp()
         .where(eq(productRun.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Product run updated')
+      if (!record) {
+        throw productRunNotFoundError()
+      }
+
+      const fullRecord = await fetchFullProductRunOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Product run updated')
     },
   )
 
@@ -496,7 +508,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a product run.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullProductRunSchema),
             },
           },
         },
@@ -508,9 +520,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullProductRunOrThrow(id)
+
       await db.delete(productRun).where(eq(productRun.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Product run deleted')
+      return generateJsonResponse(c, record, 200, 'Product run deleted')
     },
   )
 
@@ -529,7 +543,7 @@ const app = createOpenAPIApp()
             'Successfully marked a product run as the main run for its product.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullProductRunSchema),
             },
           },
         },
@@ -544,6 +558,10 @@ const app = createOpenAPIApp()
 
       const run = await db.query.productRun.findFirst({
         where: (productRun, { eq }) => eq(productRun.id, id),
+        columns: {
+          id: true,
+          productId: true,
+        },
       })
 
       if (!run) {
@@ -559,7 +577,9 @@ const app = createOpenAPIApp()
         .set({ mainRunId: id })
         .where(eq(product.id, run.productId))
 
-      return generateJsonResponse(c, {}, 200, 'Product run set as main')
+      const record = await fetchFullProductRunOrThrow(id)
+
+      return generateJsonResponse(c, record, 200, 'Product run set as main')
     },
   )
 
@@ -577,19 +597,7 @@ const app = createOpenAPIApp()
             'Recompute and persist summary statistics for a product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  message: z.string(),
-                  data: baseProductRunSchema
-                    .omit({
-                      outputSummary: true,
-                      datasetRun: true,
-                      geometriesRun: true,
-                      product: true,
-                    })
-                    .optional(),
-                }),
-              ),
+              schema: createResponseSchema(fullProductRunSchema),
             },
           },
         },
@@ -702,21 +710,13 @@ const app = createOpenAPIApp()
         }
       })
 
-      // Fetch the updated summary to return
-      const updatedRun = await db.query.productRun.findFirst({
-        where: (productRun, { eq }) => eq(productRun.id, id),
-        with: {
-          outputSummary: fullProductRunOutputSummaryQuery,
-        },
-      })
+      const record = await fetchFullProductRunOrThrow(id)
 
       return generateJsonResponse(
         c,
-        {
-          message: 'Summary refreshed successfully',
-          data: updatedRun,
-        },
+        record,
         200,
+        'Product run summary refreshed',
       )
     },
   )

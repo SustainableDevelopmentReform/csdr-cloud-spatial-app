@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -54,6 +53,44 @@ export const fullDatasetRunSchema = baseDatasetRunSchema
   })
   .openapi('DatasetRunFull')
 
+const datasetRunNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get datasetRun',
+    description: "datasetRun you're looking for is not found",
+  })
+
+const fetchFullDatasetRun = async (id: string) => {
+  const results = await db.query.datasetRun.findFirst({
+    where: (datasetRun, { eq }) => eq(datasetRun.id, id),
+    ...fullDatasetRunQuery,
+  })
+
+  if (!results) {
+    return null
+  }
+
+  const productRunCount = await db.$count(
+    productRun,
+    eq(productRun.datasetRunId, id),
+  )
+
+  return {
+    ...results,
+    productRunCount,
+  }
+}
+
+const fetchFullDatasetRunOrThrow = async (id: string) => {
+  const record = await fetchFullDatasetRun(id)
+
+  if (!record) {
+    throw datasetRunNotFoundError()
+  }
+
+  return record
+}
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -81,32 +118,9 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const results = await db.query.datasetRun.findFirst({
-        where: (datasetRun, { eq }) => eq(datasetRun.id, id),
-        ...fullDatasetRunQuery,
-      })
+      const record = await fetchFullDatasetRunOrThrow(id)
 
-      const productRunCount = await db.$count(
-        productRun,
-        eq(productRun.datasetRunId, id),
-      )
-
-      if (!results) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get datasetRun',
-          description: "datasetRun you're looking for is not found",
-        })
-      }
-
-      return generateJsonResponse(
-        c,
-        {
-          ...results,
-          productRunCount,
-        },
-        200,
-      )
+      return generateJsonResponse(c, record, 200)
     },
   )
   .openapi(
@@ -134,9 +148,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a dataset run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseDatasetRunSchema.omit({ dataset: true }).optional(),
-              ),
+              schema: createResponseSchema(fullDatasetRunSchema),
             },
           },
         },
@@ -152,7 +164,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newDatasetRun, 201, 'Dataset run created')
+      if (!newDatasetRun) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create datasetRun',
+          description: 'Dataset run insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullDatasetRunOrThrow(newDatasetRun.id)
+
+      return generateJsonResponse(c, record, 201, 'Dataset run created')
     },
   )
   .openapi(
@@ -181,9 +203,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a dataset run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseDatasetRunSchema.omit({ dataset: true }).optional(),
-              ),
+              schema: createResponseSchema(fullDatasetRunSchema),
             },
           },
         },
@@ -203,7 +223,13 @@ const app = createOpenAPIApp()
         .where(eq(datasetRun.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Dataset run updated')
+      if (!record) {
+        throw datasetRunNotFoundError()
+      }
+
+      const fullRecord = await fetchFullDatasetRunOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Dataset run updated')
     },
   )
   .openapi(
@@ -224,7 +250,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a dataset run.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullDatasetRunSchema),
             },
           },
         },
@@ -236,9 +262,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullDatasetRunOrThrow(id)
+
       await db.delete(datasetRun).where(eq(datasetRun.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Dataset run deleted')
+      return generateJsonResponse(c, record, 200, 'Dataset run deleted')
     },
   )
 
@@ -260,7 +288,7 @@ const app = createOpenAPIApp()
           description: 'Successfully marked a dataset run as the main run.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullDatasetRunSchema),
             },
           },
         },
@@ -275,6 +303,10 @@ const app = createOpenAPIApp()
 
       const run = await db.query.datasetRun.findFirst({
         where: (datasetRun, { eq }) => eq(datasetRun.id, id),
+        columns: {
+          id: true,
+          datasetId: true,
+        },
       })
 
       if (!run) {
@@ -290,7 +322,9 @@ const app = createOpenAPIApp()
         .set({ mainRunId: id })
         .where(eq(dataset.id, run.datasetId))
 
-      return generateJsonResponse(c, {}, 200, 'Dataset run set as main')
+      const record = await fetchFullDatasetRunOrThrow(id)
+
+      return generateJsonResponse(c, record, 200, 'Dataset run set as main')
     },
   )
 

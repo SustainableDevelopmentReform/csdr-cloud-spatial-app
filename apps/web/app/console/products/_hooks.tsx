@@ -22,10 +22,20 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { DatasetButton } from '../datasets/_components/dataset-button'
 import { DatasetRunButton } from '../datasets/_components/dataset-run-button'
-import { useDataset, useDatasetRun } from '../datasets/_hooks'
+import {
+  datasetQueryKeys,
+  datasetRunQueryKeys,
+  useDataset,
+  useDatasetRun,
+} from '../datasets/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../geometries/_components/geometries-run-button'
-import { useGeometries, useGeometriesRun } from '../geometries/_hooks'
+import {
+  geometriesQueryKeys,
+  geometriesRunQueryKeys,
+  useGeometries,
+  useGeometriesRun,
+} from '../geometries/_hooks'
 
 export type ProductListItem = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -93,30 +103,67 @@ const productParamsSchema = z.object({
   productOutputId: z.string().optional(),
 })
 
-const queryKeys = {
-  productAll: ['product'] as const,
-  productDetail: (productId: string | undefined) =>
-    [...queryKeys.productAll, productId] as const,
-  productList: (query: z.infer<typeof productQuerySchema> | undefined) =>
-    [...queryKeys.productAll, { query }] as const,
-  productRunAll: ['productRun'] as const,
-  productRunDetail: (productRunId: string | undefined) =>
-    [...queryKeys.productRunAll, productRunId] as const,
-  productRunList: (
+const productQueryKeys = {
+  all: ['product'] as const,
+  list: (query: z.infer<typeof productQuerySchema> | undefined) =>
+    [...productQueryKeys.all, 'list', { query }] as const,
+  detail: (productId: string | undefined) =>
+    [...productQueryKeys.all, 'detail', productId] as const,
+}
+const productRunQueryKeys = {
+  all: ['productRun'] as const,
+  scopeByProduct: (productId: string | undefined) =>
+    [...productRunQueryKeys.all, productId] as const,
+  list: (
     productId: string | undefined,
     query: z.infer<typeof productRunQuerySchema> | undefined,
-  ) => [...queryKeys.productRunAll, productId, { query }] as const,
-  productOutputAll: ['productOutput'] as const,
-  productOutputDetail: (productOutputId: string | undefined) =>
-    [...queryKeys.productOutputAll, productOutputId] as const,
-  productOutputList: (
+  ) =>
+    [
+      ...productRunQueryKeys.scopeByProduct(productId),
+      'list',
+      { query },
+    ] as const,
+  // Note: we don't know the productId  ahead of time, so we can't use the scopeByProduct query key
+  // This means we need to invalidate the productRun.all query key when we create/delete a new product run
+  detail: (productRunId: string | undefined) =>
+    [...productRunQueryKeys.all, 'detail', productRunId] as const,
+}
+const productOutputQueryKeys = {
+  all: ['productOutput'] as const,
+  scopeByProduct: (productId: string | undefined) =>
+    [...productOutputQueryKeys.all, productId] as const,
+  scopeByProductRun: (
+    productId: string | undefined,
+    productRunId: string | undefined,
+  ) =>
+    [
+      ...productOutputQueryKeys.scopeByProduct(productId),
+      productRunId,
+    ] as const,
+  list: (
+    productId: string | undefined,
     productRunId: string | undefined,
     query: z.infer<typeof productOutputQuerySchema> | undefined,
-  ) => [...queryKeys.productOutputAll, productRunId, { query }] as const,
-  productOutputExportList: (
+  ) =>
+    [
+      ...productOutputQueryKeys.scopeByProductRun(productId, productRunId),
+      'list',
+      { query },
+    ] as const,
+  // Note: we don't know the productId or productRunId ahead of time, so we can't use the scopeByProductRun query key
+  // This means we need to invalidate the productOutput.all query key when we create/delete a new product output
+  detail: (productOutputId: string | undefined) =>
+    [...productOutputQueryKeys.all, 'detail', productOutputId] as const,
+  exportList: (
+    productId: string | undefined,
     productRunId: string | undefined,
     query: z.infer<typeof productOutputExportQuerySchema> | undefined,
-  ) => [...queryKeys.productOutputAll, productRunId, { query }] as const,
+  ) =>
+    [
+      ...productOutputQueryKeys.scopeByProductRun(productId, productRunId),
+      'export',
+      { query },
+    ] as const,
 }
 
 const useProductParams = (
@@ -152,7 +199,7 @@ export const useProducts = (
   const { data: geometries } = useGeometries(query?.geometriesId)
 
   const { data } = useQuery({
-    queryKey: queryKeys.productList(query),
+    queryKey: productQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
       const res = client.api.v0.product.$get({
@@ -164,6 +211,7 @@ export const useProducts = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!query,
   })
 
   return {
@@ -197,7 +245,7 @@ export const useProductRuns = (
   const { data: geometriesRun } = useGeometriesRun(query?.geometriesRunId)
 
   const { data } = useQuery({
-    queryKey: queryKeys.productRunList(productId, query),
+    queryKey: productRunQueryKeys.list(productId, query),
     queryFn: async () => {
       if (!productId || !query) return null
       const res = client.api.v0['product'][':id']['runs'].$get({
@@ -212,6 +260,7 @@ export const useProductRuns = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!productId && !!query,
   })
 
   return {
@@ -251,6 +300,7 @@ export const useProductOutputs = (
 ) => {
   const client = useApiClient()
   const { productRunId } = useProductParams(undefined, _productRunId)
+  const { data: productRun } = useProductRun(productRunId)
   const { query, setSearchParams } = useQueryWithSearchParams(
     productOutputQuerySchema,
     _query,
@@ -258,13 +308,17 @@ export const useProductOutputs = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.productOutputList(productRunId, query),
+    queryKey: productOutputQueryKeys.list(
+      productRun?.product?.id,
+      productRun?.id,
+      query,
+    ),
     queryFn: async () => {
-      if (!productRunId || !query) return null
+      if (!productRun || !query) return null
       const res = client.api.v0['product-run'][':id']['outputs'].$get({
         query,
         param: {
-          id: productRunId,
+          id: productRun.id,
         },
       })
 
@@ -273,6 +327,7 @@ export const useProductOutputs = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!productRun && !!query,
   })
 
   return {
@@ -289,6 +344,7 @@ export const useProductOutputsExport = (
 ) => {
   const client = useApiClient()
   const { productRunId } = useProductParams(undefined, _productRunId)
+  const { data: productRun } = useProductRun(productRunId)
   const { query, setSearchParams } = useQueryWithSearchParams(
     productOutputExportQuerySchema,
     _query,
@@ -296,14 +352,18 @@ export const useProductOutputsExport = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.productOutputExportList(productRunId, query),
+    queryKey: productOutputQueryKeys.exportList(
+      productRun?.product?.id,
+      productRun?.id,
+      query,
+    ),
     queryFn: async () => {
-      if (!productRunId || !query) return null
+      if (!productRun || !query) return null
       const res = client.api.v0['product-run'][':id']['outputs']['export'].$get(
         {
           query,
           param: {
-            id: productRunId,
+            id: productRun.id,
           },
         },
       )
@@ -322,6 +382,7 @@ export const useProductOutputsExport = (
       }
     },
     placeholderData: keepPreviousData,
+    enabled: !!productRun && !!query,
   })
 
   return {
@@ -335,7 +396,7 @@ export const useProduct = (_productId?: string) => {
   const { productId } = useProductParams(_productId)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.productDetail(productId),
+    queryKey: productQueryKeys.detail(productId),
     queryFn: async () => {
       if (!productId || productId === '*') return null
       const res = client.api.v0.product[':id'].$get({
@@ -349,6 +410,7 @@ export const useProduct = (_productId?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!productId && productId !== '*',
   })
 }
 
@@ -356,7 +418,7 @@ export const useProductRun = (_productRunId?: string) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.productRunDetail(productRunId),
+    queryKey: productRunQueryKeys.detail(productRunId),
     queryFn: async () => {
       if (!productRunId) return null
       const res = client.api.v0['product-run'][':id'].$get({
@@ -370,6 +432,7 @@ export const useProductRun = (_productRunId?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!productRunId,
   })
 }
 
@@ -381,7 +444,7 @@ export const useProductOutput = (_productOutputId?: string) => {
   )
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.productOutputDetail(productOutputId),
+    queryKey: productOutputQueryKeys.detail(productOutputId),
     queryFn: async () => {
       if (!productOutputId) return null
       const res = client.api.v0['product-output'][':id'].$get({
@@ -395,6 +458,7 @@ export const useProductOutput = (_productOutputId?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!productOutputId,
   })
 }
 
@@ -406,11 +470,18 @@ export const useCreateProduct = () => {
       const res = client.api.v0.product.$post({
         json: data,
       })
-      await unwrapResponse(res, 201)
+      return await unwrapResponse(res, 201)
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productAll,
+        queryKey: productQueryKeys.all,
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: datasetQueryKeys.detail(response?.data?.dataset?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesQueryKeys.detail(response?.data?.geometries?.id),
       })
     },
   })
@@ -424,14 +495,24 @@ export const useCreateProductRun = () => {
       const res = client.api.v0['product-run'].$post({
         json: data,
       })
-      await unwrapResponse(res, 201)
+      return await unwrapResponse(res, 201)
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunAll,
+        queryKey: productQueryKeys.detail(response?.data?.product?.id),
+      })
+      // Note we need to invalidate all product run queries - as useProductRuns get's used with productId = undefined (with other filters - eg geometry or dataset run)
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: datasetRunQueryKeys.detail(response?.data?.datasetRun?.id),
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productDetail(variables.productId),
+        queryKey: geometriesRunQueryKeys.detail(
+          response?.data?.geometriesRun?.id,
+        ),
       })
     },
   })
@@ -445,18 +526,23 @@ export const useCreateProductRunOutput = () => {
       const res = client.api.v0['product-output'].$post({
         json: data,
       })
-      await unwrapResponse(res, 201)
+      return await unwrapResponse(res, 201)
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productOutputAll,
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          response?.data?.productRun?.product?.id,
+          response?.data?.productRun?.id,
+        ),
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunDetail(variables.productRunId),
+        queryKey: productRunQueryKeys.detail(response?.data?.productRun?.id),
       })
-      // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productDetail(variables.productRun.productId),
-      // })
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.detail(
+          response?.data?.productRun?.product?.id,
+        ),
+      })
     },
   })
 }
@@ -476,7 +562,7 @@ export const useUpdateProduct = (_productId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productAll,
+        queryKey: productQueryKeys.all,
       })
     },
   })
@@ -495,13 +581,18 @@ export const useUpdateProductRun = (_productRunId?: string) => {
       })
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunAll,
+        queryKey: productQueryKeys.detail(response?.data?.product?.id),
       })
-      // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productDetail(payload.productId),
-      // })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.detail(response?.data?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.scopeByProduct(
+          response?.data?.product?.id,
+        ),
+      })
     },
   })
 }
@@ -523,16 +614,24 @@ export const useUpdateProductOutput = (_productOutputId?: string) => {
       })
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productOutputAll,
+        queryKey: productQueryKeys.detail(
+          response?.data?.productRun?.product?.id,
+        ),
       })
-      // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productRunDetail(payload.productRunId),
-      // })
-      // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productDetail(payload.productRun.productId),
-      // })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.detail(response?.data?.productRun?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.detail(response?.data?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          response?.data?.productRun?.product?.id,
+          response?.data?.productRun?.id,
+        ),
+      })
     },
   })
 }
@@ -552,10 +651,10 @@ export const useRefreshProductRunSummary = (
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunAll,
+        queryKey: productQueryKeys.all,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productAll,
+        queryKey: productRunQueryKeys.all,
       })
     },
   })
@@ -573,10 +672,10 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunAll,
+        queryKey: productQueryKeys.all,
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productAll,
+        queryKey: productRunQueryKeys.all,
       })
     },
   })
@@ -601,9 +700,25 @@ export const useDeleteProduct = (
 
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      queryClient.removeQueries({
+        queryKey: productQueryKeys.detail(response?.data?.id),
+      })
+      queryClient.removeQueries({
+        queryKey: productRunQueryKeys.scopeByProduct(response?.data?.id),
+      })
+      queryClient.removeQueries({
+        queryKey: productOutputQueryKeys.scopeByProduct(response?.data?.id),
+      })
+
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productAll,
+        queryKey: productQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -631,13 +746,25 @@ export const useDeleteProductRun = (
 
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.productRunAll,
+    onSuccess: (response) => {
+      queryClient.removeQueries({
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          response?.data?.product?.id,
+          response?.data?.id,
+        ),
       })
-      // queryClient.invalidateQueries({
-      //   queryKey: queryKeys.productDetail(data.productRun.productId),
-      // })
+
+      queryClient.removeQueries({
+        queryKey: productRunQueryKeys.detail(response?.data?.id),
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.detail(response?.data?.product?.id),
+      })
+
       if (redirect) {
         router.push(redirect)
       }

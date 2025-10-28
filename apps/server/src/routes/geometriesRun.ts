@@ -9,7 +9,6 @@ import { and, count, desc, eq, inArray, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -68,6 +67,45 @@ export const fullGeometriesRunSchema = baseGeometriesRunSchema
   })
   .openapi('GeometriesRunFull')
 
+const geometriesRunNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get geometriesRun',
+    description: "geometriesRun you're looking for is not found",
+  })
+
+const fetchFullGeometriesRun = async (id: string) => {
+  const geometriesRunRecord = await db.query.geometriesRun.findFirst({
+    where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
+    ...fullGeometriesRunQuery,
+  })
+
+  if (!geometriesRunRecord) {
+    return null
+  }
+
+  const [outputCount, productRunCount] = await Promise.all([
+    db.$count(geometryOutput, eq(geometryOutput.geometriesRunId, id)),
+    db.$count(productRun, eq(productRun.geometriesRunId, id)),
+  ])
+
+  return {
+    ...geometriesRunRecord,
+    outputCount,
+    productRunCount,
+  }
+}
+
+const fetchFullGeometriesRunOrThrow = async (id: string) => {
+  const record = await fetchFullGeometriesRun(id)
+
+  if (!record) {
+    throw geometriesRunNotFoundError()
+  }
+
+  return record
+}
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -95,39 +133,9 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullGeometriesRunOrThrow(id)
 
-      const geometriesRunRecord = await db.query.geometriesRun.findFirst({
-        where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
-        ...fullGeometriesRunQuery,
-      })
-
-      const outputCount = await db.$count(
-        geometryOutput,
-        eq(geometryOutput.geometriesRunId, id),
-      )
-
-      const productRunCount = await db.$count(
-        productRun,
-        eq(productRun.geometriesRunId, id),
-      )
-
-      if (!geometriesRunRecord) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get geometriesRun',
-          description: "geometriesRun you're looking for is not found",
-        })
-      }
-
-      return generateJsonResponse(
-        c,
-        {
-          ...geometriesRunRecord,
-          outputCount,
-          productRunCount,
-        },
-        200,
-      )
+      return generateJsonResponse(c, record, 200)
     },
   )
   .openapi(
@@ -271,9 +279,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a geometries run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseGeometriesRunSchema.omit({ geometries: true }).optional(),
-              ),
+              schema: createResponseSchema(fullGeometriesRunSchema),
             },
           },
         },
@@ -289,12 +295,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(
-        c,
-        newGeometriesRun,
-        201,
-        'Geometries run created',
-      )
+      if (!newGeometriesRun) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create geometriesRun',
+          description: 'Geometries run insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullGeometriesRunOrThrow(newGeometriesRun.id)
+
+      return generateJsonResponse(c, record, 201, 'Geometries run created')
     },
   )
 
@@ -324,9 +335,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a geometries run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseGeometriesRunSchema.omit({ geometries: true }).optional(),
-              ),
+              schema: createResponseSchema(fullGeometriesRunSchema),
             },
           },
         },
@@ -346,7 +355,13 @@ const app = createOpenAPIApp()
         .where(eq(geometriesRun.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Geometries run updated')
+      if (!record) {
+        throw geometriesRunNotFoundError()
+      }
+
+      const fullRecord = await fetchFullGeometriesRunOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Geometries run updated')
     },
   )
 
@@ -368,7 +383,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a geometries run.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullGeometriesRunSchema),
             },
           },
         },
@@ -380,9 +395,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullGeometriesRunOrThrow(id)
+
       await db.delete(geometriesRun).where(eq(geometriesRun.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Geometries run deleted')
+      return generateJsonResponse(c, record, 200, 'Geometries run deleted')
     },
   )
 
@@ -405,7 +422,7 @@ const app = createOpenAPIApp()
             'Successfully marked a geometries run as the main run for its geometries.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullGeometriesRunSchema),
             },
           },
         },
@@ -420,6 +437,10 @@ const app = createOpenAPIApp()
 
       const run = await db.query.geometriesRun.findFirst({
         where: (geometriesRun, { eq }) => eq(geometriesRun.id, id),
+        columns: {
+          id: true,
+          geometriesId: true,
+        },
       })
 
       if (!run) {
@@ -435,7 +456,9 @@ const app = createOpenAPIApp()
         .set({ mainRunId: id })
         .where(eq(geometries.id, run.geometriesId))
 
-      return generateJsonResponse(c, {}, 200, 'Geometries run set as main')
+      const record = await fetchFullGeometriesRunOrThrow(id)
+
+      return generateJsonResponse(c, record, 200, 'Geometries run set as main')
     },
   )
 

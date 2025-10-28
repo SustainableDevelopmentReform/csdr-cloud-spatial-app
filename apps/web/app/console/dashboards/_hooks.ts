@@ -39,12 +39,12 @@ const dashboardParamsSchema = z.object({
   dashboardId: z.string().optional(),
 })
 
-const queryKeys = {
-  dashboardAll: ['dashboard'] as const,
-  dashboardDetail: (dashboardId: string | undefined) =>
-    [...queryKeys.dashboardAll, dashboardId] as const,
-  dashboardList: (query: z.infer<typeof dashboardQuerySchema> | undefined) =>
-    [...queryKeys.dashboardAll, { query }] as const,
+const dashboardQueryKeys = {
+  all: ['dashboard'] as const,
+  list: (query: z.infer<typeof dashboardQuerySchema> | undefined) =>
+    [...dashboardQueryKeys.all, 'list', { query }] as const,
+  detail: (dashboardId: string | undefined) =>
+    [...dashboardQueryKeys.all, 'detail', dashboardId] as const,
 }
 
 const useDashboardParams = (_dashboardId?: string) => {
@@ -69,7 +69,7 @@ export const useDashboards = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.dashboardList(query),
+    queryKey: dashboardQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
       const res = client.api.v0.dashboard.$get({ query })
@@ -77,6 +77,7 @@ export const useDashboards = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!query,
   })
 
   return {
@@ -91,7 +92,7 @@ export const useDashboard = (id?: string) => {
   const client = useApiClient()
 
   return useQuery({
-    queryKey: queryKeys.dashboardDetail(dashboardId),
+    queryKey: dashboardQueryKeys.detail(dashboardId),
     queryFn: async () => {
       if (!dashboardId) return null
       const res = client.api.v0.dashboard[':id'].$get({
@@ -101,6 +102,7 @@ export const useDashboard = (id?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!dashboardId,
   })
 }
 
@@ -116,7 +118,7 @@ export const useCreateDashboard = () => {
       await unwrapResponse(res, 201)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll })
+      queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
     },
   })
 }
@@ -136,7 +138,7 @@ export const useUpdateDashboard = (_dashboardId?: string) => {
       return await unwrapResponse(res)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll })
+      queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
     },
   })
 }
@@ -159,7 +161,12 @@ export const useDeleteDashboard = (
       return await unwrapResponse(res)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll })
+      if (dashboardId) {
+        queryClient.removeQueries({
+          queryKey: dashboardQueryKeys.detail(dashboardId),
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
       if (redirect) {
         router.push(redirect)
       }

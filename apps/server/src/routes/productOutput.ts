@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -116,6 +116,32 @@ export const productOutputExportSchema = z
   })
   .openapi('ProductOutputExportSchema')
 
+const productOutputNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get productOutput',
+    description: "productOutput you're looking for is not found",
+  })
+
+const fetchFullProductOutput = async (id: string) => {
+  const record = await db.query.productOutput.findFirst({
+    where: (productOutput, { eq }) => eq(productOutput.id, id),
+    ...fullProductOutputQuery,
+  })
+
+  return record ?? null
+}
+
+const fetchFullProductOutputOrThrow = async (id: string) => {
+  const record = await fetchFullProductOutput(id)
+
+  if (!record) {
+    throw productOutputNotFoundError()
+  }
+
+  return record
+}
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -143,18 +169,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.productOutput.findFirst({
-        where: (productOutput, { eq }) => eq(productOutput.id, id),
-        ...fullProductOutputQuery,
-      })
-
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get productOutput',
-          description: "productOutput you're looking for is not found",
-        })
-      }
+      const record = await fetchFullProductOutputOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -180,15 +195,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                fullProductOutputSchema
-                  .omit({
-                    geometryOutput: true,
-                    productRun: true,
-                    variable: true,
-                  })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullProductOutputSchema),
             },
           },
         },
@@ -215,12 +222,17 @@ const app = createOpenAPIApp()
         .values(createPayload({ ...payload, timePoint: timePointDate }))
         .returning()
 
-      return generateJsonResponse(
-        c,
-        newProductOutput,
-        201,
-        'Product output created',
-      )
+      if (!newProductOutput) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create productOutput',
+          description: 'Product output insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullProductOutputOrThrow(newProductOutput.id)
+
+      return generateJsonResponse(c, record, 201, 'Product output created')
     },
   )
   .openapi(
@@ -246,15 +258,7 @@ const app = createOpenAPIApp()
             'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.array(
-                  fullProductOutputSchema.omit({
-                    geometryOutput: true,
-                    productRun: true,
-                    variable: true,
-                  }),
-                ),
-              ),
+              schema: createResponseSchema(z.array(fullProductOutputSchema)),
             },
           },
         },
@@ -287,9 +291,35 @@ const app = createOpenAPIApp()
         )
         .returning()
 
+      const ids = newProductOutputs.map((output) => output.id)
+
+      const fullRecords = ids.length
+        ? await db.query.productOutput.findMany({
+            ...fullProductOutputQuery,
+            where: inArray(productOutput.id, ids),
+          })
+        : []
+
+      const recordMap = new Map(
+        fullRecords.map((record) => [record.id, record]),
+      )
+
+      const orderedRecords = ids.map((id) => {
+        const record = recordMap.get(id)
+        if (!record) {
+          throw new ServerError({
+            statusCode: 500,
+            message: 'Failed to retrieve product outputs',
+            description: `Product output with ID ${id} not found after creation`,
+          })
+        }
+
+        return record
+      })
+
       return generateJsonResponse(
         c,
-        newProductOutputs,
+        orderedRecords,
         201,
         'Product output created',
       )
@@ -318,15 +348,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                fullProductOutputSchema
-                  .omit({
-                    geometryOutput: true,
-                    productRun: true,
-                    variable: true,
-                  })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullProductOutputSchema),
             },
           },
         },
@@ -344,9 +366,16 @@ const app = createOpenAPIApp()
         .update(productOutput)
         .set(updatePayload(payload))
         .where(eq(productOutput.id, id))
+
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Product output updated')
+      if (!record) {
+        throw productOutputNotFoundError()
+      }
+
+      const fullRecord = await fetchFullProductOutputOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Product output updated')
     },
   )
 

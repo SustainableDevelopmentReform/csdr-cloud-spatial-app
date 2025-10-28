@@ -5,11 +5,10 @@ import {
   productRunQuerySchema,
   updateProductSchema,
 } from '@repo/schemas/crud'
-import { and, count, desc, eq, SQL } from 'drizzle-orm'
+import { and, desc, eq, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
-  BaseResponseSchema,
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -80,6 +79,38 @@ const fullProductSchema = baseProductSchema
     runCount: z.number().int(),
   })
   .openapi('ProductFull')
+
+const productNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Failed to get product',
+    description: "Product you're looking for is not found",
+  })
+
+const fetchFullProduct = async (id: string) => {
+  const record = await db.query.product.findFirst({
+    where: (product, { eq }) => eq(product.id, id),
+    ...fullProductQuery,
+  })
+
+  if (!record) {
+    return null
+  }
+
+  const runCount = await db.$count(productRun, eq(productRun.productId, id))
+
+  return { ...record, runCount }
+}
+
+const fetchFullProductOrThrow = async (id: string) => {
+  const fullProduct = await fetchFullProduct(id)
+
+  if (!fullProduct) {
+    throw productNotFoundError()
+  }
+
+  return fullProduct
+}
 
 const app = createOpenAPIApp()
   .openapi(
@@ -174,22 +205,9 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await db.query.product.findFirst({
-        where: (product, { eq }) => eq(product.id, id),
-        ...fullProductQuery,
-      })
+      const record = await fetchFullProductOrThrow(id)
 
-      if (!record) {
-        throw new ServerError({
-          statusCode: 404,
-          message: 'Failed to get product',
-          description: "Product you're looking for is not found",
-        })
-      }
-
-      const runCount = await db.$count(productRun, eq(productRun.productId, id))
-
-      return generateJsonResponse(c, { ...record, runCount }, 200)
+      return generateJsonResponse(c, record, 200)
     },
   )
 
@@ -289,11 +307,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseProductSchema
-                  .omit({ mainRun: true, geometries: true, dataset: true })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullProductSchema),
             },
           },
         },
@@ -309,7 +323,17 @@ const app = createOpenAPIApp()
         .values(createPayload(payload))
         .returning()
 
-      return generateJsonResponse(c, newProduct, 201, 'Product created')
+      if (!newProduct) {
+        throw new ServerError({
+          statusCode: 500,
+          message: 'Failed to create product',
+          description: 'Product insert did not return a record',
+        })
+      }
+
+      const record = await fetchFullProductOrThrow(newProduct.id)
+
+      return generateJsonResponse(c, record, 201, 'Product created')
     },
   )
 
@@ -335,11 +359,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                baseProductSchema
-                  .omit({ mainRun: true, geometries: true, dataset: true })
-                  .optional(),
-              ),
+              schema: createResponseSchema(fullProductSchema),
             },
           },
         },
@@ -359,7 +379,13 @@ const app = createOpenAPIApp()
         .where(eq(product.id, id))
         .returning()
 
-      return generateJsonResponse(c, record, 200, 'Product updated')
+      if (!record) {
+        throw productNotFoundError()
+      }
+
+      const fullRecord = await fetchFullProductOrThrow(record.id)
+
+      return generateJsonResponse(c, fullRecord, 200, 'Product updated')
     },
   )
 
@@ -377,7 +403,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a product.',
           content: {
             'application/json': {
-              schema: BaseResponseSchema,
+              schema: createResponseSchema(fullProductSchema),
             },
           },
         },
@@ -389,9 +415,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const record = await fetchFullProductOrThrow(id)
+
       await db.delete(product).where(eq(product.id, id))
 
-      return generateJsonResponse(c, {}, 200, 'Product deleted')
+      return generateJsonResponse(c, record, 200, 'Product deleted')
     },
   )
 

@@ -57,15 +57,18 @@ const variableParamsSchema = z.object({
   variableCategoryId: z.string().optional(),
 })
 
-const queryKeys = {
-  variableAll: ['variable'] as const,
-  variableDetail: (variableId: string | undefined) =>
-    [...queryKeys.variableAll, variableId] as const,
-  variableList: (query: z.infer<typeof variableQuerySchema> | undefined) =>
-    [...queryKeys.variableAll, { query }] as const,
-  variableCategoryAll: ['variableCategory'] as const,
-  variableCategoryDetail: (variableCategoryId: string | undefined) =>
-    [...queryKeys.variableCategoryAll, variableCategoryId] as const,
+const variableQueryKeys = {
+  all: ['variable'] as const,
+  list: (query: z.infer<typeof variableQuerySchema> | undefined) =>
+    [...variableQueryKeys.all, 'list', { query }] as const,
+  detail: (variableId: string | undefined) =>
+    [...variableQueryKeys.all, 'detail', variableId] as const,
+}
+
+const variableCategoryQueryKeys = {
+  all: ['variableCategory'] as const,
+  detail: (variableCategoryId: string | undefined) =>
+    [...variableCategoryQueryKeys.all, 'detail', variableCategoryId] as const,
 }
 
 const useVariableParams = (
@@ -93,7 +96,7 @@ export const useVariables = (
   )
 
   const { data } = useQuery({
-    queryKey: queryKeys.variableList(query),
+    queryKey: variableQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
       const res = client.api.v0.variable.$get({
@@ -105,6 +108,7 @@ export const useVariables = (
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!query,
   })
 
   return {
@@ -118,7 +122,7 @@ export const useVariables = (
 export const useVariableCategories = () => {
   const client = useApiClient()
   const { data } = useQuery({
-    queryKey: queryKeys.variableCategoryAll,
+    queryKey: variableCategoryQueryKeys.all,
     queryFn: async () => {
       const res = client.api.v0['variable-category'].$get()
 
@@ -138,7 +142,7 @@ export const useVariable = (id?: string) => {
   const { variableId } = useVariableParams(id)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.variableDetail(variableId),
+    queryKey: variableQueryKeys.detail(variableId),
     queryFn: async () => {
       if (!variableId) return null
       const res = client.api.v0.variable[':id'].$get({
@@ -152,6 +156,7 @@ export const useVariable = (id?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!variableId,
   })
 }
 
@@ -159,7 +164,7 @@ export const useVariableCategory = (id?: string) => {
   const { variableCategoryId } = useVariableParams(undefined, id)
   const client = useApiClient()
   return useQuery({
-    queryKey: queryKeys.variableCategoryDetail(variableCategoryId),
+    queryKey: variableCategoryQueryKeys.detail(variableCategoryId),
     queryFn: async () => {
       if (!variableCategoryId) return null
       const res = client.api.v0['variable-category'][':id'].$get({
@@ -173,6 +178,7 @@ export const useVariableCategory = (id?: string) => {
       return json.data
     },
     placeholderData: keepPreviousData,
+    enabled: !!variableCategoryId,
   })
 }
 
@@ -188,7 +194,7 @@ export const useCreateVariable = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.variableAll,
+        queryKey: variableQueryKeys.all,
       })
     },
   })
@@ -207,7 +213,7 @@ export const useCreateVariableCategory = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.variableCategoryAll,
+        queryKey: variableCategoryQueryKeys.all,
       })
     },
   })
@@ -228,7 +234,7 @@ export const useUpdateVariable = (_variableId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.variableAll,
+        queryKey: variableQueryKeys.all,
       })
     },
   })
@@ -252,7 +258,7 @@ export const useUpdateVariableCategory = (_variableCategoryId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.variableCategoryAll,
+        queryKey: variableCategoryQueryKeys.all,
       })
     },
   })
@@ -278,8 +284,13 @@ export const useDeleteVariable = (
       return await unwrapResponse(res)
     },
     onSuccess: () => {
+      if (variableId) {
+        queryClient.removeQueries({
+          queryKey: variableQueryKeys.detail(variableId),
+        })
+      }
       queryClient.invalidateQueries({
-        queryKey: queryKeys.variableAll,
+        queryKey: variableQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -311,8 +322,13 @@ export const useDeleteVariableCategory = (
       return await unwrapResponse(res)
     },
     onSuccess: () => {
+      if (variableCategoryId) {
+        queryClient.removeQueries({
+          queryKey: variableCategoryQueryKeys.detail(variableCategoryId),
+        })
+      }
       queryClient.invalidateQueries({
-        queryKey: queryKeys.variableCategoryAll,
+        queryKey: variableCategoryQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
