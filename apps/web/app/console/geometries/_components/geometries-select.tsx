@@ -11,7 +11,7 @@ export const GeometriesSelect = ({
   onChange: (id: string | null, geometries: GeometriesListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: geometries, setSearchParams } = useAllGeometries()
+  const { data: geometries } = useAllGeometries({ disablePagination: true })
   return (
     <FieldGroup title="Select Geometries" disabled={disabled}>
       <SelectWithSearch
@@ -23,9 +23,6 @@ export const GeometriesSelect = ({
             geometries?.data?.find((geometries) => geometries.id === value) ??
               null,
           )
-        }}
-        onSearch={(value) => {
-          setSearchParams({ search: value })
         }}
         disabled={disabled}
       />

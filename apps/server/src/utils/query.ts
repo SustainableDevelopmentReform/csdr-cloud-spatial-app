@@ -29,8 +29,8 @@ type QueryOptions<Table extends PgTable> = {
 }
 
 type ParseQueryResult = {
-  limit: number
-  offset: number
+  limit?: number
+  offset?: number
   totalCount: number
   pageCount: number
   where?: SQL
@@ -48,6 +48,8 @@ export const parseQuery = async <
   options: QueryOptions<Table>,
 ): Promise<ParseQueryResult> => {
   const parsed = baseQuerySchema.parse(params)
+
+  const usePagination = !parsed.disablePagination
 
   const page = parsed.page && parsed.page > 0 ? parsed.page : 1
   const size = parsed.size && parsed.size > 0 ? parsed.size : 10
@@ -86,10 +88,10 @@ export const parseQuery = async <
   }
 
   return {
-    limit,
-    offset,
+    limit: usePagination ? limit : undefined,
+    offset: usePagination ? offset : undefined,
     totalCount: total,
-    pageCount,
+    pageCount: usePagination ? pageCount : 1,
     where,
     orderBy,
   }

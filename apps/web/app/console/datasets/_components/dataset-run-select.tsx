@@ -13,9 +13,9 @@ export const DatasetRunSelect = ({
   onChange: (id: string | null, datasetRun: DatasetRunListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: datasetRuns, setSearchParams } = useDatasetRuns(
-    datasetId ?? undefined,
-  )
+  const { data: datasetRuns } = useDatasetRuns(datasetId ?? undefined, {
+    disablePagination: true,
+  })
   return (
     <FieldGroup title="Select Dataset Run" disabled={disabled}>
       <SelectWithSearch
@@ -27,9 +27,6 @@ export const DatasetRunSelect = ({
             datasetRuns?.data?.find((datasetRun) => datasetRun.id === value) ??
               null,
           )
-        }}
-        onSearch={(value) => {
-          setSearchParams({ search: value })
         }}
         disabled={disabled}
       />

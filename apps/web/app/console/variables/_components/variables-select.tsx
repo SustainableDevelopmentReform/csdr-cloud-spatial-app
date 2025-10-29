@@ -21,7 +21,7 @@ export const VariablesSelect = ({
   disabled,
   ...props
 }: VariablesSelectProps) => {
-  const { data: variables, setSearchParams } = useVariables()
+  const { data: variables } = useVariables({ disablePagination: true })
   return (
     <FieldGroup
       title={`Select Variable${props.multiple ? '(s)' : ''}`}
@@ -33,7 +33,6 @@ export const VariablesSelect = ({
           options={variables?.data}
           value={props.value ?? []}
           onSelect={props.onSelect}
-          onSearch={(value) => setSearchParams({ search: value })}
           disabled={!variables}
           multiple
         />
@@ -43,7 +42,6 @@ export const VariablesSelect = ({
           options={variables?.data}
           value={props.value ?? null}
           onSelect={props.onSelect}
-          onSearch={(value) => setSearchParams({ search: value })}
           disabled={!variables}
         />
       )}

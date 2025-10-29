@@ -16,8 +16,9 @@ export const GeometriesRunSelect = ({
   ) => void
   disabled?: boolean
 }) => {
-  const { data: geometriesRuns, setSearchParams } = useGeometriesRuns(
+  const { data: geometriesRuns } = useGeometriesRuns(
     geometriesId ?? undefined,
+    { disablePagination: true },
   )
   return (
     <FieldGroup title="Select Geometries Run" disabled={disabled}>
@@ -31,9 +32,6 @@ export const GeometriesRunSelect = ({
               (geometriesRun) => geometriesRun.id === value,
             ) ?? null,
           )
-        }}
-        onSearch={(value) => {
-          setSearchParams({ search: value })
         }}
         disabled={disabled}
       />

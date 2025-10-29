@@ -10,7 +10,7 @@ export const ProductSelect = ({
   onChange: (id: string | null, product: ProductListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: products, setSearchParams } = useProducts()
+  const { data: products } = useProducts({ disablePagination: true })
   return (
     <FieldGroup title="Select Product" disabled={disabled}>
       <SelectWithSearch
@@ -21,9 +21,6 @@ export const ProductSelect = ({
             value,
             products?.data?.find((product) => product.id === value) ?? null,
           )
-        }}
-        onSearch={(value) => {
-          setSearchParams({ search: value })
         }}
         disabled={disabled}
       />
