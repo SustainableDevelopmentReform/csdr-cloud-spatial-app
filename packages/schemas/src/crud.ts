@@ -4,6 +4,8 @@ import { MultiPolygonSchema, PolygonSchema } from './geojson'
 export const baseQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
   size: z.coerce.number().optional(),
+  // Temporary field to disable pagination - until SelectWithSearch is refactored to "cache" selected items
+  disablePagination: z.coerce.boolean().optional(),
   search: z.string().optional(),
   sort: z.enum(['name', 'createdAt', 'updatedAt']).optional(),
   order: z.enum(['asc', 'desc']).optional(),

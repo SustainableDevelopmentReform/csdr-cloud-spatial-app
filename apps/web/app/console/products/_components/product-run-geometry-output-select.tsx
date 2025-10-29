@@ -28,8 +28,9 @@ export const ProductGeometryOutputSelect = ({
   ...props
 }: ProductGeometryOutputSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
-  const { data: geometryOutputs, setSearchParams } = useGeometryOutputs(
+  const { data: geometryOutputs } = useGeometryOutputs(
     productRun?.geometriesRun.id,
+    { disablePagination: true },
   )
 
   return (
@@ -43,9 +44,6 @@ export const ProductGeometryOutputSelect = ({
           options={geometryOutputs?.data}
           value={props.value ?? []}
           onSelect={props.onSelect}
-          onSearch={(value) => {
-            setSearchParams({ search: value })
-          }}
           disabled={!productRun}
           multiple
         />
@@ -55,9 +53,6 @@ export const ProductGeometryOutputSelect = ({
           options={geometryOutputs?.data}
           value={props.value ?? null}
           onSelect={props.onSelect}
-          onSearch={(value) => {
-            setSearchParams({ search: value })
-          }}
           disabled={!productRun}
         />
       )}
