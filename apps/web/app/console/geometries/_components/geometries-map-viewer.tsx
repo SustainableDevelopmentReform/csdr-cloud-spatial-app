@@ -32,6 +32,7 @@ import { VariableListItem } from '../../variables/_hooks'
 import { cn } from '@repo/ui/lib/utils'
 
 const NO_DATA_COLOR = '#eef'
+const ID_PROPERTY = 'csdr-id'
 
 const GeometriesMapViewer = ({
   geometriesRun,
@@ -159,11 +160,11 @@ const GeometriesMapViewer = ({
       ExpressionSpecification,
       ExpressionInputType,
       ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', 'id']], NO_DATA_COLOR]
+    ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
 
     productOutputs?.forEach((output) =>
       fillColourEntries.push(
-        ['==', ['get', 'id'], output.geometryOutputId],
+        ['==', ['get', ID_PROPERTY], output.geometryOutputId],
         colorFn(output.value),
       ),
     )
@@ -172,21 +173,21 @@ const GeometriesMapViewer = ({
       ExpressionSpecification,
       ExpressionInputType,
       ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', 'id']], 1]
+    ] = [['!', ['has', ID_PROPERTY]], 1]
 
     const selectedGeometriesLineOpacity: [
       ExpressionSpecification,
       ExpressionInputType,
       ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', 'id']], 0.1]
+    ] = [['!', ['has', ID_PROPERTY]], 0.1]
 
     geometryOutputsToZoomTo?.data?.forEach((output) => {
       selectedGeometriesLineWidth.push(
-        ['==', ['get', 'id'], output.id],
+        ['==', ['get', ID_PROPERTY], output.id],
         zoomToGeometryOutputIds?.includes(output.id) ? 2 : 1,
       )
       selectedGeometriesLineOpacity.push(
-        ['==', ['get', 'id'], output.id],
+        ['==', ['get', ID_PROPERTY], output.id],
         zoomToGeometryOutputIds?.includes(output.id) ? 1 : 0.1,
       )
     })
