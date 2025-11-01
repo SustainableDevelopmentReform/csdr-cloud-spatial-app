@@ -1,50 +1,33 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { useVariables } from '../_hooks'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
-type VariablesSelectProps = {
-  disabled?: boolean
-  placeholder?: string
-} & (
-  | {
-      value: string[]
-      onSelect: (value: string[]) => void
-      multiple: true
-    }
-  | {
-      value: string | null
-      onSelect: (value: string | null) => void
-      multiple?: false
-    }
-)
+import { VariableListItem, useVariable, useVariables } from '../_hooks'
 
 export const VariablesSelect = ({
+  value,
+  onChange,
   disabled,
-  ...props
-}: VariablesSelectProps) => {
-  const { data: variables } = useVariables({ disablePagination: true })
+}: {
+  value: string | null | undefined
+  onChange: (variable: VariableListItem | null) => void
+  disabled?: boolean
+}) => {
+  const { data: variables, setSearchParams } = useVariables()
+
+  const { data: selectedVariable } = useVariable(value ?? undefined)
+
   return (
-    <FieldGroup
-      title={`Select Variable${props.multiple ? '(s)' : ''}`}
-      disabled={disabled}
-    >
-      {props.multiple ? (
-        <SelectWithSearch
-          placeholder={props.placeholder}
-          options={variables?.data}
-          value={props.value ?? []}
-          onSelect={props.onSelect}
-          disabled={!variables}
-          multiple
-        />
-      ) : (
-        <SelectWithSearch
-          placeholder={props.placeholder}
-          options={variables?.data}
-          value={props.value ?? null}
-          onSelect={props.onSelect}
-          disabled={!variables}
-        />
-      )}
+    <FieldGroup title="Select Variable" disabled={disabled}>
+      <SelectWithSearch
+        options={variables?.data}
+        value={selectedVariable ?? null}
+        onSearch={(search) => {
+          setSearchParams({ search })
+        }}
+        onChange={(nextValue) => {
+          onChange(nextValue)
+        }}
+        isDisabled={disabled}
+      />
     </FieldGroup>
   )
 }

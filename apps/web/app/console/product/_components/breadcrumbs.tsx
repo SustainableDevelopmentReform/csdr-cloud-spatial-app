@@ -8,18 +8,17 @@ import {
 } from '@repo/ui/components/ui/breadcrumb'
 import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
+import { PRODUCTS_BASE_PATH } from '../../../../lib/paths'
 import {
   useProduct,
   useProductOutput,
-  useProductOutputLink,
   useProductRun,
-  useProductRunLink,
   useProductRunOutputsLink,
   useProductRunsLink,
 } from '../_hooks'
 import { ProductButton } from './product-button'
-import { ProductRunButton } from './product-run-button'
 import { ProductOutputButton } from './product-output-button'
+import { ProductRunButton } from './product-run-button'
 
 export const ProductsBreadcrumbs = () => {
   const pathname = usePathname()
@@ -47,7 +46,7 @@ export const ProductsBreadcrumbs = () => {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console/products">Products</Link>
+            <Link href={PRODUCTS_BASE_PATH}>Products</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {product && (

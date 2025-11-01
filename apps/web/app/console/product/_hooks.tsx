@@ -203,7 +203,7 @@ export const useProducts = (
   const { data: dataset } = useDataset(query?.datasetId)
   const { data: geometries } = useGeometries(query?.geometriesId)
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: productQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
@@ -220,7 +220,7 @@ export const useProducts = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
     filters: [
@@ -249,7 +249,7 @@ export const useProductRuns = (
   const { data: datasetRun } = useDatasetRun(query?.datasetRunId)
   const { data: geometriesRun } = useGeometriesRun(query?.geometriesRunId)
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: productRunQueryKeys.list(productId, query),
     queryFn: async () => {
       if (!productId || !query) return null
@@ -269,7 +269,7 @@ export const useProductRuns = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
     filters: [
@@ -312,7 +312,7 @@ export const useProductOutputs = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: productOutputQueryKeys.list(
       productRun?.product?.id,
       productRun?.id,
@@ -336,7 +336,7 @@ export const useProductOutputs = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }
@@ -356,7 +356,7 @@ export const useProductOutputsExport = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: productOutputQueryKeys.exportList(
       productRun?.product?.id,
       productRun?.id,
@@ -391,7 +391,7 @@ export const useProductOutputsExport = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }

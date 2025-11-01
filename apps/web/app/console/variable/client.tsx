@@ -91,24 +91,39 @@ const VariableFeature = () => {
           <FormField
             control={form.control}
             name="categoryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Variable Category</FormLabel>
-                <FormControl>
-                  <SelectWithSearchWithCreate
-                    options={variableCategories?.data}
-                    value={field.value ?? null}
-                    onSelect={field.onChange}
-                    onSearch={() => {}}
-                    placeholder="Root Category"
-                    entityName="Variable Category"
-                    createMutation={createVariableCategory}
-                    allowUndefined
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              return (
+                <FormItem>
+                  <FormLabel>Variable Category</FormLabel>
+                  <FormControl>
+                    <SelectWithSearchWithCreate
+                      options={variableCategories?.data}
+                      value={
+                        variableCategories?.data.find(
+                          (category) => category.id === field.value,
+                        ) ?? null
+                      }
+                      onChange={(value) => field.onChange(value?.id)}
+                      placeholder="Root Category"
+                      onCreateOption={(input) => {
+                        createVariableCategory.mutate(
+                          {
+                            name: input,
+                          },
+                          {
+                            onSuccess: (variableCategory) => {
+                              field.onChange(variableCategory?.id)
+                            },
+                          },
+                        )
+                      }}
+                      isClearable
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
           />
         </CrudFormDialog>
       </div>

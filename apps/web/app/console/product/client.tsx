@@ -123,7 +123,12 @@ const ProductFeature = () => {
             name="datasetId"
             render={({ field }) => (
               <FormItem>
-                <DatasetSelect value={field.value} onChange={field.onChange} />
+                <DatasetSelect
+                  value={field.value}
+                  onChange={(selectedDataset) =>
+                    field.onChange(selectedDataset?.id ?? null)
+                  }
+                />
                 <FormMessage />
               </FormItem>
             )}
@@ -135,7 +140,9 @@ const ProductFeature = () => {
               <FormItem>
                 <GeometriesSelect
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(selectedGeometries) =>
+                    field.onChange(selectedGeometries?.id ?? null)
+                  }
                 />
                 <FormMessage />
               </FormItem>

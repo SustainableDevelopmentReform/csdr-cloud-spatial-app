@@ -8,6 +8,7 @@ import {
 } from '@repo/schemas/crud'
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -199,7 +200,7 @@ export const useAllGeometries = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: geometriesQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
@@ -216,7 +217,7 @@ export const useAllGeometries = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }
@@ -235,7 +236,7 @@ export const useGeometriesRuns = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: geometriesRunQueryKeys.list(geometriesId, query),
     queryFn: async () => {
       if (!geometriesId || !query) return null
@@ -255,7 +256,7 @@ export const useGeometriesRuns = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }
@@ -265,6 +266,7 @@ export const useGeometryOutputs = (
   _geometriesRunId?: string,
   _query?: z.infer<typeof geometryOutputQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const { data: geometriesRun } = useGeometriesRun(geometriesRunId)
@@ -295,7 +297,7 @@ export const useGeometryOutputs = (
       return json.data
     },
     placeholderData: keepPreviousData,
-    enabled: !!geometriesRun && !!query,
+    enabled: enabled && !!geometriesRun && !!query,
   })
 
   return {

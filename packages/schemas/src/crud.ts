@@ -4,8 +4,6 @@ import { MultiPolygonSchema, PolygonSchema } from './geojson'
 export const baseQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
   size: z.coerce.number().optional(),
-  // Temporary field to disable pagination - until SelectWithSearch is refactored to "cache" selected items
-  disablePagination: z.coerce.boolean().optional(),
   search: z.string().optional(),
   sort: z.enum(['name', 'createdAt', 'updatedAt']).optional(),
   order: z.enum(['asc', 'desc']).optional(),
@@ -77,13 +75,12 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})
 
-export const geometryOutputQuerySchema = baseQuerySchema.extend({})
+export const geometryOutputQuerySchema = baseQuerySchema.extend({
+  geometryOutputIds: z.union([z.string(), z.array(z.string())]).optional(),
+})
 
 export const geometryOutputExportQuerySchema = z.object({
-  geometryOutputIds: z
-    .union([z.string(), z.array(z.string())])
-    .optional()
-    .transform((val) => (Array.isArray(val) ? val : val ? [val] : undefined)),
+  geometryOutputIds: z.union([z.string(), z.array(z.string())]).optional(),
 })
 
 export const createGeometryOutputSchema = baseCreateResourceSchema.extend({
@@ -182,7 +179,9 @@ export const createManyProductOutputSchema = z.object({
   ),
 })
 
-export const variableQuerySchema = baseQuerySchema
+export const variableQuerySchema = baseQuerySchema.extend({
+  variableIds: z.union([z.string(), z.array(z.string())]).optional(),
+})
 
 export const createVariableSchema = baseCreateResourceSchema.extend({
   name: z.string(),

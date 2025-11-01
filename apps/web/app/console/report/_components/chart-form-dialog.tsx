@@ -426,8 +426,8 @@ export const ChartFormDialog = ({
                 <FormItem>
                   <ProductSelect
                     {...field}
-                    onChange={(id, product) => {
-                      field.onChange(id)
+                    onChange={(product) => {
+                      field.onChange(product?.id ?? null)
                       if (product) setDefaultsForProduct(product)
                     }}
                   />
@@ -444,8 +444,8 @@ export const ChartFormDialog = ({
                   <ProductRunSelect
                     productId={form.getValues('productId')}
                     {...field}
-                    onChange={(id, productRun) => {
-                      field.onChange(id)
+                    onChange={(productRun) => {
+                      field.onChange(productRun?.id ?? null)
                       form.resetField('variableId')
                       form.resetField('variableIds')
                       form.resetField('geometryOutputIds')
@@ -470,15 +470,17 @@ export const ChartFormDialog = ({
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
                           placeholder={'All Variables'}
-                          multiple
-                          onSelect={(value) => field.onChange(value)}
+                          isMulti
+                          onChange={(value) =>
+                            field.onChange(value.map((v) => v.id))
+                          }
                         />
                       ) : (
                         <ProductRunVariablesSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value?.[0] ?? null}
-                          onSelect={(value) =>
-                            field.onChange(value ? [value] : undefined)
+                          onChange={(value) =>
+                            field.onChange(value ? [value.id] : undefined)
                           }
                         />
                       )}
@@ -498,7 +500,7 @@ export const ChartFormDialog = ({
                     <ProductRunVariablesSelect
                       productRunId={form.getValues('productRunId')}
                       value={field.value ?? null}
-                      onSelect={(value) => field.onChange(value)}
+                      onChange={(value) => field.onChange(value?.id ?? null)}
                     />
                     <FormMessage />
                   </FormItem>
@@ -523,15 +525,17 @@ export const ChartFormDialog = ({
                         productRunId={form.getValues('productRunId')}
                         value={field.value ?? []}
                         placeholder={'All Geometry Outputs'}
-                        multiple
-                        onSelect={(value) => field.onChange(value)}
+                        isMulti
+                        onChange={(value) => {
+                          field.onChange(value.map((v) => v.id))
+                        }}
                       />
                     ) : (
                       <ProductGeometryOutputSelect
                         productRunId={form.getValues('productRunId')}
-                        value={field.value?.[0] ?? null}
-                        onSelect={(value) =>
-                          field.onChange(value ? [value] : undefined)
+                        value={field.value?.find((id) => id) ?? null}
+                        onChange={(value) =>
+                          field.onChange(value ? [value.id] : undefined)
                         }
                       />
                     )}
@@ -562,14 +566,14 @@ export const ChartFormDialog = ({
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
                           placeholder={'All Time Points'}
-                          multiple
-                          onSelect={(value) => field.onChange(value)}
+                          isMulti
+                          onChange={(value) => field.onChange(value)}
                         />
                       ) : (
                         <ProductOutputTimeSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value?.[0] ?? null}
-                          onSelect={(value) =>
+                          onChange={(value) =>
                             field.onChange(value ? [value] : undefined)
                           }
                         />
@@ -590,7 +594,7 @@ export const ChartFormDialog = ({
                     <ProductOutputTimeSelect
                       productRunId={form.getValues('productRunId')}
                       value={field.value ?? null}
-                      onSelect={(value) => field.onChange(value)}
+                      onChange={(value) => field.onChange(value)}
                     />
                     <FormMessage />
                   </FormItem>

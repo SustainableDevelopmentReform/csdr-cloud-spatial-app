@@ -151,7 +151,7 @@ const ProductOutputFeature = () => {
                 <ProductGeometryOutputSelect
                   productRunId={productRun?.id}
                   value={field.value}
-                  onSelect={field.onChange}
+                  onChange={(value) => field.onChange(value?.id ?? null)}
                 />
                 <FormMessage />
               </FormItem>
@@ -164,7 +164,7 @@ const ProductOutputFeature = () => {
               <FormItem>
                 <VariablesSelect
                   value={field.value}
-                  onSelect={field.onChange}
+                  onChange={(value) => field.onChange(value?.id ?? null)}
                 />
                 <FormMessage />
               </FormItem>

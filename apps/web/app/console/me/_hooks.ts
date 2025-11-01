@@ -16,7 +16,7 @@ export const useApiKeys = () => {
   const authClient = useAuthClient()
   const [isOpen, setOpen] = useState(false)
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: [QueryKey.ApiKeys],
     queryFn: async () => {
       const res = await authClient.apiKey.list()
@@ -31,7 +31,7 @@ export const useApiKeys = () => {
   })
 
   return {
-    data,
+    ...queryResult,
     isOpen,
     setOpen,
   }

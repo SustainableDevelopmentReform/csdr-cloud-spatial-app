@@ -1,6 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
-import { GeometriesListItem, useAllGeometries } from '../_hooks'
+import { GeometriesListItem, useAllGeometries, useGeometries } from '../_hooks'
 
 export const GeometriesSelect = ({
   value,
@@ -8,23 +8,25 @@ export const GeometriesSelect = ({
   disabled,
 }: {
   value: string | null | undefined
-  onChange: (id: string | null, geometries: GeometriesListItem | null) => void
+  onChange: (geometries: GeometriesListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: geometries } = useAllGeometries({ disablePagination: true })
+  const { data: allGeometries, setSearchParams } = useAllGeometries()
+
+  const { data: selectedGeometries } = useGeometries(value ?? undefined)
+
   return (
     <FieldGroup title="Select Geometries" disabled={disabled}>
       <SelectWithSearch
-        options={geometries?.data}
-        value={value ?? null}
-        onSelect={(value) => {
-          onChange(
-            value,
-            geometries?.data?.find((geometries) => geometries.id === value) ??
-              null,
-          )
+        options={allGeometries?.data}
+        value={selectedGeometries ?? null}
+        onSearch={(search) => {
+          setSearchParams({ search })
         }}
-        disabled={disabled}
+        onChange={(nextValue) => {
+          onChange(nextValue)
+        }}
+        isDisabled={disabled}
       />
     </FieldGroup>
   )

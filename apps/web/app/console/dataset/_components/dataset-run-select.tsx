@@ -1,6 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
-import { DatasetRunListItem, useDatasetRuns } from '../_hooks'
+import { DatasetRunListItem, useDatasetRun, useDatasetRuns } from '../_hooks'
 
 export const DatasetRunSelect = ({
   value,
@@ -10,25 +10,27 @@ export const DatasetRunSelect = ({
 }: {
   value: string | null | undefined
   datasetId: string | null | undefined
-  onChange: (id: string | null, datasetRun: DatasetRunListItem | null) => void
+  onChange: (datasetRun: DatasetRunListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: datasetRuns } = useDatasetRuns(datasetId ?? undefined, {
-    disablePagination: true,
-  })
+  const { data: datasetRuns, setSearchParams } = useDatasetRuns(
+    datasetId ?? undefined,
+  )
+
+  const { data: selectedDatasetRun } = useDatasetRun(value ?? undefined)
+
   return (
     <FieldGroup title="Select Dataset Run" disabled={disabled}>
       <SelectWithSearch
         options={datasetRuns?.data}
-        value={value ?? null}
-        onSelect={(value) => {
-          onChange(
-            value,
-            datasetRuns?.data?.find((datasetRun) => datasetRun.id === value) ??
-              null,
-          )
+        value={selectedDatasetRun ?? null}
+        onSearch={(search) => {
+          setSearchParams({ search })
         }}
-        disabled={disabled}
+        onChange={(nextValue) => {
+          onChange(nextValue)
+        }}
+        isDisabled={disabled}
       />
     </FieldGroup>
   )

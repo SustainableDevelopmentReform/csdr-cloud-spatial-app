@@ -48,7 +48,7 @@ export const useUsers = () => {
   //   undefined,
   // )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: [QueryKey.Users, page, search],
     queryFn: async () => {
       const res = await authClient.admin.listUsers({
@@ -76,7 +76,7 @@ export const useUsers = () => {
   })
 
   return {
-    data,
+    ...queryResult,
     isOpen,
     setOpen,
     page,
