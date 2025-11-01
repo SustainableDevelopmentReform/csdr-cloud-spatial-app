@@ -98,7 +98,7 @@ export const useDatasets = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: datasetQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
@@ -115,7 +115,7 @@ export const useDatasets = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }
@@ -134,7 +134,7 @@ export const useDatasetRuns = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: datasetRunQueryKeys.list(datasetId, query),
     queryFn: async () => {
       if (!datasetId || !query) return null
@@ -154,7 +154,7 @@ export const useDatasetRuns = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }

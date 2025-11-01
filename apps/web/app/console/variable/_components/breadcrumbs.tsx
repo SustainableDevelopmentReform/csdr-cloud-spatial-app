@@ -8,6 +8,7 @@ import {
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
 import Link from '../../../../components/link'
+import { VARIABLES_BASE_PATH } from '../../../../lib/paths'
 import { useVariable } from '../_hooks'
 import { VariableButton } from './variable-button'
 
@@ -25,7 +26,7 @@ export const VariablesBreadcrumbs = () => {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console/variables">Variables</Link>
+            <Link href={VARIABLES_BASE_PATH}>Variables</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
 

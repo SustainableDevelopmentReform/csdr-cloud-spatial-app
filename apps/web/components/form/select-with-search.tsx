@@ -1,171 +1,43 @@
 'use client'
 
-import * as React from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import ReactSelect, {
+  InputActionMeta,
+  Props as ReactSelectProps,
+} from 'react-select'
 
-import { cn } from '@repo/ui/lib/utils'
-import { Button } from '@repo/ui/components/ui/button'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@repo/ui/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@repo/ui/components/ui/popover'
-import { useDebounceCallback } from 'usehooks-ts'
+export type SelectOption = {
+  id: string
+  name?: string
+}
 
-export type SelectWithSearchProps = {
-  options?: { id: string; name?: string }[]
+export type SelectWithSearchProps<
+  Option extends SelectOption,
+  IsMulti extends boolean = false,
+> = {
   onSearch?: (value: string | undefined) => void
-  placeholder?: string
-  allowUndefined?: boolean
-  className?: string
-  noResult?: React.ReactNode
-  open?: boolean
-  setOpen?: (open: boolean) => void
-  disabled?: boolean
-} & (
-  | {
-      value: string[]
-      onSelect: (value: string[]) => void
-      multiple: true
-    }
-  | {
-      value: string | null
-      onSelect: (value: string | null) => void
-      multiple?: false
-    }
-)
+  options: Option[] | undefined
+} & ReactSelectProps<Option, IsMulti>
 
 export function EmptyResult() {
   return 'No options found.'
 }
 
-export function SelectWithSearch({
-  options,
-  onSearch,
-  placeholder = 'Select an option',
-  allowUndefined,
-  className,
-  noResult,
-  open: openProp,
-  setOpen: setOpenProp,
-  disabled,
-  ...props
-}: SelectWithSearchProps) {
-  const [open, setOpen] = React.useState(false)
-
-  const selectedValues = props.multiple ? props.value : [props.value]
-
-  const debouncedOnSearch = useDebounceCallback(onSearch ?? (() => {}), 500)
+export function SelectWithSearch<
+  Option extends SelectOption,
+  IsMulti extends boolean = false,
+>({ onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+  const handleInputChange = (inputText: string, meta: InputActionMeta) => {
+    if (meta.action !== 'input-blur' && meta.action !== 'menu-close') {
+      onSearch?.(inputText)
+    }
+  }
 
   return (
-    <Popover open={openProp ?? open} onOpenChange={setOpenProp ?? setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={openProp ?? open}
-          className="w-full justify-between"
-          animate={false}
-          disabled={disabled}
-        >
-          <div className="flex flex-wrap gap-2 max-w-full overflow-x-hidden">
-            {selectedValues.length > 0
-              ? selectedValues
-                  .map(
-                    (value) =>
-                      options?.find((option) => option.id === value)?.name ??
-                      value,
-                  )
-                  .join(', ')
-              : placeholder}
-          </div>
-          <ChevronsUpDown className="opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className={cn(
-          'p-0 w-[--radix-popper-anchor-width] max-w-full overflow-x-hidden',
-          className,
-        )}
-      >
-        <Command className="w-full" shouldFilter={!onSearch}>
-          <CommandInput
-            placeholder={placeholder}
-            className="h-9"
-            onValueChange={debouncedOnSearch}
-          />
-          <CommandList>
-            <CommandEmpty>{noResult ?? <EmptyResult />}</CommandEmpty>
-            <CommandGroup>
-              {allowUndefined && (
-                <CommandItem
-                  value=""
-                  onSelect={() => {
-                    if (props.multiple) {
-                      props.onSelect([])
-                    } else {
-                      props.onSelect(null)
-                      setOpenProp?.(false) || setOpen(false)
-                    }
-                  }}
-                >
-                  {placeholder}
-                  <Check
-                    className={cn(
-                      'ml-auto',
-                      props.value === null ? 'opacity-100' : 'opacity-0',
-                    )}
-                  />
-                </CommandItem>
-              )}
-              {options?.map((option) => (
-                <CommandItem
-                  key={option.id}
-                  value={option.id}
-                  onSelect={(currentValue) => {
-                    if (props.multiple) {
-                      props.onSelect(
-                        props.value.includes(currentValue)
-                          ? props.value.filter(
-                              (value) => value !== currentValue,
-                            )
-                          : [...props.value, currentValue],
-                      )
-                    } else {
-                      props.onSelect(
-                        currentValue === props.value ? null : currentValue,
-                      )
-                      setOpenProp?.(false) || setOpen(false)
-                    }
-                  }}
-                >
-                  {option.name ?? option.id}
-                  <Check
-                    className={cn(
-                      'ml-auto',
-                      props.multiple
-                        ? props.value.includes(option.id)
-                          ? 'opacity-100'
-                          : 'opacity-0'
-                        : props.value === option.id
-                          ? 'opacity-100'
-                          : 'opacity-0',
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <ReactSelect<Option, IsMulti>
+      getOptionLabel={(option) => option.name ?? option.id}
+      getOptionValue={(option) => option.id}
+      {...rest}
+      onInputChange={handleInputChange}
+    />
   )
 }

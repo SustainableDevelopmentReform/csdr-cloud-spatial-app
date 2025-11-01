@@ -49,8 +49,6 @@ export const parseQuery = async <
 ): Promise<ParseQueryResult> => {
   const parsed = baseQuerySchema.parse(params)
 
-  const usePagination = !parsed.disablePagination
-
   const page = parsed.page && parsed.page > 0 ? parsed.page : 1
   const size = parsed.size && parsed.size > 0 ? parsed.size : 10
   const limit = size
@@ -88,10 +86,10 @@ export const parseQuery = async <
   }
 
   return {
-    limit: usePagination ? limit : undefined,
-    offset: usePagination ? offset : undefined,
+    limit: limit,
+    offset: offset,
     totalCount: total,
-    pageCount: usePagination ? pageCount : 1,
+    pageCount: pageCount,
     where,
     orderBy,
   }

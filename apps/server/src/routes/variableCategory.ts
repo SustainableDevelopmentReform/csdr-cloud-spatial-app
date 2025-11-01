@@ -11,7 +11,7 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas/db'
-import { baseColumns, QueryForTable } from '../schemas/util'
+import { baseColumns, baseResourceSchema, QueryForTable } from '../schemas/util'
 import {
   createVariableCategorySchema,
   updateVariableCategorySchema,
@@ -29,6 +29,13 @@ const variableCategoryQuery = {
     },
   },
 } satisfies QueryForTable<'variableCategory'>
+
+export const variableCategorySchema = baseResourceSchema
+  .extend({
+    parentId: z.string().nullable(),
+    displayOrder: z.number().int().nullable(),
+  })
+  .openapi('VariableCategorySchemaBase')
 
 const variableCategoryNotFoundError = () =>
   new ServerError({
@@ -74,7 +81,7 @@ const app = createOpenAPIApp()
             'application/json': {
               schema: createResponseSchema(
                 z.object({
-                  data: z.array(z.any()),
+                  data: z.array(variableCategorySchema),
                   totalCount: z.number().int(),
                 }),
               ),
@@ -122,7 +129,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a variable category.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(variableCategorySchema),
             },
           },
         },
@@ -165,7 +172,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a variable category.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(variableCategorySchema),
             },
           },
         },

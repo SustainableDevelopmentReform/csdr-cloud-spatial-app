@@ -2,6 +2,9 @@ import { FieldGroup } from '../../../../components/form/action'
 import { useGeometryOutputs } from '../../geometries/_hooks'
 import { useProductRun } from '../_hooks'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
+import { GeometryOutputListItem } from '../../geometries/_hooks'
+import { MultiValue, SingleValue } from 'react-select'
+import { useMemo } from 'react'
 
 type ProductGeometryOutputSelectProps = {
   title?: string
@@ -10,14 +13,14 @@ type ProductGeometryOutputSelectProps = {
   placeholder?: string
 } & (
   | {
+      isMulti: true
       value: string[]
-      onSelect: (value: string[]) => void
-      multiple: true
+      onChange: (value: MultiValue<GeometryOutputListItem>) => void
     }
   | {
+      isMulti?: false
       value: string | null
-      onSelect: (value: string | null) => void
-      multiple?: false
+      onChange: (value: SingleValue<GeometryOutputListItem>) => void
     }
 )
 
@@ -25,35 +28,92 @@ export const ProductGeometryOutputSelect = ({
   title,
   productRunId,
   disabled,
+  value,
+  onChange,
+  isMulti,
   ...props
 }: ProductGeometryOutputSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
-  const { data: geometryOutputs } = useGeometryOutputs(
+  const {
+    data: geometryOutputs,
+    setSearchParams,
+    isLoading: isLoadingGeometryOutputs,
+  } = useGeometryOutputs(productRun?.geometriesRun.id, {})
+
+  const hasSelectedValue = Array.isArray(value) ? value.length > 0 : !!value
+
+  const {
+    data: selectedGeometryOutputs,
+    isLoading: isLoadingSelectedGeometryOutputs,
+  } = useGeometryOutputs(
     productRun?.geometriesRun.id,
-    { disablePagination: true },
+    {
+      geometryOutputIds: value ?? undefined,
+      size: Array.isArray(value) ? value.length : value ? 1 : undefined,
+    },
+    false,
+    hasSelectedValue,
   )
+
+  const discriminatedProps = useMemo(() => {
+    if (isMulti === true) {
+      const selectedValues = hasSelectedValue
+        ? (selectedGeometryOutputs?.data ?? [])
+        : []
+      return {
+        isMulti: true,
+        value: selectedValues,
+        onChange: (nextValue: MultiValue<GeometryOutputListItem>) =>
+          onChange(nextValue),
+      } as const
+    }
+    const selectedValue = hasSelectedValue
+      ? (selectedGeometryOutputs?.data?.[0] ?? null)
+      : null
+    return {
+      isMulti: false,
+      value: selectedValue,
+      onChange: (nextValue: SingleValue<GeometryOutputListItem>) =>
+        onChange(nextValue),
+    } as const
+  }, [isMulti, hasSelectedValue, selectedGeometryOutputs?.data, onChange])
 
   return (
     <FieldGroup
-      title={title ?? `Select Geometry${props.multiple ? '(s)' : ''}`}
+      title={
+        title ?? `Select Geometry${discriminatedProps.isMulti ? '(s)' : ''}`
+      }
       disabled={disabled}
     >
-      {props.multiple ? (
+      {discriminatedProps.isMulti === true ? (
         <SelectWithSearch
           placeholder={props.placeholder}
           options={geometryOutputs?.data}
-          value={props.value ?? []}
-          onSelect={props.onSelect}
-          disabled={!productRun}
-          multiple
+          value={discriminatedProps.value}
+          onChange={discriminatedProps.onChange}
+          onSearch={(search) => {
+            setSearchParams({ search })
+          }}
+          isDisabled={!productRun || disabled}
+          isLoading={
+            isLoadingGeometryOutputs || isLoadingSelectedGeometryOutputs
+          }
+          isMulti
         />
       ) : (
         <SelectWithSearch
           placeholder={props.placeholder}
           options={geometryOutputs?.data}
-          value={props.value ?? null}
-          onSelect={props.onSelect}
-          disabled={!productRun}
+          value={discriminatedProps.value ?? null}
+          onChange={discriminatedProps.onChange}
+          onSearch={(search) => {
+            setSearchParams({ search })
+          }}
+          isDisabled={!productRun || disabled}
+          isClearable
+          isLoading={
+            isLoadingGeometryOutputs || isLoadingSelectedGeometryOutputs
+          }
         />
       )}
     </FieldGroup>

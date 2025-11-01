@@ -1,6 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { DatasetListItem, useDatasets } from '../_hooks'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
+import { DatasetListItem, useDataset, useDatasets } from '../_hooks'
 
 export const DatasetSelect = ({
   value,
@@ -8,22 +8,31 @@ export const DatasetSelect = ({
   disabled,
 }: {
   value: string | null | undefined
-  onChange: (id: string | null, dataset: DatasetListItem | null) => void
+  onChange: (dataset: DatasetListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: datasets } = useDatasets({ disablePagination: true })
+  const {
+    data: datasets,
+    setSearchParams,
+    isLoading: isLoadingDatasets,
+  } = useDatasets()
+
+  const { data: selectedDataset, isLoading: isLoadingSelectedDataset } =
+    useDataset(value ?? undefined)
+
   return (
     <FieldGroup title="Select Dataset" disabled={disabled}>
       <SelectWithSearch
         options={datasets?.data}
-        value={value ?? null}
-        onSelect={(value) => {
-          onChange(
-            value,
-            datasets?.data?.find((dataset) => dataset.id === value) ?? null,
-          )
+        value={selectedDataset ?? null}
+        onSearch={(search) => {
+          setSearchParams({ search })
         }}
-        disabled={disabled}
+        onChange={(nextValue) => {
+          onChange(nextValue)
+        }}
+        isDisabled={disabled}
+        isLoading={isLoadingDatasets || isLoadingSelectedDataset}
       />
     </FieldGroup>
   )

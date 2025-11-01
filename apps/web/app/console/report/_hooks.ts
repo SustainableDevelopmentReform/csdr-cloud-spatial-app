@@ -65,7 +65,7 @@ export const useReports = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: reportQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
@@ -82,7 +82,7 @@ export const useReports = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }

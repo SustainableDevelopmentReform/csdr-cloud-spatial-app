@@ -1,77 +1,53 @@
-import { Button } from '@repo/ui/components/ui/button'
-import {
-  EmptyResult,
-  SelectWithSearch,
-  SelectWithSearchProps,
-} from './select-with-search'
-import { UseMutationResult } from '@tanstack/react-query'
-import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
-import { useState } from 'react'
+'use client'
 
-type SelectWithSearchWithCreateProps = SelectWithSearchProps & {
-  entityName: string
-  createMutation?: UseMutationResult<
-    { id: string } | undefined,
-    Error,
-    { name: string }
-  >
+import { InputActionMeta, GroupBase } from 'react-select'
+
+import CreatableSelect, { CreatableProps } from 'react-select/creatable'
+
+export type SelectOption = {
+  id: string
+  name?: string
 }
 
-const CreateButton = ({
-  entityName,
-  createMutation,
-  searchValue,
-  setOpen,
-  ...props
-}: SelectWithSearchWithCreateProps & {
-  searchValue: string | null
-  setOpen: (open: boolean) => void
-}) => {
-  if (!searchValue || !createMutation) return <EmptyResult />
+export type SelectWithSearchProps<
+  Option extends SelectOption,
+  IsMulti extends boolean = false,
+> = {
+  onSearch?: (value: string | undefined) => void
+  options: Option[] | undefined
+} & CreatableProps<Option, IsMulti, GroupBase<Option>>
+
+export function EmptyResult() {
+  return 'No options found.'
+}
+
+export function SelectWithSearchWithCreate<
+  Option extends SelectOption,
+  IsMulti extends boolean = false,
+>({ onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+  const handleInputChange = (inputText: string, meta: InputActionMeta) => {
+    if (meta.action !== 'input-blur' && meta.action !== 'menu-close') {
+      onSearch?.(inputText)
+    }
+  }
 
   return (
-    <Button
-      onClick={async () => {
-        const newOption = await createMutation.mutateAsync({
-          name: searchValue,
-        })
-        if (newOption) {
-          props.onSelect(newOption.id)
+    <CreatableSelect<Option, IsMulti>
+      getOptionLabel={(option) => {
+        // Need to handle the create label (from formatCreateLabel)
+        if (
+          !option.id &&
+          'label' in option &&
+          typeof option.label === 'string'
+        ) {
+          return option.label
         }
-        setOpen(false)
+        return option.name ?? option.id
       }}
-      disabled={createMutation.isPending}
-    >
-      {createMutation.isPending && <LoadingIcon />}
-      {`Create ${entityName} "${searchValue}"`}
-    </Button>
-  )
-}
-
-export const SelectWithSearchWithCreate = ({
-  createMutation,
-  ...props
-}: SelectWithSearchWithCreateProps) => {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState<string>('')
-
-  return (
-    <SelectWithSearch
-      {...props}
-      open={open}
-      setOpen={setOpen}
-      noResult={
-        <CreateButton
-          createMutation={createMutation}
-          searchValue={searchValue}
-          setOpen={setOpen}
-          {...props}
-        />
-      }
-      onSearch={(value) => {
-        setSearchValue(value ?? '')
-        props.onSearch(value)
-      }}
+      getOptionValue={(option) => option.id}
+      formatCreateLabel={(input) => `Create "${input}"`}
+      {...rest}
+      onInputChange={handleInputChange}
     />
   )
 }

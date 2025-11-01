@@ -4,7 +4,7 @@ import {
   updateVariableSchema,
   variableQuerySchema,
 } from '@repo/schemas/crud'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -105,6 +105,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const { variableIds } = c.req.valid('query')
       const { pageCount, totalCount, ...query } = await parseQuery(
         variable,
         c.req.valid('query'),
@@ -113,6 +114,16 @@ const app = createOpenAPIApp()
           searchableColumns: [variable.name],
         },
       )
+
+      if (variableIds) {
+        query.where = and(
+          query.where,
+          inArray(
+            variable.id,
+            Array.isArray(variableIds) ? variableIds : [variableIds],
+          ),
+        )
+      }
 
       const data = await db.query.variable.findMany({
         ...baseVariableQuery,

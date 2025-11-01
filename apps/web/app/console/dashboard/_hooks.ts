@@ -69,7 +69,7 @@ export const useDashboards = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: dashboardQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
@@ -82,7 +82,7 @@ export const useDashboards = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }

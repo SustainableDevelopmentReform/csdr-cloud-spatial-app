@@ -174,6 +174,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const { geometryOutputIds } = c.req.valid('query')
       const { pageCount, totalCount, ...query } = await parseQuery(
         geometryOutput,
         c.req.valid('query'),
@@ -182,6 +183,18 @@ const app = createOpenAPIApp()
           searchableColumns: [geometryOutput.name],
         },
       )
+
+      if (geometryOutputIds) {
+        query.where = and(
+          query.where,
+          inArray(
+            geometryOutput.id,
+            Array.isArray(geometryOutputIds)
+              ? geometryOutputIds
+              : [geometryOutputIds],
+          ),
+        )
+      }
 
       const data = await db.query.geometryOutput.findMany({
         ...baseGeometryOutputQuery,
@@ -235,7 +248,14 @@ const app = createOpenAPIApp()
       const filters: SQL[] = [eq(geometryOutput.geometriesRunId, id)]
 
       if (geometryOutputIds) {
-        filters.push(inArray(geometryOutput.id, geometryOutputIds))
+        filters.push(
+          inArray(
+            geometryOutput.id,
+            Array.isArray(geometryOutputIds)
+              ? geometryOutputIds
+              : [geometryOutputIds],
+          ),
+        )
       }
 
       const data = await db.query.geometryOutput.findMany({

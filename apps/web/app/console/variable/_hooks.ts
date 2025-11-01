@@ -96,7 +96,7 @@ export const useVariables = (
     useSearchParams,
   )
 
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: variableQueryKeys.list(query),
     queryFn: async () => {
       if (!query) return null
@@ -113,7 +113,7 @@ export const useVariables = (
   })
 
   return {
-    data,
+    ...queryResult,
     query,
     setSearchParams,
   }
@@ -122,7 +122,7 @@ export const useVariables = (
 // Note - for the moment we just return all categories in a single query
 export const useVariableCategories = () => {
   const client = useApiClient()
-  const { data } = useQuery({
+  const queryResult = useQuery({
     queryKey: variableCategoryQueryKeys.all,
     queryFn: async () => {
       const res = client.api.v0['variable-category'].$get()
@@ -135,7 +135,7 @@ export const useVariableCategories = () => {
   })
 
   return {
-    data,
+    ...queryResult,
   }
 }
 

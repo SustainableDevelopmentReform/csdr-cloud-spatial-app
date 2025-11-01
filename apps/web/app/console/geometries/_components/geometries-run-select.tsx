@@ -1,6 +1,10 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { GeometriesRunListItem, useGeometriesRuns } from '../_hooks'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
+import {
+  GeometriesRunListItem,
+  useGeometriesRun,
+  useGeometriesRuns,
+} from '../_hooks'
 
 export const GeometriesRunSelect = ({
   value,
@@ -10,30 +14,32 @@ export const GeometriesRunSelect = ({
 }: {
   value: string | null | undefined
   geometriesId: string | null | undefined
-  onChange: (
-    id: string | null,
-    geometriesRun: GeometriesRunListItem | null,
-  ) => void
+  onChange: (geometriesRun: GeometriesRunListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: geometriesRuns } = useGeometriesRuns(
-    geometriesId ?? undefined,
-    { disablePagination: true },
-  )
+  const {
+    data: geometriesRuns,
+    setSearchParams,
+    query,
+  } = useGeometriesRuns(geometriesId ?? undefined)
+
+  const { data: selectedGeometriesRun } = useGeometriesRun(value ?? undefined)
+
   return (
     <FieldGroup title="Select Geometries Run" disabled={disabled}>
       <SelectWithSearch
         options={geometriesRuns?.data}
-        value={value ?? null}
-        onSelect={(value) => {
-          onChange(
-            value,
-            geometriesRuns?.data?.find(
-              (geometriesRun) => geometriesRun.id === value,
-            ) ?? null,
-          )
+        value={selectedGeometriesRun ?? null}
+        onSearch={(search) => {
+          setSearchParams({ search })
         }}
-        disabled={disabled}
+        onChange={(nextValue) => {
+          onChange(nextValue)
+        }}
+        isDisabled={disabled}
+        onMenuScrollToBottom={() => {
+          setSearchParams({ page: (query?.page ?? 1) + 1 })
+        }}
       />
     </FieldGroup>
   )
