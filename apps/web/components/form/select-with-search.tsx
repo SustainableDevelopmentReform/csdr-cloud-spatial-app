@@ -4,6 +4,7 @@ import ReactSelect, {
   InputActionMeta,
   Props as ReactSelectProps,
 } from 'react-select'
+import { useDebounceCallback } from 'usehooks-ts'
 
 export type SelectOption = {
   id: string
@@ -26,9 +27,11 @@ export function SelectWithSearch<
   Option extends SelectOption,
   IsMulti extends boolean = false,
 >({ onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+  const debounced = useDebounceCallback(onSearch ?? (() => {}), 300)
+
   const handleInputChange = (inputText: string, meta: InputActionMeta) => {
     if (meta.action !== 'input-blur' && meta.action !== 'menu-close') {
-      onSearch?.(inputText)
+      debounced(inputText)
     }
   }
 
@@ -37,6 +40,7 @@ export function SelectWithSearch<
       getOptionLabel={(option) => option.name ?? option.id}
       getOptionValue={(option) => option.id}
       {...rest}
+      filterOption={onSearch ? null : undefined}
       onInputChange={handleInputChange}
     />
   )

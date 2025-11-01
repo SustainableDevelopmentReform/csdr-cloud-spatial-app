@@ -8,18 +8,20 @@ import {
 } from '@repo/schemas/crud'
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
-import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/useApiClient'
+import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { getSearchParams } from '~/utils/browser'
 import {
   PRODUCTS_BASE_PATH,
   PRODUCTS_RUNS_BASE_PATH,
@@ -42,19 +44,21 @@ import {
   useGeometriesRun,
 } from '../geometries/_hooks'
 
-export type ProductListItem = NonNullable<
+export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
->['data'][0]
+>
+export type ProductListItem = ProductListResponse['data'][0]
 export type ProductDetail = NonNullable<
   InferResponseType<Client['api']['v0']['product'][':id']['$get'], 200>['data']
 >
 
-export type ProductRunListItem = NonNullable<
+export type ProductRunListResponse = NonNullable<
   InferResponseType<
     Client['api']['v0']['product'][':id']['runs']['$get'],
     200
   >['data']
->['data'][0]
+>
+export type ProductRunListItem = ProductRunListResponse['data'][0]
 export type ProductRunDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['product-run'][':id']['$get'],
@@ -62,12 +66,13 @@ export type ProductRunDetail = NonNullable<
   >['data']
 >
 
-export type ProductOutputListItem = NonNullable<
+export type ProductOutputListResponse = NonNullable<
   InferResponseType<
     Client['api']['v0']['product-run'][':id']['outputs']['$get'],
     200
   >['data']
->['data'][0]
+>
+export type ProductOutputListItem = ProductOutputListResponse['data'][0]
 
 // Note we parse dates in the hook - so we use the return type of the hook
 export type ProductOutputExportListItem = NonNullable<
@@ -203,25 +208,38 @@ export const useProducts = (
   const { data: dataset } = useDataset(query?.datasetId)
   const { data: geometries } = useGeometries(query?.geometriesId)
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<ProductListResponse>({
     queryKey: productQueryKeys.list(query),
-    queryFn: async () => {
-      if (!query) return null
+    queryFn: async ({ pageParam = 1 }) => {
       const res = client.api.v0.product.$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
       })
 
       const json = await unwrapResponse(res)
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
     filters: [
       dataset && <DatasetButton dataset={dataset} key={dataset.id} />,
@@ -249,12 +267,17 @@ export const useProductRuns = (
   const { data: datasetRun } = useDatasetRun(query?.datasetRunId)
   const { data: geometriesRun } = useGeometriesRun(query?.geometriesRunId)
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<ProductRunListResponse>({
     queryKey: productRunQueryKeys.list(productId, query),
-    queryFn: async () => {
-      if (!productId || !query) return null
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!productId) {
+        throw new Error('Product ID is required to fetch product runs')
+      }
       const res = client.api.v0['product'][':id']['runs'].$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
         param: {
           id: productId,
         },
@@ -264,13 +287,25 @@ export const useProductRuns = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productId && !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
+    enabled: !!productId,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
     filters: [
       datasetRun && (
@@ -312,16 +347,21 @@ export const useProductOutputs = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<ProductOutputListResponse>({
     queryKey: productOutputQueryKeys.list(
       productRun?.product?.id,
       productRun?.id,
       query,
     ),
-    queryFn: async () => {
-      if (!productRun || !query) return null
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!productRun) {
+        throw new Error('Product run is required to fetch outputs')
+      }
       const res = client.api.v0['product-run'][':id']['outputs'].$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
         param: {
           id: productRun.id,
         },
@@ -331,13 +371,25 @@ export const useProductOutputs = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productRun && !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
+    enabled: !!productRun,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }
@@ -363,10 +415,12 @@ export const useProductOutputsExport = (
       query,
     ),
     queryFn: async () => {
-      if (!productRun || !query) return null
+      if (!productRun) {
+        throw new Error('Product run is required to export outputs')
+      }
       const res = client.api.v0['product-run'][':id']['outputs']['export'].$get(
         {
-          query,
+          query: query ?? {},
           param: {
             id: productRun.id,
           },
@@ -387,12 +441,13 @@ export const useProductOutputsExport = (
       }
     },
     placeholderData: keepPreviousData,
-    enabled: !!productRun && !!query,
+    enabled: !!productRun,
   })
 
   return {
     ...queryResult,
     query,
+
     setSearchParams,
   }
 }

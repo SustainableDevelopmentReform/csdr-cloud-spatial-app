@@ -11,7 +11,14 @@ export const GeometriesSelect = ({
   onChange: (geometries: GeometriesListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: allGeometries, setSearchParams } = useAllGeometries()
+  const {
+    data: allGeometries,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: isLoadingGeometries,
+    isFetchingNextPage,
+  } = useAllGeometries()
 
   const { data: selectedGeometries } = useGeometries(value ?? undefined)
 
@@ -27,6 +34,12 @@ export const GeometriesSelect = ({
           onChange(nextValue)
         }}
         isDisabled={disabled}
+        isLoading={isLoadingGeometries || isFetchingNextPage}
+        onMenuScrollToBottom={() => {
+          if (hasNextPage) {
+            fetchNextPage()
+          }
+        }}
       />
     </FieldGroup>
   )

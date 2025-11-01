@@ -13,7 +13,14 @@ import { DashboardButton } from './_components/dashboard-button'
 import { SearchInput } from '../../../components/table/search-input'
 
 const DashboardFeature = () => {
-  const { data, query, setSearchParams } = useDashboards(undefined, true)
+  const {
+    data,
+    query,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useDashboards(undefined, true)
   const createDashboard = useCreateDashboard()
 
   const dashboardLink = useDashboardLink()
@@ -59,9 +66,9 @@ const DashboardFeature = () => {
         />
         <Pagination
           className="justify-end mt-4"
-          totalPages={data?.pageCount ?? 1}
-          currentPage={query?.page ?? 1}
-          onPageChange={(page) => setSearchParams({ page })}
+          hasNextPage={!!hasNextPage}
+          isLoading={isFetchingNextPage}
+          onLoadMore={() => fetchNextPage()}
         />
       </div>
     </div>

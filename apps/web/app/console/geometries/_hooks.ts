@@ -15,11 +15,12 @@ import {
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
 import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/useApiClient'
+import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import {
   GEOMETRIES_BASE_PATH,
@@ -27,9 +28,10 @@ import {
   GEOMETRIES_RUNS_OUTPUTS_BASE_PATH,
 } from '../../../lib/paths'
 
-export type GeometriesListItem = NonNullable<
+export type GeometriesListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
->['data'][0]
+>
+export type GeometriesListItem = GeometriesListResponse['data'][0]
 export type GeometriesDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries'][':id']['$get'],
@@ -37,12 +39,13 @@ export type GeometriesDetail = NonNullable<
   >['data']
 >
 
-export type GeometriesRunListItem = NonNullable<
+export type GeometriesRunListResponse = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries'][':id']['runs']['$get'],
     200
   >['data']
->['data'][0]
+>
+export type GeometriesRunListItem = GeometriesRunListResponse['data'][0]
 export type GeometriesRunExportListItem = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries-run'][':id']['outputs']['export']['$get'],
@@ -56,12 +59,13 @@ export type GeometriesRunDetail = NonNullable<
   >['data']
 >
 
-export type GeometryOutputListItem = NonNullable<
+export type GeometryOutputListResponse = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries-run'][':id']['outputs']['$get'],
     200
   >['data']
->['data'][0]
+>
+export type GeometryOutputListItem = GeometryOutputListResponse['data'][0]
 export type GeometryOutputDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometry-output'][':id']['$get'],
@@ -200,25 +204,38 @@ export const useAllGeometries = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<GeometriesListResponse>({
     queryKey: geometriesQueryKeys.list(query),
-    queryFn: async () => {
-      if (!query) return null
+    queryFn: async ({ pageParam = 1 }) => {
       const res = client.api.v0.geometries.$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
       })
 
       const json = await unwrapResponse(res)
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }
@@ -236,12 +253,17 @@ export const useGeometriesRuns = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<GeometriesRunListResponse>({
     queryKey: geometriesRunQueryKeys.list(geometriesId, query),
-    queryFn: async () => {
-      if (!geometriesId || !query) return null
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!geometriesId) {
+        throw new Error('Geometries ID is required to fetch geometries runs')
+      }
       const res = client.api.v0['geometries'][':id']['runs'].$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
         param: {
           id: geometriesId,
         },
@@ -251,13 +273,25 @@ export const useGeometriesRuns = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometriesId && !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
+    enabled: !!geometriesId,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }
@@ -277,18 +311,23 @@ export const useGeometryOutputs = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<GeometryOutputListResponse>({
     queryKey: geometryOutputQueryKeys.list(
       geometriesRun?.geometries?.id,
       geometriesRun?.id,
       query,
     ),
-    queryFn: async () => {
-      if (!geometriesRun || !query) return null
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!geometriesRun) {
+        throw new Error('Geometries run is required to fetch geometry outputs')
+      }
       const res = client.api.v0['geometries-run'][':id']['outputs'].$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
         param: {
-          id: geometriesRun.id,
+          id: geometriesRun?.id,
         },
       })
 
@@ -296,13 +335,25 @@ export const useGeometryOutputs = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: enabled && !!geometriesRun && !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
+    enabled: enabled && !!geometriesRun,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }
@@ -328,11 +379,13 @@ export const useGeometryOutputsExport = (
       query,
     ),
     queryFn: async () => {
-      if (!geometriesRun || !query) return null
+      if (!geometriesRun) {
+        throw new Error('Geometries run is required to export outputs')
+      }
       const res = client.api.v0['geometries-run'][':id']['outputs'][
         'export'
       ].$get({
-        query,
+        query: query ?? {},
         param: {
           id: geometriesRun.id,
         },
@@ -343,12 +396,13 @@ export const useGeometryOutputsExport = (
       return json.data
     },
     placeholderData: keepPreviousData,
-    enabled: !!geometriesRun && !!query,
+    enabled: !!geometriesRun,
   })
 
   return {
     ...queryResult,
     query,
+
     setSearchParams,
   }
 }

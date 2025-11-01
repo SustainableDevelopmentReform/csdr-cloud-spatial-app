@@ -15,6 +15,9 @@ export const DatasetSelect = ({
     data: datasets,
     setSearchParams,
     isLoading: isLoadingDatasets,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
   } = useDatasets()
 
   const { data: selectedDataset, isLoading: isLoadingSelectedDataset } =
@@ -32,7 +35,14 @@ export const DatasetSelect = ({
           onChange(nextValue)
         }}
         isDisabled={disabled}
-        isLoading={isLoadingDatasets || isLoadingSelectedDataset}
+        isLoading={
+          isLoadingDatasets || isLoadingSelectedDataset || isFetchingNextPage
+        }
+        onMenuScrollToBottom={() => {
+          if (hasNextPage) {
+            fetchNextPage()
+          }
+        }}
       />
     </FieldGroup>
   )

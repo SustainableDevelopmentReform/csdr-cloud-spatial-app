@@ -533,6 +533,7 @@ export const ChartFormDialog = ({
                     ) : (
                       <ProductGeometryOutputSelect
                         productRunId={form.getValues('productRunId')}
+                        placeholder={'Select a geometry output'}
                         value={field.value?.find((id) => id) ?? null}
                         onChange={(value) =>
                           field.onChange(value ? [value.id] : undefined)

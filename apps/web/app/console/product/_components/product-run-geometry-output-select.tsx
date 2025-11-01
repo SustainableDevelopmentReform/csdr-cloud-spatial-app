@@ -37,7 +37,10 @@ export const ProductGeometryOutputSelect = ({
   const {
     data: geometryOutputs,
     setSearchParams,
+    fetchNextPage,
+    hasNextPage,
     isLoading: isLoadingGeometryOutputs,
+    isFetchingNextPage,
   } = useGeometryOutputs(productRun?.geometriesRun.id, {})
 
   const hasSelectedValue = Array.isArray(value) ? value.length > 0 : !!value
@@ -96,8 +99,15 @@ export const ProductGeometryOutputSelect = ({
           }}
           isDisabled={!productRun || disabled}
           isLoading={
-            isLoadingGeometryOutputs || isLoadingSelectedGeometryOutputs
+            isLoadingGeometryOutputs ||
+            isLoadingSelectedGeometryOutputs ||
+            isFetchingNextPage
           }
+          onMenuScrollToBottom={() => {
+            if (hasNextPage) {
+              fetchNextPage()
+            }
+          }}
           isMulti
         />
       ) : (
@@ -112,8 +122,15 @@ export const ProductGeometryOutputSelect = ({
           isDisabled={!productRun || disabled}
           isClearable
           isLoading={
-            isLoadingGeometryOutputs || isLoadingSelectedGeometryOutputs
+            isLoadingGeometryOutputs ||
+            isLoadingSelectedGeometryOutputs ||
+            isFetchingNextPage
           }
+          onMenuScrollToBottom={() => {
+            if (hasNextPage) {
+              fetchNextPage()
+            }
+          }}
         />
       )}
     </FieldGroup>

@@ -1,3 +1,5 @@
+'use client'
+
 import {
   useRouter,
   useSearchParams as useSearchParamsNext,

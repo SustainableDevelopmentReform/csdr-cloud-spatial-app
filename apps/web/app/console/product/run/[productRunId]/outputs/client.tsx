@@ -39,11 +39,14 @@ import { VariablesSelect } from '../../../../variable/_components/variables-sele
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 const ProductOutputFeature = () => {
-  const { data, query, setSearchParams } = useProductOutputs(
-    undefined,
-    undefined,
-    true,
-  )
+  const {
+    data,
+    query,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProductOutputs(undefined, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
   const productLink = useProductOutputLink()
@@ -222,9 +225,9 @@ const ProductOutputFeature = () => {
         />
         <Pagination
           className="justify-end mt-4"
-          totalPages={data?.pageCount ?? 1}
-          currentPage={query?.page ?? 1}
-          onPageChange={(p) => setSearchParams({ page: p })}
+          hasNextPage={!!hasNextPage}
+          isLoading={isFetchingNextPage}
+          onLoadMore={() => fetchNextPage()}
         />
       </div>
     </div>

@@ -1,23 +1,26 @@
 import { variableQuerySchema } from '@repo/schemas/crud'
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
 import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/useApiClient'
+import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { VARIABLES_BASE_PATH } from '../../../lib/paths'
 
-export type VariableListItem = NonNullable<
+export type VariableListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['variable']['$get'], 200>['data']
->['data'][0]
+>
+export type VariableListItem = VariableListResponse['data'][0]
 export type VariableDetail = NonNullable<
   InferResponseType<Client['api']['v0']['variable'][':id']['$get'], 200>['data']
 >
@@ -96,25 +99,38 @@ export const useVariables = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<VariableListResponse>({
     queryKey: variableQueryKeys.list(query),
-    queryFn: async () => {
-      if (!query) return null
+    queryFn: async ({ pageParam = 1 }) => {
       const res = client.api.v0.variable.$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
       })
 
       const json = await unwrapResponse(res)
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }

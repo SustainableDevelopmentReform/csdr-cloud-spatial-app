@@ -11,7 +11,14 @@ export const VariablesSelect = ({
   onChange: (variable: VariableListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: variables, setSearchParams } = useVariables()
+  const {
+    data: variables,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: isLoadingVariables,
+    isFetchingNextPage,
+  } = useVariables()
 
   const { data: selectedVariable } = useVariable(value ?? undefined)
 
@@ -27,6 +34,12 @@ export const VariablesSelect = ({
           onChange(nextValue)
         }}
         isDisabled={disabled}
+        isLoading={isLoadingVariables || isFetchingNextPage}
+        onMenuScrollToBottom={() => {
+          if (hasNextPage) {
+            fetchNextPage()
+          }
+        }}
       />
     </FieldGroup>
   )
