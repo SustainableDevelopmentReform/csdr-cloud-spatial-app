@@ -11,9 +11,9 @@ import {
 import { Input } from '@repo/ui/components/ui/input'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import Pagination from '~/components/pagination'
-import CrudFormDialog from '../../../components/crud-form-dialog'
-import BaseCrudTable from '../../../components/crud-table'
+import Pagination from '~/components/table/pagination'
+import CrudFormDialog from '../../../components/form/crud-form-dialog'
+import BaseCrudTable from '../../../components/table/crud-table'
 import { GeometriesButton } from './_components/geometries-button'
 import {
   useAllGeometries,
@@ -21,7 +21,7 @@ import {
   useGeometriesLink,
 } from './_hooks'
 import { createGeometriesSchema } from '@repo/schemas/crud'
-import { SearchInput } from '../../../components/search-input'
+import { SearchInput } from '../../../components/table/search-input'
 
 const GeometriesFeature = () => {
   const { data, query, setSearchParams } = useAllGeometries(undefined, true)

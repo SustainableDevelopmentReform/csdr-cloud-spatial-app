@@ -1,5 +1,5 @@
-import { FieldGroup } from '../../../../components/action'
-import { SelectWithSearch } from '../../../../components/select-with-search'
+import { FieldGroup } from '../../../../components/form/action'
+import { SelectWithSearch } from '../../../../components/form/select-with-search'
 import { GeometriesListItem, useAllGeometries } from '../_hooks'
 
 export const GeometriesSelect = ({

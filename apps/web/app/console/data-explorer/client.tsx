@@ -3,11 +3,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createDashboardSchema } from '@repo/schemas/crud'
 import { useForm } from 'react-hook-form'
-import CrudFormDialog from '../../../components/crud-form-dialog'
+import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import DashboardGridEditor, {
   createEmptyDashboardContent,
-} from '../dashboards/_components/dashboard-grid-editor'
-import { useCreateDashboard } from '../dashboards/_hooks'
+} from '../dashboard/_components/dashboard-grid-editor'
+import { useCreateDashboard } from '../dashboard/_hooks'
 
 const DataExplorerFeature = () => {
   const createDashboard = useCreateDashboard()

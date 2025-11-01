@@ -12,17 +12,24 @@ import { SquareIcon } from 'lucide-react'
 import React from 'react'
 import Link from '~/components/link'
 import { SignOutButton } from '../../components/sign-out-button'
+import { getApiBaseUrl } from '../../env'
+import {
+  DASHBOARDS_BASE_PATH,
+  DATASETS_BASE_PATH,
+  GEOMETRIES_BASE_PATH,
+  PRODUCTS_BASE_PATH,
+  REPORTS_BASE_PATH,
+  USERS_BASE_PATH,
+  VARIABLES_BASE_PATH,
+} from '../../lib/paths'
 import { getUserServerSession } from '../../utils/getUserServerSession'
 import AccountSettingsButton from './_components/account-settings-button'
-import { GEOMETRIES_BASE_PATH } from './geometries/_hooks'
-import { DATASETS_BASE_PATH } from './datasets/_hooks'
-import { getApiBaseUrl } from '../../env'
 
 const SIDEBAR_CONFIG = [
   {
     text: 'Users',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
-    href: '/console/users',
+    href: USERS_BASE_PATH,
     roles: ['admin'],
   },
   {
@@ -40,19 +47,19 @@ const SIDEBAR_CONFIG = [
   {
     text: 'Products',
     icon: <SquareIcon className="fill-product stroke-none size-6" />,
-    href: '/console/products',
+    href: PRODUCTS_BASE_PATH,
     roles: ['admin', 'user'],
   },
   {
     text: 'Variables',
     icon: <SquareIcon className="fill-variable stroke-none size-6" />,
-    href: '/console/variables',
+    href: VARIABLES_BASE_PATH,
     roles: ['admin', 'user'],
   },
   {
     text: 'Dashboards',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
-    href: '/console/dashboards',
+    href: DASHBOARDS_BASE_PATH,
     roles: ['admin', 'user'],
   },
   {
@@ -64,30 +71,9 @@ const SIDEBAR_CONFIG = [
   {
     text: 'Reports',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
-    href: '/console/reports',
+    href: REPORTS_BASE_PATH,
     roles: ['admin', 'user'],
   },
-
-  // {
-  //   text: 'Organizations',
-  //   href: '/console/organizations',
-  //   permissions: somePermissions(['read:organizations', 'write:organizations']),
-  // },
-  // {
-  //   text: 'Roles',
-  //   href: '/console/roles',
-  //   permissions: somePermissions(['read:roles', 'write:roles']),
-  // },
-  // {
-  //   text: 'Permissions',
-  //   href: '/console/permissions',
-  //   permissions: somePermissions(['read:permissions', 'write:permissions']),
-  // },
-  // {
-  //   text: 'Feature Flags',
-  //   href: '/console/feature-flags',
-  //   permissions: somePermissions(['read:feature-flags', 'write:feature-flags']),
-  // },
 ]
 
 const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({

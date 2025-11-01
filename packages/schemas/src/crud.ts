@@ -27,7 +27,7 @@ export const baseCreateRunResourceSchema = baseCreateResourceSchema.extend({
   dataType: z
     .enum(['parquet', 'geoparquet', 'stac-geoparquet', 'zarr'])
     .optional(),
-  dataSize: z.coerce.number().int().optional(),
+  dataSize: z.number().int().optional(),
   dataEtag: z.string().optional(),
 })
 
@@ -163,7 +163,7 @@ export const productOutputExportQuerySchema = z.object({
 export const createProductOutputSchema = baseCreateResourceSchema.extend({
   productRunId: z.string(),
   geometryOutputId: z.string(),
-  value: z.coerce.number(),
+  value: z.number(),
   variableId: z.string(),
   timePoint: z.iso.datetime(),
 })

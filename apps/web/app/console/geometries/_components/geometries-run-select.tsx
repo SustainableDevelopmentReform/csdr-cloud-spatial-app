@@ -1,6 +1,6 @@
-import { FieldGroup } from '../../../../components/action'
+import { FieldGroup } from '../../../../components/form/action'
 import { GeometriesRunListItem, useGeometriesRuns } from '../_hooks'
-import { SelectWithSearch } from '../../../../components/select-with-search'
+import { SelectWithSearch } from '../../../../components/form/select-with-search'
 
 export const GeometriesRunSelect = ({
   value,

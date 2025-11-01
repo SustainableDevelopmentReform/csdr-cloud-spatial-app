@@ -13,13 +13,18 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
+import { useParams, useRouter } from 'next/navigation'
 import { useCallback } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
-import { useParams, useRouter } from 'next/navigation'
+import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/useApiClient'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
-import { getSearchParams } from '~/utils/browser'
+import {
+  GEOMETRIES_BASE_PATH,
+  GEOMETRIES_RUNS_BASE_PATH,
+  GEOMETRIES_RUNS_OUTPUTS_BASE_PATH,
+} from '../../../lib/paths'
 
 export type GeometriesListItem = NonNullable<
   InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
@@ -701,8 +706,6 @@ export const useDeleteGeometriesRun = (
 
 export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'>
 
-export const GEOMETRIES_BASE_PATH = '/console/geometries'
-
 export const useAllGeometriesLink = () =>
   useCallback(
     (query?: z.infer<typeof geometriesQuerySchema>) =>
@@ -732,8 +735,6 @@ export type GeometriesRunLinkParams = Pick<
   'id' | 'name' | 'geometries'
 >
 
-export const GEOMETRIES_RUNS_BASE_PATH = `/console/geometries-run`
-
 export const useGeometriesRunLink = () =>
   useCallback(
     (geometriesRun: GeometriesRunLinkParams) =>
@@ -755,8 +756,6 @@ export type GeometryOutputLinkParams = Pick<
   GeometryOutputDetail,
   'id' | 'geometriesRun' | 'name'
 >
-
-export const GEOMETRIES_RUNS_OUTPUTS_BASE_PATH = `/console/geometry-output`
 
 export const useGeometryOutputLink = () =>
   useCallback(

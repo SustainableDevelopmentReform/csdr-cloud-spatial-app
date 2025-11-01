@@ -1,0 +1,62 @@
+'use client'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { updateDashboardSchema } from '@repo/schemas/crud'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { CrudForm } from '../../../../components/form/crud-form'
+import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
+import DashboardGridEditor, {
+  DashboardContent,
+  createEmptyDashboardContent,
+} from '../_components/dashboard-grid-editor'
+import { useDashboard, useDeleteDashboard, useUpdateDashboard } from '../_hooks'
+
+const DashboardDetails = () => {
+  const { data: dashboard } = useDashboard()
+  const updateDashboard = useUpdateDashboard()
+  const deleteDashboard = useDeleteDashboard(undefined, DASHBOARDS_BASE_PATH)
+
+  const form = useForm({
+    resolver: zodResolver(updateDashboardSchema),
+  })
+
+  const emptyContent = useMemo(() => createEmptyDashboardContent(), [])
+
+  useEffect(() => {
+    if (dashboard) {
+      form.reset({
+        ...dashboard,
+        content: dashboard.content ?? emptyContent,
+      })
+    }
+  }, [dashboard, form, emptyContent])
+
+  const content = (form.watch('content') ?? emptyContent) as DashboardContent
+
+  return (
+    <div className="max-w-full gap-8 flex flex-col">
+      <CrudForm
+        form={form}
+        mutation={updateDashboard}
+        deleteMutation={deleteDashboard}
+        entityName="Dashboard"
+        entityNamePlural="dashboards"
+        hiddenFields={['metadata', 'content']}
+        successMessage="Updated dashboard"
+      >
+        <DashboardGridEditor
+          value={content}
+          onChange={(next) => {
+            form.setValue('content', next, {
+              shouldDirty: true,
+              shouldTouch: true,
+            })
+          }}
+        />
+      </CrudForm>
+    </div>
+  )
+}
+
+export default DashboardDetails

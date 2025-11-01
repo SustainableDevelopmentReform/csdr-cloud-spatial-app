@@ -32,6 +32,11 @@
         "^typecheck"
       ]
     },
+    "typecheck:watch": {
+      "dependsOn": [
+        "^typecheck:watch"
+      ]
+    },
     "dev": {
       "cache": false,
       "persistent": true,
