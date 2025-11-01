@@ -21,7 +21,7 @@ export const SearchInput = ({
   placeholder,
   value,
   onChange,
-  debounce = 500,
+  debounce = 300,
 }: SearchInputProps) => {
   const debounced = useDebounceCallback(onChange, debounce)
 

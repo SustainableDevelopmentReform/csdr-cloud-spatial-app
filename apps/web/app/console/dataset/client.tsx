@@ -20,7 +20,14 @@ import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
 
 const DatasetFeature = () => {
-  const { data, query, setSearchParams } = useDatasets(undefined, true)
+  const {
+    data,
+    query,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useDatasets(undefined, true)
   const createDataset = useCreateDataset()
 
   const datasetLink = useDatasetLink()
@@ -91,9 +98,9 @@ const DatasetFeature = () => {
         />
         <Pagination
           className="justify-end mt-4"
-          totalPages={data?.pageCount ?? 1}
-          currentPage={query?.page ?? 1}
-          onPageChange={(page) => setSearchParams({ page })}
+          hasNextPage={!!hasNextPage}
+          isLoading={isFetchingNextPage}
+          onLoadMore={() => fetchNextPage()}
         />
       </div>
     </div>

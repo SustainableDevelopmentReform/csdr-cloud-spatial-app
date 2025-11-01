@@ -3,33 +3,37 @@
 import { datasetQuerySchema, datasetRunQuerySchema } from '@repo/schemas/crud'
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
 import { useParams, useRouter } from 'next/navigation'
 import { useApiClient } from '../../../hooks/useApiClient'
+import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
-import { getSearchParams } from '~/utils/browser'
 import { DATASETS_BASE_PATH, DATASETS_RUNS_BASE_PATH } from '../../../lib/paths'
+import { getSearchParams } from '../../../utils/browser'
 
-export type DatasetListItem = NonNullable<
+export type DatasetListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['dataset']['$get'], 200>['data']
->['data'][0]
+>
+export type DatasetListItem = DatasetListResponse['data'][0]
 export type DatasetDetail = NonNullable<
   InferResponseType<Client['api']['v0']['dataset'][':id']['$get'], 200>['data']
 >
 
-export type DatasetRunListItem = NonNullable<
+export type DatasetRunListResponse = NonNullable<
   InferResponseType<
     Client['api']['v0']['dataset'][':id']['runs']['$get'],
     200
   >['data']
->['data'][0]
+>
+export type DatasetRunListItem = DatasetRunListResponse['data'][0]
 export type DatasetRunDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['dataset-run'][':id']['$get'],
@@ -98,25 +102,38 @@ export const useDatasets = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<DatasetListResponse>({
     queryKey: datasetQueryKeys.list(query),
-    queryFn: async () => {
-      if (!query) return null
+    queryFn: async ({ pageParam = 1 }) => {
       const res = client.api.v0.dataset.$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
       })
 
       const json = await unwrapResponse(res)
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }
@@ -134,12 +151,17 @@ export const useDatasetRuns = (
     useSearchParams,
   )
 
-  const queryResult = useQuery({
+  const queryResult = useInfiniteQuery<DatasetRunListResponse>({
     queryKey: datasetRunQueryKeys.list(datasetId, query),
-    queryFn: async () => {
-      if (!datasetId || !query) return null
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!datasetId) {
+        throw new Error('Dataset ID is required to fetch dataset runs')
+      }
       const res = client.api.v0['dataset'][':id']['runs'].$get({
-        query,
+        query: {
+          ...query,
+          page: pageParam,
+        },
         param: {
           id: datasetId,
         },
@@ -149,13 +171,25 @@ export const useDatasetRuns = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!datasetId && !!query,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
+    enabled: !!datasetId,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
 
   return {
     ...queryResult,
+    data: aggregatedData,
     query,
+
     setSearchParams,
   }
 }

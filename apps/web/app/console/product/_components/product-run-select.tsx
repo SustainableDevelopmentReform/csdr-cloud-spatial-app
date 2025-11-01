@@ -13,9 +13,14 @@ export const ProductRunSelect = ({
   onChange: (productRun: ProductRunListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: productRuns, setSearchParams } = useProductRuns(
-    productId ?? undefined,
-  )
+  const {
+    data: productRuns,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: isLoadingProductRuns,
+    isFetchingNextPage,
+  } = useProductRuns(productId ?? undefined)
 
   const { data: selectedProductRun } = useProductRun(value ?? undefined)
 
@@ -31,6 +36,12 @@ export const ProductRunSelect = ({
           onChange(nextValue)
         }}
         isDisabled={disabled}
+        isLoading={isLoadingProductRuns || isFetchingNextPage}
+        onMenuScrollToBottom={() => {
+          if (hasNextPage) {
+            fetchNextPage()
+          }
+        }}
       />
     </FieldGroup>
   )

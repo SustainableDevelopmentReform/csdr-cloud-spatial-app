@@ -20,7 +20,10 @@ export const GeometriesRunSelect = ({
   const {
     data: geometriesRuns,
     setSearchParams,
-    query,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: isLoadingGeometriesRuns,
+    isFetchingNextPage,
   } = useGeometriesRuns(geometriesId ?? undefined)
 
   const { data: selectedGeometriesRun } = useGeometriesRun(value ?? undefined)
@@ -38,8 +41,11 @@ export const GeometriesRunSelect = ({
         }}
         isDisabled={disabled}
         onMenuScrollToBottom={() => {
-          setSearchParams({ page: (query?.page ?? 1) + 1 })
+          if (hasNextPage) {
+            fetchNextPage()
+          }
         }}
+        isLoading={isLoadingGeometriesRuns || isFetchingNextPage}
       />
     </FieldGroup>
   )

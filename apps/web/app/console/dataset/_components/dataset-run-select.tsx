@@ -13,9 +13,14 @@ export const DatasetRunSelect = ({
   onChange: (datasetRun: DatasetRunListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: datasetRuns, setSearchParams } = useDatasetRuns(
-    datasetId ?? undefined,
-  )
+  const {
+    data: datasetRuns,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: isLoadingDatasetRuns,
+    isFetchingNextPage,
+  } = useDatasetRuns(datasetId ?? undefined)
 
   const { data: selectedDatasetRun } = useDatasetRun(value ?? undefined)
 
@@ -31,6 +36,12 @@ export const DatasetRunSelect = ({
           onChange(nextValue)
         }}
         isDisabled={disabled}
+        isLoading={isLoadingDatasetRuns || isFetchingNextPage}
+        onMenuScrollToBottom={() => {
+          if (hasNextPage) {
+            fetchNextPage()
+          }
+        }}
       />
     </FieldGroup>
   )

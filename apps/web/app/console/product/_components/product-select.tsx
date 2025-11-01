@@ -11,7 +11,14 @@ export const ProductSelect = ({
   onChange: (product: ProductListItem | null) => void
   disabled?: boolean
 }) => {
-  const { data: products, setSearchParams } = useProducts()
+  const {
+    data: products,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: isLoadingProducts,
+    isFetchingNextPage,
+  } = useProducts()
 
   const { data: selectedProduct } = useProduct(value ?? undefined)
 
@@ -27,6 +34,12 @@ export const ProductSelect = ({
           onChange(nextValue)
         }}
         isDisabled={disabled}
+        isLoading={isLoadingProducts || isFetchingNextPage}
+        onMenuScrollToBottom={() => {
+          if (hasNextPage) {
+            fetchNextPage()
+          }
+        }}
       />
     </FieldGroup>
   )

@@ -30,7 +30,14 @@ import {
 } from './_hooks'
 
 const VariableFeature = () => {
-  const { data, query, setSearchParams } = useVariables(undefined, true)
+  const {
+    data,
+    query,
+    setSearchParams,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useVariables(undefined, true)
   const { data: variableCategories } = useVariableCategories()
   const createVariable = useCreateVariable()
   const createVariableCategory = useCreateVariableCategory()
@@ -145,9 +152,9 @@ const VariableFeature = () => {
         />
         <Pagination
           className="justify-end mt-4"
-          totalPages={data?.pageCount ?? 1}
-          currentPage={query?.page ?? 1}
-          onPageChange={(page) => setSearchParams({ page })}
+          hasNextPage={!!hasNextPage}
+          isLoading={isFetchingNextPage}
+          onLoadMore={() => fetchNextPage()}
         />
       </div>
     </div>

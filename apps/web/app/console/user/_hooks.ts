@@ -1,6 +1,10 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import { QueryKey } from '~/utils/apiClient'
@@ -41,21 +45,20 @@ export const useUser = (id?: string) => {
 export const useUsers = () => {
   const authClient = useAuthClient()
   const [isOpen, setOpen] = useState(false)
-  const [page, setPage] = useState(1)
   const pageSize = 10
   const [search, setSearch] = useState('')
   // const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(
   //   undefined,
   // )
 
-  const queryResult = useQuery({
-    queryKey: [QueryKey.Users, page, search],
-    queryFn: async () => {
+  const queryResult = useInfiniteQuery({
+    queryKey: [QueryKey.Users, search],
+    queryFn: async ({ pageParam = 0 }) => {
       const res = await authClient.admin.listUsers({
         query: {
           searchValue: search,
           limit: pageSize,
-          offset: (page - 1) * pageSize,
+          offset: pageParam,
           // organizationId: selectedOrgId,
         },
       })
@@ -72,17 +75,37 @@ export const useUsers = () => {
         offset: number | undefined
       }
     },
-    placeholderData: keepPreviousData,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce(
+        (count, page) => count + page.users.length,
+        0,
+      )
+      if (loaded >= lastPage.total) {
+        return undefined
+      }
+      return loaded
+    },
   })
+
+  const aggregatedData = useMemo(() => {
+    const pages = queryResult.data?.pages ?? []
+    const users = pages.flatMap((page) => page.users)
+    const total = pages[0]?.total ?? 0
+
+    return {
+      users,
+      total,
+    }
+  }, [queryResult.data])
 
   return {
     ...queryResult,
     isOpen,
     setOpen,
-    page,
-    setPage,
     search,
     setSearch,
     pageSize,
+    data: aggregatedData,
   }
 }

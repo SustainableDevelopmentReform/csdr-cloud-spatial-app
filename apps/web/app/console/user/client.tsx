@@ -9,8 +9,15 @@ import UsersTable from './_components/table'
 import { useUsers } from './_hooks'
 
 const UserFeature = () => {
-  const { data, isOpen, setOpen, page, setPage, setSearch, pageSize } =
-    useUsers()
+  const {
+    data,
+    isOpen,
+    setOpen,
+    setSearch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useUsers()
 
   return (
     <div>
@@ -44,9 +51,9 @@ const UserFeature = () => {
         <UsersTable data={data?.users || []} />
         <Pagination
           className="justify-end mt-4"
-          totalPages={Math.ceil((data?.total ?? 0) / pageSize)}
-          currentPage={page}
-          onPageChange={setPage}
+          hasNextPage={!!hasNextPage}
+          isLoading={isFetchingNextPage}
+          onLoadMore={() => fetchNextPage()}
         />
       </div>
     </div>
