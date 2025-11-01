@@ -16,10 +16,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import React from 'react'
-import Table from '../../../../../components/table'
+import Table from '../../../../../components/table/table'
 import { ApiKey, useDeleteApiKey } from '../../_hooks'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
-import { DeleteAlertDialog } from '../../../../../components/delete-alert-dialog'
+import { DeleteAlertDialog } from '../../../../../components/form/delete-alert-dialog'
 
 interface UsersTableProps {
   data: ApiKey[]

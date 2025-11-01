@@ -2,14 +2,14 @@
 
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
-import Pagination from '~/components/pagination'
-import BaseCrudTable from '../../../../../components/crud-table'
+import Pagination from '~/components/table/pagination'
+import BaseCrudTable from '../../../../../components/table/crud-table'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createGeometriesRunSchema } from '@repo/schemas/crud'
 import { Path, useForm } from 'react-hook-form'
-import CrudFormDialog from '../../../../../components/crud-form-dialog'
-import { CrudFormRunFields } from '../../../../../components/crud-form-run-fields'
+import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
+import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
 import {
   GeometriesRunListItem,
@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { SearchInput } from '../../../../../components/search-input'
+import { SearchInput } from '../../../../../components/table/search-input'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 

@@ -8,8 +8,8 @@ import {
 } from '@repo/ui/components/ui/breadcrumb'
 import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
+import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
 import {
-  GEOMETRIES_BASE_PATH,
   useGeometries,
   useGeometriesRun,
   useGeometriesRunsLink,

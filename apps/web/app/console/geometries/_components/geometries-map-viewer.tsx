@@ -18,7 +18,7 @@ import {
 } from 'maplibre-gl'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapViewer } from '../../../../components/map-viewer'
+import { MapViewer } from './map-viewer'
 import { EmptyCard } from '../../_components/empty-card'
 import {
   GeometriesRunListItem,
@@ -27,8 +27,8 @@ import {
 import {
   ProductOutputExportListItem,
   ProductRunDetail,
-} from '../../products/_hooks'
-import { VariableListItem } from '../../variables/_hooks'
+} from '../../product/_hooks'
+import { VariableListItem } from '../../variable/_hooks'
 import { cn } from '@repo/ui/lib/utils'
 
 const NO_DATA_COLOR = '#eef'

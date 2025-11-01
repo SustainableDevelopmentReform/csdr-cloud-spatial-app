@@ -29,6 +29,7 @@
     "build:types": "tsc -p tsconfig.build-types.json",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "typecheck:watch": "tsc --noEmit --watch",
     "create:migration": "drizzle-kit generate",
     "drizzle-studio": "drizzle-kit studio",
     "migrate": "tsx scripts/migrate.ts",
