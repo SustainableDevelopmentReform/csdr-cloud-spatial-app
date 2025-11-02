@@ -43,6 +43,7 @@ import { ProductRunVariablesSelect } from '../../product/_components/product-run
 import { ProductSelect } from '../../product/_components/product-select'
 import { ProductListItem } from '../../product/_hooks'
 import { ChartRenderer } from './chart-renderer'
+import { Input } from '@repo/ui/components/ui/input'
 
 const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
   { value: 'timePoint', label: 'Time' },
@@ -53,6 +54,8 @@ const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
 const baseChartSchema = z.object({
   productId: z.string(),
   productRunId: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
 })
 
 const multiSeriesSelectionSchema = baseChartSchema.extend({
@@ -603,6 +606,30 @@ export const ChartFormDialog = ({
               />
             )}
 
+            {/* Name and description */}
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <Input {...field} />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <Input {...field} />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <ChartPreview form={form} />
 
             <DialogFooter>

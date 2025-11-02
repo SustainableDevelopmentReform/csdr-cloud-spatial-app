@@ -1,23 +1,24 @@
+export type BaseChartConfiguration = {
+  title?: string
+  description?: string
+}
+
 export type PlotChartConfiguration = {
   type: 'plot'
   subType: 'line' | 'bar' | 'grouped-bar' | 'dot'
-  title?: string
-  description?: string
   productRunId: string
   variableIds?: string[]
   geometryOutputIds?: string[]
   timePoints?: string[]
-}
+} & BaseChartConfiguration
 
 export type MapChartConfiguration = {
   type: 'map'
-  title?: string
-  description?: string
   productRunId: string
   variableId: string
   timePoint: string
   geometryOutputIds?: string[]
-}
+} & BaseChartConfiguration
 
 export type TableChartDimension =
   | 'timePoint'
@@ -26,15 +27,13 @@ export type TableChartDimension =
 
 export type TableChartConfiguration = {
   type: 'table'
-  title?: string
-  description?: string
   productRunId: string
   variableIds?: string[]
   geometryOutputIds?: string[]
   xDimension: TableChartDimension
   yDimension: TableChartDimension
   timePoints?: string[]
-}
+} & BaseChartConfiguration
 
 export type ChartConfiguration =
   | PlotChartConfiguration
