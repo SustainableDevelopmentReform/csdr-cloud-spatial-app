@@ -67,7 +67,7 @@ const multiSeriesSelectionSchema = baseChartSchema.extend({
 const linePlotSchema = multiSeriesSelectionSchema
   .extend({
     type: z.literal('plot'),
-    subType: z.enum(['line', 'bar', 'grouped-bar', 'dot']),
+    subType: z.enum(['line', 'stacked-bar', 'grouped-bar', 'dot']),
   })
   .superRefine((data, context) => {
     const multipleVariablesSelected =
@@ -345,7 +345,7 @@ export const ChartFormDialog = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="line">Line</SelectItem>
-                        <SelectItem value="bar">Bar</SelectItem>
+                        <SelectItem value="stacked-bar">Stacked Bar</SelectItem>
                         <SelectItem value="grouped-bar">Grouped Bar</SelectItem>
                         <SelectItem value="dot">Dot</SelectItem>
                       </SelectContent>
