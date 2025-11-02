@@ -219,6 +219,26 @@ interface ChartConfig {
   showSelectedPointDetails: boolean
 }
 
+const ChartWrapper = (props: {
+  children: React.ReactNode
+  config?: ChartConfig
+  chart: ChartConfiguration
+}) => {
+  return (
+    <div className={cn('flex flex-col gap-1 h-full relative')}>
+      {props.chart.title && (
+        <h3 className="text-lg font-semibold m-0">{props.chart.title}</h3>
+      )}
+      {props.chart.description && (
+        <p className="text-sm text-muted-foreground">
+          {props.chart.description}
+        </p>
+      )}
+      {props.children}
+    </div>
+  )
+}
+
 export const ChartRenderer = ({
   chart,
   config,
@@ -235,25 +255,31 @@ export const ChartRenderer = ({
   switch (chart.type) {
     case 'plot': {
       return (
-        <LinePlotContainer
-          chart={chart}
-          config={config}
-          className={className}
-        />
+        <ChartWrapper chart={chart} config={config}>
+          <LinePlotContainer
+            chart={chart}
+            config={config}
+            className={className}
+          />
+        </ChartWrapper>
       )
     }
     case 'map': {
       return (
-        <MapContainer chart={chart} config={config} className={className} />
+        <ChartWrapper chart={chart} config={config}>
+          <MapContainer chart={chart} config={config} className={className} />
+        </ChartWrapper>
       )
     }
     case 'table': {
       return (
-        <TablePlotContainer
-          chart={chart}
-          config={config}
-          className={className}
-        />
+        <ChartWrapper chart={chart} config={config}>
+          <TablePlotContainer
+            chart={chart}
+            config={config}
+            className={className}
+          />
+        </ChartWrapper>
       )
     }
     default:
