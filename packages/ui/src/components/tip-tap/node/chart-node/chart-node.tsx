@@ -71,7 +71,9 @@ export function ChartNodeView(props: NodeViewProps) {
         <div className="tiptap-chart-node__header-text">
           <h3 className="tiptap-chart-node__title">{chartTitle}</h3>
           {chartDescription && (
-            <p className="tiptap-chart-node__description">{chartDescription}</p>
+            <div className="tiptap-chart-node__description">
+              {chartDescription}
+            </div>
           )}
         </div>
         {editorControls && (

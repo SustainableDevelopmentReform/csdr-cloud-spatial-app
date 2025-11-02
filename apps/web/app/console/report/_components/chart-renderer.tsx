@@ -158,8 +158,9 @@ const TablePlotContainer = ({
 }
 
 interface ChartConfig {
-  showCodeSnippet: boolean
-  showSelectedPointDetails: boolean
+  showTitleAndDescription?: boolean
+  showCodeSnippet?: boolean
+  showSelectedPointDetails?: boolean
 }
 
 const ChartDiscriminator = ({
@@ -226,10 +227,10 @@ export const ChartRenderer = ({
 
   return (
     <div className={cn('flex flex-col gap-1 h-full relative')}>
-      {chart.title && (
+      {config?.showTitleAndDescription && chart.title && (
         <h3 className="text-lg font-semibold m-0">{chart.title}</h3>
       )}
-      {chart.description && (
+      {config?.showTitleAndDescription && chart.description && (
         <p className="text-sm text-muted-foreground">{chart.description}</p>
       )}
       <ChartDiscriminator

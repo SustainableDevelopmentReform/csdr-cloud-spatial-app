@@ -178,7 +178,12 @@ const ChartPreview = ({
   return (
     <FieldGroup className="flex-1 min-h-96" title="Preview">
       {parsedFormValues?.success ? (
-        <ChartRenderer chart={parsedFormValues.data} />
+        <ChartRenderer
+          chart={parsedFormValues.data}
+          config={{
+            showTitleAndDescription: true,
+          }}
+        />
       ) : (
         <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
           Invalid chart configuration
