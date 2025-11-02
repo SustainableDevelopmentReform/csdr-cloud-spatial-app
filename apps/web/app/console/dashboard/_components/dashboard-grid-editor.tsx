@@ -235,6 +235,9 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
                   <ChartRenderer
                     chart={chart}
                     onSelect={setSelectedDataPoint}
+                    config={{
+                      showTitleAndDescription: true,
+                    }}
                   />
                 </div>
               </div>
