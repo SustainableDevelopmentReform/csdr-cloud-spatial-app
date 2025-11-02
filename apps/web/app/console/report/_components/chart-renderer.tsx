@@ -1,23 +1,21 @@
 'use client'
 
 import { getLinePlotCodeSnippet, LinePlot } from '@repo/plot/LinePlot'
+import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import {
   ChartConfiguration,
   MapChartConfiguration,
+  OnSelectCallback,
   PlotChartConfiguration,
   TableChartConfiguration,
 } from '@repo/plot/types'
-import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
 import { cn } from '@repo/ui/lib/utils'
-import { useMemo, useState } from 'react'
-import { EmptyCard } from '../../_components/empty-card'
+import { useMemo } from 'react'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { useGeometriesRun } from '../../geometries/_hooks'
-import { ProductOutputDependenciesCard } from '../../product/_components/product-output-dependencies-card'
-import { ProductOutputSummaryCard } from '../../product/_components/product-output-summary-card'
 import {
-  useProductOutput,
+  ProductOutputExportListItem,
   useProductOutputsExport,
   useProductRun,
 } from '../../product/_hooks'
@@ -35,43 +33,17 @@ const UnsupportedChart = ({ type }: { type: string }) => (
     supported yet.
   </div>
 )
-
-const SelectedPointDetails = ({
-  productOutputId,
-}: {
-  productOutputId: string | undefined | null
-}) => {
-  const { data: productOutput } = useProductOutput(productOutputId ?? undefined)
-  return (
-    <div className="flex flex-col gap-4 h-full">
-      {productOutput ? (
-        <>
-          <ProductOutputSummaryCard productOutput={productOutput} showLink />
-          <ProductOutputDependenciesCard
-            productOutput={productOutput}
-            showProduct
-            showProductRun
-          />
-        </>
-      ) : (
-        <EmptyCard description="Click on a data point to see the details" />
-      )}
-    </div>
-  )
-}
-
 const LinePlotContainer = ({
   chart,
   config,
   className,
+  onSelect,
 }: {
   chart: PlotChartConfiguration
   config?: ChartConfig
   className?: string
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
-  const [selectedProductOutputId, setSelectedProductOutputId] = useState<
-    string | undefined | null
-  >(null)
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableIds,
     geometryOutputId: chart.geometryOutputIds,
@@ -104,13 +76,8 @@ const LinePlotContainer = ({
             multipleGeometryOutputs ? 'geometryOutputName' : 'variableName'
           }
           type={chart.subType}
-          onSelect={(dataPoint) =>
-            setSelectedProductOutputId(dataPoint?.id ?? null)
-          }
+          onSelect={onSelect}
         />
-        {config?.showSelectedPointDetails && (
-          <SelectedPointDetails productOutputId={selectedProductOutputId} />
-        )}
       </div>
       {config?.showCodeSnippet && (
         <ObservableCellsCopy
@@ -129,10 +96,12 @@ const MapContainer = ({
   chart,
   config,
   className,
+  onSelect,
 }: {
   chart: MapChartConfiguration
   config?: ChartConfig
   className?: string
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const { data: productRun } = useProductRun(chart.productRunId)
   const { data: geometriesRun } = useGeometriesRun(productRun?.geometriesRun.id)
@@ -141,32 +110,17 @@ const MapContainer = ({
     variableId: chart.variableId,
     timePoint: chart.timePoint,
   })
-  const [selectedProductOutputId, setSelectedProductOutputId] = useState<
-    string | undefined | null
-  >(null)
+
   return (
     <div className={cn('flex flex-col gap-2 h-full', className)}>
-      <div
-        className={cn(
-          'h-full',
-          config?.showSelectedPointDetails &&
-            'grid grid-cols-2 grid-rows-1 gap-4',
-        )}
-      >
-        <GeometriesMapViewer
-          geometriesRun={geometriesRun}
-          variable={variable}
-          productRun={productRun}
-          productOutputs={productOutputs?.data}
-          zoomToGeometryOutputIds={chart.geometryOutputIds}
-          onSelect={(dataPoint) =>
-            setSelectedProductOutputId(dataPoint?.id ?? null)
-          }
-        />
-        {config?.showSelectedPointDetails && (
-          <SelectedPointDetails productOutputId={selectedProductOutputId} />
-        )}
-      </div>
+      <GeometriesMapViewer
+        geometriesRun={geometriesRun}
+        variable={variable}
+        productRun={productRun}
+        productOutputs={productOutputs?.data}
+        zoomToGeometryOutputIds={chart.geometryOutputIds}
+        onSelect={onSelect}
+      />
     </div>
   )
 }
@@ -175,14 +129,13 @@ const TablePlotContainer = ({
   chart,
   config,
   className,
+  onSelect,
 }: {
   chart: TableChartConfiguration
   config?: ChartConfig
   className?: string
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
-  const [selectedProductOutputId, setSelectedProductOutputId] = useState<
-    string | undefined | null
-  >(null)
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableIds,
     geometryOutputId: chart.geometryOutputIds,
@@ -190,23 +143,13 @@ const TablePlotContainer = ({
   })
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div
-        className={cn(
-          config?.showSelectedPointDetails &&
-            'grid grid-cols-2 grid-rows-1 gap-4',
-        )}
-      >
-        <TablePlot
-          data={productOutputs?.data ?? []}
-          xDimension={chart.xDimension}
-          yDimension={chart.yDimension}
-          selectedId={selectedProductOutputId ?? undefined}
-          onSelect={(record) => setSelectedProductOutputId(record?.id ?? null)}
-        />
-        {config?.showSelectedPointDetails && (
-          <SelectedPointDetails productOutputId={selectedProductOutputId} />
-        )}
-      </div>
+      <TablePlot
+        data={productOutputs?.data ?? []}
+        xDimension={chart.xDimension}
+        yDimension={chart.yDimension}
+        onSelect={onSelect}
+      />
+
       {config?.showCodeSnippet && (
         <ObservableCellsCopy cells={getTablePlotCodeSnippet()} />
       )}
@@ -219,70 +162,82 @@ interface ChartConfig {
   showSelectedPointDetails: boolean
 }
 
-const ChartWrapper = (props: {
-  children: React.ReactNode
-  config?: ChartConfig
+const ChartDiscriminator = ({
+  chart,
+  config,
+  onSelect,
+  className,
+}: {
   chart: ChartConfiguration
+  config?: ChartConfig
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
+  className?: string
 }) => {
-  return (
-    <div className={cn('flex flex-col gap-1 h-full relative')}>
-      {props.chart.title && (
-        <h3 className="text-lg font-semibold m-0">{props.chart.title}</h3>
-      )}
-      {props.chart.description && (
-        <p className="text-sm text-muted-foreground">
-          {props.chart.description}
-        </p>
-      )}
-      {props.children}
-    </div>
-  )
+  switch (chart.type) {
+    case 'plot': {
+      return (
+        <LinePlotContainer
+          chart={chart}
+          config={config}
+          className={className}
+          onSelect={onSelect}
+        />
+      )
+    }
+    case 'map': {
+      return (
+        <MapContainer
+          chart={chart}
+          config={config}
+          className={className}
+          onSelect={onSelect}
+        />
+      )
+    }
+    case 'table': {
+      return (
+        <TablePlotContainer
+          chart={chart}
+          config={config}
+          className={className}
+          onSelect={onSelect}
+        />
+      )
+    }
+    default:
+      return <UnsupportedChart type={(chart as any).type} />
+  }
 }
 
 export const ChartRenderer = ({
   chart,
   config,
   className,
+  onSelect,
 }: {
   chart: ChartConfiguration | null
   config?: ChartConfig
   className?: string
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   if (!chart) {
     return <ChartPlaceholder />
   }
 
-  switch (chart.type) {
-    case 'plot': {
-      return (
-        <ChartWrapper chart={chart} config={config}>
-          <LinePlotContainer
-            chart={chart}
-            config={config}
-            className={className}
-          />
-        </ChartWrapper>
-      )
-    }
-    case 'map': {
-      return (
-        <ChartWrapper chart={chart} config={config}>
-          <MapContainer chart={chart} config={config} className={className} />
-        </ChartWrapper>
-      )
-    }
-    case 'table': {
-      return (
-        <ChartWrapper chart={chart} config={config}>
-          <TablePlotContainer
-            chart={chart}
-            config={config}
-            className={className}
-          />
-        </ChartWrapper>
-      )
-    }
-    default:
-      return <UnsupportedChart type={(chart as any).type} />
-  }
+  return (
+    <div className={cn('flex flex-col gap-1 h-full relative')}>
+      {chart.title && (
+        <h3 className="text-lg font-semibold m-0">{chart.title}</h3>
+      )}
+      {chart.description && (
+        <p className="text-sm text-muted-foreground">{chart.description}</p>
+      )}
+      <ChartDiscriminator
+        chart={chart}
+        config={config}
+        onSelect={onSelect}
+        className={className}
+      />
+    </div>
+  )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { ChartConfiguration } from '@repo/plot/types'
+import { ChartConfiguration, SelectedDataPoint } from '@repo/plot/types'
 import { Button } from '@repo/ui/components/ui/button'
 import { Hand, Trash } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
@@ -11,6 +11,8 @@ import { ChartRenderer } from '../../report/_components/chart-renderer'
 
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
+import { ProductOutputExportListItem } from '../../product/_hooks'
+import { ChartSelectedItem } from '../../report/_components/chart-selected-item'
 
 const GridLayout = WidthProvider(ReactGridLayout)
 
@@ -68,6 +70,8 @@ type DashboardGridEditorProps = {
 }
 
 const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
+  const [selectedDataPoint, setSelectedDataPoint] =
+    useState<SelectedDataPoint<ProductOutputExportListItem> | null>(null)
   const isControlled = value !== undefined
 
   const [internalContent, setInternalContent] = useState<DashboardContent>(() =>
@@ -228,7 +232,10 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
               </div>
               <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
                 <div className="flex-1 overflow-auto p-2 h-full">
-                  <ChartRenderer chart={chart} />
+                  <ChartRenderer
+                    chart={chart}
+                    onSelect={setSelectedDataPoint}
+                  />
                 </div>
               </div>
             </div>
@@ -242,6 +249,10 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
           </p>
         </div>
       )}
+      <ChartSelectedItem
+        selectedDataPoint={selectedDataPoint}
+        onSelect={setSelectedDataPoint}
+      />
     </div>
   )
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { OnSelectCallback } from '@repo/plot/types'
+import { cn } from '@repo/ui/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { bbox as turfBbox } from '@turf/turf'
 import {
@@ -13,12 +15,10 @@ import { interpolateYlOrRd } from 'd3-scale-chromatic'
 import {
   ExpressionInputType,
   ExpressionSpecification,
-  MapGeoJSONFeature,
   MapLayerMouseEvent,
 } from 'maplibre-gl'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapViewer } from './map-viewer'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { EmptyCard } from '../../_components/empty-card'
 import {
   GeometriesRunListItem,
@@ -29,7 +29,7 @@ import {
   ProductRunDetail,
 } from '../../product/_hooks'
 import { VariableListItem } from '../../variable/_hooks'
-import { cn } from '@repo/ui/lib/utils'
+import { MapViewer } from './map-viewer'
 
 const NO_DATA_COLOR = '#eef'
 const ID_PROPERTY = 'csdr-id'
@@ -48,7 +48,7 @@ const GeometriesMapViewer = ({
   productRun?: ProductRunDetail | null
   productOutputs?: ProductOutputExportListItem[] | null
   zoomToGeometryOutputIds?: string[] | null
-  onSelect?: (output: ProductOutputExportListItem | null) => void
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
   className?: string
 }) => {
   const {
@@ -215,41 +215,18 @@ const GeometriesMapViewer = ({
 
   const mapRef = useRef<MapRef | null>(null)
 
-  const [clickedFeature, setClickedFeature] =
-    useState<MapGeoJSONFeature | null>(null)
-
-  const onMouseMove = useCallback(
-    (layer: MapLayerMouseEvent) => {
-      if (clickedFeature) return
-      const feature = layer.features?.[0]
-      const output = productOutputs?.find(
-        (output) => output.geometryOutputId === feature?.properties?.id,
-      )
-      onSelect?.(output || null)
-    },
-    [onSelect, productOutputs, clickedFeature],
-  )
-
   const onMouseClick = useCallback(
     (layer: MapLayerMouseEvent) => {
       const feature = layer.features?.[0]
 
-      if (
-        clickedFeature &&
-        feature?.properties?.id === clickedFeature?.properties?.id
-      ) {
-        setClickedFeature(null)
-        onSelect?.(null)
-        return
-      }
-
       const output = productOutputs?.find(
-        (output) => output.geometryOutputId === feature?.properties?.id,
+        (output) =>
+          output.geometryOutputId === feature?.properties?.[ID_PROPERTY],
       )
-      onSelect?.(output || null)
-      setClickedFeature(feature || null)
+
+      onSelect?.({ dataPoint: output || null, event: layer.originalEvent })
     },
-    [onSelect, clickedFeature, productOutputs],
+    [onSelect, productOutputs],
   )
 
   useEffect(() => {
@@ -280,7 +257,6 @@ const GeometriesMapViewer = ({
           fitBoundsOptions: { padding: 20 },
         }}
         interactiveLayerIds={['geometries-fill']}
-        onMouseMove={onMouseMove}
         onClick={onMouseClick}
       >
         <Source id="geometries" type="vector" url={`pmtiles://${pmtilesUrl}`} />

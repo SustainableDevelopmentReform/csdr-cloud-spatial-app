@@ -1,4 +1,4 @@
-import type { ChartConfiguration } from '@repo/plot/types'
+import type { ChartConfiguration, OnSelectCallback } from '@repo/plot/types'
 import type { ReactNode } from 'react'
 
 export type ChartNodeAttributes = {
