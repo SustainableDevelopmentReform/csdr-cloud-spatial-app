@@ -7,7 +7,7 @@ export type BaseChartConfiguration = {
 
 export type PlotChartConfiguration = {
   type: 'plot'
-  subType: 'line' | 'bar' | 'grouped-bar' | 'dot'
+  subType: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
   productRunId: string
   variableIds?: string[]
   geometryOutputIds?: string[]

@@ -78,18 +78,15 @@ export function LinePlot<T extends { id: string; value: number }>({
   y: string
   groupBy: string
   onSelect?: OnSelectCallback<T>
-  type: 'line' | 'bar' | 'grouped-bar' | 'dot'
+  type: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const marks: Plot.Markish[] = [
-      Plot.dot(data, Plot.pointer({ x, y, fill: 'red', r: 8 })),
-      Plot.ruleY([0]),
-    ]
+    const marks: Plot.Markish[] = [Plot.ruleY([0])]
     if (type === 'line') {
       marks.push(Plot.line(data, { x, y, stroke: groupBy }))
-    } else if (type === 'bar') {
+    } else if (type === 'stacked-bar') {
       marks.push(Plot.barY(data, { x, y, fill: groupBy }))
     } else if (type === 'grouped-bar') {
       marks.push(Plot.barY(data, { x, y, fill: groupBy, fx: groupBy }))
@@ -97,7 +94,23 @@ export function LinePlot<T extends { id: string; value: number }>({
       marks.push(Plot.dot(data, { x, y, fill: groupBy, r: 6 }))
     }
 
-    marks.push(Plot.dot(data, Plot.pointer({ x, y, fill: groupBy, r: 8 })))
+    if (type === 'line' || type === 'dot') {
+      marks.push(Plot.dot(data, Plot.pointer({ x, y, fill: groupBy })))
+    } else if (type === 'stacked-bar') {
+      marks.push(
+        Plot.barY(
+          data,
+          Plot.pointer({ x, y, fill: 'grey', stack: groupBy, maxRadius: 100 }),
+        ),
+      )
+    } else if (type === 'grouped-bar') {
+      marks.push(
+        Plot.barY(
+          data,
+          Plot.pointer({ x, y, fill: 'grey', fx: groupBy, maxRadius: 100 }),
+        ),
+      )
+    }
 
     // marks.push(
     //   Plot.text(
