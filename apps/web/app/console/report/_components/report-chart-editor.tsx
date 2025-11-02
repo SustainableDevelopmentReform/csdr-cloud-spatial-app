@@ -1,16 +1,21 @@
 'use client'
 
-import { ChartConfiguration } from '@repo/plot/types'
+import { ChartConfiguration, OnSelectCallback } from '@repo/plot/types'
 import type { ChartFormBuilder } from '@repo/ui/components/tip-tap/node/chart-node/chart-node-shared'
 import { ChartFormDialog } from './chart-form-dialog'
 import { ChartRenderer } from './chart-renderer'
+import { ProductOutputExportListItem } from '../../product/_hooks'
 
-const renderChart = (chart: ChartConfiguration | null) => {
+const renderChart = (
+  chart: ChartConfiguration | null,
+  onSelect: OnSelectCallback<ProductOutputExportListItem>,
+) => {
   return (
     <div>
       <ChartRenderer
         chart={chart}
         className={chart?.type === 'map' ? 'h-96 relative' : undefined}
+        onSelect={onSelect}
       />
     </div>
   )
@@ -34,8 +39,11 @@ const useReportChartEditor = ({
   return { controls }
 }
 
-export const reportChartFormBuilder: ChartFormBuilder = {
-  renderChart,
+export const reportChartFormBuilder: (
+  onSelect: OnSelectCallback<ProductOutputExportListItem>,
+) => ChartFormBuilder = (onSelect) => ({
+  renderChart: (chartConfiguration) =>
+    renderChart(chartConfiguration, onSelect),
   useChartEditor: ({ chart, onChartChange }) =>
     useReportChartEditor({ chart, onChartChange }),
-}
+})

@@ -4,6 +4,7 @@ import { rgb } from 'd3-color'
 import { scaleSequential } from 'd3-scale'
 import { interpolateViridis } from 'd3-scale-chromatic'
 import { useMemo } from 'react'
+import { OnSelectCallback } from './types'
 
 type BaseTableRecord = {
   id: string
@@ -164,14 +165,12 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   data,
   xDimension,
   yDimension,
-  selectedId,
   onSelect,
 }: {
   data: T[]
   xDimension: TablePlotDimension
   yDimension: TablePlotDimension
-  selectedId?: string | null
-  onSelect?: (record: T | null) => void
+  onSelect?: OnSelectCallback<T>
 }) {
   const normalizedData = useMemo<NormalizedTableRecord[]>(() => {
     return data.map((record) => {
@@ -256,7 +255,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
       <table className="w-full min-w-[480px] table-fixed border-collapse text-sm">
         <thead className="bg-muted/40">
           <tr>
-            <th className="sticky left-0 z-10 border-b border-border bg-muted/40 px-4 py-2 text-left font-semibold">
+            <th className="sticky left-0 z-1 border-b border-border bg-muted/40 px-4 py-2 text-left font-semibold">
               {dimensionLabels[yDimension]}
             </th>
             {columns.map((column) => (
@@ -277,7 +276,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
                 index < rows.length - 1 && 'border-b border-border',
               )}
             >
-              <th className="sticky left-0 z-10 border-r border-border bg-background px-4 py-2 text-left font-medium">
+              <th className="sticky left-0 z-1 border-r border-border bg-background px-4 py-2 text-left font-medium">
                 {row.meta.label}
               </th>
               {columns.map((column) => {
@@ -291,23 +290,22 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
                   backgroundColor && hasValue
                     ? getContrastingTextColor(backgroundColor)
                     : undefined
-                const isSelected = cell && cell.id === selectedId
+                // const isSelected = cell && cell.id === selectedId
 
                 return (
                   <td
                     key={column.key}
                     className={clsx(
-                      'border-l border-border px-4 py-2 text-right transition',
-                      onSelect && 'cursor-pointer hover:brightness-95',
-                      isSelected && 'outline outline-2 outline-primary',
+                      'border-l border-border px-4 py-2 text-right transition cursor-pointer hover:brightness-95',
+                      // isSelected && 'outline outline-2 outline-primary',
                     )}
                     style={{
                       backgroundColor,
                       color: textColor,
                     }}
-                    onClick={() => {
+                    onClick={(event) => {
                       if (!onSelect) return
-                      onSelect(cell ?? null)
+                      onSelect?.({ dataPoint: cell ?? null, event })
                     }}
                   >
                     {hasValue ? numberFormatter.format(value) : '—'}

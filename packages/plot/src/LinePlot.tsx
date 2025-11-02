@@ -1,5 +1,6 @@
 import * as Plot from '@observablehq/plot'
 import { useEffect, useRef } from 'react'
+import { OnSelectCallback } from './types'
 
 export const DEFAULT_CHART_DATA_PROPS = {
   x: 'timePoint',
@@ -76,7 +77,7 @@ export function LinePlot<T extends { id: string; value: number }>({
   x: string
   y: string
   groupBy: string
-  onSelect: (dataPoint: T) => void
+  onSelect?: OnSelectCallback<T>
   type: 'line' | 'bar' | 'grouped-bar' | 'dot'
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -124,11 +125,24 @@ export function LinePlot<T extends { id: string; value: number }>({
     })
     containerRef.current?.append(chart)
 
-    chart.addEventListener('input', () => {
-      onSelect(chart.value)
+    // This is a built-in Plot event listener that updates when Plot.pointer is interacted with (which includes hover)
+    // chart.addEventListener('input', (evt) => {
+    // })
+
+    chart.addEventListener('click', (event) => {
+      if (event instanceof MouseEvent) {
+        event.stopPropagation()
+        event.preventDefault()
+        if (chart.value) {
+          onSelect?.({ dataPoint: chart.value, event })
+        } else {
+          onSelect?.({ dataPoint: null, event })
+        }
+      }
     })
+
     return () => chart.remove()
-  }, [data, onSelect, type, x, y])
+  }, [data, groupBy, onSelect, type, x, y])
 
   return <div ref={containerRef} className="w-full h-full"></div>
 }

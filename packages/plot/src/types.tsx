@@ -1,3 +1,5 @@
+import { MouseEvent as ReactMouseEvent } from 'react'
+
 export type BaseChartConfiguration = {
   title?: string
   description?: string
@@ -39,3 +41,12 @@ export type ChartConfiguration =
   | PlotChartConfiguration
   | MapChartConfiguration
   | TableChartConfiguration
+
+export type SelectedDataPoint<T> = {
+  dataPoint: T | null
+  event: MouseEvent | ReactMouseEvent
+}
+
+export type OnSelectCallback<T> = (
+  selectedDataPoint: SelectedDataPoint<T>,
+) => void
