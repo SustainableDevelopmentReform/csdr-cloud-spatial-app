@@ -8,7 +8,7 @@ This repository is based on https://github.com/azharalifauzi/omnigate/ (MIT Lice
 
 - [Node.js](https://nodejs.org/) (v20+)
 - [pnpm](https://pnpm.io/)
-- [PostgreSQL](https://www.postgresql.org/)
+- [PostgreSQL](https://www.postgresql.org/) - v14 works. What is the desired or minimum version?
 
 ### Installation
 
@@ -23,6 +23,8 @@ pnpm install
 # Copy environment and set values for all of them
 cp .env.example.local .env
 ```
+
+You don't need to update any of the exisitng env values to run locally. You do need to add S3 and SMTP values. You can find these here _A_ and here _B_.
 
 ### Setting up Database
 
@@ -44,7 +46,16 @@ pnpm migrate
 pnpm seed
 ```
 
+### Connect to Postgres
+
+`docker exec -it csdr-cloud-spatial-app-db-1 bash`
+`psql -h DATABASE_HOST -U DATABASE_USER -p 5432 -d DATABASE_NAME`
+
+You can also connect from your local machine using port 5431.
+
 ### Development
+
+Here I have the problem that the server doesn't seem to be running when I run `pnpm dev`. Only dev:types, not dev:server. Running `pnpm --filter @repo/server dev:server` fixed this. Should the `pnpm dev` command be updated to include the server or am I missing something?
 
 Run the app with:
 
