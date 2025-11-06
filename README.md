@@ -24,7 +24,7 @@ pnpm install
 cp .env.example.local .env
 ```
 
-You don't need to update any of the exisitng env values to run locally. You do need to add S3 and SMTP values. You can find these here _A_ and here _B_.
+You don't need to update any of the exisitng env values to run locally (even the empty S3 and SMTP values).
 
 ### Setting up Database
 
