@@ -137,8 +137,7 @@ const GeometriesMapViewer = ({
 
     const paint = {
       linePaint: {
-        'line-color': 'black',
-        'line-opacity': ['case', ...selectedGeometriesLineOpacity, 0.1],
+        'line-color': ['case', ...fillColourEntries, NO_DATA_COLOR],
         'line-width': ['case', ...selectedGeometriesLineWidth, 1],
       } satisfies LineLayerSpecification['paint'],
       fillPaint: {
