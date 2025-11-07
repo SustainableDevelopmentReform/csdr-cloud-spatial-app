@@ -1,6 +1,7 @@
 services:
   db:
-    image: postgres:16.4
+    platform: linux/x86_64
+    image: postgis/postgis:17-master
     restart: always
     environment:
       POSTGRES_PASSWORD: admin

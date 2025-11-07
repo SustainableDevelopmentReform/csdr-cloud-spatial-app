@@ -13,9 +13,9 @@ import {
   timestamp,
   unique,
 } from 'drizzle-orm/pg-core'
+import { multiPolygon } from './customTypes'
 
 // AUTH tables
-
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -324,8 +324,8 @@ export const geometryOutput = pgTable(
       .notNull()
       .references(() => geometriesRun.id, { onDelete: 'cascade' }),
     properties: jsonb('properties'),
-    // TODO: add geometry type
-    geometry: jsonb('geometry').notNull(),
+
+    geometry: multiPolygon('geometry', { srid: 4326 }).notNull(),
   },
   (table) => [
     index('geometry_geometries_run_idx').on(table.geometriesRunId),

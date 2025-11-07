@@ -75,6 +75,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:packages/typescript-config
+      '@types/geojson':
+        specifier: ^7946.0.16
+        version: 7946.0.16
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -159,6 +162,9 @@ importers:
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
+      wkx:
+        specifier: ^0.5.0
+        version: 0.5.0
       zod:
         specifier: 'catalog:'
         version: 4.0.14
@@ -7373,6 +7379,9 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  wkx@0.5.0:
+    resolution: {integrity: sha512-Xng/d4Ichh8uN4l0FToV/258EjMGU9MGcA0HV2d9B/ZpZB3lqQm7nkOdZdm5GhKtLLhAE7PiVQwN4eN+2YJJUg==}
 
   wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
@@ -15372,6 +15381,10 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  wkx@0.5.0:
+    dependencies:
+      '@types/node': 22.9.0
 
   wrap-ansi@7.0.0:
     dependencies:
