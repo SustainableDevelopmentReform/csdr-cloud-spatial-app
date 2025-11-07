@@ -7,6 +7,8 @@ import * as schema from '~/schemas/db'
 import { isEmail } from '~/utils'
 import { hashPassword } from 'better-auth/crypto'
 import { env } from '../src/env'
+import { geomFromGeoJSON } from '../src/schemas/customTypes'
+import { MultiPolygon } from 'geojson'
 
 async function main() {
   const client = new pg.Client({
@@ -215,17 +217,19 @@ async function main() {
     .values({
       id: 'australia-geometry-output-0-tasmania',
       geometriesRunId: geometriesRun[0]!.id,
-      geometry: {
+      geometry: geomFromGeoJSON({
+        type: 'MultiPolygon',
         coordinates: [
           [
-            [144.52849213046932, -40.95495671301414],
-            [146.223447228792, -43.73394595871736],
-            [148.42747998417815, -40.8715836482141],
-            [144.52849213046932, -40.95495671301414],
+            [
+              [144.52849213046932, -40.95495671301414],
+              [146.223447228792, -43.73394595871736],
+              [148.42747998417815, -40.8715836482141],
+              [144.52849213046932, -40.95495671301414],
+            ],
           ],
         ],
-        type: 'Polygon',
-      },
+      } satisfies MultiPolygon),
       name: 'Tasmania',
       properties: '{ "some": "properties" }',
     })
@@ -241,22 +245,19 @@ async function main() {
       geometriesRunId: geometriesRun[0]!.id,
       name: 'Mainland',
       properties: '{ "some": "more", "properties": "here" }',
-      geometry: {
+      geometry: geomFromGeoJSON({
+        type: 'MultiPolygon',
         coordinates: [
           [
-            [113.91654528664822, -22.478860342629858],
-            [115.45777739767607, -34.89540695354741],
-            [133.00840383872082, -31.983522634103515],
-            [146.57387600530444, -38.824293461501256],
-            [153.83198193148485, -29.571467919044437],
-            [142.48849773032543, -10.873394815296393],
-            [140.48285117808075, -18.371410051494465],
-            [132.1340486703408, -12.293151503029364],
-            [113.91654528664822, -22.478860342629858],
+            [
+              [144.52849213046932, -40.95495671301414],
+              [146.223447228792, -43.73394595871736],
+              [148.42747998417815, -40.8715836482141],
+              [144.52849213046932, -40.95495671301414],
+            ],
           ],
         ],
-        type: 'Polygon',
-      },
+      } satisfies MultiPolygon),
     })
     .onConflictDoNothing()
     .returning()

@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema } from './geojson'
+import type { MultiPolygon } from 'geojson'
 
 export const baseQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
@@ -83,15 +84,30 @@ export const geometryOutputExportQuerySchema = z.object({
   geometryOutputIds: z.union([z.string(), z.array(z.string())]).optional(),
 })
 
-export const createGeometryOutputSchema = baseCreateResourceSchema.extend({
-  name: z.string(),
-  geometriesRunId: z.string(),
-  geometry: z.union([
+const geometrySchema = z
+  .union([
     PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
     MultiPolygonSchema.openapi({
       title: 'GeoJSON MultiPolygon',
     }),
-  ]),
+  ])
+  .transform((data) => {
+    console.log(data)
+    if (data.type === 'Polygon') {
+      const polygon = PolygonSchema.parse(data)
+      return {
+        type: 'MultiPolygon',
+        coordinates: [polygon.coordinates],
+        bbox: polygon.bbox,
+      } satisfies MultiPolygon
+    }
+    return MultiPolygonSchema.parse(data)
+  })
+
+export const createGeometryOutputSchema = baseCreateResourceSchema.extend({
+  name: z.string(),
+  geometriesRunId: z.string(),
+  geometry: geometrySchema,
   properties: z.any().optional(),
 })
 
@@ -100,12 +116,7 @@ export const createManyGeometryOutputSchema = z.object({
   outputs: z.array(
     baseCreateResourceSchema.extend({
       name: z.string(),
-      geometry: z.union([
-        PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-        MultiPolygonSchema.openapi({
-          title: 'GeoJSON MultiPolygon',
-        }),
-      ]),
+      geometry: geometrySchema,
       properties: z.any().optional(),
     }),
   ),
