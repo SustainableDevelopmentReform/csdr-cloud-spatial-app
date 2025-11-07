@@ -103,7 +103,7 @@ const geometryOutputNotFoundError = () =>
     description: "geometryOutput you're looking for is not found",
   })
 
-const fetchFullGeometryOutput = async (id: string) => {
+export const fetchFullGeometryOutput = async (id: string) => {
   const record = await db.query.geometryOutput.findFirst({
     where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
     ...fullGeometryOutputQuery,
@@ -112,7 +112,7 @@ const fetchFullGeometryOutput = async (id: string) => {
   return record ?? null
 }
 
-const fetchFullGeometryOutputOrThrow = async (id: string) => {
+export const fetchFullGeometryOutputOrThrow = async (id: string) => {
   const record = await fetchFullGeometryOutput(id)
 
   if (!record) {

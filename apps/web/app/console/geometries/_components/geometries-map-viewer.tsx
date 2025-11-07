@@ -16,12 +16,14 @@ import {
   ExpressionInputType,
   ExpressionSpecification,
   MapLayerMouseEvent,
+  RequestTransformFunction,
 } from 'maplibre-gl'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { EmptyCard } from '../../_components/empty-card'
+import { useConfig } from '../../../../components/providers'
 import {
   GeometriesRunListItem,
+  useGeometriesRun,
   useGeometryOutputsExport,
 } from '../../geometries/_hooks'
 import {
@@ -30,12 +32,13 @@ import {
 } from '../../product/_hooks'
 import { VariableListItem } from '../../variable/_hooks'
 import { MapViewer } from './map-viewer'
+import { EmptyCard } from '../../_components/empty-card'
 
 const NO_DATA_COLOR = '#eef'
-const ID_PROPERTY = 'csdr-id'
+const ID_PROPERTY = 'id'
 
 const GeometriesMapViewer = ({
-  geometriesRun,
+  geometriesRun: geometriesRunProp,
   variable,
   productRun,
   productOutputs,
@@ -51,6 +54,14 @@ const GeometriesMapViewer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
   className?: string
 }) => {
+  const config = useConfig()
+
+  const {
+    data: geometriesRun,
+    isLoading: isLoadingGeometriesRun,
+    error: geometriesRunError,
+  } = useGeometriesRun(geometriesRunProp?.id)
+
   const {
     data: geometryOutputsToZoomTo,
     isLoading: isLoadingGeometryOutputsToZoomTo,
@@ -61,74 +72,6 @@ const GeometriesMapViewer = ({
       geometryOutputIds: zoomToGeometryOutputIds ?? undefined,
     },
   )
-
-  const pmtilesUrl = useMemo(() => {
-    if (!geometriesRun?.dataPmtilesUrl) return undefined
-
-    if (geometriesRun.dataPmtilesUrl.startsWith('s3://')) {
-      // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
-      const s3Url = geometriesRun.dataPmtilesUrl.replace('s3://', '')
-      const [bucket, ...pathParts] = s3Url.split('/')
-      const path = pathParts.join('/')
-      return `https://${bucket}.s3.amazonaws.com/${path}`
-    }
-
-    return geometriesRun?.dataPmtilesUrl
-  }, [geometriesRun?.dataPmtilesUrl])
-
-  const {
-    data: pmtilesHeader,
-    isLoading: isLoadingPmtilesHeader,
-    error: pmtilesHeaderError,
-  } = useQuery<PMTilesHeader | null>({
-    queryKey: ['pmtiles-header', pmtilesUrl],
-    queryFn: async () => {
-      if (!pmtilesUrl) return null
-      const p = new PMTiles(pmtilesUrl)
-      return p.getHeader()
-    },
-  })
-
-  const mapBounds = useMemo(() => {
-    if (isLoadingPmtilesHeader || isLoadingGeometryOutputsToZoomTo)
-      return undefined
-
-    if (
-      geometryOutputsToZoomTo?.data?.length &&
-      geometryOutputsToZoomTo.data.length > 0
-    ) {
-      return geometryOutputsToZoomTo.data.reduce<
-        [number, number, number, number]
-      >(
-        (acc, output) => {
-          const bbox = output.geometry?.bbox ?? turfBbox(output.geometry)
-          return [
-            Math.min(acc[0], bbox[0] ?? Infinity),
-            Math.min(acc[1], bbox[1] ?? Infinity),
-            Math.max(acc[2], bbox[2] ?? -Infinity),
-            Math.max(acc[3], bbox[3] ?? -Infinity),
-          ]
-        },
-        [Infinity, Infinity, -Infinity, -Infinity],
-      ) as [number, number, number, number]
-    }
-
-    if (pmtilesHeader) {
-      return [
-        pmtilesHeader.minLon,
-        pmtilesHeader.minLat,
-        pmtilesHeader.maxLon,
-        pmtilesHeader.maxLat,
-      ] as [number, number, number, number]
-    }
-
-    return undefined
-  }, [
-    isLoadingPmtilesHeader,
-    isLoadingGeometryOutputsToZoomTo,
-    geometryOutputsToZoomTo?.data,
-    pmtilesHeader,
-  ])
 
   const { linePaint, fillPaint } = useMemo(() => {
     if (!variable)
@@ -221,7 +164,8 @@ const GeometriesMapViewer = ({
 
       const output = productOutputs?.find(
         (output) =>
-          output.geometryOutputId === feature?.properties?.[ID_PROPERTY],
+          output.geometryOutputId === feature?.properties?.[ID_PROPERTY] ||
+          output.geometryOutputId === feature?.id,
       )
 
       onSelect?.({ dataPoint: output || null, event: layer.originalEvent })
@@ -229,37 +173,58 @@ const GeometriesMapViewer = ({
     [onSelect, productOutputs],
   )
 
-  useEffect(() => {
-    if (mapRef.current && mapBounds) {
-      mapRef.current.fitBounds(mapBounds, { padding: 20 })
-    }
-  }, [mapBounds, mapRef])
+  const transformRequest: RequestTransformFunction = useCallback(
+    (url: string) => {
+      if (url.startsWith(config.apiBaseUrl)) {
+        return {
+          url: url,
+          credentials: 'include',
+        }
+      }
 
-  if (isLoadingPmtilesHeader || isLoadingGeometryOutputsToZoomTo)
+      return { url }
+    },
+    [config.apiBaseUrl],
+  )
+
+  useEffect(() => {
+    if (mapRef.current && geometriesRun) {
+      mapRef.current.fitBounds(
+        [
+          [geometriesRun.bounds.minX, geometriesRun.bounds.minY],
+          [geometriesRun.bounds.maxX, geometriesRun.bounds.maxY],
+        ],
+        { padding: 20 },
+      )
+    }
+  }, [geometriesRun, mapRef])
+
+  if (isLoadingGeometriesRun || isLoadingGeometryOutputsToZoomTo)
     return <EmptyCard description="Loading" />
-  if (pmtilesHeaderError || geometryOutputsToZoomToError)
+  if (geometriesRunError || geometryOutputsToZoomToError)
     return (
       <EmptyCard
-        description={`Error: ${pmtilesHeaderError?.message ?? geometryOutputsToZoomToError?.message}`}
+        description={`Error: ${geometriesRunError?.message ?? geometryOutputsToZoomToError?.message}`}
       />
-    )
-  if (!pmtilesHeader)
-    return (
-      <EmptyCard description="Map data not available: No valid PMTiles URL provided" />
     )
 
   return (
     <div className={cn('rounded-lg overflow-hidden w-full h-full', className)}>
       <MapViewer
         ref={mapRef}
-        initialViewState={{
-          bounds: mapBounds,
-          fitBoundsOptions: { padding: 20 },
-        }}
         interactiveLayerIds={['geometries-fill']}
         onClick={onMouseClick}
+        transformRequest={transformRequest}
       >
-        <Source id="geometries" type="vector" url={`pmtiles://${pmtilesUrl}`} />
+        <Source
+          id="geometries"
+          type="vector"
+          minzoom={0}
+          maxzoom={22}
+          tiles={[
+            `${config.apiBaseUrl}/api/v0/geometries-run/${geometriesRun?.id}/outputs/mvt/{z}/{x}/{y}`,
+          ]}
+        />
         <Layer
           id="geometries-fill"
           source="geometries"

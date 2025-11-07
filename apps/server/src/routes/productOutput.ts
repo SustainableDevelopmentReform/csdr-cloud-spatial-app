@@ -30,7 +30,7 @@ import {
 import {
   baseGeometryOutputQuery,
   baseGeometryOutputSchema,
-  fullGeometryOutputQuery,
+  fetchFullGeometryOutputOrThrow,
   fullGeometryOutputSchema,
 } from './geometryOutput'
 import { baseVariableQuery, baseVariableSchema } from './variable'
@@ -69,14 +69,6 @@ export const baseProductOutputQuery = {
 
     variable: baseVariableQuery,
     geometryOutput: baseGeometryOutputQuery,
-  },
-} satisfies QueryForTable<'productOutput'>
-
-export const fullProductOutputQuery = {
-  columns: baseProductOutputQuery.columns,
-  with: {
-    ...baseProductOutputQuery.with,
-    geometryOutput: fullGeometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
 
@@ -123,17 +115,17 @@ const productOutputNotFoundError = () =>
     description: "productOutput you're looking for is not found",
   })
 
-const fetchFullProductOutput = async (id: string) => {
+const fetchBaseProductOutput = async (id: string) => {
   const record = await db.query.productOutput.findFirst({
     where: (productOutput, { eq }) => eq(productOutput.id, id),
-    ...fullProductOutputQuery,
+    ...baseProductOutputQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullProductOutputOrThrow = async (id: string) => {
-  const record = await fetchFullProductOutput(id)
+const fetchBaseProductOutputOrThrow = async (id: string) => {
+  const record = await fetchBaseProductOutput(id)
 
   if (!record) {
     throw productOutputNotFoundError()
@@ -169,9 +161,13 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullProductOutputOrThrow(id)
+      const record = await fetchBaseProductOutputOrThrow(id)
 
-      return generateJsonResponse(c, record, 200)
+      const geometryOutput = await fetchFullGeometryOutputOrThrow(
+        record.geometryOutput.id,
+      )
+
+      return generateJsonResponse(c, { ...record, geometryOutput }, 200)
     },
   )
   .openapi(
@@ -195,7 +191,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(fullProductOutputSchema),
+              schema: createResponseSchema(baseProductOutputSchema),
             },
           },
         },
@@ -230,7 +226,7 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullProductOutputOrThrow(newProductOutput.id)
+      const record = await fetchBaseProductOutputOrThrow(newProductOutput.id)
 
       return generateJsonResponse(c, record, 201, 'Product output created')
     },
@@ -258,7 +254,7 @@ const app = createOpenAPIApp()
             'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.array(fullProductOutputSchema)),
+              schema: createResponseSchema(z.array(baseProductOutputSchema)),
             },
           },
         },
@@ -295,7 +291,7 @@ const app = createOpenAPIApp()
 
       const fullRecords = ids.length
         ? await db.query.productOutput.findMany({
-            ...fullProductOutputQuery,
+            ...baseProductOutputQuery,
             where: inArray(productOutput.id, ids),
           })
         : []
@@ -348,7 +344,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(fullProductOutputSchema),
+              schema: createResponseSchema(baseProductOutputSchema),
             },
           },
         },
@@ -373,7 +369,7 @@ const app = createOpenAPIApp()
         throw productOutputNotFoundError()
       }
 
-      const fullRecord = await fetchFullProductOutputOrThrow(record.id)
+      const fullRecord = await fetchBaseProductOutputOrThrow(record.id)
 
       return generateJsonResponse(c, fullRecord, 200, 'Product output updated')
     },
