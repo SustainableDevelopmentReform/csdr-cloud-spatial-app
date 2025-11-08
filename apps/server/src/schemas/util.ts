@@ -41,35 +41,6 @@ export const baseRunColumns = {
   dataEtag: true,
 } as const
 
-export const baseIdResourceSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-})
-
-export const baseIdResourceSchemaWithMainRunId = baseIdResourceSchema.extend({
-  mainRunId: z.string().nullable(),
-})
-
-export const baseResourceSchema = baseIdResourceSchema.extend({
-  description: z.string().nullable(),
-  metadata: z.any().nullable(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-})
-
-export const baseRunResourceSchema = baseResourceSchema.extend({
-  imageCode: z.string().nullable(),
-  imageTag: z.string().nullable(),
-  provenanceJson: z.any().nullable(),
-  provenanceUrl: z.string().nullable(),
-  dataUrl: z.string().nullable(),
-  dataType: z
-    .enum(['parquet', 'geoparquet', 'stac-geoparquet', 'zarr'])
-    .nullable(),
-  dataSize: z.number().int().nullable(),
-  dataEtag: z.string().nullable(),
-})
-
 export const createPayload = <T extends { name?: string; id?: string }>(
   data: T,
 ) => ({

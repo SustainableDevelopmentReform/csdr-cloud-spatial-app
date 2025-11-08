@@ -1,6 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseProductRunSchema,
+  baseProductSchema,
   createProductSchema,
+  fullProductSchema,
   productQuerySchema,
   productRunQuerySchema,
   updateProductSchema,
@@ -19,22 +22,15 @@ import { generateJsonResponse } from '../lib/response'
 import { product, productRun } from '../schemas/db'
 import {
   baseColumns,
-  baseIdResourceSchema,
-  baseResourceSchema,
   createPayload,
   idColumns,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { fullDatasetQuery, fullDatasetSchema } from './dataset'
-import { fullGeometriesQuery, fullGeometriesSchema } from './geometries'
-import {
-  baseProductRunQuery,
-  baseProductRunSchema,
-  fullProductRunQuery,
-  fullProductRunSchema,
-} from './productRun'
 import { parseQuery } from '../utils/query'
+import { fullDatasetQuery } from './dataset'
+import { fullGeometriesQuery } from './geometries'
+import { baseProductRunQuery, fullProductRunQuery } from './productRun'
 
 const baseProductQuery = {
   columns: {
@@ -57,28 +53,6 @@ export const fullProductQuery = {
     mainRun: fullProductRunQuery,
   },
 } satisfies QueryForTable<'product'>
-
-const baseProductSchema = baseResourceSchema
-  .extend({
-    timePrecision: z.enum(['hour', 'day', 'month', 'year']),
-    mainRunId: z.string().nullable(),
-    dataset: baseIdResourceSchema,
-    geometries: baseIdResourceSchema,
-    mainRun: baseProductRunSchema.nullable(),
-  })
-  .openapi('ProductBase')
-
-const fullProductSchema = baseProductSchema
-  .extend({
-    dataset: fullDatasetSchema.omit({ runCount: true, productCount: true }),
-    geometries: fullGeometriesSchema.omit({
-      runCount: true,
-      productCount: true,
-    }),
-    mainRun: fullProductRunSchema.nullable(),
-    runCount: z.number().int(),
-  })
-  .openapi('ProductFull')
 
 const productNotFoundError = () =>
   new ServerError({

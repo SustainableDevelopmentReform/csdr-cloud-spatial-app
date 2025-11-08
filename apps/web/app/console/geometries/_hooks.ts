@@ -8,7 +8,6 @@ import {
   importGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -405,7 +404,6 @@ export const useGeometryOutputsExport = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
     enabled: enabled && !!geometriesRun,
   })
 
@@ -416,7 +414,10 @@ export const useGeometryOutputsExport = (
   }
 }
 
-export const useGeometries = (_geometriesId?: string) => {
+export const useGeometries = (
+  _geometriesId?: string,
+  enabled: boolean = true,
+) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const client = useApiClient()
   return useQuery({
@@ -433,12 +434,14 @@ export const useGeometries = (_geometriesId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometriesId,
+    enabled: enabled ?? !!geometriesId,
   })
 }
 
-export const useGeometriesRun = (_geometriesRunId?: string) => {
+export const useGeometriesRun = (
+  _geometriesRunId?: string,
+  enabled: boolean = true,
+) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const client = useApiClient()
   return useQuery({
@@ -455,12 +458,15 @@ export const useGeometriesRun = (_geometriesRunId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometriesRunId,
+
+    enabled: enabled ?? !!geometriesRunId,
   })
 }
 
-export const useGeometryOutput = (_geometryOutputId?: string) => {
+export const useGeometryOutput = (
+  _geometryOutputId?: string,
+  enabled: boolean = true,
+) => {
   const { geometryOutputId } = useGeometriesParams(
     undefined,
     undefined,
@@ -481,8 +487,8 @@ export const useGeometryOutput = (_geometryOutputId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometryOutputId,
+
+    enabled: enabled ?? !!geometryOutputId,
   })
 }
 

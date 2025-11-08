@@ -88,17 +88,23 @@ const ProductOutputFeature = () => {
           cell: ({ row }) => {
             return (
               <div className="flex items-center gap-2 flex-wrap">
-                <GeometriesButton
-                  geometries={
-                    row.original.geometryOutput.geometriesRun.geometries
-                  }
-                />
-                <GeometriesRunButton
-                  geometriesRun={row.original.geometryOutput.geometriesRun}
-                />
-                <GeometryOutputButton
-                  geometryOutput={row.original.geometryOutput}
-                />
+                {row.original.geometryOutput?.geometriesRun?.geometries && (
+                  <GeometriesButton
+                    geometries={
+                      row.original.geometryOutput.geometriesRun.geometries
+                    }
+                  />
+                )}
+                {row.original.geometryOutput?.geometriesRun && (
+                  <GeometriesRunButton
+                    geometriesRun={row.original.geometryOutput.geometriesRun}
+                  />
+                )}
+                {row.original.geometryOutput && (
+                  <GeometryOutputButton
+                    geometryOutput={row.original.geometryOutput}
+                  />
+                )}
               </div>
             )
           },
@@ -110,12 +116,16 @@ const ProductOutputFeature = () => {
           cell: ({ row }) => {
             return (
               <div className="flex items-center gap-2 flex-wrap">
-                <DatasetButton
-                  dataset={row.original.productRun.datasetRun.dataset}
-                />
-                <DatasetRunButton
-                  datasetRun={row.original.productRun.datasetRun}
-                />
+                {row.original.productRun?.datasetRun?.dataset && (
+                  <DatasetButton
+                    dataset={row.original.productRun.datasetRun.dataset}
+                  />
+                )}
+                {row.original.productRun?.datasetRun && (
+                  <DatasetRunButton
+                    datasetRun={row.original.productRun.datasetRun}
+                  />
+                )}
               </div>
             )
           },

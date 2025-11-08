@@ -70,8 +70,12 @@ const ProductDetails = () => {
               title={'Dependencies'}
               footer={
                 <div className="flex flex-col gap-2">
-                  <DatasetButton dataset={product?.dataset} />
-                  <GeometriesButton geometries={product?.geometries} />
+                  {product?.dataset && (
+                    <DatasetButton dataset={product.dataset} />
+                  )}
+                  {product?.geometries && (
+                    <GeometriesButton geometries={product.geometries} />
+                  )}
                 </div>
               }
             />

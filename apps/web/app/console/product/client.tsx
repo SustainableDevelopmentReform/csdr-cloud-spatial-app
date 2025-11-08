@@ -76,7 +76,9 @@ const columns = [
     id: 'dataset',
     header: () => <span>Dataset</span>,
     cell: ({ row }) => {
-      return <DatasetButton dataset={row.original?.dataset} />
+      return (
+        row.original.dataset && <DatasetButton dataset={row.original.dataset} />
+      )
     },
     size: 120,
   }),
@@ -84,7 +86,11 @@ const columns = [
     id: 'geometries',
     header: () => <span>Geometries</span>,
     cell: ({ row }) => {
-      return <GeometriesButton geometries={row.original?.geometries} />
+      return (
+        row.original.geometries && (
+          <GeometriesButton geometries={row.original.geometries} />
+        )
+      )
     },
     size: 120,
   }),
@@ -134,8 +140,9 @@ const ProductFeature = () => {
                 <DatasetSelect
                   value={field.value}
                   onChange={(selectedDataset) =>
-                    field.onChange(selectedDataset?.id ?? null)
+                    field.onChange(selectedDataset?.id)
                   }
+                  isClearable
                 />
                 <FormMessage />
               </FormItem>
@@ -149,8 +156,9 @@ const ProductFeature = () => {
                 <GeometriesSelect
                   value={field.value}
                   onChange={(selectedGeometries) =>
-                    field.onChange(selectedGeometries?.id ?? null)
+                    field.onChange(selectedGeometries?.id)
                   }
+                  isClearable
                 />
                 <FormMessage />
               </FormItem>

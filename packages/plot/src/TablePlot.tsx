@@ -11,7 +11,7 @@ type BaseTableRecord = {
   value: number | null | undefined
   timePoint: Date | string
   variableName: string
-  geometryOutputName: string
+  geometryOutputName?: string | null | undefined
 }
 
 export const DEFAULT_TABLE_DATA_PROPS = {

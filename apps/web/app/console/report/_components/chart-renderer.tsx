@@ -104,7 +104,9 @@ const MapContainer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const { data: productRun } = useProductRun(chart.productRunId)
-  const { data: geometriesRun } = useGeometriesRun(productRun?.geometriesRun.id)
+  const { data: geometriesRun } = useGeometriesRun(
+    productRun?.geometriesRun?.id,
+  )
   const { data: variable } = useVariable(chart.variableId)
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableId,

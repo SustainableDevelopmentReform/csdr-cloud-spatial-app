@@ -6,10 +6,12 @@ export const GeometriesSelect = ({
   value,
   onChange,
   disabled,
+  isClearable = true,
 }: {
   value: string | null | undefined
   onChange: (geometries: GeometriesListItem | null) => void
   disabled?: boolean
+  isClearable?: boolean
 }) => {
   const {
     data: allGeometries,
@@ -40,6 +42,7 @@ export const GeometriesSelect = ({
             fetchNextPage()
           }
         }}
+        isClearable={isClearable}
       />
     </FieldGroup>
   )

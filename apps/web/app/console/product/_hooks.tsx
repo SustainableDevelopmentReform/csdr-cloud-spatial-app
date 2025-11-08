@@ -7,7 +7,6 @@ import {
   productRunQuerySchema,
 } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -196,6 +195,7 @@ const useProductParams = (
 export const useProducts = (
   _query?: z.infer<typeof productQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const client = useApiClient()
 
@@ -228,6 +228,7 @@ export const useProducts = (
       const nextPage = allPages.length + 1
       return nextPage <= lastPage.pageCount ? nextPage : undefined
     },
+    enabled: enabled ?? true,
   })
 
   const aggregatedData = useMemo(
@@ -440,7 +441,7 @@ export const useProductOutputsExport = (
         data: parsedData,
       }
     },
-    placeholderData: keepPreviousData,
+
     enabled: !!productRun,
   })
 
@@ -452,7 +453,7 @@ export const useProductOutputsExport = (
   }
 }
 
-export const useProduct = (_productId?: string) => {
+export const useProduct = (_productId?: string, enabled: boolean = true) => {
   const { productId } = useProductParams(_productId)
   const client = useApiClient()
   return useQuery({
@@ -469,12 +470,15 @@ export const useProduct = (_productId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productId && productId !== '*',
+
+    enabled: enabled ?? (!!productId && productId !== '*'),
   })
 }
 
-export const useProductRun = (_productRunId?: string) => {
+export const useProductRun = (
+  _productRunId?: string,
+  enabled: boolean = true,
+) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
   const client = useApiClient()
   return useQuery({
@@ -491,12 +495,15 @@ export const useProductRun = (_productRunId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productRunId,
+
+    enabled: enabled ?? !!productRunId,
   })
 }
 
-export const useProductOutput = (_productOutputId?: string) => {
+export const useProductOutput = (
+  _productOutputId?: string,
+  enabled: boolean = true,
+) => {
   const { productOutputId } = useProductParams(
     undefined,
     undefined,
@@ -517,8 +524,8 @@ export const useProductOutput = (_productOutputId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productOutputId,
+
+    enabled: enabled ?? !!productOutputId,
   })
 }
 

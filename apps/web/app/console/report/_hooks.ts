@@ -2,7 +2,6 @@
 
 import { reportQuerySchema } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -121,7 +120,7 @@ export const useReport = (id?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
+
     enabled: !!reportId,
   })
 }
