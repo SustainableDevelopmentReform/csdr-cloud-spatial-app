@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createGeometriesRunSchema } from '@repo/schemas/crud'
+import { importGeometriesRunSchema } from '@repo/schemas/crud'
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
 import {
@@ -47,17 +47,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { ImportGeometriesRunPayload, useImportGeometriesRun } from '../_hooks'
 
-const importGeometriesRunFormSchema = createGeometriesRunSchema.extend({
-  geojsonIdProperty: z.string().min(1, 'Select the property that contains IDs'),
-  geojsonNameProperty: z
-    .string()
-    .min(1, 'Select the property that contains names'),
-  geojsonFile: z.instanceof(File).optional(),
-})
-
-type ImportGeometriesRunFormValues = z.infer<
-  typeof importGeometriesRunFormSchema
->
+type ImportGeometriesRunFormValues = z.infer<typeof importGeometriesRunSchema>
 
 type GeojsonSummary = {
   featureCount: number
@@ -165,19 +155,13 @@ const GeojsonImportForm = ({
 }) => {
   const defaultValues = useMemo(
     () => ({
-      geometriesId: geometriesId ?? '',
-      name: '',
-      description: '',
-      metadata: '',
-      geojsonIdProperty: '',
-      geojsonNameProperty: '',
-      geojsonFile: undefined,
+      geometriesId: geometriesId,
     }),
     [geometriesId],
   )
 
   const form = useForm<ImportGeometriesRunFormValues>({
-    resolver: zodResolver(importGeometriesRunFormSchema),
+    resolver: zodResolver(importGeometriesRunSchema),
     defaultValues,
   })
 
@@ -200,9 +184,9 @@ const GeojsonImportForm = ({
     setGeojsonSummary(null)
     setDropError(null)
     setSelectedFile(null)
-    form.setValue('geojsonFile', undefined)
-    form.setValue('geojsonIdProperty', '')
-    form.setValue('geojsonNameProperty', '')
+    form.resetField('geojsonFile')
+    form.resetField('geojsonIdProperty')
+    form.resetField('geojsonNameProperty')
     setIsDragActive(false)
   }, [form])
 
@@ -220,11 +204,9 @@ const GeojsonImportForm = ({
           const firstProperty = Object.keys(summary.propertyNames)[0]
           const secondProperty = Object.keys(summary.propertyNames)[1]
 
-          form.setValue('geojsonIdProperty', firstProperty ?? '')
-          form.setValue('geojsonNameProperty', secondProperty ?? '')
-        } else {
-          form.setValue('geojsonIdProperty', '')
-          form.setValue('geojsonNameProperty', '')
+          if (firstProperty) form.setValue('geojsonIdProperty', firstProperty)
+          if (secondProperty)
+            form.setValue('geojsonNameProperty', secondProperty)
         }
       } catch (error) {
         const message =
