@@ -3,18 +3,13 @@ import {
   baseGeometriesRunSchema,
   baseGeometryOutputSchema,
   createGeometriesRunSchema,
-  createGeometryOutputSchema,
   fullGeometriesRunSchema,
   geometryOutputExportQuerySchema,
   geometryOutputExportSchema,
   geometryOutputQuerySchema,
-  importGeometriesRunSchema,
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, isNotNull, sql, SQL } from 'drizzle-orm'
-import { DrizzleQueryError } from 'drizzle-orm/errors'
-import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson'
-import { DatabaseError } from 'pg'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -129,7 +124,7 @@ const fetchBaseGeometriesRun = async (id: string) => {
   return geometriesRunRecord
 }
 
-const fetchBaseGeometriesRunOrThrow = async (id: string) => {
+export const fetchBaseGeometriesRunOrThrow = async (id: string) => {
   const record = await fetchBaseGeometriesRun(id)
 
   if (!record) {
@@ -137,134 +132,6 @@ const fetchBaseGeometriesRunOrThrow = async (id: string) => {
   }
 
   return record
-}
-
-const parseGeoJsonFile = async (file: File) => {
-  try {
-    const raw = await file.text()
-    const parsed = JSON.parse(raw) as FeatureCollection
-
-    if (
-      parsed.type !== 'FeatureCollection' ||
-      !Array.isArray(parsed.features)
-    ) {
-      throw new Error('GeoJSON must be a FeatureCollection with features')
-    }
-
-    if (!parsed.features.length) {
-      throw new Error('GeoJSON file does not contain any features')
-    }
-
-    return parsed
-  } catch (error) {
-    throw new ServerError({
-      statusCode: 400,
-      message: 'Invalid GeoJSON upload',
-      description:
-        error instanceof Error
-          ? error.message
-          : 'Failed to parse uploaded GeoJSON file',
-    })
-  }
-}
-
-const extractValidatedFeatures = ({
-  features,
-  idProperty,
-  nameProperty,
-}: {
-  features: Feature[]
-  idProperty: string
-  nameProperty: string
-}) => {
-  const warnings: string[] = []
-  const parsedFeatures: {
-    featureId: string
-    name: string
-    geometry: MultiPolygon
-    properties: Record<string, any>
-  }[] = []
-
-  features.forEach((feature, index) => {
-    if (!feature.geometry) {
-      warnings.push(`Feature at index ${index} is missing geometry`)
-      return
-    }
-
-    if (
-      feature.geometry.type !== 'Polygon' &&
-      feature.geometry.type !== 'MultiPolygon'
-    ) {
-      warnings.push(
-        `Feature at index ${index} must be a Polygon or MultiPolygon`,
-      )
-      return
-    }
-
-    const properties = feature.properties ?? {}
-    const featureIdRaw =
-      properties && typeof properties === 'object'
-        ? (properties[idProperty] as unknown)
-        : undefined
-    const featureNameRaw =
-      properties && typeof properties === 'object'
-        ? (properties[nameProperty] as unknown)
-        : undefined
-
-    if (featureIdRaw === undefined || featureIdRaw === null) {
-      warnings.push(
-        `Feature at index ${index} does not contain property ${idProperty}`,
-      )
-      return
-    }
-
-    if (featureNameRaw === undefined || featureNameRaw === null) {
-      warnings.push(
-        `Feature at index ${index} does not contain property ${nameProperty}`,
-      )
-      return
-    }
-
-    const featureId = String(featureIdRaw)
-    const featureName = String(featureNameRaw)
-
-    if (!featureId.length) {
-      warnings.push(
-        `Feature at index ${index} has an empty ${idProperty} value`,
-      )
-      return
-    }
-
-    if (!featureName.length) {
-      warnings.push(
-        `Feature at index ${index} has an empty ${nameProperty} value`,
-      )
-      return
-    }
-
-    // Convert Polygon to MultiPolygon
-    let geometry: MultiPolygon
-    if (feature.geometry.type === 'Polygon') {
-      geometry = {
-        type: 'MultiPolygon',
-        coordinates: [feature.geometry.coordinates],
-      }
-    } else {
-      geometry = feature.geometry
-    }
-
-    parsedFeatures.push({
-      featureId,
-      name: featureName,
-      geometry,
-      properties,
-    })
-  })
-
-  return {
-    features: parsedFeatures,
-    warnings,
-  }
 }
 
 const app = createOpenAPIApp()
@@ -562,130 +429,6 @@ const app = createOpenAPIApp()
       const record = await fetchBaseGeometriesRunOrThrow(newGeometriesRun.id)
 
       return generateJsonResponse(c, record, 201, 'Geometries run created')
-    },
-  )
-
-  .openapi(
-    createRoute({
-      description:
-        'Create a geometries run by importing GeoJSON features as geometry outputs.',
-      method: 'post',
-      path: '/import',
-      middleware: [
-        authMiddleware({
-          permission: 'write:geometriesRun',
-        }),
-      ],
-      request: {
-        body: {
-          required: true,
-          content: {
-            'multipart/form-data': {
-              schema: importGeometriesRunSchema,
-            },
-          },
-        },
-      },
-      responses: {
-        201: {
-          description:
-            'Successfully created a geometries run and imported geometry outputs.',
-          content: {
-            'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  geometriesRun: baseGeometriesRunSchema,
-                  warnings: z.array(z.string()),
-                }),
-              ),
-            },
-          },
-        },
-        400: jsonErrorResponse('Invalid GeoJSON import payload'),
-        401: jsonErrorResponse('Unauthorized'),
-        422: validationErrorResponse,
-        500: jsonErrorResponse(
-          'Failed to import geometries run from GeoJSON file',
-        ),
-      },
-    }),
-    async (c) => {
-      const body = await c.req.parseBody()
-
-      const importPayloadResult = importGeometriesRunSchema.safeParse(body)
-
-      if (!importPayloadResult.success) {
-        return generateJsonResponse(
-          c,
-          { issues: importPayloadResult.error.issues },
-          422,
-          'Validation Error',
-        )
-      }
-
-      const {
-        geojsonFile,
-        geojsonIdProperty: idProperty,
-        geojsonNameProperty: nameProperty,
-        ...createPayloadData
-      } = importPayloadResult.data
-
-      const featureCollection = await parseGeoJsonFile(geojsonFile)
-
-      const normalizedFeatures = extractValidatedFeatures({
-        features: featureCollection.features,
-        idProperty,
-        nameProperty,
-      })
-
-      const [newGeometriesRun] = await db
-        .insert(geometriesRun)
-        .values(createPayload(createPayloadData))
-        .returning()
-
-      if (!newGeometriesRun) {
-        throw new ServerError({
-          statusCode: 500,
-          message: 'Failed to create geometriesRun',
-          description: 'Geometries run insert did not return a record',
-        })
-      }
-
-      for (const [index, feature] of normalizedFeatures.features.entries()) {
-        const validatedOutput = {
-          id: `${newGeometriesRun.id}-${feature.featureId}`,
-          name: feature.name,
-          geometry: feature.geometry,
-          properties: feature.properties,
-          geometriesRunId: newGeometriesRun.id,
-        }
-        try {
-          await db.insert(geometryOutput).values(createPayload(validatedOutput))
-        } catch (error) {
-          if (error instanceof DrizzleQueryError) {
-            if (error.cause instanceof DatabaseError) {
-              throw new ServerError({
-                statusCode: 500,
-                message: `Failed to create geometry output (name:${feature.name}, id:${feature.featureId}, index:${index})`,
-                description: error.cause.detail ?? error.cause.message,
-              })
-            }
-          }
-          throw error
-        }
-      }
-
-      const record = await fetchBaseGeometriesRunOrThrow(newGeometriesRun.id)
-
-      return generateJsonResponse(
-        c,
-        {
-          geometriesRun: record,
-          warnings: normalizedFeatures.warnings,
-        },
-        201,
-        'Geometries run imported successfully',
-      )
     },
   )
 
