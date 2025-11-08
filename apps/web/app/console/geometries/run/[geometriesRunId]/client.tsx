@@ -12,24 +12,30 @@ import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import { DetailCard } from '../../../_components/detail-cards'
+import { useProductRunsLink } from '../../../product/_hooks'
 import GeometriesMapViewer from '../../_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
 import {
   useDeleteGeometriesRun,
   useGeometriesRun,
+  useGeometriesRunsLink,
   useGeometryRunOutputsLink,
   useSetGeometriesMainRun,
   useUpdateGeometriesRun,
 } from '../../_hooks'
-import { useProductRunsLink } from '../../../product/_hooks'
 
 const GeometriesRunDetails = () => {
   const { data: geometriesRun } = useGeometriesRun()
   const updateGeometriesRun = useUpdateGeometriesRun()
+
+  const geometriesRunsLink = useGeometriesRunsLink()
   const deleteGeometriesRun = useDeleteGeometriesRun(
     undefined,
-    '/console/geometriesRuns',
+    geometriesRun?.geometries
+      ? geometriesRunsLink(geometriesRun?.geometries)
+      : undefined,
   )
+
   const geometryRunOutputsLink = useGeometryRunOutputsLink()
   const productRunsLink = useProductRunsLink()
 

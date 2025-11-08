@@ -5,6 +5,7 @@ import {
   geometriesRunQuerySchema,
   geometryOutputExportQuerySchema,
   geometryOutputQuerySchema,
+  importGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import {
   keepPreviousData,
@@ -99,6 +100,14 @@ export type CreateGeometriesRunPayload = NonNullable<
 
 export type CreateGeometryOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['geometry-output']['$post']>['json']
+>
+
+const importGeometriesRunPayloadSchema = importGeometriesRunSchema.extend({
+  geojsonFile: z.instanceof(File),
+})
+
+export type ImportGeometriesRunPayload = z.infer<
+  typeof importGeometriesRunPayloadSchema
 >
 
 const geometriesParamsSchema = z.object({
@@ -362,6 +371,7 @@ export const useGeometryOutputsExport = (
   _geometriesRunId?: string,
   _query?: z.infer<typeof geometryOutputExportQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const { data: geometriesRun } = useGeometriesRun(geometriesRunId)
@@ -396,16 +406,16 @@ export const useGeometryOutputsExport = (
       return json.data
     },
     placeholderData: keepPreviousData,
-    enabled: !!geometriesRun,
+    enabled: enabled && !!geometriesRun,
   })
 
   return {
     ...queryResult,
     query,
-
     setSearchParams,
   }
 }
+
 export const useGeometries = (_geometriesId?: string) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const client = useApiClient()
@@ -511,6 +521,32 @@ export const useCreateGeometriesRun = () => {
       queryClient.invalidateQueries({
         queryKey: geometriesRunQueryKeys.scopeByGeometries(
           response?.data?.geometries?.id,
+        ),
+      })
+    },
+  })
+}
+
+export const useImportGeometriesRun = () => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: ImportGeometriesRunPayload) => {
+      const data = importGeometriesRunPayloadSchema.parse(payload)
+      const res = client.api.v0['geometries-run'].import.$post({
+        form: data,
+      })
+      return await unwrapResponse(res, 201)
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: geometriesRunQueryKeys.scopeByGeometries(
+          response?.data.geometriesRun?.geometries?.id,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesQueryKeys.detail(
+          response?.data?.geometriesRun?.geometries?.id,
         ),
       })
     },
