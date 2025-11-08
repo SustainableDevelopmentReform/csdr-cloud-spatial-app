@@ -1,10 +1,12 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseReportSchema,
   createReportSchema,
+  fullReportSchema,
   reportQuerySchema,
   updateReportSchema,
 } from '@repo/schemas/crud'
-import { count, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -18,7 +20,6 @@ import { generateJsonResponse } from '../lib/response'
 import { report } from '../schemas/db'
 import {
   baseColumns,
-  baseResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
@@ -34,11 +35,6 @@ export const baseReportQuery = {
 export const fullReportQuery = {
   columns: { ...baseReportQuery.columns, content: true },
 } satisfies QueryForTable<'report'>
-
-export const baseReportSchema = baseResourceSchema.openapi('ReportSchemaBase')
-const fullReportSchema = baseReportSchema
-  .extend({ content: z.any() })
-  .openapi('ReportSchemaFull')
 
 const reportNotFoundError = () =>
   new ServerError({

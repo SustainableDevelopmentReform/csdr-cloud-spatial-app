@@ -1,4 +1,11 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  baseProductOutputSchema,
+  createManyProductOutputSchema,
+  createProductOutputSchema,
+  fullProductOutputSchema,
+  updateProductOutputSchema,
+} from '@repo/schemas/crud'
 import { eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -13,9 +20,6 @@ import { generateJsonResponse } from '../lib/response'
 import { productOutput } from '../schemas/db'
 import {
   baseColumns,
-  baseIdResourceSchema,
-  baseIdResourceSchemaWithMainRunId,
-  baseResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
@@ -23,17 +27,10 @@ import {
   updatePayload,
 } from '../schemas/util'
 import {
-  createManyProductOutputSchema,
-  createProductOutputSchema,
-  updateProductOutputSchema,
-} from '@repo/schemas/crud'
-import {
   baseGeometryOutputQuery,
-  baseGeometryOutputSchema,
   fetchFullGeometryOutputOrThrow,
-  fullGeometryOutputSchema,
 } from './geometryOutput'
-import { baseVariableQuery, baseVariableSchema } from './variable'
+import { baseVariableQuery } from './variable'
 
 export const baseProductOutputQuery = {
   columns: {
@@ -71,42 +68,6 @@ export const baseProductOutputQuery = {
     geometryOutput: baseGeometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
-
-export const baseProductOutputSchema = baseResourceSchema
-  .extend({
-    value: z.number(),
-    timePoint: z.iso.datetime(),
-    productRun: baseIdResourceSchema.extend({
-      product: baseIdResourceSchemaWithMainRunId,
-      datasetRun: baseIdResourceSchema.extend({
-        dataset: baseIdResourceSchemaWithMainRunId,
-      }),
-      geometriesRun: baseIdResourceSchema.extend({
-        geometries: baseIdResourceSchemaWithMainRunId,
-      }),
-    }),
-    geometryOutput: baseGeometryOutputSchema,
-    variable: baseVariableSchema,
-  })
-  .openapi('ProductOutputBase')
-
-export const fullProductOutputSchema = baseProductOutputSchema
-  .extend({
-    geometryOutput: fullGeometryOutputSchema,
-  })
-  .openapi('ProductOutputFull')
-
-export const productOutputExportSchema = z
-  .object({
-    id: z.string(),
-    variableId: z.string(),
-    variableName: z.string(),
-    timePoint: z.iso.datetime(),
-    geometryOutputId: z.string(),
-    geometryOutputName: z.string(),
-    value: z.number(),
-  })
-  .openapi('ProductOutputExportSchema')
 
 const productOutputNotFoundError = () =>
   new ServerError({
@@ -163,9 +124,9 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await fetchBaseProductOutputOrThrow(id)
 
-      const geometryOutput = await fetchFullGeometryOutputOrThrow(
-        record.geometryOutput.id,
-      )
+      const geometryOutput = record.geometryOutput
+        ? await fetchFullGeometryOutputOrThrow(record.geometryOutput.id)
+        : undefined
 
       return generateJsonResponse(c, { ...record, geometryOutput }, 200)
     },

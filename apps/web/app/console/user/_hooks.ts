@@ -1,8 +1,4 @@
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useQuery,
-} from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { z } from 'zod'
@@ -38,7 +34,6 @@ export const useUser = (id?: string) => {
       // Note we have to add type hint here due to better-auth type issues
       return res.data.users[0] as User | null
     },
-    placeholderData: keepPreviousData,
   })
 }
 

@@ -12,9 +12,7 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, productRun } from '../schemas/db'
 import {
-  baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
-  baseRunResourceSchema,
   createPayload,
   idColumns,
   QueryForTable,
@@ -22,6 +20,7 @@ import {
 } from '../schemas/util'
 import {
   createDatasetRunSchema,
+  fullDatasetRunSchema,
   updateDatasetRunSchema,
 } from '@repo/schemas/crud'
 
@@ -40,18 +39,6 @@ export const baseDatasetRunQuery = {
 } satisfies QueryForTable<'datasetRun'>
 
 export const fullDatasetRunQuery = baseDatasetRunQuery
-
-export const baseDatasetRunSchema = baseRunResourceSchema
-  .extend({
-    dataset: baseIdResourceSchemaWithMainRunId,
-  })
-  .openapi('DatasetRunBase')
-
-export const fullDatasetRunSchema = baseDatasetRunSchema
-  .extend({
-    productRunCount: z.number().int(),
-  })
-  .openapi('DatasetRunFull')
 
 const datasetRunNotFoundError = () =>
   new ServerError({

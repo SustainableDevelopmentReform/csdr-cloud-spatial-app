@@ -113,12 +113,14 @@ const GeometriesMapViewer = ({
       ...(ExpressionInputType | ExpressionSpecification)[],
     ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
 
-    productOutputs?.forEach((output) =>
-      fillColourEntries.push(
-        ['==', ['get', ID_PROPERTY], output.geometryOutputId],
-        colorFn(output.value),
-      ),
-    )
+    productOutputs?.forEach((output) => {
+      if (output.geometryOutputId) {
+        fillColourEntries.push(
+          ['==', ['get', ID_PROPERTY], output.geometryOutputId],
+          colorFn(output.value),
+        )
+      }
+    })
 
     const selectedGeometriesLineWidth: [
       ExpressionSpecification,

@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseVariableSchema,
   createVariableSchema,
   updateVariableSchema,
   variableQuerySchema,
@@ -18,7 +19,6 @@ import { generateJsonResponse } from '../lib/response'
 import { variable } from '../schemas/db'
 import {
   baseColumns,
-  baseResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
@@ -38,15 +38,6 @@ export const baseVariableQuery = {
     },
   },
 } satisfies QueryForTable<'variable'>
-
-export const baseVariableSchema = baseResourceSchema
-  .extend({
-    unit: z.string(),
-    category: baseResourceSchema.nullable(),
-    displayOrder: z.number().int().nullable(),
-    categoryId: z.string().nullable(),
-  })
-  .openapi('VariableSchemaBase')
 
 const variableNotFoundError = () =>
   new ServerError({

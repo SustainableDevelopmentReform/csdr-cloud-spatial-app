@@ -11,10 +11,11 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { variableCategory } from '../schemas/db'
-import { baseColumns, baseResourceSchema, QueryForTable } from '../schemas/util'
+import { baseColumns, QueryForTable } from '../schemas/util'
 import {
   createVariableCategorySchema,
   updateVariableCategorySchema,
+  variableCategorySchema,
 } from '@repo/schemas/crud'
 
 const variableCategoryQuery = {
@@ -29,13 +30,6 @@ const variableCategoryQuery = {
     },
   },
 } satisfies QueryForTable<'variableCategory'>
-
-export const variableCategorySchema = baseResourceSchema
-  .extend({
-    parentId: z.string().nullable(),
-    displayOrder: z.number().int().nullable(),
-  })
-  .openapi('VariableCategorySchemaBase')
 
 const variableCategoryNotFoundError = () =>
   new ServerError({

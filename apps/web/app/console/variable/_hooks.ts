@@ -1,6 +1,5 @@
 import { variableQuerySchema } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -147,7 +146,6 @@ export const useVariableCategories = () => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
   })
 
   return {
@@ -172,7 +170,7 @@ export const useVariable = (id?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
+
     enabled: !!variableId,
   })
 }
@@ -194,7 +192,7 @@ export const useVariableCategory = (id?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
+
     enabled: !!variableCategoryId,
   })
 }

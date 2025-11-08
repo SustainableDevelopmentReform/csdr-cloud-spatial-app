@@ -13,18 +13,20 @@ import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, product } from '../schemas/db'
 import {
   baseColumns,
-  baseResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
 import {
+  baseDatasetRunSchema,
+  baseDatasetSchema,
   createDatasetSchema,
   datasetQuerySchema,
   datasetRunQuerySchema,
+  fullDatasetSchema,
   updateDatasetSchema,
 } from '@repo/schemas/crud'
-import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
+import { baseDatasetRunQuery } from './datasetRun'
 import { parseQuery } from '../utils/query'
 
 export const baseDatasetQuery = {
@@ -42,22 +44,6 @@ export const fullDatasetQuery = {
     mainRun: baseDatasetRunQuery,
   },
 } satisfies QueryForTable<'dataset'>
-
-export const baseDatasetSchema = baseResourceSchema
-  .extend({
-    mainRunId: z.string().nullable(),
-    sourceUrl: z.string().nullable(),
-    sourceMetadataUrl: z.string().nullable(),
-  })
-  .openapi('DatasetBase')
-
-export const fullDatasetSchema = baseDatasetSchema
-  .extend({
-    runCount: z.number().int(),
-    productCount: z.number().int(),
-    mainRun: baseDatasetRunSchema.nullable(),
-  })
-  .openapi('DatasetFull')
 
 const datasetNotFoundError = () =>
   new ServerError({

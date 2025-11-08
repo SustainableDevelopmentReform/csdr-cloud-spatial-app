@@ -1,4 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import {
+  createGeometryOutputSchema,
+  createManyGeometryOutputSchema,
+  fullGeometryOutputSchema,
+  updateGeometryOutputSchema,
+} from '@repo/schemas/crud'
 import { eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -11,23 +17,14 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas/db'
-import { MultiPolygonSchema, PolygonSchema } from '@repo/schemas/geojson'
 import {
   baseColumns,
-  baseIdResourceSchema,
-  baseIdResourceSchemaWithMainRunId,
-  baseResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import {
-  createGeometryOutputSchema,
-  createManyGeometryOutputSchema,
-  updateGeometryOutputSchema,
-} from '@repo/schemas/crud'
 
 export const baseGeometryOutputQuery = {
   columns: {
@@ -64,37 +61,6 @@ export const geometryOutputExportQuery = {
     geometry: true,
   },
 } satisfies QueryForTable<'geometryOutput'>
-
-export const baseGeometryOutputSchema = baseResourceSchema
-  .extend({
-    properties: z.any(),
-    geometriesRun: baseIdResourceSchema.extend({
-      geometries: baseIdResourceSchemaWithMainRunId,
-    }),
-  })
-  .openapi('GeometryOutputBase')
-
-const geometrySchema = z
-  .union([
-    PolygonSchema.openapi({ title: 'GeoJSON Polygon' }),
-    MultiPolygonSchema.openapi({ title: 'GeoJSON MultiPolygon' }),
-  ])
-  .openapi('GeometrySchema')
-
-export const fullGeometryOutputSchema = baseGeometryOutputSchema
-  .extend({
-    geometry: geometrySchema,
-  })
-  .openapi('GeometryOutputFull')
-
-export const geometryOutputExportSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    properties: z.any(),
-    geometry: geometrySchema,
-  })
-  .openapi('GeometryOutputExportSchema')
 
 const geometryOutputNotFoundError = () =>
   new ServerError({

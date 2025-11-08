@@ -113,6 +113,13 @@
       "when": 1762492717887,
       "tag": "0015_curved_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1762580456563,
+      "tag": "0016_tiny_black_tom",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,20 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseGeometriesRunSchema,
+  baseGeometryOutputSchema,
   createGeometriesRunSchema,
   createGeometryOutputSchema,
-  createManyGeometryOutputSchema,
+  fullGeometriesRunSchema,
   geometryOutputExportQuerySchema,
+  geometryOutputExportSchema,
   geometryOutputQuerySchema,
   importGeometriesRunSchema,
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, isNotNull, sql, SQL } from 'drizzle-orm'
+import { DrizzleQueryError } from 'drizzle-orm/errors'
+import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson'
+import { DatabaseError } from 'pg'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -26,24 +32,17 @@ import {
   productRun,
 } from '../schemas/db'
 import {
-  baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
-  baseRunResourceSchema,
   createPayload,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
+import { parseQuery } from '../utils/query'
 import {
   baseGeometryOutputQuery,
-  baseGeometryOutputSchema,
   geometryOutputExportQuery,
-  geometryOutputExportSchema,
 } from './geometryOutput'
-import { parseQuery } from '../utils/query'
-import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson'
-import { DatabaseError } from 'pg'
-import { DrizzleQueryError } from 'drizzle-orm/errors'
 
 export const baseGeometriesRunQuery = {
   columns: {
@@ -58,26 +57,6 @@ export const baseGeometriesRunQuery = {
 } satisfies QueryForTable<'geometriesRun'>
 
 export const fullGeometriesRunQuery = baseGeometriesRunQuery
-
-export const baseGeometriesRunSchema = baseRunResourceSchema
-  .extend({
-    geometries: baseIdResourceSchemaWithMainRunId,
-    dataPmtilesUrl: z.string().nullable(),
-  })
-  .openapi('GeometriesRunBase')
-
-export const fullGeometriesRunSchema = baseGeometriesRunSchema
-  .extend({
-    productRunCount: z.number().int(),
-    outputCount: z.number().int(),
-    bounds: z.object({
-      minX: z.number(),
-      minY: z.number(),
-      maxX: z.number(),
-      maxY: z.number(),
-    }),
-  })
-  .openapi('GeometriesRunFull')
 
 const TILE_EXTENT = 4096
 const TILE_BUFFER = 64
