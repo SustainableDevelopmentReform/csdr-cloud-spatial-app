@@ -31,7 +31,9 @@ const defaultValidationHook: Hook<any, any, any, Response | undefined> = (
 
 export const ValidationIssueSchema = z
   .object({
-    path: z.string().openapi({ example: 'json.name' }),
+    path: z
+      .array(z.union([z.string(), z.number(), z.null()]))
+      .openapi({ example: 'json.name' }),
     message: z.string().openapi({ example: 'Required' }),
     code: z.string().openapi({ example: 'invalid_type' }),
   })

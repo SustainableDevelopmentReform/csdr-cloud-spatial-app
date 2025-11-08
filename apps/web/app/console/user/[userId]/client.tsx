@@ -246,28 +246,6 @@ const UserProfile = () => {
           </div>
         </form>
       </Form>
-      {/* <div className="flex justify-between mt-8 border-b border-gray-200 pb-8">
-          <div>
-            <div className="text-xl mb-1 font-medium">Organizations</div>
-            <div>Choose which organizations this user belongs to</div>
-          </div>
-          <AssignOrgForm>
-            <button className="hover:underline">Edit organizations</button>
-          </AssignOrgForm>
-        </div> */}
-      {/* <div className="border-b border-gray-200 pb-8 pt-4 grid gap-5">
-          {data?.organizations.map(({ id, name }) => (
-            <div key={`user-orgs-${id}`} className="flex justify-between">
-              <div>{name}</div>
-              <Link
-                className="hover:underline"
-                href={`/console/organizations/${id}`}
-              >
-                View organization
-              </Link>
-            </div>
-          ))}
-        </div> */}
 
       <div className="mt-8 border-b border-gray-200 pb-8">
         <div className="text-xl mb-6 font-medium">Admin actions</div>

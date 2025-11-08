@@ -8,6 +8,7 @@ import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../components/form/crud-form-action'
+import { PRODUCTS_BASE_PATH } from '../../../../lib/paths'
 import { DetailCard } from '../../_components/detail-cards'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
@@ -23,7 +24,7 @@ import {
 const ProductDetails = () => {
   const { data: product } = useProduct()
   const updateProduct = useUpdateProduct()
-  const deleteProduct = useDeleteProduct(undefined, '/console/products')
+  const deleteProduct = useDeleteProduct(undefined, PRODUCTS_BASE_PATH)
   const productRunsLink = useProductRunsLink()
 
   const refreshProductRunSummary = useRefreshProductRunSummary(product?.mainRun)

@@ -23,14 +23,16 @@ import {
   useProductRunOutputsLink,
   useRefreshProductRunSummary,
   useSetProductMainRun,
+  useProductRunsLink,
 } from '../../_hooks'
 
 const ProductRunDetails = () => {
   const { data: productRun } = useProductRun()
   const updateProductRun = useUpdateProductRun()
+  const productRunsLink = useProductRunsLink()
   const deleteProductRun = useDeleteProductRun(
     undefined,
-    '/console/productRuns',
+    productRun?.product ? productRunsLink(productRun?.product) : undefined,
   )
   const productRunLink = useProductRunLink()
   const productRunOutputsLink = useProductRunOutputsLink()

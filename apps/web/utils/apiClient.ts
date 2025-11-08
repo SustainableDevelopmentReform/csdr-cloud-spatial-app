@@ -9,12 +9,19 @@ const hcWithType = (...args: Parameters<typeof hc>): Client =>
 
 export const createApiClient = (baseURL: string) =>
   hcWithType(baseURL, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
     fetch(input, requestInit, _Env, _executionCtx) {
+      const headers = new Headers(requestInit?.headers ?? {})
+      const body = requestInit?.body
+
+      if (body instanceof FormData) {
+        headers.delete('Content-Type')
+      } else if (body && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json')
+      }
+
       return fetch(input, {
         ...requestInit,
+        headers,
         credentials: 'include',
       })
     },

@@ -62,15 +62,23 @@ const GeometriesMapViewer = ({
     error: geometriesRunError,
   } = useGeometriesRun(geometriesRunProp?.id)
 
+  const fetchGeometryOutputsToZoomTo = !!(
+    zoomToGeometryOutputIds && zoomToGeometryOutputIds.length > 0
+  )
+
   const {
     data: geometryOutputsToZoomTo,
     isLoading: isLoadingGeometryOutputsToZoomTo,
     error: geometryOutputsToZoomToError,
   } = useGeometryOutputsExport(
-    zoomToGeometryOutputIds ? geometriesRun?.id : undefined,
+    fetchGeometryOutputsToZoomTo ? geometriesRun?.id : undefined,
     {
-      geometryOutputIds: zoomToGeometryOutputIds ?? undefined,
+      geometryOutputIds: fetchGeometryOutputsToZoomTo
+        ? zoomToGeometryOutputIds
+        : undefined,
     },
+    false,
+    fetchGeometryOutputsToZoomTo,
   )
 
   const { linePaint, fillPaint } = useMemo(() => {

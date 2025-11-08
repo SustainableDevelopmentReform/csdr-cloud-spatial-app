@@ -74,6 +74,11 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   geometriesId: z.string(),
 })
 
+export const importGeometriesRunSchema = createGeometriesRunSchema.extend({
+  geojsonIdProperty: z.string(),
+  geojsonNameProperty: z.string(),
+})
+
 export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})
 
 export const geometryOutputQuerySchema = baseQuerySchema.extend({
@@ -92,7 +97,6 @@ const geometrySchema = z
     }),
   ])
   .transform((data) => {
-    console.log(data)
     if (data.type === 'Polygon') {
       const polygon = PolygonSchema.parse(data)
       return {
