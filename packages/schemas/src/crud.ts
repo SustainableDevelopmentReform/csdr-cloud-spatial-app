@@ -219,6 +219,9 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
 export const importGeometriesRunSchema = createGeometriesRunSchema.extend({
   geojsonIdProperty: z.string(),
   geojsonNameProperty: z.string(),
+  dataSize: z.number().int().optional(),
+  metadata: z.any().optional(),
+  geojsonFile: z.instanceof(File),
 })
 
 export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})

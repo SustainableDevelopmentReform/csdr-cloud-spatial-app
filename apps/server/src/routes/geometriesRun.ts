@@ -181,7 +181,7 @@ const extractValidatedFeatures = ({
   const parsedFeatures: {
     featureId: string
     name: string
-    geometry: MultiPolygon | Polygon
+    geometry: MultiPolygon
     properties: Record<string, any>
   }[] = []
 
@@ -242,10 +242,21 @@ const extractValidatedFeatures = ({
       return
     }
 
+    // Convert Polygon to MultiPolygon
+    let geometry: MultiPolygon
+    if (feature.geometry.type === 'Polygon') {
+      geometry = {
+        type: 'MultiPolygon',
+        coordinates: [feature.geometry.coordinates],
+      }
+    } else {
+      geometry = feature.geometry
+    }
+
     parsedFeatures.push({
       featureId,
       name: featureName,
-      geometry: feature.geometry,
+      geometry,
       properties,
     })
   })
@@ -255,12 +266,6 @@ const extractValidatedFeatures = ({
     warnings,
   }
 }
-
-const geometriesRunImportRequestSchema = importGeometriesRunSchema.extend({
-  dataSize: z.number().int().optional(),
-  metadata: z.any().optional(),
-  geojsonFile: z.instanceof(File),
-})
 
 const app = createOpenAPIApp()
   .openapi(
@@ -576,7 +581,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'multipart/form-data': {
-              schema: geometriesRunImportRequestSchema,
+              schema: importGeometriesRunSchema,
             },
           },
         },
@@ -607,8 +612,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const body = await c.req.parseBody()
 
-      const importPayloadResult =
-        geometriesRunImportRequestSchema.safeParse(body)
+      const importPayloadResult = importGeometriesRunSchema.safeParse(body)
 
       if (!importPayloadResult.success) {
         return generateJsonResponse(
@@ -648,13 +652,13 @@ const app = createOpenAPIApp()
       }
 
       for (const [index, feature] of normalizedFeatures.features.entries()) {
-        const validatedOutput = createGeometryOutputSchema.parse({
+        const validatedOutput = {
           id: `${newGeometriesRun.id}-${feature.featureId}`,
           name: feature.name,
           geometry: feature.geometry,
           properties: feature.properties,
           geometriesRunId: newGeometriesRun.id,
-        })
+        }
         try {
           await db.insert(geometryOutput).values(createPayload(validatedOutput))
         } catch (error) {
