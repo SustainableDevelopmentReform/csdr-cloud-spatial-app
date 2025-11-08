@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { importGeometriesRunSchema } from '@repo/schemas/crud'
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
 import {
@@ -12,6 +11,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -45,9 +45,8 @@ import {
 } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { ImportGeometriesRunPayload, useImportGeometriesRun } from '../_hooks'
-
-type ImportGeometriesRunFormValues = z.infer<typeof importGeometriesRunSchema>
+import { ImportGeometriesRunPayload, useImportGeometryOutputs } from '../_hooks'
+import { importGeometryOutputsSchema } from '@repo/schemas/crud'
 
 type GeojsonSummary = {
   featureCount: number
@@ -147,31 +146,31 @@ const readGeojsonSummary = async (file: File): Promise<GeojsonSummary> => {
 }
 
 const GeojsonImportForm = ({
-  geometriesId,
+  geometriesRunId,
   onCompleted,
 }: {
-  geometriesId?: string
+  geometriesRunId?: string
   onCompleted: () => void
 }) => {
   const defaultValues = useMemo(
     () => ({
-      geometriesId: geometriesId,
+      geometriesRunId: geometriesRunId,
     }),
-    [geometriesId],
+    [geometriesRunId],
   )
 
-  const form = useForm<ImportGeometriesRunFormValues>({
-    resolver: zodResolver(importGeometriesRunSchema),
+  const form = useForm<z.infer<typeof importGeometryOutputsSchema>>({
+    resolver: zodResolver(importGeometryOutputsSchema),
     defaultValues,
   })
 
   useEffect(() => {
-    if (geometriesId) {
-      form.setValue('geometriesId', geometriesId)
+    if (geometriesRunId) {
+      form.setValue('geometriesRunId', geometriesRunId)
     }
-  }, [geometriesId, form])
+  }, [geometriesRunId, form])
 
-  const importGeometriesRun = useImportGeometriesRun()
+  const importGeometriesRun = useImportGeometryOutputs()
   const [geojsonSummary, setGeojsonSummary] = useState<GeojsonSummary | null>(
     null,
   )
@@ -299,16 +298,16 @@ const GeojsonImportForm = ({
       onSuccess: (response) => {
         if (response?.data.warnings?.length) {
           toast.warning('GeoJSON import completed with warnings', {
-            description: response?.data.warnings.join('\n'),
+            description: response?.data.warnings.join(', '),
           })
         } else {
           toast.success('GeoJSON import completed')
         }
-        const currentGeometriesId =
-          response?.data.geometriesRun?.geometries?.id ?? geometriesId ?? ''
+        const currentGeometriesRunId =
+          response?.data.geometriesRun?.geometries?.id ?? geometriesRunId ?? ''
         form.reset({
           ...defaultValues,
-          geometriesId: currentGeometriesId,
+          geometriesRunId: currentGeometriesRunId,
         })
         resetGeojsonState()
         onCompleted()
@@ -328,59 +327,6 @@ const GeojsonImportForm = ({
     <Form {...form}>
       <form onSubmit={onSubmit}>
         <div className="grid gap-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="My geometries run" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    value={field.value ?? ''}
-                    placeholder="Optional description"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="metadata"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Metadata</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    value={
-                      typeof field.value === 'object'
-                        ? JSON.stringify(field.value, null, 2)
-                        : (field.value ?? '')
-                    }
-                    placeholder="Optional JSON metadata"
-                    className="font-mono"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <FormField
             control={form.control}
             name="geojsonFile"
@@ -405,7 +351,7 @@ const GeojsonImportForm = ({
                   >
                     <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
                       <p className="font-medium text-foreground">
-                        Drag & drop your GeoJSON file here
+                        Drag & drop your GeoJSON (FeatureCollection) file here
                       </p>
                       <p>Only Polygon and MultiPolygon features are allowed.</p>
                       <div className="flex gap-2">
@@ -508,6 +454,7 @@ const GeojsonImportForm = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Feature property for ID</FormLabel>
+
                   <Select
                     value={field.value}
                     onValueChange={(value) => field.onChange(value)}
@@ -530,6 +477,10 @@ const GeojsonImportForm = ({
                       )}
                     </SelectContent>
                   </Select>
+                  <FormDescription>
+                    Note: the ID field will be{' '}
+                    <code>{'$GEOMETRIES_RUN_ID-{feature-id}'}</code>.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -562,6 +513,7 @@ const GeojsonImportForm = ({
                       )}
                     </SelectContent>
                   </Select>
+                  <FormDescription>Note: names must be unique</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -579,9 +531,9 @@ const GeojsonImportForm = ({
 }
 
 export const GeojsonImportDialog = ({
-  geometriesId,
+  geometriesRunId,
 }: {
-  geometriesId?: string
+  geometriesRunId?: string
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
@@ -597,7 +549,7 @@ export const GeojsonImportDialog = ({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <span>
-          <Button variant="outline" disabled={!geometriesId}>
+          <Button variant="outline" disabled={!geometriesRunId}>
             Import GeoJSON
           </Button>
         </span>
@@ -609,7 +561,7 @@ export const GeojsonImportDialog = ({
         {isOpen ? (
           <GeojsonImportForm
             key={formKey}
-            geometriesId={geometriesId}
+            geometriesRunId={geometriesRunId}
             onCompleted={() => handleOpenChange(false)}
           />
         ) : null}

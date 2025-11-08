@@ -7,11 +7,13 @@ export const ProductRunSelect = ({
   productId,
   onChange,
   disabled,
+  isClearable,
 }: {
   value: string | null | undefined
   productId: string | null | undefined
   onChange: (productRun: ProductRunListItem | null) => void
   disabled?: boolean
+  isClearable?: boolean
 }) => {
   const {
     data: productRuns,
@@ -42,6 +44,7 @@ export const ProductRunSelect = ({
             fetchNextPage()
           }
         }}
+        isClearable={isClearable}
       />
     </FieldGroup>
   )

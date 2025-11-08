@@ -5,7 +5,7 @@ import {
   geometriesRunQuerySchema,
   geometryOutputExportQuerySchema,
   geometryOutputQuerySchema,
-  importGeometriesRunSchema,
+  importGeometryOutputsSchema,
 } from '@repo/schemas/crud'
 import {
   useInfiniteQuery,
@@ -101,12 +101,8 @@ export type CreateGeometryOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['geometry-output']['$post']>['json']
 >
 
-const importGeometriesRunPayloadSchema = importGeometriesRunSchema.extend({
-  geojsonFile: z.instanceof(File),
-})
-
 export type ImportGeometriesRunPayload = z.infer<
-  typeof importGeometriesRunPayloadSchema
+  typeof importGeometryOutputsSchema
 >
 
 const geometriesParamsSchema = z.object({
@@ -533,21 +529,26 @@ export const useCreateGeometriesRun = () => {
   })
 }
 
-export const useImportGeometriesRun = () => {
+export const useCreateGeometryOutput = () => {
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
-    mutationFn: async (payload: ImportGeometriesRunPayload) => {
-      const data = importGeometriesRunPayloadSchema.parse(payload)
-      const res = client.api.v0['geometries-run'].import.$post({
-        form: data,
+    mutationFn: async (data: CreateGeometryOutputPayload) => {
+      const res = client.api.v0['geometry-output'].$post({
+        json: data,
       })
       return await unwrapResponse(res, 201)
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({
-        queryKey: geometriesRunQueryKeys.scopeByGeometries(
-          response?.data.geometriesRun?.geometries?.id,
+        queryKey: geometryOutputQueryKeys.scopeByGeometriesRun(
+          response?.data?.geometriesRun?.geometries?.id,
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesRunQueryKeys.detail(
+          response?.data?.geometriesRun?.id,
         ),
       })
       queryClient.invalidateQueries({
@@ -559,13 +560,14 @@ export const useImportGeometriesRun = () => {
   })
 }
 
-export const useCreateGeometryOutput = () => {
+export const useImportGeometryOutputs = () => {
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
-    mutationFn: async (data: CreateGeometryOutputPayload) => {
-      const res = client.api.v0['geometry-output'].$post({
-        json: data,
+    mutationFn: async (payload: ImportGeometriesRunPayload) => {
+      const data = importGeometryOutputsSchema.parse(payload)
+      const res = client.api.v0['geometry-output'].import.$post({
+        form: data,
       })
       return await unwrapResponse(res, 201)
     },

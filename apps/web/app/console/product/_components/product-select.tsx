@@ -6,10 +6,12 @@ export const ProductSelect = ({
   value,
   onChange,
   disabled,
+  isClearable,
 }: {
   value: string | null | undefined
   onChange: (product: ProductListItem | null) => void
   disabled?: boolean
+  isClearable?: boolean
 }) => {
   const {
     data: products,
@@ -40,6 +42,7 @@ export const ProductSelect = ({
             fetchNextPage()
           }
         }}
+        isClearable={isClearable}
       />
     </FieldGroup>
   )

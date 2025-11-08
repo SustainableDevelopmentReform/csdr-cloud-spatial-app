@@ -110,7 +110,10 @@ const ProductRunFeature = () => {
                     <DatasetRunSelect
                       datasetId={product.dataset!.id}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(nextValue) =>
+                        field.onChange(nextValue?.id ?? null)
+                      }
+                      isClearable
                     />
                     <FormMessage />
                   </FormItem>
@@ -126,7 +129,10 @@ const ProductRunFeature = () => {
                     <GeometriesRunSelect
                       geometriesId={product.geometries!.id}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(nextValue) =>
+                        field.onChange(nextValue?.id ?? null)
+                      }
+                      isClearable
                     />
                     <FormMessage />
                   </FormItem>

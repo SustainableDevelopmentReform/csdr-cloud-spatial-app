@@ -18,7 +18,6 @@ import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
-import { GeojsonImportDialog } from '../../_components/geojson-import'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
 import {
   GeometriesRunListItem,
@@ -73,33 +72,29 @@ const GeometriesRunFeature = () => {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-medium mb-2">Geometries Runs</h1>
-        <div className="flex items-center gap-3">
-          {geometries?.id ? (
-            <GeojsonImportDialog geometriesId={geometries.id} />
-          ) : null}
-          <CrudFormDialog
-            form={form}
-            mutation={createGeometriesRun}
-            buttonText="Add Geometries Run"
-            entityName="Geometries Run"
-            entityNamePlural="geometries runs"
-          >
-            <CrudFormRunFields form={form} />
-            <FormField
-              control={form.control}
-              name={'dataPmtilesUrl'}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data PMTiles URL</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CrudFormDialog>
-        </div>
+
+        <CrudFormDialog
+          form={form}
+          mutation={createGeometriesRun}
+          buttonText="Add Geometries Run"
+          entityName="Geometries Run"
+          entityNamePlural="geometries runs"
+        >
+          <CrudFormRunFields form={form} />
+          <FormField
+            control={form.control}
+            name={'dataPmtilesUrl'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data PMTiles URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudFormDialog>
       </div>
       <div>
         <SearchInput

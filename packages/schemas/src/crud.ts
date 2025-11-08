@@ -216,14 +216,6 @@ export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   geometriesId: z.string(),
 })
 
-export const importGeometriesRunSchema = createGeometriesRunSchema.extend({
-  geojsonIdProperty: z.string(),
-  geojsonNameProperty: z.string(),
-  dataSize: z.number().int().optional(),
-  metadata: z.any().optional(),
-  geojsonFile: z.instanceof(File),
-})
-
 export const updateGeometriesRunSchema = baseUpdateResourceSchema.extend({})
 
 /* GEOMETRY OUTPUT RESOURCE SCHEMAS */
@@ -301,6 +293,13 @@ export const createManyGeometryOutputSchema = z.object({
       properties: z.any().optional(),
     }),
   ),
+})
+
+export const importGeometryOutputsSchema = z.object({
+  geometriesRunId: z.string(),
+  geojsonIdProperty: z.string(),
+  geojsonNameProperty: z.string(),
+  geojsonFile: z.instanceof(File),
 })
 
 export const updateGeometryOutputSchema = baseUpdateResourceSchema.omit({
@@ -408,8 +407,8 @@ export const productRunQuerySchema = baseQuerySchema.extend({
 export const createProductRunSchema = baseCreateRunResourceSchema.extend({
   dataType: z.enum(['parquet']).optional(),
   productId: z.string(),
-  datasetRunId: z.string(),
-  geometriesRunId: z.string(),
+  datasetRunId: z.string().optional(),
+  geometriesRunId: z.string().optional(),
 })
 
 export const updateProductRunSchema = baseUpdateResourceSchema
