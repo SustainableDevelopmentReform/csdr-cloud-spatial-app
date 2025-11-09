@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  importProductOutputsSchema,
   productOutputExportQuerySchema,
   productOutputQuerySchema,
   productQuerySchema,
@@ -104,6 +105,10 @@ export type CreateProductRunPayload = NonNullable<
 >
 export type CreateProductRunOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product-output']['$post']>['json']
+>
+
+export type ImportProductOutputsPayload = z.infer<
+  typeof importProductOutputsSchema
 >
 
 const productParamsSchema = z.object({
@@ -610,6 +615,44 @@ export const useCreateProductRunOutput = () => {
           response?.data?.productRun?.product?.id,
         ),
       })
+    },
+  })
+}
+
+export const useImportProductOutputs = () => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: ImportProductOutputsPayload) => {
+      const res = client.api.v0['product-output'].import.$post({
+        form: {
+          ...payload,
+          variableMappings: JSON.stringify(payload.variableMappings),
+        },
+      })
+      return await unwrapResponse(res, 201)
+    },
+    onSuccess: (response, variables) => {
+      const productRunId =
+        response?.data?.productRunId ?? variables.productRunId
+      const productId = response?.data?.productId
+
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          productId,
+          productRunId,
+        ),
+      })
+      if (productRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(productRunId),
+        })
+      }
+      if (productId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(productId),
+        })
+      }
     },
   })
 }

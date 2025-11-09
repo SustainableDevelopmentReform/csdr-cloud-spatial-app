@@ -131,7 +131,7 @@ const extractValidatedFeatures = ({
   idProperty: string
   nameProperty: string
 }) => {
-  const warnings: string[] = []
+  const warnings: { message: string; description?: string }[] = []
   const parsedFeatures: {
     featureId: string
     name: string
@@ -141,7 +141,12 @@ const extractValidatedFeatures = ({
 
   features.forEach((feature, index) => {
     if (!feature.geometry) {
-      warnings.push(`Feature at index ${index} is missing geometry`)
+      warnings.push({
+        message: `Feature at index ${index} is missing geometry`,
+        description:
+          'Feature: ' +
+          JSON.stringify({ ...feature, geometry: undefined }, null, 2),
+      })
       return
     }
 
@@ -149,9 +154,12 @@ const extractValidatedFeatures = ({
       feature.geometry.type !== 'Polygon' &&
       feature.geometry.type !== 'MultiPolygon'
     ) {
-      warnings.push(
-        `Feature at index ${index} must be a Polygon or MultiPolygon`,
-      )
+      warnings.push({
+        message: `Feature at index ${index} must be a Polygon or MultiPolygon`,
+        description:
+          'Feature: ' +
+          JSON.stringify({ ...feature, geometry: undefined }, null, 2),
+      })
       return
     }
 
@@ -166,16 +174,22 @@ const extractValidatedFeatures = ({
         : undefined
 
     if (featureIdRaw === undefined || featureIdRaw === null) {
-      warnings.push(
-        `Feature at index ${index} does not contain property ${idProperty}`,
-      )
+      warnings.push({
+        message: `Feature at index ${index} does not contain property ${idProperty}`,
+        description:
+          'Feature: ' +
+          JSON.stringify({ ...feature, properties: undefined }, null, 2),
+      })
       return
     }
 
     if (featureNameRaw === undefined || featureNameRaw === null) {
-      warnings.push(
-        `Feature at index ${index} does not contain property ${nameProperty}`,
-      )
+      warnings.push({
+        message: `Feature at index ${index} does not contain property ${nameProperty}`,
+        description:
+          'Feature: ' +
+          JSON.stringify({ ...feature, properties: undefined }, null, 2),
+      })
       return
     }
 
@@ -183,16 +197,22 @@ const extractValidatedFeatures = ({
     const featureName = String(featureNameRaw)
 
     if (!featureId.length) {
-      warnings.push(
-        `Feature at index ${index} has an empty ${idProperty} value`,
-      )
+      warnings.push({
+        message: `Feature at index ${index} has an empty ${idProperty} value`,
+        description:
+          'Feature: ' +
+          JSON.stringify({ ...feature, properties: undefined }, null, 2),
+      })
       return
     }
 
     if (!featureName.length) {
-      warnings.push(
-        `Feature at index ${index} has an empty ${nameProperty} value`,
-      )
+      warnings.push({
+        message: `Feature at index ${index} has an empty ${nameProperty} value`,
+        description:
+          'Feature: ' +
+          JSON.stringify({ ...feature, properties: undefined }, null, 2),
+      })
       return
     }
 
@@ -432,7 +452,12 @@ const app = createOpenAPIApp()
                 z.object({
                   geometriesRun: baseGeometriesRunSchema,
                   numberOfFeatures: z.number().int(),
-                  warnings: z.array(z.string()),
+                  warnings: z.array(
+                    z.object({
+                      message: z.string(),
+                      description: z.string().optional(),
+                    }),
+                  ),
                 }),
               ),
             },
@@ -447,25 +472,12 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const body = await c.req.parseBody()
-
-      const importPayloadResult = importGeometryOutputsSchema.safeParse(body)
-
-      if (!importPayloadResult.success) {
-        return generateJsonResponse(
-          c,
-          { issues: importPayloadResult.error.issues },
-          422,
-          'Validation Error',
-        )
-      }
-
       const {
         geometriesRunId,
         geojsonFile,
         geojsonIdProperty: idProperty,
         geojsonNameProperty: nameProperty,
-      } = importPayloadResult.data
+      } = c.req.valid('form')
 
       const featureCollection = await parseGeoJsonFile(geojsonFile)
 

@@ -488,6 +488,28 @@ export const createManyProductOutputSchema = z.object({
   ),
 })
 
+export const importProductOutputColumnMappingSchema = z.array(
+  z.object({
+    column: z.string(),
+    variableId: z.string(),
+    timePoint: z.iso.datetime(),
+  }),
+)
+
+export const importProductOutputsSchema = z.object({
+  productRunId: z.string(),
+  geometryColumn: z.string(),
+  variableMappings: z
+    .union([importProductOutputColumnMappingSchema, z.string()])
+    .transform((data) => {
+      if (typeof data === 'string') {
+        return importProductOutputColumnMappingSchema.parse(JSON.parse(data))
+      }
+      return data
+    }),
+  csvFile: z.instanceof(File),
+})
+
 /* REPORT RESOURCE SCHEMAS */
 
 export const baseReportSchema = baseResourceSchema.openapi('ReportSchemaBase')

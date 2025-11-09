@@ -3,7 +3,7 @@ import { DetailCard } from '../../_components/detail-cards'
 import { GeometriesRunButton } from './geometries-run-button'
 import { DetailCardProps } from '../../_components/detail-cards'
 import { GeometriesButton } from './geometries-button'
-import { formatDateTime } from '../../../../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 
 export const GeometryOutputCard = ({
   geometryOutput,

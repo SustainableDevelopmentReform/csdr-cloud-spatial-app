@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { importGeometryOutputsSchema } from '@repo/schemas/crud'
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
 import {
@@ -17,7 +18,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/ui/components/ui/form'
-import { Input } from '@repo/ui/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -26,7 +26,6 @@ import {
   SelectValue,
 } from '@repo/ui/components/ui/select'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { Textarea } from '@repo/ui/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
@@ -46,7 +45,6 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { ImportGeometriesRunPayload, useImportGeometryOutputs } from '../_hooks'
-import { importGeometryOutputsSchema } from '@repo/schemas/crud'
 
 type GeojsonSummary = {
   featureCount: number
@@ -297,9 +295,15 @@ const GeojsonImportForm = ({
     importGeometriesRun.mutate(payload, {
       onSuccess: (response) => {
         if (response?.data.warnings?.length) {
-          toast.warning('GeoJSON import completed with warnings', {
-            description: response?.data.warnings.join(', '),
-          })
+          toast.warning(
+            'GeoJSON import completed with warnings - see console for details',
+            {
+              description: response?.data.warnings
+                .map((warning) => warning.message)
+                .join(', '),
+            },
+          )
+          console.warn(response?.data.warnings)
         } else {
           toast.success('GeoJSON import completed')
         }
