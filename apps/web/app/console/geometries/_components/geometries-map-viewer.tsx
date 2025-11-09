@@ -81,6 +81,87 @@ const GeometriesMapViewer = ({
     fetchGeometryOutputsToZoomTo,
   )
 
+  const {
+    data: pmtilesHeader,
+    isLoading: isLoadingPmtilesHeader,
+    error: pmtilesHeaderError,
+  } = useQuery<PMTilesHeader | null>({
+    queryKey: ['pmtiles-header', geometriesRun?.dataPmtilesUrl],
+    queryFn: async () => {
+      let pmtilesUrl = geometriesRun?.dataPmtilesUrl
+
+      if (!pmtilesUrl) return null
+
+      if (pmtilesUrl.startsWith('s3://')) {
+        // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
+        const s3Url = pmtilesUrl.replace('s3://', '')
+        const [bucket, ...pathParts] = s3Url.split('/')
+        const path = pathParts.join('/')
+        pmtilesUrl = `https://${bucket}.s3.amazonaws.com/${path}`
+      }
+
+      const p = new PMTiles(pmtilesUrl)
+      return p.getHeader()
+    },
+    enabled: !!geometriesRun?.dataPmtilesUrl,
+  })
+
+  const mapBounds = useMemo(() => {
+    if (
+      isLoadingPmtilesHeader ||
+      isLoadingGeometryOutputsToZoomTo ||
+      isLoadingGeometriesRun
+    )
+      return undefined
+
+    if (
+      geometryOutputsToZoomTo?.data?.length &&
+      geometryOutputsToZoomTo.data.length > 0
+    ) {
+      return geometryOutputsToZoomTo.data.reduce<
+        [number, number, number, number]
+      >(
+        (acc, output) => {
+          const bbox = output.geometry?.bbox ?? turfBbox(output.geometry)
+          return [
+            Math.min(acc[0], bbox[0] ?? Infinity),
+            Math.min(acc[1], bbox[1] ?? Infinity),
+            Math.max(acc[2], bbox[2] ?? -Infinity),
+            Math.max(acc[3], bbox[3] ?? -Infinity),
+          ]
+        },
+        [Infinity, Infinity, -Infinity, -Infinity],
+      ) as [number, number, number, number]
+    }
+
+    if (pmtilesHeader) {
+      return [
+        pmtilesHeader.minLon,
+        pmtilesHeader.minLat,
+        pmtilesHeader.maxLon,
+        pmtilesHeader.maxLat,
+      ] as [number, number, number, number]
+    }
+
+    if (geometriesRun) {
+      return [
+        geometriesRun.bounds.minX,
+        geometriesRun.bounds.minY,
+        geometriesRun.bounds.maxX,
+        geometriesRun.bounds.maxY,
+      ] as [number, number, number, number]
+    }
+
+    return undefined
+  }, [
+    isLoadingPmtilesHeader,
+    isLoadingGeometryOutputsToZoomTo,
+    isLoadingGeometriesRun,
+    geometryOutputsToZoomTo,
+    pmtilesHeader,
+    geometriesRun,
+  ])
+
   const { linePaint, fillPaint } = useMemo(() => {
     if (!variable)
       return {
@@ -113,8 +194,25 @@ const GeometriesMapViewer = ({
       ...(ExpressionInputType | ExpressionSpecification)[],
     ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
 
+    const lineColourEntries: [
+      ExpressionSpecification,
+      ExpressionInputType,
+      ...(ExpressionInputType | ExpressionSpecification)[],
+    ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
+
     productOutputs?.forEach((output) => {
       if (output.geometryOutputId) {
+        if (zoomToGeometryOutputIds?.includes(output.geometryOutputId)) {
+          lineColourEntries.push(
+            ['==', ['get', ID_PROPERTY], output.geometryOutputId],
+            '#000000',
+          )
+        } else {
+          lineColourEntries.push(
+            ['==', ['get', ID_PROPERTY], output.geometryOutputId],
+            colorFn(output.value),
+          )
+        }
         fillColourEntries.push(
           ['==', ['get', ID_PROPERTY], output.geometryOutputId],
           colorFn(output.value),
@@ -147,8 +245,9 @@ const GeometriesMapViewer = ({
 
     const paint = {
       linePaint: {
-        'line-color': ['case', ...fillColourEntries, NO_DATA_COLOR],
+        'line-color': ['case', ...lineColourEntries, NO_DATA_COLOR],
         'line-width': ['case', ...selectedGeometriesLineWidth, 1],
+        'line-offset': 1,
       } satisfies LineLayerSpecification['paint'],
       fillPaint: {
         'fill-color': ['case', ...fillColourEntries, NO_DATA_COLOR],
@@ -197,16 +296,10 @@ const GeometriesMapViewer = ({
   )
 
   useEffect(() => {
-    if (mapRef.current && geometriesRun) {
-      mapRef.current.fitBounds(
-        [
-          [geometriesRun.bounds.minX, geometriesRun.bounds.minY],
-          [geometriesRun.bounds.maxX, geometriesRun.bounds.maxY],
-        ],
-        { padding: 20 },
-      )
+    if (mapRef.current && mapBounds) {
+      mapRef.current.fitBounds(mapBounds, { padding: 20 })
     }
-  }, [geometriesRun, mapRef])
+  }, [mapRef, mapBounds])
 
   if (isLoadingGeometriesRun || isLoadingGeometryOutputsToZoomTo)
     return <EmptyCard description="Loading" />
@@ -222,6 +315,11 @@ const GeometriesMapViewer = ({
       <MapViewer
         ref={mapRef}
         interactiveLayerIds={['geometries-fill']}
+        initialViewState={
+          mapBounds
+            ? { bounds: mapBounds, fitBoundsOptions: { padding: 20 } }
+            : undefined
+        }
         onClick={onMouseClick}
         transformRequest={transformRequest}
       >

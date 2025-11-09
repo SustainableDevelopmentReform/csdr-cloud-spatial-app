@@ -1,5 +1,5 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { formatDateTime } from '../../../../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 import { useProductRun } from '../_hooks'
 import {
   SelectOption,

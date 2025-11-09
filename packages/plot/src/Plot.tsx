@@ -1,41 +1,66 @@
-import * as Plot from '@observablehq/plot'
+import * as ObservablePlot from '@observablehq/plot'
 import { useEffect, useRef } from 'react'
 import { OnSelectCallback } from './types'
 
-export const DEFAULT_CHART_DATA_PROPS = {
+interface BasePlotRecord {
+  id: string
+  value: number
+}
+
+interface PlotProps<T extends BasePlotRecord> {
+  data: T[]
+  x: string
+  y: string
+  xLabel?: string
+  yLabel?: string
+  groupBy: string
+  onSelect?: OnSelectCallback<T>
+  type: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
+}
+
+export const DEFAULT_CHART_DATA_PROPS: PlotProps<{
+  id: string
+  value: number
+  timePoint: string
+}> = {
   x: 'timePoint',
   y: 'value',
+  groupBy: 'variableName',
+  type: 'line',
   data: [
     {
       id: 'sample-1',
+
       timePoint: '2024-01-01T00:00:00Z',
       value: 24,
-      label: 'Jan 1',
     },
     {
       id: 'sample-2',
       timePoint: '2024-01-08T00:00:00Z',
       value: 32,
-      label: 'Jan 8',
     },
     {
       id: 'sample-3',
       timePoint: '2024-01-15T00:00:00Z',
       value: 18,
-      label: 'Jan 15',
     },
     {
       id: 'sample-4',
       timePoint: '2024-01-22T00:00:00Z',
       value: 41,
-      label: 'Jan 22',
     },
   ],
 }
 
-export function getLinePlotCodeSnippet<
-  T extends { id: string; value: number },
->({ data, x, y }: { data: T[]; x: string; y: string }) {
+export function getPlotCodeSnippet<T extends { id: string; value: number }>({
+  data,
+  x,
+  y,
+}: {
+  data: T[]
+  x: string
+  y: string
+}) {
   const params = {
     x,
     y,
@@ -65,49 +90,65 @@ export function getLinePlotCodeSnippet<
   ]
 }
 
-export function LinePlot<T extends { id: string; value: number }>({
+export function Plot<T extends BasePlotRecord>({
   data,
   x,
   y,
+  xLabel,
+  yLabel,
   groupBy,
   onSelect,
   type,
-}: {
-  data: T[]
-  x: string
-  y: string
-  groupBy: string
-  onSelect?: OnSelectCallback<T>
-  type: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
-}) {
+}: PlotProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const marks: Plot.Markish[] = [Plot.ruleY([0])]
+    const marks: ObservablePlot.Markish[] = [ObservablePlot.ruleY([0])]
     if (type === 'line') {
-      marks.push(Plot.line(data, { x, y, stroke: groupBy }))
+      marks.push(
+        ObservablePlot.line(data, { x, y, stroke: groupBy, strokeWidth: 2 }),
+      )
     } else if (type === 'stacked-bar') {
-      marks.push(Plot.barY(data, { x, y, fill: groupBy }))
+      marks.push(ObservablePlot.barY(data, { x, y, fill: groupBy }))
     } else if (type === 'grouped-bar') {
-      marks.push(Plot.barY(data, { x, y, fill: groupBy, fx: groupBy }))
+      marks.push(
+        ObservablePlot.barY(data, { x, y, fill: groupBy, fx: groupBy }),
+      )
     } else if (type === 'dot') {
-      marks.push(Plot.dot(data, { x, y, fill: groupBy, r: 6 }))
+      marks.push(ObservablePlot.dot(data, { x, y, fill: groupBy, r: 6 }))
     }
 
     if (type === 'line' || type === 'dot') {
-      marks.push(Plot.dot(data, Plot.pointer({ x, y, fill: groupBy })))
+      marks.push(
+        ObservablePlot.dot(
+          data,
+          ObservablePlot.pointer({ x, y, fill: groupBy, r: 6 }),
+        ),
+      )
     } else if (type === 'stacked-bar') {
       marks.push(
-        Plot.barY(
+        ObservablePlot.barY(
           data,
-          Plot.pointer({ x, y, fill: 'grey', stack: groupBy, maxRadius: 100 }),
+          ObservablePlot.pointer({
+            x,
+            y,
+            fill: 'grey',
+            stack: groupBy,
+            maxRadius: 100,
+          }),
         ),
       )
     } else if (type === 'grouped-bar') {
       marks.push(
-        Plot.barY(
+        ObservablePlot.barY(
           data,
-          Plot.pointer({ x, y, fill: 'grey', fx: groupBy, maxRadius: 100 }),
+          ObservablePlot.pointer({
+            x,
+            y,
+            fill: 'grey',
+            fx: groupBy,
+            maxRadius: 100,
+          }),
         ),
       )
     }
@@ -125,13 +166,18 @@ export function LinePlot<T extends { id: string; value: number }>({
     //   ),
     // )
 
-    const chart = Plot.plot({
+    const chart = ObservablePlot.plot({
       margin: 50,
       style: {
         background: 'transparent',
+        fontSize: '16px',
       },
       y: {
         grid: true,
+        label: yLabel,
+      },
+      x: {
+        label: xLabel,
       },
       color: { legend: true },
       marks,

@@ -565,9 +565,8 @@ export const useImportGeometryOutputs = () => {
   const client = useApiClient()
   return useMutation({
     mutationFn: async (payload: ImportGeometriesRunPayload) => {
-      const data = importGeometryOutputsSchema.parse(payload)
       const res = client.api.v0['geometry-output'].import.$post({
-        form: data,
+        form: payload,
       })
       return await unwrapResponse(res, 201)
     },

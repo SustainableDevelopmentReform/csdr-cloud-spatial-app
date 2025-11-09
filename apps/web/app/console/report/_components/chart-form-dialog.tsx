@@ -25,6 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -43,7 +44,6 @@ import { ProductRunVariablesSelect } from '../../product/_components/product-run
 import { ProductSelect } from '../../product/_components/product-select'
 import { ProductListItem } from '../../product/_hooks'
 import { ChartRenderer } from './chart-renderer'
-import { Input } from '@repo/ui/components/ui/input'
 
 const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
   { value: 'timePoint', label: 'Time' },
@@ -64,7 +64,7 @@ const multiSeriesSelectionSchema = baseChartSchema.extend({
   timePoints: z.array(z.string()).optional(),
 })
 
-const linePlotSchema = multiSeriesSelectionSchema
+const plotSchema = multiSeriesSelectionSchema
   .extend({
     type: z.literal('plot'),
     subType: z.enum(['line', 'stacked-bar', 'grouped-bar', 'dot']),
@@ -159,7 +159,7 @@ const tablePlotSchema = multiSeriesSelectionSchema
   }) satisfies z.ZodType<TableChartConfiguration>
 
 const chartSchema = z.discriminatedUnion('type', [
-  linePlotSchema,
+  plotSchema,
   mapSchema,
   tablePlotSchema,
 ]) satisfies z.ZodType<ChartConfiguration>
@@ -325,7 +325,7 @@ export const ChartFormDialog = ({
                       <SelectValue placeholder="Select a chart type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="plot">Line plot</SelectItem>
+                      <SelectItem value="plot">Plot</SelectItem>
                       <SelectItem value="table">Table</SelectItem>
                       <SelectItem value="map">Map</SelectItem>
                     </SelectContent>

@@ -1,6 +1,6 @@
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 import { ArrowUpRightIcon, RefreshCwIcon } from 'lucide-react'
-import { formatDate, formatDateTime } from '../../../../utils/date'
+import { formatDateTime, formatDate } from '@repo/ui/lib/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
 import { VariableButton } from '../../variable/_components/variable-button'
