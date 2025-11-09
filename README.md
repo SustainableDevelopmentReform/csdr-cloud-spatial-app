@@ -8,7 +8,7 @@ This repository is based on https://github.com/azharalifauzi/omnigate/ (MIT Lice
 
 - [Node.js](https://nodejs.org/) (v20+)
 - [pnpm](https://pnpm.io/)
-- [PostgreSQL](https://www.postgresql.org/) - v14 works. What is the desired or minimum version?
+- [PostgreSQL](https://www.postgresql.org/) (v14+)
 
 ### Installation
 
@@ -52,6 +52,8 @@ pnpm seed
 `psql -h DATABASE_HOST -U DATABASE_USER -p 5432 -d DATABASE_NAME`
 
 You can also connect from your local machine using port 5431.
+
+### Where do the local files get read from? Do they at all? Or just DB for the app. Maybe DB points to S3.
 
 ### Development
 
