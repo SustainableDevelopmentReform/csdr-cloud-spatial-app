@@ -42,6 +42,7 @@ export function SelectWithSearch<
       {...rest}
       filterOption={onSearch ? null : undefined}
       onInputChange={handleInputChange}
+      placeholder={rest.placeholder ?? 'Select an option'}
     />
   )
 }

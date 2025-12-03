@@ -2,7 +2,6 @@
 
 import { dashboardQuerySchema } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -120,7 +119,6 @@ export const useDashboard = (id?: string) => {
       const json = await unwrapResponse(res)
       return json.data
     },
-    placeholderData: keepPreviousData,
     enabled: !!dashboardId,
   })
 }

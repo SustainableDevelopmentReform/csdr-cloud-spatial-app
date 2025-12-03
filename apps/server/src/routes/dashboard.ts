@@ -1,8 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseDashboardSchema,
   createDashboardSchema,
   dashboardContentSchema,
   dashboardQuerySchema,
+  fullDashboardSchema,
   updateDashboardSchema,
 } from '@repo/schemas/crud'
 import { count, desc, eq } from 'drizzle-orm'
@@ -19,7 +21,6 @@ import { generateJsonResponse } from '../lib/response'
 import { dashboard } from '../schemas/db'
 import {
   baseColumns,
-  baseResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
@@ -38,16 +39,6 @@ export const fullDashboardQuery = {
     content: true,
   },
 } satisfies QueryForTable<'dashboard'>
-
-export const baseDashboardSchema = baseResourceSchema.openapi(
-  'DashboardSchemaBase',
-)
-
-const fullDashboardSchema = baseDashboardSchema
-  .extend({
-    content: dashboardContentSchema,
-  })
-  .openapi('DashboardSchemaFull')
 
 const dashboardNotFoundError = () =>
   new ServerError({

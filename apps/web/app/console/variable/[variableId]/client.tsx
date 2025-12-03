@@ -5,12 +5,13 @@ import { updateVariableSchema } from '@repo/schemas/crud'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
+import { VARIABLES_BASE_PATH } from '../../../../lib/paths'
 import { useDeleteVariable, useUpdateVariable, useVariable } from '../_hooks'
 
 const VariableDetails = () => {
   const { data: variable } = useVariable()
   const updateVariable = useUpdateVariable()
-  const deleteVariable = useDeleteVariable(undefined, '/console/variables')
+  const deleteVariable = useDeleteVariable(undefined, VARIABLES_BASE_PATH)
 
   const form = useForm({
     resolver: zodResolver(updateVariableSchema),

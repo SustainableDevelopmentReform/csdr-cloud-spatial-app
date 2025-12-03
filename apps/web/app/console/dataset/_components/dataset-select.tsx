@@ -6,9 +6,11 @@ export const DatasetSelect = ({
   value,
   onChange,
   disabled,
+  isClearable = true,
 }: {
   value: string | null | undefined
   onChange: (dataset: DatasetListItem | null) => void
+  isClearable?: boolean
   disabled?: boolean
 }) => {
   const {
@@ -43,6 +45,7 @@ export const DatasetSelect = ({
             fetchNextPage()
           }
         }}
+        isClearable={isClearable}
       />
     </FieldGroup>
   )

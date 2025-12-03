@@ -101,34 +101,44 @@ const ProductRunFeature = () => {
             entityName="Product Run"
             entityNamePlural="product runs"
           >
-            <FormField
-              control={form.control}
-              name="datasetRunId"
-              render={({ field }) => (
-                <FormItem>
-                  <DatasetRunSelect
-                    datasetId={product?.dataset.id}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="geometriesRunId"
-              render={({ field }) => (
-                <FormItem>
-                  <GeometriesRunSelect
-                    geometriesId={product?.geometries.id}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {product.dataset && (
+              <FormField
+                control={form.control}
+                name="datasetRunId"
+                render={({ field }) => (
+                  <FormItem>
+                    <DatasetRunSelect
+                      datasetId={product.dataset!.id}
+                      value={field.value}
+                      onChange={(nextValue) =>
+                        field.onChange(nextValue?.id ?? null)
+                      }
+                      isClearable
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            {product.geometries && (
+              <FormField
+                control={form.control}
+                name="geometriesRunId"
+                render={({ field }) => (
+                  <FormItem>
+                    <GeometriesRunSelect
+                      geometriesId={product.geometries!.id}
+                      value={field.value}
+                      onChange={(nextValue) =>
+                        field.onChange(nextValue?.id ?? null)
+                      }
+                      isClearable
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <CrudFormRunFields form={form} />
           </CrudFormDialog>
         )}

@@ -1,11 +1,6 @@
 'use client'
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { QueryKey } from '~/utils/apiClient'
 import { useAuthClient } from '~/hooks/useAuthClient'
@@ -27,7 +22,6 @@ export const useApiKeys = () => {
 
       return res.data
     },
-    placeholderData: keepPreviousData,
   })
 
   return {

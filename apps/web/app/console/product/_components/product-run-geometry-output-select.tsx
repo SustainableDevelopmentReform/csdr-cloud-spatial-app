@@ -41,7 +41,7 @@ export const ProductGeometryOutputSelect = ({
     hasNextPage,
     isLoading: isLoadingGeometryOutputs,
     isFetchingNextPage,
-  } = useGeometryOutputs(productRun?.geometriesRun.id, {})
+  } = useGeometryOutputs(productRun?.geometriesRun?.id, {})
 
   const hasSelectedValue = Array.isArray(value) ? value.length > 0 : !!value
 
@@ -49,7 +49,7 @@ export const ProductGeometryOutputSelect = ({
     data: selectedGeometryOutputs,
     isLoading: isLoadingSelectedGeometryOutputs,
   } = useGeometryOutputs(
-    productRun?.geometriesRun.id,
+    productRun?.geometriesRun?.id,
     {
       geometryOutputIds: value ?? undefined,
       size: Array.isArray(value) ? value.length : value ? 1 : undefined,

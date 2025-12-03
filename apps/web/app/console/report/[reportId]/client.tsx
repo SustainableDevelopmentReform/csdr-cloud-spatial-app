@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { SelectedDataPoint } from '@repo/plot/types'
 import { updateReportSchema } from '@repo/schemas/crud'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
+import { REPORTS_BASE_PATH } from '../../../../lib/paths'
 import { ProductOutputExportListItem } from '../../product/_hooks'
 import { ChartSelectedItem } from '../_components/chart-selected-item'
 import { reportChartFormBuilder } from '../_components/report-chart-editor'
@@ -15,7 +16,7 @@ import { useDeleteReport, useReport, useUpdateReport } from '../_hooks'
 const ReportDetails = () => {
   const { data: report } = useReport()
   const updateReport = useUpdateReport()
-  const deleteReport = useDeleteReport(undefined, '/console/reports')
+  const deleteReport = useDeleteReport(undefined, REPORTS_BASE_PATH)
 
   const [selectedDataPoint, setSelectedDataPoint] =
     useState<SelectedDataPoint<ProductOutputExportListItem> | null>(null)

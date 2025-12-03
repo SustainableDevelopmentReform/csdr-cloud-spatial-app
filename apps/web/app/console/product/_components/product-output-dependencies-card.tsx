@@ -32,17 +32,31 @@ export const ProductOutputDependenciesCard = ({
           {showProductRun && (
             <ProductRunButton productRun={productOutput.productRun} />
           )}
-          <DatasetButton
-            dataset={productOutput.productRun?.datasetRun?.dataset}
-          />
-          <DatasetRunButton datasetRun={productOutput.productRun?.datasetRun} />
-          <GeometriesButton
-            geometries={productOutput.productRun?.geometriesRun?.geometries}
-          />
-          <GeometriesRunButton
-            geometriesRun={productOutput.productRun?.geometriesRun}
-          />
-          <GeometryOutputButton geometryOutput={productOutput.geometryOutput} />
+          {productOutput.productRun?.datasetRun?.dataset && (
+            <DatasetButton
+              dataset={productOutput.productRun?.datasetRun?.dataset}
+            />
+          )}
+          {productOutput.productRun?.datasetRun && (
+            <DatasetRunButton
+              datasetRun={productOutput.productRun?.datasetRun}
+            />
+          )}
+          {productOutput.productRun?.geometriesRun?.geometries && (
+            <GeometriesButton
+              geometries={productOutput.productRun?.geometriesRun?.geometries}
+            />
+          )}
+          {productOutput.productRun?.geometriesRun && (
+            <GeometriesRunButton
+              geometriesRun={productOutput.productRun?.geometriesRun}
+            />
+          )}
+          {productOutput.geometryOutput && (
+            <GeometryOutputButton
+              geometryOutput={productOutput.geometryOutput}
+            />
+          )}
         </div>
       }
     />

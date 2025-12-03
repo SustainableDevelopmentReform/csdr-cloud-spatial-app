@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import z from 'zod'
 import Table from '~/components/table/table'
-import { formatDateTime } from '../../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 
 export interface BaseItem {
   name: string

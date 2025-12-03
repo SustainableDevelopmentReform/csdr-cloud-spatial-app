@@ -13,9 +13,9 @@ import {
   timestamp,
   unique,
 } from 'drizzle-orm/pg-core'
+import { multiPolygon } from './customTypes'
 
 // AUTH tables
-
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -266,12 +266,12 @@ export const product = pgTable(
   {
     ...coreBaseResourceColumns((): AnyPgColumn => productRun.id),
 
-    datasetId: text('dataset_id')
-      .notNull()
-      .references(() => dataset.id, { onDelete: 'cascade' }),
-    geometriesId: text('geometries_id')
-      .notNull()
-      .references(() => geometries.id, { onDelete: 'cascade' }),
+    datasetId: text('dataset_id').references(() => dataset.id, {
+      onDelete: 'cascade',
+    }),
+    geometriesId: text('geometries_id').references(() => geometries.id, {
+      onDelete: 'cascade',
+    }),
 
     timePrecision: timePrecision('time_precision').notNull(),
   },
@@ -324,8 +324,8 @@ export const geometryOutput = pgTable(
       .notNull()
       .references(() => geometriesRun.id, { onDelete: 'cascade' }),
     properties: jsonb('properties'),
-    // TODO: add geometry type
-    geometry: jsonb('geometry').notNull(),
+
+    geometry: multiPolygon('geometry', { srid: 4326 }).notNull(),
   },
   (table) => [
     index('geometry_geometries_run_idx').on(table.geometriesRunId),
@@ -342,12 +342,13 @@ export const productRun = pgTable(
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),
-    datasetRunId: text('dataset_run_id')
-      .notNull()
-      .references(() => datasetRun.id, { onDelete: 'cascade' }),
-    geometriesRunId: text('geometries_run_id')
-      .notNull()
-      .references(() => geometriesRun.id, { onDelete: 'cascade' }),
+    datasetRunId: text('dataset_run_id').references(() => datasetRun.id, {
+      onDelete: 'cascade',
+    }),
+    geometriesRunId: text('geometries_run_id').references(
+      () => geometriesRun.id,
+      { onDelete: 'cascade' },
+    ),
 
     //Store product output here, as JSON - and then publish to output
   },
@@ -365,9 +366,10 @@ export const productOutput = pgTable(
     productRunId: text('product_run_id')
       .notNull()
       .references(() => productRun.id, { onDelete: 'cascade' }),
-    geometryOutputId: text('geometry_output_id')
-      .notNull()
-      .references(() => geometryOutput.id, { onDelete: 'cascade' }),
+    geometryOutputId: text('geometry_output_id').references(
+      () => geometryOutput.id,
+      { onDelete: 'cascade' },
+    ),
 
     value: numeric('value', { mode: 'number' }).notNull(),
     variableId: text('variable_id')

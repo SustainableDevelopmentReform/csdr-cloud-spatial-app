@@ -7,11 +7,13 @@ export const DatasetRunSelect = ({
   datasetId,
   onChange,
   disabled,
+  isClearable,
 }: {
   value: string | null | undefined
   datasetId: string | null | undefined
   onChange: (datasetRun: DatasetRunListItem | null) => void
   disabled?: boolean
+  isClearable?: boolean
 }) => {
   const {
     data: datasetRuns,
@@ -42,6 +44,7 @@ export const DatasetRunSelect = ({
             fetchNextPage()
           }
         }}
+        isClearable={isClearable}
       />
     </FieldGroup>
   )

@@ -11,11 +11,13 @@ export const GeometriesRunSelect = ({
   geometriesId,
   onChange,
   disabled,
+  isClearable,
 }: {
   value: string | null | undefined
   geometriesId: string | null | undefined
   onChange: (geometriesRun: GeometriesRunListItem | null) => void
   disabled?: boolean
+  isClearable?: boolean
 }) => {
   const {
     data: geometriesRuns,
@@ -46,6 +48,7 @@ export const GeometriesRunSelect = ({
           }
         }}
         isLoading={isLoadingGeometriesRuns || isFetchingNextPage}
+        isClearable={isClearable}
       />
     </FieldGroup>
   )

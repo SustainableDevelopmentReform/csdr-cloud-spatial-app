@@ -23,14 +23,16 @@ import {
   useProductRunOutputsLink,
   useRefreshProductRunSummary,
   useSetProductMainRun,
+  useProductRunsLink,
 } from '../../_hooks'
 
 const ProductRunDetails = () => {
   const { data: productRun } = useProductRun()
   const updateProductRun = useUpdateProductRun()
+  const productRunsLink = useProductRunsLink()
   const deleteProductRun = useDeleteProductRun(
     undefined,
-    '/console/productRuns',
+    productRun?.product ? productRunsLink(productRun?.product) : undefined,
   )
   const productRunLink = useProductRunLink()
   const productRunOutputsLink = useProductRunOutputsLink()
@@ -87,14 +89,22 @@ const ProductRunDetails = () => {
               title={'Dependencies'}
               footer={
                 <div className="flex flex-col gap-2">
-                  <DatasetButton dataset={productRun?.datasetRun?.dataset} />
-                  <DatasetRunButton datasetRun={productRun?.datasetRun} />
-                  <GeometriesButton
-                    geometries={productRun?.geometriesRun?.geometries}
-                  />
-                  <GeometriesRunButton
-                    geometriesRun={productRun?.geometriesRun}
-                  />
+                  {productRun?.datasetRun?.dataset && (
+                    <DatasetButton dataset={productRun?.datasetRun?.dataset} />
+                  )}
+                  {productRun?.datasetRun && (
+                    <DatasetRunButton datasetRun={productRun?.datasetRun} />
+                  )}
+                  {productRun?.geometriesRun?.geometries && (
+                    <GeometriesButton
+                      geometries={productRun?.geometriesRun?.geometries}
+                    />
+                  )}
+                  {productRun?.geometriesRun && (
+                    <GeometriesRunButton
+                      geometriesRun={productRun?.geometriesRun}
+                    />
+                  )}
                 </div>
               }
             />
