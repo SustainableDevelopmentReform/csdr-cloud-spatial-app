@@ -5,9 +5,9 @@ import {
   geometriesRunQuerySchema,
   geometryOutputExportQuerySchema,
   geometryOutputQuerySchema,
+  importGeometryOutputsSchema,
 } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -99,6 +99,10 @@ export type CreateGeometriesRunPayload = NonNullable<
 
 export type CreateGeometryOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['geometry-output']['$post']>['json']
+>
+
+export type ImportGeometriesRunPayload = z.infer<
+  typeof importGeometryOutputsSchema
 >
 
 const geometriesParamsSchema = z.object({
@@ -362,6 +366,7 @@ export const useGeometryOutputsExport = (
   _geometriesRunId?: string,
   _query?: z.infer<typeof geometryOutputExportQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const { data: geometriesRun } = useGeometriesRun(geometriesRunId)
@@ -395,18 +400,20 @@ export const useGeometryOutputsExport = (
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometriesRun,
+    enabled: enabled && !!geometriesRun,
   })
 
   return {
     ...queryResult,
     query,
-
     setSearchParams,
   }
 }
-export const useGeometries = (_geometriesId?: string) => {
+
+export const useGeometries = (
+  _geometriesId?: string,
+  enabled: boolean = true,
+) => {
   const { geometriesId } = useGeometriesParams(_geometriesId)
   const client = useApiClient()
   return useQuery({
@@ -423,12 +430,14 @@ export const useGeometries = (_geometriesId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometriesId,
+    enabled: enabled ?? !!geometriesId,
   })
 }
 
-export const useGeometriesRun = (_geometriesRunId?: string) => {
+export const useGeometriesRun = (
+  _geometriesRunId?: string,
+  enabled: boolean = true,
+) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const client = useApiClient()
   return useQuery({
@@ -445,12 +454,15 @@ export const useGeometriesRun = (_geometriesRunId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometriesRunId,
+
+    enabled: enabled ?? !!geometriesRunId,
   })
 }
 
-export const useGeometryOutput = (_geometryOutputId?: string) => {
+export const useGeometryOutput = (
+  _geometryOutputId?: string,
+  enabled: boolean = true,
+) => {
   const { geometryOutputId } = useGeometriesParams(
     undefined,
     undefined,
@@ -471,8 +483,8 @@ export const useGeometryOutput = (_geometryOutputId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!geometryOutputId,
+
+    enabled: enabled ?? !!geometryOutputId,
   })
 }
 
@@ -524,6 +536,37 @@ export const useCreateGeometryOutput = () => {
     mutationFn: async (data: CreateGeometryOutputPayload) => {
       const res = client.api.v0['geometry-output'].$post({
         json: data,
+      })
+      return await unwrapResponse(res, 201)
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: geometryOutputQueryKeys.scopeByGeometriesRun(
+          response?.data?.geometriesRun?.geometries?.id,
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesRunQueryKeys.detail(
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesQueryKeys.detail(
+          response?.data?.geometriesRun?.geometries?.id,
+        ),
+      })
+    },
+  })
+}
+
+export const useImportGeometryOutputs = () => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: ImportGeometriesRunPayload) => {
+      const res = client.api.v0['geometry-output'].import.$post({
+        form: payload,
       })
       return await unwrapResponse(res, 201)
     },

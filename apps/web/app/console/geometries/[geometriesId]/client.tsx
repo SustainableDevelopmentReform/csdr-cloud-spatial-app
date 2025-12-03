@@ -7,9 +7,11 @@ import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
+import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
 import { DetailCard } from '../../_components/detail-cards'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
+import GeometriesMapViewer from '../_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../_components/geometries-run-summary-card'
 import {
   useDeleteGeometries,
@@ -17,13 +19,12 @@ import {
   useGeometriesRunsLink,
   useUpdateGeometries,
 } from '../_hooks'
-import GeometriesMapViewer from '../_components/geometries-map-viewer'
 
 const GeometriesDetails = () => {
   const { data: geometries } = useGeometries()
   const productsLink = useProductsLink()
   const updateGeometries = useUpdateGeometries()
-  const deleteGeometries = useDeleteGeometries(undefined, '/console/geometries')
+  const deleteGeometries = useDeleteGeometries(undefined, GEOMETRIES_BASE_PATH)
   const geometriesRunsLink = useGeometriesRunsLink()
 
   const form = useForm({

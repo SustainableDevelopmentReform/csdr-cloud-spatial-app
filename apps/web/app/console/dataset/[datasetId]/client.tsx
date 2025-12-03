@@ -1,11 +1,13 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { updateDatasetSchema } from '@repo/schemas/crud'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
+import { DATASETS_BASE_PATH } from '../../../../lib/paths'
 import { DetailCard } from '../../_components/detail-cards'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
@@ -16,13 +18,12 @@ import {
   useDeleteDataset,
   useUpdateDataset,
 } from '../_hooks'
-import { updateDatasetSchema } from '@repo/schemas/crud'
 
 const DatasetDetails = () => {
   const { data: dataset } = useDataset()
   const productsLink = useProductsLink()
   const updateDataset = useUpdateDataset()
-  const deleteDataset = useDeleteDataset(undefined, '/console/datasets')
+  const deleteDataset = useDeleteDataset(undefined, DATASETS_BASE_PATH)
   const datasetRunsLink = useDatasetRunsLink()
 
   const form = useForm({

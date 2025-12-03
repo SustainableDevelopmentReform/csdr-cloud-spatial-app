@@ -8,7 +8,7 @@ This repository is based on https://github.com/azharalifauzi/omnigate/ (MIT Lice
 
 - [Node.js](https://nodejs.org/) (v20+)
 - [pnpm](https://pnpm.io/)
-- [PostgreSQL](https://www.postgresql.org/)
+- [PostgreSQL](https://www.postgresql.org/) (v17)
 
 ### Installation
 

@@ -1,7 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseProductOutputSchema,
   createProductRunSchema,
+  fullProductRunSchema,
   productOutputExportQuerySchema,
+  productOutputExportSchema,
   productOutputQuerySchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
@@ -24,28 +27,18 @@ import {
   productRun,
 } from '../schemas/db'
 import {
-  baseIdResourceSchema,
-  baseIdResourceSchemaWithMainRunId,
   baseRunColumns,
-  baseRunResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { baseDatasetRunQuery, baseDatasetRunSchema } from './datasetRun'
-import {
-  baseGeometriesRunQuery,
-  baseGeometriesRunSchema,
-} from './geometriesRun'
-import {
-  baseProductOutputQuery,
-  baseProductOutputSchema,
-  productOutputExportSchema,
-} from './productOutput'
-import { baseVariableQuery, baseVariableSchema } from './variable'
 import { parseQuery } from '../utils/query'
+import { baseDatasetRunQuery } from './datasetRun'
+import { baseGeometriesRunQuery } from './geometriesRun'
+import { baseProductOutputQuery } from './productOutput'
+import { baseVariableQuery } from './variable'
 
 export const baseProductRunOutputSummaryQuery = {
   columns: {
@@ -109,56 +102,6 @@ export const fullProductRunQuery = {
     outputSummary: fullProductRunOutputSummaryQuery,
   },
 } satisfies QueryForTable<'productRun'>
-
-export const baseProductRunOutputSummarySchema = z
-  .object({
-    startTime: z.date().nullable(),
-    endTime: z.date().nullable(),
-    outputCount: z.number().int(),
-    timePoints: z.array(z.date()).nullable(),
-    variables: z.array(
-      z.object({
-        variable: baseVariableSchema,
-      }),
-    ),
-  })
-  .openapi('ProductRunOutputSummaryBase')
-
-export const fullProductRunOutputSummarySchema = z
-  .object({
-    startTime: z.date().nullable(),
-    endTime: z.date().nullable(),
-    outputCount: z.number().int(),
-    timePoints: z.array(z.date()).nullable(),
-    variables: z.array(
-      z.object({
-        minValue: z.number().nullable(),
-        maxValue: z.number().nullable(),
-        avgValue: z.number().nullable(),
-        count: z.number().int(),
-        lastUpdated: z.date(),
-        variable: baseVariableSchema,
-      }),
-    ),
-  })
-  .openapi('ProductRunOutputSummaryFull')
-
-export const baseProductRunSchema = baseRunResourceSchema
-  .extend({
-    product: baseIdResourceSchemaWithMainRunId,
-    datasetRun: baseIdResourceSchema,
-    geometriesRun: baseIdResourceSchema,
-    outputSummary: baseProductRunOutputSummarySchema,
-  })
-  .openapi('ProductRunBase')
-
-export const fullProductRunSchema = baseProductRunSchema
-  .extend({
-    datasetRun: baseDatasetRunSchema,
-    geometriesRun: baseGeometriesRunSchema,
-    outputSummary: fullProductRunOutputSummarySchema,
-  })
-  .openapi('ProductRunFull')
 
 const productRunNotFoundError = () =>
   new ServerError({
@@ -378,7 +321,8 @@ const app = createOpenAPIApp()
       const dataWithVariableName = data.map((output) => ({
         ...output,
         variableName: output.variable.name,
-        geometryOutputName: output.geometryOutput.name,
+        geometryOutputName: output.geometryOutput?.name ?? undefined,
+        geometryOutputId: output.geometryOutputId ?? undefined,
       }))
 
       return generateJsonResponse(

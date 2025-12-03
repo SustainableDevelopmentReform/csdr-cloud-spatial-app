@@ -1,5 +1,5 @@
 import { ArrowUpRightIcon } from 'lucide-react'
-import { formatDateTime } from '../../../../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
 import { GeometriesRunListItem, useGeometriesRunLink } from '../_hooks'

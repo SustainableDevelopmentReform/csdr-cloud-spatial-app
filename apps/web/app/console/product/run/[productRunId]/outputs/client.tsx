@@ -18,13 +18,14 @@ import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../../components/table/search-input'
-import { formatDateTime } from '../../../../../../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 import { DatasetButton } from '../../../../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../../../../dataset/_components/dataset-run-button'
 import { GeometriesButton } from '../../../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../../../geometries/_components/geometries-run-button'
 import { GeometryOutputButton } from '../../../../geometries/_components/geometry-output-button'
 import { ProductOutputButton } from '../../../_components/product-output-button'
+import { ProductOutputsImportDialog } from '../../../_components/product-output-import'
 import { ProductGeometryOutputSelect } from '../../../_components/product-run-geometry-output-select'
 import {
   ProductOutputListItem,
@@ -88,17 +89,23 @@ const ProductOutputFeature = () => {
           cell: ({ row }) => {
             return (
               <div className="flex items-center gap-2 flex-wrap">
-                <GeometriesButton
-                  geometries={
-                    row.original.geometryOutput.geometriesRun.geometries
-                  }
-                />
-                <GeometriesRunButton
-                  geometriesRun={row.original.geometryOutput.geometriesRun}
-                />
-                <GeometryOutputButton
-                  geometryOutput={row.original.geometryOutput}
-                />
+                {row.original.geometryOutput?.geometriesRun?.geometries && (
+                  <GeometriesButton
+                    geometries={
+                      row.original.geometryOutput.geometriesRun.geometries
+                    }
+                  />
+                )}
+                {row.original.geometryOutput?.geometriesRun && (
+                  <GeometriesRunButton
+                    geometriesRun={row.original.geometryOutput.geometriesRun}
+                  />
+                )}
+                {row.original.geometryOutput && (
+                  <GeometryOutputButton
+                    geometryOutput={row.original.geometryOutput}
+                  />
+                )}
               </div>
             )
           },
@@ -110,12 +117,16 @@ const ProductOutputFeature = () => {
           cell: ({ row }) => {
             return (
               <div className="flex items-center gap-2 flex-wrap">
-                <DatasetButton
-                  dataset={row.original.productRun.datasetRun.dataset}
-                />
-                <DatasetRunButton
-                  datasetRun={row.original.productRun.datasetRun}
-                />
+                {row.original.productRun?.datasetRun?.dataset && (
+                  <DatasetButton
+                    dataset={row.original.productRun.datasetRun.dataset}
+                  />
+                )}
+                {row.original.productRun?.datasetRun && (
+                  <DatasetRunButton
+                    datasetRun={row.original.productRun.datasetRun}
+                  />
+                )}
               </div>
             )
           },
@@ -139,71 +150,82 @@ const ProductOutputFeature = () => {
     <div>
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Product Outputs</h1>
-        <CrudFormDialog
-          form={form}
-          mutation={createProductOutput}
-          buttonText="Add Product Output"
-          entityName="Product Output"
-          entityNamePlural="product outputs"
-        >
-          <FormField
-            control={form.control}
-            name="geometryOutputId"
-            render={({ field }) => (
-              <FormItem>
-                <ProductGeometryOutputSelect
-                  productRunId={productRun?.id}
-                  value={field.value}
-                  onChange={(value) => field.onChange(value?.id ?? null)}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="variableId"
-            render={({ field }) => (
-              <FormItem>
-                <VariablesSelect
-                  value={field.value}
-                  onChange={(value) => field.onChange(value?.id ?? null)}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name={'value'}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Value</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="timePoint"
-            render={({ field }) => (
-              <FormItem className="w-full relative">
-                <FormLabel>Time Point</FormLabel>
-                <CalendarSelect
-                  label="Time Point"
-                  value={new Date(field.value)}
-                  onChange={(event) => {
-                    field.onChange(event?.toISOString().replace('+00:00', 'Z'))
-                  }}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </CrudFormDialog>
+        <div className="flex items-center gap-3">
+          {productRun?.id ? (
+            <ProductOutputsImportDialog
+              productRunId={productRun.id}
+              geometriesRunId={productRun.geometriesRun?.id}
+            />
+          ) : null}
+          <CrudFormDialog
+            form={form}
+            mutation={createProductOutput}
+            buttonText="Add Product Output"
+            entityName="Product Output"
+            entityNamePlural="product outputs"
+          >
+            <FormField
+              control={form.control}
+              name="geometryOutputId"
+              render={({ field }) => (
+                <FormItem>
+                  <ProductGeometryOutputSelect
+                    productRunId={productRun?.id}
+                    value={field.value}
+                    onChange={(value) => field.onChange(value?.id ?? null)}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="variableId"
+              render={({ field }) => (
+                <FormItem>
+                  <VariablesSelect
+                    value={field.value}
+                    onChange={(value) => field.onChange(value?.id ?? null)}
+                    creatable
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={'value'}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Value</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="timePoint"
+              render={({ field }) => (
+                <FormItem className="w-full relative">
+                  <FormLabel>Time Point</FormLabel>
+                  <CalendarSelect
+                    label="Time Point"
+                    value={new Date(field.value)}
+                    onChange={(event) => {
+                      field.onChange(
+                        event?.toISOString().replace('+00:00', 'Z'),
+                      )
+                    }}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CrudFormDialog>
+        </div>
       </div>
       <div>
         <SearchInput

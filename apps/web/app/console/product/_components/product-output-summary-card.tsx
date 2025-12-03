@@ -1,4 +1,4 @@
-import { formatDateTime } from '../../../../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 import { ProductOutputDetail, useProductOutputLink } from '../_hooks'
 import { VariableButton } from '../../variable/_components/variable-button'
 import { DetailCard } from '../../_components/detail-cards'

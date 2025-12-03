@@ -1,6 +1,6 @@
 'use client'
 
-import { getLinePlotCodeSnippet, LinePlot } from '@repo/plot/LinePlot'
+import { getPlotCodeSnippet, Plot } from '@repo/plot/Plot'
 import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import {
   ChartConfiguration,
@@ -33,7 +33,7 @@ const UnsupportedChart = ({ type }: { type: string }) => (
     supported yet.
   </div>
 )
-const LinePlotContainer = ({
+const PlotContainer = ({
   chart,
   config,
   className,
@@ -68,7 +68,7 @@ const LinePlotContainer = ({
             'grid grid-cols-2 grid-rows-1 gap-4',
         )}
       >
-        <LinePlot
+        <Plot
           data={productOutputs?.data ?? []}
           x={'timePoint'}
           y={'value'}
@@ -81,7 +81,7 @@ const LinePlotContainer = ({
       </div>
       {config?.showCodeSnippet && (
         <ObservableCellsCopy
-          cells={getLinePlotCodeSnippet({
+          cells={getPlotCodeSnippet({
             data: productOutputs?.data ?? [],
             x: 'timePoint',
             y: 'value',
@@ -104,7 +104,9 @@ const MapContainer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const { data: productRun } = useProductRun(chart.productRunId)
-  const { data: geometriesRun } = useGeometriesRun(productRun?.geometriesRun.id)
+  const { data: geometriesRun } = useGeometriesRun(
+    productRun?.geometriesRun?.id,
+  )
   const { data: variable } = useVariable(chart.variableId)
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     variableId: chart.variableId,
@@ -177,7 +179,7 @@ const ChartDiscriminator = ({
   switch (chart.type) {
     case 'plot': {
       return (
-        <LinePlotContainer
+        <PlotContainer
           chart={chart}
           config={config}
           className={className}

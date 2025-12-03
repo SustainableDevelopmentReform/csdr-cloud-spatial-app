@@ -1,6 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  baseGeometriesRunSchema,
+  baseGeometriesSchema,
   createGeometriesSchema,
+  fullGeometriesSchema,
   geometriesQuerySchema,
   geometriesRunQuerySchema,
   updateGeometriesSchema,
@@ -19,16 +22,12 @@ import { generateJsonResponse } from '../lib/response'
 import { geometries, geometriesRun, product } from '../schemas/db'
 import {
   baseColumns,
-  baseResourceSchema,
   createPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import {
-  baseGeometriesRunQuery,
-  baseGeometriesRunSchema,
-} from './geometriesRun'
 import { parseQuery } from '../utils/query'
+import { baseGeometriesRunQuery } from './geometriesRun'
 
 export const baseGeometriesQuery = {
   columns: {
@@ -45,22 +44,6 @@ export const fullGeometriesQuery = {
     mainRun: baseGeometriesRunQuery,
   },
 } satisfies QueryForTable<'geometries'>
-
-export const baseGeometriesSchema = baseResourceSchema
-  .extend({
-    mainRunId: z.string().nullable(),
-    sourceUrl: z.string().nullable(),
-    sourceMetadataUrl: z.string().nullable(),
-  })
-  .openapi('GeometriesBase')
-
-export const fullGeometriesSchema = baseGeometriesSchema
-  .extend({
-    runCount: z.number().int(),
-    productCount: z.number().int(),
-    mainRun: baseGeometriesRunSchema.nullable(),
-  })
-  .openapi('GeometriesFull')
 
 const geometriesNotFoundError = () =>
   new ServerError({

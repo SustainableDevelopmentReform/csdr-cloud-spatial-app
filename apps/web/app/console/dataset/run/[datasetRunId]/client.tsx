@@ -13,6 +13,7 @@ import { DetailCard } from '../../../_components/detail-cards'
 import { DatasetRunSummaryCard } from '../../../dataset/_components/dataset-run-summary-card'
 import {
   useDatasetRun,
+  useDatasetRunsLink,
   useDeleteDatasetRun,
   useSetDatasetMainRun,
   useUpdateDatasetRun,
@@ -22,9 +23,11 @@ import { useProductRunsLink } from '../../../product/_hooks'
 const DatasetRunDetails = () => {
   const { data: datasetRun } = useDatasetRun()
   const updateDatasetRun = useUpdateDatasetRun()
+
+  const datasetRunsLink = useDatasetRunsLink()
   const deleteDatasetRun = useDeleteDatasetRun(
     undefined,
-    '/console/datasetRuns',
+    datasetRun?.dataset ? datasetRunsLink(datasetRun?.dataset) : undefined,
   )
 
   const productRunsLink = useProductRunsLink()

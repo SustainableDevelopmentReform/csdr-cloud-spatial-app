@@ -1,13 +1,13 @@
 'use client'
 
 import {
+  importProductOutputsSchema,
   productOutputExportQuerySchema,
   productOutputQuerySchema,
   productQuerySchema,
   productRunQuerySchema,
 } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -107,6 +107,10 @@ export type CreateProductRunOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product-output']['$post']>['json']
 >
 
+export type ImportProductOutputsPayload = z.infer<
+  typeof importProductOutputsSchema
+>
+
 const productParamsSchema = z.object({
   productId: z.string().optional(),
   productRunId: z.string().optional(),
@@ -196,6 +200,7 @@ const useProductParams = (
 export const useProducts = (
   _query?: z.infer<typeof productQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const client = useApiClient()
 
@@ -228,6 +233,7 @@ export const useProducts = (
       const nextPage = allPages.length + 1
       return nextPage <= lastPage.pageCount ? nextPage : undefined
     },
+    enabled: enabled ?? true,
   })
 
   const aggregatedData = useMemo(
@@ -440,7 +446,7 @@ export const useProductOutputsExport = (
         data: parsedData,
       }
     },
-    placeholderData: keepPreviousData,
+
     enabled: !!productRun,
   })
 
@@ -452,7 +458,7 @@ export const useProductOutputsExport = (
   }
 }
 
-export const useProduct = (_productId?: string) => {
+export const useProduct = (_productId?: string, enabled: boolean = true) => {
   const { productId } = useProductParams(_productId)
   const client = useApiClient()
   return useQuery({
@@ -469,12 +475,15 @@ export const useProduct = (_productId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productId && productId !== '*',
+
+    enabled: enabled ?? (!!productId && productId !== '*'),
   })
 }
 
-export const useProductRun = (_productRunId?: string) => {
+export const useProductRun = (
+  _productRunId?: string,
+  enabled: boolean = true,
+) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
   const client = useApiClient()
   return useQuery({
@@ -491,12 +500,15 @@ export const useProductRun = (_productRunId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productRunId,
+
+    enabled: enabled ?? !!productRunId,
   })
 }
 
-export const useProductOutput = (_productOutputId?: string) => {
+export const useProductOutput = (
+  _productOutputId?: string,
+  enabled: boolean = true,
+) => {
   const { productOutputId } = useProductParams(
     undefined,
     undefined,
@@ -517,8 +529,8 @@ export const useProductOutput = (_productOutputId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!productOutputId,
+
+    enabled: enabled ?? !!productOutputId,
   })
 }
 
@@ -603,6 +615,44 @@ export const useCreateProductRunOutput = () => {
           response?.data?.productRun?.product?.id,
         ),
       })
+    },
+  })
+}
+
+export const useImportProductOutputs = () => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: ImportProductOutputsPayload) => {
+      const res = client.api.v0['product-output'].import.$post({
+        form: {
+          ...payload,
+          variableMappings: JSON.stringify(payload.variableMappings),
+        },
+      })
+      return await unwrapResponse(res, 201)
+    },
+    onSuccess: (response, variables) => {
+      const productRunId =
+        response?.data?.productRunId ?? variables.productRunId
+      const productId = response?.data?.productId
+
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          productId,
+          productRunId,
+        ),
+      })
+      if (productRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(productRunId),
+        })
+      }
+      if (productId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(productId),
+        })
+      }
     },
   })
 }

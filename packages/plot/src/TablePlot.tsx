@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { extent } from 'd3-array'
 import { rgb } from 'd3-color'
 import { scaleSequential } from 'd3-scale'
-import { interpolateViridis } from 'd3-scale-chromatic'
+import { interpolateYlOrRd } from 'd3-scale-chromatic'
 import { useMemo } from 'react'
 import { OnSelectCallback } from './types'
 
@@ -11,7 +11,7 @@ type BaseTableRecord = {
   value: number | null | undefined
   timePoint: Date | string
   variableName: string
-  geometryOutputName: string
+  geometryOutputName?: string | null | undefined
 }
 
 export const DEFAULT_TABLE_DATA_PROPS = {
@@ -244,10 +244,10 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
       return null
     }
     if (min === max) {
-      const constantColor = interpolateViridis(0.5)
+      const constantColor = interpolateYlOrRd(0.5)
       return () => constantColor
     }
-    return scaleSequential(interpolateViridis).domain([min, max])
+    return scaleSequential(interpolateYlOrRd).domain([min, max])
   }, [valueExtent])
 
   return (

@@ -1,4 +1,4 @@
-import { formatDateTime } from '../utils/date'
+import { formatDateTime } from '@repo/ui/lib/date'
 
 export const ResourceDates = ({
   resource,

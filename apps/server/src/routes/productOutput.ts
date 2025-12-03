@@ -1,5 +1,15 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { eq, inArray } from 'drizzle-orm'
+import {
+  baseProductOutputSchema,
+  createManyProductOutputSchema,
+  createProductOutputSchema,
+  fullProductOutputSchema,
+  importProductOutputsSchema,
+  updateProductOutputSchema,
+} from '@repo/schemas/crud'
+import { DrizzleQueryError, eq, inArray } from 'drizzle-orm'
+import Papa from 'papaparse'
+import { DatabaseError } from 'pg'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -10,12 +20,9 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { productOutput } from '../schemas/db'
+import { geometryOutput, productOutput, productRun } from '../schemas/db'
 import {
   baseColumns,
-  baseIdResourceSchema,
-  baseIdResourceSchemaWithMainRunId,
-  baseResourceSchema,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
@@ -23,17 +30,10 @@ import {
   updatePayload,
 } from '../schemas/util'
 import {
-  createManyProductOutputSchema,
-  createProductOutputSchema,
-  updateProductOutputSchema,
-} from '@repo/schemas/crud'
-import {
   baseGeometryOutputQuery,
-  baseGeometryOutputSchema,
-  fullGeometryOutputQuery,
-  fullGeometryOutputSchema,
+  fetchFullGeometryOutputOrThrow,
 } from './geometryOutput'
-import { baseVariableQuery, baseVariableSchema } from './variable'
+import { baseVariableQuery } from './variable'
 
 export const baseProductOutputQuery = {
   columns: {
@@ -72,50 +72,6 @@ export const baseProductOutputQuery = {
   },
 } satisfies QueryForTable<'productOutput'>
 
-export const fullProductOutputQuery = {
-  columns: baseProductOutputQuery.columns,
-  with: {
-    ...baseProductOutputQuery.with,
-    geometryOutput: fullGeometryOutputQuery,
-  },
-} satisfies QueryForTable<'productOutput'>
-
-export const baseProductOutputSchema = baseResourceSchema
-  .extend({
-    value: z.number(),
-    timePoint: z.iso.datetime(),
-    productRun: baseIdResourceSchema.extend({
-      product: baseIdResourceSchemaWithMainRunId,
-      datasetRun: baseIdResourceSchema.extend({
-        dataset: baseIdResourceSchemaWithMainRunId,
-      }),
-      geometriesRun: baseIdResourceSchema.extend({
-        geometries: baseIdResourceSchemaWithMainRunId,
-      }),
-    }),
-    geometryOutput: baseGeometryOutputSchema,
-    variable: baseVariableSchema,
-  })
-  .openapi('ProductOutputBase')
-
-export const fullProductOutputSchema = baseProductOutputSchema
-  .extend({
-    geometryOutput: fullGeometryOutputSchema,
-  })
-  .openapi('ProductOutputFull')
-
-export const productOutputExportSchema = z
-  .object({
-    id: z.string(),
-    variableId: z.string(),
-    variableName: z.string(),
-    timePoint: z.iso.datetime(),
-    geometryOutputId: z.string(),
-    geometryOutputName: z.string(),
-    value: z.number(),
-  })
-  .openapi('ProductOutputExportSchema')
-
 const productOutputNotFoundError = () =>
   new ServerError({
     statusCode: 404,
@@ -123,23 +79,100 @@ const productOutputNotFoundError = () =>
     description: "productOutput you're looking for is not found",
   })
 
-const fetchFullProductOutput = async (id: string) => {
+const fetchBaseProductOutput = async (id: string) => {
   const record = await db.query.productOutput.findFirst({
     where: (productOutput, { eq }) => eq(productOutput.id, id),
-    ...fullProductOutputQuery,
+    ...baseProductOutputQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullProductOutputOrThrow = async (id: string) => {
-  const record = await fetchFullProductOutput(id)
+const fetchBaseProductOutputOrThrow = async (id: string) => {
+  const record = await fetchBaseProductOutput(id)
 
   if (!record) {
     throw productOutputNotFoundError()
   }
 
   return record
+}
+
+type PendingProductOutput = {
+  payload: {
+    productRunId: string
+    geometryOutputId: string
+    variableId: string
+    value: number
+    timePoint: Date
+  }
+  context: {
+    rowNumber: number
+    column: string
+  }
+}
+
+const parseCsvFile = async (file: File) => {
+  const text = await file.text()
+
+  const result = Papa.parse<Record<string, unknown>>(text, {
+    header: true,
+    skipEmptyLines: 'greedy',
+  })
+
+  if (result.errors.length) {
+    throw new ServerError({
+      statusCode: 400,
+      message: 'Invalid CSV upload',
+      description: result.errors[0]?.message ?? 'Failed to parse CSV file',
+    })
+  }
+
+  const columns = result.meta.fields ?? []
+
+  if (!columns.length) {
+    throw new ServerError({
+      statusCode: 400,
+      message: 'Invalid CSV upload',
+      description: 'CSV is missing a header row',
+    })
+  }
+
+  const rows = result.data
+    .map((row) => {
+      const normalized: Record<string, string> = {}
+      columns.forEach((column) => {
+        const value = row[column]
+        normalized[column] =
+          value === null || value === undefined ? '' : String(value)
+      })
+      return normalized
+    })
+    .filter((row) =>
+      Object.values(row).some(
+        (value) => typeof value === 'string' && value.trim().length > 0,
+      ),
+    )
+
+  if (!rows.length) {
+    throw new ServerError({
+      statusCode: 400,
+      message: 'Invalid CSV upload',
+      description: 'CSV does not contain any data rows',
+    })
+  }
+
+  return {
+    columns,
+    rows,
+  }
+}
+
+const normalizeCsvValue = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return String(value).trim()
 }
 
 const app = createOpenAPIApp()
@@ -169,9 +202,13 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullProductOutputOrThrow(id)
+      const record = await fetchBaseProductOutputOrThrow(id)
 
-      return generateJsonResponse(c, record, 200)
+      const geometryOutput = record.geometryOutput
+        ? await fetchFullGeometryOutputOrThrow(record.geometryOutput.id)
+        : undefined
+
+      return generateJsonResponse(c, { ...record, geometryOutput }, 200)
     },
   )
   .openapi(
@@ -195,7 +232,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(fullProductOutputSchema),
+              schema: createResponseSchema(baseProductOutputSchema),
             },
           },
         },
@@ -230,7 +267,7 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullProductOutputOrThrow(newProductOutput.id)
+      const record = await fetchBaseProductOutputOrThrow(newProductOutput.id)
 
       return generateJsonResponse(c, record, 201, 'Product output created')
     },
@@ -258,7 +295,7 @@ const app = createOpenAPIApp()
             'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.array(fullProductOutputSchema)),
+              schema: createResponseSchema(z.array(baseProductOutputSchema)),
             },
           },
         },
@@ -295,7 +332,7 @@ const app = createOpenAPIApp()
 
       const fullRecords = ids.length
         ? await db.query.productOutput.findMany({
-            ...fullProductOutputQuery,
+            ...baseProductOutputQuery,
             where: inArray(productOutput.id, ids),
           })
         : []
@@ -328,6 +365,229 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Import product outputs from a CSV file.',
+      method: 'post',
+      path: '/import',
+      middleware: [authMiddleware({ permission: 'write:productOutput' })],
+      request: {
+        body: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: importProductOutputsSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Successfully imported product outputs from CSV.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  productRunId: z.string(),
+                  productId: z.string().optional(),
+                  insertedCount: z.number().int(),
+                  warnings: z.array(
+                    z.object({
+                      message: z.string(),
+                      description: z.string().optional(),
+                    }),
+                  ),
+                }),
+              ),
+            },
+          },
+        },
+        400: jsonErrorResponse('Invalid CSV import payload'),
+        401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to import product outputs'),
+      },
+    }),
+    async (c) => {
+      const { productRunId, geometryColumn, variableMappings, csvFile } =
+        c.req.valid('form')
+
+      const productRunRecord = await db.query.productRun.findFirst({
+        where: (productRunTable, { eq }) =>
+          eq(productRunTable.id, productRunId),
+        columns: {
+          id: true,
+          productId: true,
+          geometriesRunId: true,
+        },
+      })
+
+      if (!productRunRecord) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Failed to import product outputs',
+          description: 'Product run not found',
+        })
+      }
+
+      if (!productRunRecord.geometriesRunId) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to import product outputs',
+          description:
+            'Product run is not linked to a geometries run, so geometry outputs cannot be resolved',
+        })
+      }
+
+      const { columns, rows } = await parseCsvFile(csvFile)
+
+      if (!columns.includes(geometryColumn)) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to import product outputs',
+          description: `Column "${geometryColumn}" was not found in the CSV header`,
+        })
+      }
+
+      for (const mapping of variableMappings) {
+        if (!columns.includes(mapping.column)) {
+          throw new ServerError({
+            statusCode: 400,
+            message: 'Failed to import product outputs',
+            description: `Column "${mapping.column}" was not found in the CSV header`,
+          })
+        }
+      }
+
+      const geometryIdPrefix = productRunRecord.geometriesRunId
+
+      const geometryIdentifiers = new Set<string>()
+      rows.forEach((row) => {
+        const localId = normalizeCsvValue(row[geometryColumn])
+        if (localId.length) {
+          geometryIdentifiers.add(`${geometryIdPrefix}-${localId}`)
+        }
+      })
+
+      const knownGeometryOutputs = geometryIdentifiers.size
+        ? await db.query.geometryOutput.findMany({
+            columns: {
+              id: true,
+            },
+            where: inArray(
+              geometryOutput.id,
+              Array.from(geometryIdentifiers.values()),
+            ),
+          })
+        : []
+
+      const validGeometryOutputIds = new Set(
+        knownGeometryOutputs.map((output) => output.id),
+      )
+
+      const pendingOutputs: PendingProductOutput[] = []
+      const warnings: { message: string; description?: string }[] = []
+
+      rows.forEach((row, rowIndex) => {
+        const localGeometryId = normalizeCsvValue(row[geometryColumn])
+
+        if (!localGeometryId.length) {
+          warnings.push({
+            message: `Row ${rowIndex + 1} geometry column "${geometryColumn}" was empty.`,
+            description: 'Row: ' + JSON.stringify(row, null, 2),
+          })
+          return
+        }
+
+        const geometryOutputId = `${geometryIdPrefix}-${localGeometryId}`
+
+        if (!validGeometryOutputIds.has(geometryOutputId)) {
+          warnings.push({
+            message: `Row ${rowIndex + 1} referenced geometry output "${geometryOutputId}" that does not exist for geometries run ${geometryIdPrefix}.`,
+            description: 'Row: ' + JSON.stringify(row, null, 2),
+          })
+          return
+        }
+
+        variableMappings.forEach((mapping) => {
+          const rawValue = row[mapping.column]
+          const timePointDate = new Date(mapping.timePoint)
+          const normalizedValue = normalizeCsvValue(rawValue)
+          const numericValue = Number(normalizedValue)
+          if (!Number.isFinite(numericValue)) {
+            warnings.push({
+              message: `Row ${rowIndex + 1} value in column "${mapping.column}" was missing or could not be converted to a number. Value: "${normalizedValue}"`,
+              description: 'Row: ' + JSON.stringify(row, null, 2),
+            })
+            return
+          }
+
+          pendingOutputs.push({
+            payload: {
+              productRunId,
+              geometryOutputId,
+              variableId: mapping.variableId,
+              value: numericValue,
+              timePoint: timePointDate,
+            },
+            context: {
+              rowNumber: rowIndex + 1,
+              column: mapping.column,
+            },
+          })
+        })
+      })
+
+      let insertedCount = 0
+      for (const item of pendingOutputs) {
+        try {
+          await db.insert(productOutput).values(
+            createPayload({
+              name: undefined,
+              id: undefined,
+              ...item.payload,
+            }),
+          )
+          insertedCount++
+        } catch (error) {
+          if (error instanceof DrizzleQueryError) {
+            if (error.cause instanceof DatabaseError) {
+              throw new ServerError({
+                statusCode: 500,
+                message: 'Failed to import product outputs',
+                description:
+                  error.cause.detail ??
+                  `Row ${item.context.rowNumber} (${item.context.column}) failed: ${error.cause.message}`,
+              })
+            }
+          }
+          throw error
+        }
+      }
+
+      if (!insertedCount) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Failed to import product outputs',
+          description:
+            'No product outputs were imported. Please review the warnings and adjust the CSV or mappings.',
+        })
+      }
+
+      return generateJsonResponse(
+        c,
+        {
+          productRunId: productRunRecord.id,
+          productId: productRunRecord.productId ?? undefined,
+          insertedCount,
+          warnings,
+        },
+        201,
+        'Product outputs imported successfully',
+      )
+    },
+  )
+
+  .openapi(
+    createRoute({
       description: 'Update a product output.',
       method: 'patch',
       path: '/:id',
@@ -348,7 +608,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a product output.',
           content: {
             'application/json': {
-              schema: createResponseSchema(fullProductOutputSchema),
+              schema: createResponseSchema(baseProductOutputSchema),
             },
           },
         },
@@ -373,7 +633,7 @@ const app = createOpenAPIApp()
         throw productOutputNotFoundError()
       }
 
-      const fullRecord = await fetchFullProductOutputOrThrow(record.id)
+      const fullRecord = await fetchBaseProductOutputOrThrow(record.id)
 
       return generateJsonResponse(c, fullRecord, 200, 'Product output updated')
     },

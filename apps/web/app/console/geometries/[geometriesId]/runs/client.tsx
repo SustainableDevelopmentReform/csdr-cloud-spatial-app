@@ -1,23 +1,7 @@
 'use client'
 
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
-import Pagination from '~/components/table/pagination'
-import BaseCrudTable from '../../../../../components/table/crud-table'
-
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createGeometriesRunSchema } from '@repo/schemas/crud'
-import { Path, useForm } from 'react-hook-form'
-import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
-import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
-import { GeometriesRunButton } from '../../_components/geometries-run-button'
-import {
-  GeometriesRunListItem,
-  useCreateGeometriesRun,
-  useGeometries,
-  useGeometriesRunLink,
-  useGeometriesRuns,
-} from '../../_hooks'
 import {
   FormControl,
   FormField,
@@ -26,7 +10,22 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import Pagination from '~/components/table/pagination'
+import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
+import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
+import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
+import { GeometriesRunButton } from '../../_components/geometries-run-button'
+import {
+  GeometriesRunListItem,
+  useCreateGeometriesRun,
+  useGeometries,
+  useGeometriesRunLink,
+  useGeometriesRuns,
+} from '../../_hooks'
 
 const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
@@ -71,8 +70,9 @@ const GeometriesRunFeature = () => {
 
   return (
     <div>
-      <div className="flex justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-medium mb-2">Geometries Runs</h1>
+
         <CrudFormDialog
           form={form}
           mutation={createGeometriesRun}

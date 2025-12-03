@@ -2,7 +2,6 @@
 
 import { datasetQuerySchema, datasetRunQuerySchema } from '@repo/schemas/crud'
 import {
-  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -194,7 +193,7 @@ export const useDatasetRuns = (
   }
 }
 
-export const useDataset = (id?: string) => {
+export const useDataset = (id?: string, enabled: boolean = true) => {
   const { datasetId } = useDatasetParams(id)
   const client = useApiClient()
   return useQuery({
@@ -211,12 +210,14 @@ export const useDataset = (id?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!datasetId,
+    enabled: enabled ?? !!datasetId,
   })
 }
 
-export const useDatasetRun = (_datasetRunId?: string) => {
+export const useDatasetRun = (
+  _datasetRunId?: string,
+  enabled: boolean = true,
+) => {
   const { datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const client = useApiClient()
   return useQuery({
@@ -233,8 +234,7 @@ export const useDatasetRun = (_datasetRunId?: string) => {
 
       return json.data
     },
-    placeholderData: keepPreviousData,
-    enabled: !!datasetRunId,
+    enabled: enabled ?? !!datasetRunId,
   })
 }
 
