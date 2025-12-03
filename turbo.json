@@ -3,6 +3,9 @@
   "ui": "tui",
   "tasks": {
     "build:types": {
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": [
         "dist/types/**"
       ]
