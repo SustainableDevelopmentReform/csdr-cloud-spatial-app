@@ -201,7 +201,7 @@ export function Plot<T extends BasePlotRecord>({
     })
 
     return () => chart.remove()
-  }, [data, groupBy, onSelect, type, x, y])
+  }, [data, groupBy, onSelect, type, x, xLabel, y, yLabel])
 
   return <div ref={containerRef} className="w-full h-full"></div>
 }

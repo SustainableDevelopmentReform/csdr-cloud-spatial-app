@@ -1,3 +1,6 @@
+-- Enable PostGIS extension (if not already enabled)
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 -- Add a temporary PostGIS geometry column (MultiPolygon only)
 ALTER TABLE
   "geometry_output"
