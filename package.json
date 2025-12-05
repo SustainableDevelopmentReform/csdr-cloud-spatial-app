@@ -22,16 +22,21 @@
     "clean-deps": "rm -rf node_modules && pnpm -r exec rm -rf node_modules"
   },
   "devDependencies": {
-    "@types/geojson": "^7946.0.16",
-    "@dotenvx/dotenvx": "^1.24.0",
+    "@dotenvx/dotenvx": "^1.51.1",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/geojson": "^7946.0.16",
     "husky": "^9.1.7",
-    "lint-staged": "^15.2.10",
+    "lint-staged": "^15.5.2",
     "prettier": "catalog:",
     "turbo": "2.1.1"
   },
   "packageManager": "pnpm@9.12.0",
+  "pnpm": {
+    "overrides": {
+      "next": "^15.2.6"
+    }
+  },
   "engines": {
     "node": ">=20.17.0"
   },

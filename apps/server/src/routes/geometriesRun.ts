@@ -310,7 +310,7 @@ const app = createOpenAPIApp()
         y,
       })
 
-      return c.body(tileBuffer, 200, {
+      return c.body(Buffer.from(tileBuffer), 200, {
         'Content-Type': 'image/vnd.mapbox-vector-tile',
         'Content-Length': tileBuffer.length.toString(),
       })
