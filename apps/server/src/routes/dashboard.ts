@@ -7,7 +7,7 @@ import {
   fullDashboardSchema,
   updateDashboardSchema,
 } from '@repo/schemas/crud'
-import { count, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -63,7 +63,9 @@ const fetchFullDashboardOrThrow = async (id: string) => {
     throw dashboardNotFoundError()
   }
 
-  return record
+  const parsedContent = dashboardContentSchema.parse(record.content)
+
+  return { ...record, content: parsedContent }
 }
 
 const app = createOpenAPIApp()
