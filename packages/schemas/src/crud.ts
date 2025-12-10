@@ -2,6 +2,13 @@ import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema } from './geojson'
 import type { MultiPolygon } from 'geojson'
 
+const fileSchema = z.instanceof(File).openapi('FileSchema', {
+  title: 'File',
+  type: 'string',
+  format: 'binary',
+  description: 'Multipart/form-data file (binary)',
+})
+
 /* BASE RESOURCE SCHEMAS */
 export const baseIdResourceSchema = z.object({
   id: z.string(),
@@ -299,7 +306,7 @@ export const importGeometryOutputsSchema = z.object({
   geometriesRunId: z.string(),
   geojsonIdProperty: z.string(),
   geojsonNameProperty: z.string(),
-  geojsonFile: z.instanceof(File),
+  geojsonFile: fileSchema,
 })
 
 export const updateGeometryOutputSchema = baseUpdateResourceSchema.omit({
@@ -507,7 +514,7 @@ export const importProductOutputsSchema = z.object({
       }
       return data
     }),
-  csvFile: z.instanceof(File),
+  csvFile: fileSchema,
 })
 
 /* REPORT RESOURCE SCHEMAS */
