@@ -1,18 +1,6 @@
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@repo/ui/components/ui/avatar'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@repo/ui/components/ui/popover'
 import { SquareIcon } from 'lucide-react'
 import React from 'react'
 import Link from '~/components/link'
-import { SignOutButton } from '../../components/sign-out-button'
-import { getApiBaseUrl } from '../../env'
 import {
   DASHBOARDS_BASE_PATH,
   DATASETS_BASE_PATH,
@@ -23,7 +11,7 @@ import {
   VARIABLES_BASE_PATH,
 } from '../../lib/paths'
 import { getUserServerSession } from '../../utils/getUserServerSession'
-import AccountSettingsButton from './_components/account-settings-button'
+import { UserDropdown } from './_components/user-dropdown'
 
 const SIDEBAR_CONFIG = [
   {
@@ -80,7 +68,6 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
   children,
 }) => {
   const { user } = await getUserServerSession()
-  const apiBaseUrl = getApiBaseUrl()
 
   return (
     <>
@@ -92,47 +79,7 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
           >
             CSDR Cloud Spatial App
           </Link>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button>
-                <Avatar>
-                  <AvatarImage
-                    className="object-cover object-center"
-                    src={user?.image ?? undefined}
-                  />
-                  <AvatarFallback>{user?.name[0]}</AvatarFallback>
-                </Avatar>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              side="bottom"
-              className="px-0 py-4 w-52"
-            >
-              <div className="px-4">
-                <div className="line-clamp-1">{user?.name}</div>
-                <div className="text-sm text-gray-400 line-clamp-1">
-                  {user?.email}
-                </div>
-              </div>
-              <div className="pt-2 mt-2 border-t border-gray-200 px-4 flex flex-col gap-1">
-                <AccountSettingsButton />
-                <Link
-                  className="mb-2 block w-full text-left"
-                  href="/console/me/api-keys"
-                >
-                  API Keys
-                </Link>
-                <Link
-                  className="mb-2 block w-full text-left"
-                  href={`${apiBaseUrl}/api/v0/scalar`}
-                >
-                  API Docs
-                </Link>
-                <SignOutButton />
-              </div>
-            </PopoverContent>
-          </Popover>
+          <UserDropdown />
         </nav>
         <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">
           <div className="grid gap-3">
