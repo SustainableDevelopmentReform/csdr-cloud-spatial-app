@@ -19,7 +19,9 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
-interface AccountSettingsProps {}
+interface AccountSettingsProps {
+  onClose?: () => void
+}
 
 const profileSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
@@ -28,7 +30,7 @@ const profileSchema = z.object({
 
 type Profile = z.infer<typeof profileSchema>
 
-const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
+const AccountSettingsButton: React.FC<AccountSettingsProps> = ({ onClose }) => {
   const authClient = useAuthClient()
   const { data } = authClient.useSession()
   const user = data?.user
@@ -107,11 +109,21 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = () => {
     <>
       <button
         className="mb-2 block w-full text-left"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true)
+        }}
       >
         Account details
       </button>
-      <Dialog open={isOpen} onOpenChange={setOpen}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          setOpen(open)
+          if (!open) {
+            onClose?.()
+          }
+        }}
+      >
         <DialogContent className="max-w-xl p-6">
           <div className="bg-white rounded-md">
             <div className="text-lg font-semibold mb-4">Profile Details</div>
