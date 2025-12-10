@@ -4,9 +4,11 @@ import { useProductRun } from '../_hooks'
 import {
   SelectOption,
   SelectWithSearch,
-} from '../../../../components/form/select-with-search'
+  MultiValue,
+  SingleValue,
+} from '@repo/ui/components/ui/select-with-search'
 import { useMemo } from 'react'
-import { MultiValue, SingleValue } from 'react-select'
+
 type ProductOutputTimeSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean

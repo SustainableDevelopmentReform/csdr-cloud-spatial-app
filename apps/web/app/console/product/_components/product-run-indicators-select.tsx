@@ -1,7 +1,10 @@
 import { useMemo } from 'react'
-import { MultiValue, SingleValue } from 'react-select'
+import {
+  MultiValue,
+  SingleValue,
+  SelectWithSearch,
+} from '@repo/ui/components/ui/select-with-search'
 import { FieldGroup } from '../../../../components/form/action'
-import { SelectWithSearch } from '../../../../components/form/select-with-search'
 import { IndicatorListItem } from '../../indicator/_hooks'
 import { useProductRun } from '../_hooks'
 

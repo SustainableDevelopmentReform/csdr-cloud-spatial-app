@@ -1,4 +1,4 @@
-import { SelectWithSearchWithCreate } from '../../../../components/form/select-with-search-with-create'
+import { SelectWithSearchWithCreate } from '@repo/ui/components/ui/select-with-search-with-create'
 import {
   IndicatorCategoryListItem,
   useCreateIndicatorCategory,
