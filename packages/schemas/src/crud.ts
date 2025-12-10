@@ -72,48 +72,48 @@ export const baseUpdateResourceSchema = z.object({
   description: z.string().nullable().optional(),
 })
 
-/* VARIABLE RESOURCE SCHEMAS */
-export const baseVariableSchema = baseResourceSchema
+/* INDICATOR RESOURCE SCHEMAS */
+export const baseIndicatorSchema = baseResourceSchema
   .extend({
     unit: z.string(),
     category: baseResourceSchema.nullable(),
     displayOrder: z.number().int().nullable(),
     categoryId: z.string().nullable(),
   })
-  .openapi('VariableSchemaBase')
+  .openapi('IndicatorSchemaBase')
 
-export const variableQuerySchema = baseQuerySchema.extend({
-  variableIds: z.union([z.string(), z.array(z.string())]).optional(),
+export const indicatorQuerySchema = baseQuerySchema.extend({
+  indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
 })
 
-export const createVariableSchema = baseCreateResourceSchema.extend({
+export const createIndicatorSchema = baseCreateResourceSchema.extend({
   name: z.string(),
   unit: z.string(),
   categoryId: z.string().nullable().optional(),
   displayOrder: z.number().optional(),
 })
 
-export const updateVariableSchema = baseUpdateResourceSchema.extend({
+export const updateIndicatorSchema = baseUpdateResourceSchema.extend({
   unit: z.string().optional(),
   categoryId: z.string().nullable().optional(),
   displayOrder: z.number().nullable().optional(),
 })
 
-/* VARIABLE CATEGORY RESOURCE SCHEMAS */
-export const variableCategorySchema = baseResourceSchema
+/* INDICATOR CATEGORY RESOURCE SCHEMAS */
+export const indicatorCategorySchema = baseResourceSchema
   .extend({
     parentId: z.string().nullable(),
     displayOrder: z.number().int().nullable(),
   })
-  .openapi('VariableCategorySchemaBase')
+  .openapi('IndicatorCategorySchemaBase')
 
-export const createVariableCategorySchema = baseCreateResourceSchema.extend({
+export const createIndicatorCategorySchema = baseCreateResourceSchema.extend({
   name: z.string().min(1),
   parentId: z.string().optional(),
   displayOrder: z.number().optional(),
 })
 
-export const updateVariableCategorySchema = baseUpdateResourceSchema.extend({
+export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
   parentId: z.string().optional(),
   displayOrder: z.number().optional(),
 })
@@ -320,9 +320,9 @@ export const baseProductRunOutputSummarySchema = z
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
     timePoints: z.array(z.date()).nullable(),
-    variables: z.array(
+    indicators: z.array(
       z.object({
-        variable: baseVariableSchema,
+        indicator: baseIndicatorSchema,
       }),
     ),
   })
@@ -334,14 +334,14 @@ export const fullProductRunOutputSummarySchema = z
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
     timePoints: z.array(z.date()).nullable(),
-    variables: z.array(
+    indicators: z.array(
       z.object({
         minValue: z.number().nullable(),
         maxValue: z.number().nullable(),
         avgValue: z.number().nullable(),
         count: z.number().int(),
         lastUpdated: z.date(),
-        variable: baseVariableSchema,
+        indicator: baseIndicatorSchema,
       }),
     ),
   })
@@ -439,7 +439,7 @@ export const baseProductOutputSchema = baseResourceSchema
         .nullable(),
     }),
     geometryOutput: baseGeometryOutputSchema.nullable(),
-    variable: baseVariableSchema,
+    indicator: baseIndicatorSchema,
   })
   .openapi('ProductOutputBase')
 
@@ -452,8 +452,8 @@ export const fullProductOutputSchema = baseProductOutputSchema
 export const productOutputExportSchema = z
   .object({
     id: z.string(),
-    variableId: z.string(),
-    variableName: z.string(),
+    indicatorId: z.string(),
+    indicatorName: z.string(),
     timePoint: z.iso.datetime(),
     geometryOutputId: z.string().optional(),
     geometryOutputName: z.string().optional(),
@@ -463,12 +463,12 @@ export const productOutputExportSchema = z
 
 export const productOutputQuerySchema = baseQuerySchema.extend({
   geometryOutputId: z.string().optional(),
-  variableId: z.string().optional(),
+  indicatorId: z.string().optional(),
   timePoint: z.iso.datetime().optional(),
 })
 
 export const productOutputExportQuerySchema = z.object({
-  variableId: z.union([z.string(), z.array(z.string())]).optional(),
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   geometryOutputId: z.union([z.string(), z.array(z.string())]).optional(),
   timePoint: z.union([z.iso.datetime(), z.array(z.iso.datetime())]).optional(),
 })
@@ -477,7 +477,7 @@ export const createProductOutputSchema = baseCreateResourceSchema.extend({
   productRunId: z.string(),
   geometryOutputId: z.string(),
   value: z.number(),
-  variableId: z.string(),
+  indicatorId: z.string(),
   timePoint: z.iso.datetime(),
 })
 
@@ -485,7 +485,7 @@ export const updateProductOutputSchema = baseUpdateResourceSchema
 
 export const createManyProductOutputSchema = z.object({
   productRunId: z.string(),
-  variableId: z.string(),
+  indicatorId: z.string(),
   timePoint: z.iso.datetime(),
   outputs: z.array(
     baseCreateResourceSchema.extend({
@@ -498,7 +498,7 @@ export const createManyProductOutputSchema = z.object({
 export const importProductOutputColumnMappingSchema = z.array(
   z.object({
     column: z.string(),
-    variableId: z.string(),
+    indicatorId: z.string(),
     timePoint: z.iso.datetime(),
   }),
 )
@@ -506,7 +506,7 @@ export const importProductOutputColumnMappingSchema = z.array(
 export const importProductOutputsSchema = z.object({
   productRunId: z.string(),
   geometryColumn: z.string(),
-  variableMappings: z
+  indicatorMappings: z
     .union([importProductOutputColumnMappingSchema, z.string()])
     .transform((data) => {
       if (typeof data === 'string') {

@@ -110,8 +110,8 @@ async function main() {
 
   console.log(`Account ID: ${account[0]!.id}`)
 
-  const variableCategory = await db
-    .insert(schema.variableCategory)
+  const indicatorCategory = await db
+    .insert(schema.indicatorCategory)
     .values({
       id: 'forest',
       name: 'Forest Data',
@@ -120,14 +120,14 @@ async function main() {
     .onConflictDoNothing()
     .returning()
 
-  console.log(`Variable Category ID: ${variableCategory[0]!.id}`)
+  console.log(`Indicator Category ID: ${indicatorCategory[0]!.id}`)
 
-  const variable1 = await db
-    .insert(schema.variable)
+  const indicator1 = await db
+    .insert(schema.indicator)
     .values({
       id: 'forest-cover-area',
       name: 'Forest Land Area',
-      categoryId: variableCategory[0]!.id,
+      categoryId: indicatorCategory[0]!.id,
       description: 'Forest Land Area',
       unit: 'm^2',
       displayOrder: 1,
@@ -135,14 +135,14 @@ async function main() {
     .onConflictDoNothing()
     .returning()
 
-  console.log(`Variable ID: ${variable1[0]!.id}`)
+  console.log(`Indicator ID: ${indicator1[0]!.id}`)
 
-  const variable2 = await db
-    .insert(schema.variable)
+  const indicator2 = await db
+    .insert(schema.indicator)
     .values({
       id: 'forest-cover-percentage',
       name: 'Forest Cover Percentage',
-      categoryId: variableCategory[0]!.id,
+      categoryId: indicatorCategory[0]!.id,
       description: 'Forest Cover Percentage',
       unit: '%',
       displayOrder: 2,
@@ -150,7 +150,7 @@ async function main() {
     .onConflictDoNothing()
     .returning()
 
-  console.log(`Variable ID: ${variable2[0]!.id}`)
+  console.log(`Indicator ID: ${indicator2[0]!.id}`)
 
   const dataset = await db
     .insert(schema.dataset)
@@ -317,7 +317,7 @@ async function main() {
       geometryOutputId: geometryOutput1[0]!.id,
       timePoint: new Date('2021-01-01T00:00:00Z'),
       value: 100,
-      variableId: variable1[0]!.id,
+      indicatorId: indicator1[0]!.id,
     })
     .onConflictDoNothing()
     .returning()
@@ -333,7 +333,7 @@ async function main() {
       geometryOutputId: geometryOutput1[0]!.id,
       timePoint: new Date('2022-01-01T00:00:00Z'),
       value: 200,
-      variableId: variable1[0]!.id,
+      indicatorId: indicator1[0]!.id,
     })
     .onConflictDoNothing()
     .returning()
@@ -349,7 +349,7 @@ async function main() {
       geometryOutputId: geometryOutput2[0]!.id,
       timePoint: new Date('2021-01-01T00:00:00Z'),
       value: 300,
-      variableId: variable1[0]!.id,
+      indicatorId: indicator1[0]!.id,
     })
     .onConflictDoNothing()
     .returning()
@@ -365,7 +365,7 @@ async function main() {
       geometryOutputId: geometryOutput2[0]!.id,
       timePoint: new Date('2022-01-01T00:00:00Z'),
       value: 400,
-      variableId: variable1[0]!.id,
+      indicatorId: indicator1[0]!.id,
     })
     .onConflictDoNothing()
     .returning()

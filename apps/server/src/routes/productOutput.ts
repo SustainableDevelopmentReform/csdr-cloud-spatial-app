@@ -33,7 +33,7 @@ import {
   baseGeometryOutputQuery,
   fetchFullGeometryOutputOrThrow,
 } from './geometryOutput'
-import { baseVariableQuery } from './variable'
+import { baseIndicatorQuery } from './indicator'
 
 export const baseProductOutputQuery = {
   columns: {
@@ -67,7 +67,7 @@ export const baseProductOutputQuery = {
       },
     },
 
-    variable: baseVariableQuery,
+    indicator: baseIndicatorQuery,
     geometryOutput: baseGeometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
@@ -102,7 +102,7 @@ type PendingProductOutput = {
   payload: {
     productRunId: string
     geometryOutputId: string
-    variableId: string
+    indicatorId: string
     value: number
     timePoint: Date
   }
@@ -275,7 +275,7 @@ const app = createOpenAPIApp()
   .openapi(
     createRoute({
       description:
-        'Create multiple product outputs, for a given product run, variable, and time point.',
+        'Create multiple product outputs, for a given product run, indicator, and time point.',
       method: 'post',
       path: '/bulk',
       middleware: [authMiddleware({ permission: 'write:productOutput' })],
@@ -292,7 +292,7 @@ const app = createOpenAPIApp()
       responses: {
         201: {
           description:
-            'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
+            'Create multiple product outputs. This allows creating multiple outputs for the same time, indicator, and product run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.array(baseProductOutputSchema)),
@@ -407,7 +407,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { productRunId, geometryColumn, variableMappings, csvFile } =
+      const { productRunId, geometryColumn, indicatorMappings, csvFile } =
         c.req.valid('form')
 
       const productRunRecord = await db.query.productRun.findFirst({
@@ -447,7 +447,7 @@ const app = createOpenAPIApp()
         })
       }
 
-      for (const mapping of variableMappings) {
+      for (const mapping of indicatorMappings) {
         if (!columns.includes(mapping.column)) {
           throw new ServerError({
             statusCode: 400,
@@ -507,7 +507,7 @@ const app = createOpenAPIApp()
           return
         }
 
-        variableMappings.forEach((mapping) => {
+        indicatorMappings.forEach((mapping) => {
           const rawValue = row[mapping.column]
           const timePointDate = new Date(mapping.timePoint)
           const normalizedValue = normalizeCsvValue(rawValue)
@@ -524,7 +524,7 @@ const app = createOpenAPIApp()
             payload: {
               productRunId,
               geometryOutputId,
-              variableId: mapping.variableId,
+              indicatorId: mapping.indicatorId,
               value: numericValue,
               timePoint: timePointDate,
             },

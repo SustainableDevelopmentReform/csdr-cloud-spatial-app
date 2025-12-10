@@ -10,40 +10,40 @@ type BaseTableRecord = {
   id: string
   value: number | null | undefined
   timePoint: Date | string
-  variableName: string
+  indicatorName: string
   geometryOutputName?: string | null | undefined
 }
 
 export const DEFAULT_TABLE_DATA_PROPS = {
-  xDimension: 'variableName' as const,
+  xDimension: 'indicatorName' as const,
   yDimension: 'timePoint' as const,
   data: [
     {
       id: 'sample-1',
       timePoint: '2024-01-01T00:00:00Z',
       value: 24,
-      variableName: 'Temperature',
+      indicatorName: 'Temperature',
       geometryOutputName: 'Region A',
     },
     {
       id: 'sample-2',
       timePoint: '2024-01-01T06:00:00Z',
       value: 18,
-      variableName: 'Temperature',
+      indicatorName: 'Temperature',
       geometryOutputName: 'Region A',
     },
     {
       id: 'sample-3',
       timePoint: '2024-01-01T00:00:00Z',
       value: 32,
-      variableName: 'Humidity',
+      indicatorName: 'Humidity',
       geometryOutputName: 'Region A',
     },
     {
       id: 'sample-4',
       timePoint: '2024-01-01T06:00:00Z',
       value: 41,
-      variableName: 'Humidity',
+      indicatorName: 'Humidity',
       geometryOutputName: 'Region B',
     },
   ],
@@ -70,7 +70,7 @@ const DARK_TEXT_COLOR = '#111827'
 
 const dimensionLabels = {
   timePoint: 'Time',
-  variableName: 'Variable',
+  indicatorName: 'Indicator',
   geometryOutputName: 'Geometry',
 } as const
 
@@ -97,7 +97,7 @@ function getRelativeLuminance(r: number, g: number, b: number) {
 
 export type TablePlotDimension =
   | 'timePoint'
-  | 'variableName'
+  | 'indicatorName'
   | 'geometryOutputName'
 
 type DimensionMeta = {
@@ -127,8 +127,8 @@ function getDimensionMeta(
         sortValue: time.getTime(),
       }
     }
-    case 'variableName': {
-      const value = record.variableName
+    case 'indicatorName': {
+      const value = record.indicatorName
       if (!value) return null
       return {
         key: value,

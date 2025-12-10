@@ -1,6 +1,6 @@
 import { formatDateTime } from '@repo/ui/lib/date'
 import { ProductOutputDetail, useProductOutputLink } from '../_hooks'
-import { VariableButton } from '../../variable/_components/variable-button'
+import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { DetailCard } from '../../_components/detail-cards'
 import { ArrowUpRightIcon } from 'lucide-react'
 
@@ -21,7 +21,7 @@ export const ProductOutputSummaryCard = ({
       title={productOutput.value.toString()}
       description="Output Value"
       footer={formatDateTime(productOutput.timePoint)}
-      subFooter={<VariableButton variable={productOutput.variable} />}
+      subFooter={<IndicatorButton indicator={productOutput.indicator} />}
       actionText={showLink ? 'Open' : undefined}
       actionLink={showLink ? productOutputLink(productOutput) : undefined}
       actionIcon={showLink ? <ArrowUpRightIcon /> : undefined}

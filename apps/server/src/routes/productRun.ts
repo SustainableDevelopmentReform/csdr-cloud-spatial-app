@@ -23,7 +23,7 @@ import {
   product,
   productOutput,
   productOutputSummary,
-  productOutputSummaryVariable,
+  productOutputSummaryIndicator,
   productRun,
 } from '../schemas/db'
 import {
@@ -38,7 +38,7 @@ import { parseQuery } from '../utils/query'
 import { baseDatasetRunQuery } from './datasetRun'
 import { baseGeometriesRunQuery } from './geometriesRun'
 import { baseProductOutputQuery } from './productOutput'
-import { baseVariableQuery } from './variable'
+import { baseIndicatorQuery } from './indicator'
 
 export const baseProductRunOutputSummaryQuery = {
   columns: {
@@ -49,9 +49,9 @@ export const baseProductRunOutputSummaryQuery = {
     timePoints: true,
   },
   with: {
-    variables: {
+    indicators: {
       with: {
-        variable: baseVariableQuery,
+        indicator: baseIndicatorQuery,
       },
     },
   },
@@ -60,7 +60,7 @@ export const baseProductRunOutputSummaryQuery = {
 export const fullProductRunOutputSummaryQuery = {
   columns: baseProductRunOutputSummaryQuery.columns,
   with: {
-    variables: {
+    indicators: {
       columns: {
         minValue: true,
         maxValue: true,
@@ -69,7 +69,7 @@ export const fullProductRunOutputSummaryQuery = {
         lastUpdated: true,
       },
       with: {
-        variable: baseVariableQuery,
+        indicator: baseIndicatorQuery,
       },
     },
   },
@@ -194,7 +194,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { variableId, geometryOutputId, timePoint } = c.req.valid('query')
+      const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
 
       const { pageCount, totalCount, ...query } = await parseQuery(
         productOutput,
@@ -206,8 +206,8 @@ const app = createOpenAPIApp()
       )
       const filters: SQL[] = [eq(productOutput.productRunId, id)]
 
-      if (variableId) {
-        filters.push(eq(productOutput.variableId, variableId))
+      if (indicatorId) {
+        filters.push(eq(productOutput.indicatorId, indicatorId))
       }
       if (geometryOutputId) {
         filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
@@ -263,15 +263,15 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { variableId, geometryOutputId, timePoint } = c.req.valid('query')
+      const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
 
       const filters: SQL[] = [eq(productOutput.productRunId, id)]
 
-      if (variableId) {
-        const variableIds = Array.isArray(variableId)
-          ? variableId
-          : [variableId]
-        filters.push(inArray(productOutput.variableId, variableIds))
+      if (indicatorId) {
+        const indicatorIds = Array.isArray(indicatorId)
+          ? indicatorId
+          : [indicatorId]
+        filters.push(inArray(productOutput.indicatorId, indicatorIds))
       }
       if (geometryOutputId) {
         const geometryOutputIds = Array.isArray(geometryOutputId)
@@ -293,13 +293,13 @@ const app = createOpenAPIApp()
       const data = await db.query.productOutput.findMany({
         columns: {
           id: true,
-          variableId: true,
+          indicatorId: true,
           timePoint: true,
           geometryOutputId: true,
           value: true,
         },
         with: {
-          variable: {
+          indicator: {
             columns: {
               name: true,
             },
@@ -312,15 +312,15 @@ const app = createOpenAPIApp()
         },
         where: and(...filters),
         orderBy: () => [
-          desc(productOutput.variableId),
+          desc(productOutput.indicatorId),
           desc(productOutput.timePoint),
           desc(productOutput.geometryOutputId),
         ],
       })
 
-      const dataWithVariableName = data.map((output) => ({
+      const dataWithIndicatorName = data.map((output) => ({
         ...output,
-        variableName: output.variable.name,
+        indicatorName: output.indicator.name,
         geometryOutputName: output.geometryOutput?.name ?? undefined,
         geometryOutputId: output.geometryOutputId ?? undefined,
       }))
@@ -328,7 +328,7 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          data: dataWithVariableName,
+          data: dataWithIndicatorName,
         },
         200,
       )
@@ -614,10 +614,10 @@ const app = createOpenAPIApp()
               },
             })
 
-          // 3. Calculate per-variable statistics
-          const variableStats = await tx
+          // 3. Calculate per-indicator statistics
+          const indicatorStats = await tx
             .select({
-              variableId: productOutput.variableId,
+              indicatorId: productOutput.indicatorId,
               minValue: min(productOutput.value),
               maxValue: max(productOutput.value),
               avgValue: avg(productOutput.value),
@@ -625,19 +625,19 @@ const app = createOpenAPIApp()
             })
             .from(productOutput)
             .where(eq(productOutput.productRunId, id))
-            .groupBy(productOutput.variableId)
+            .groupBy(productOutput.indicatorId)
 
-          // 4. Delete existing variable summaries for this run
+          // 4. Delete existing indicator summaries for this run
           await tx
-            .delete(productOutputSummaryVariable)
-            .where(eq(productOutputSummaryVariable.productRunId, id))
+            .delete(productOutputSummaryIndicator)
+            .where(eq(productOutputSummaryIndicator.productRunId, id))
 
-          // 5. Insert new variable summaries
-          if (variableStats.length > 0) {
-            await tx.insert(productOutputSummaryVariable).values(
-              variableStats.map((stat) => ({
+          // 5. Insert new indicator summaries
+          if (indicatorStats.length > 0) {
+            await tx.insert(productOutputSummaryIndicator).values(
+              indicatorStats.map((stat) => ({
                 productRunId: id,
-                variableId: stat.variableId,
+                indicatorId: stat.indicatorId,
                 minValue: stat.minValue,
                 maxValue: stat.maxValue,
                 avgValue: stat.avgValue ? parseFloat(stat.avgValue) : null,

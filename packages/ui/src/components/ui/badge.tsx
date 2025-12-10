@@ -25,8 +25,8 @@ const badgeVariants = cva(
           'border-transparent bg-geometry text-geometry-foreground [a&]:hover:bg-geometry/90',
         geometriesRun:
           'border-transparent bg-geometriesRun text-geometriesRun-foreground [a&]:hover:bg-geometriesRun/90',
-        variable:
-          'border-transparent bg-variable text-variable-foreground [a&]:hover:bg-variable/90',
+        indicator:
+          'border-transparent bg-indicator text-indicator-foreground [a&]:hover:bg-indicator/90',
         destructive:
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         outline:

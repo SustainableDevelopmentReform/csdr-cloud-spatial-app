@@ -31,10 +31,10 @@ export const GeometriesRunSummaryCard = ({
       //   <div className="flex flex-col gap-2">
       //     {`${geometries?.mainRun?.outputSummary?.outputCount} outputs`}
       //     <div className="flex gap-2">
-      //       {geometries.mainRun?.outputSummary?.variables?.map((variable) => (
-      //         <VariableButton
-      //           variable={variable.variable}
-      //           key={variable.variable.id}
+      //       {geometries.mainRun?.outputSummary?.indicators?.map((indicator) => (
+      //         <IndicatorButton
+      //           indicator={indicator.indicator}
+      //           key={indicator.indicator.id}
       //         />
       //       ))}
       //     </div>

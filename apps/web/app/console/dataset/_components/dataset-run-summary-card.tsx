@@ -29,10 +29,10 @@ export const DatasetRunSummaryCard = ({
       //   <div className="flex flex-col gap-2">
       //     {`${dataset?.mainRun?.outputSummary?.outputCount} outputs`}
       //     <div className="flex gap-2">
-      //       {dataset.mainRun?.outputSummary?.variables?.map((variable) => (
-      //         <VariableButton
-      //           variable={variable.variable}
-      //           key={variable.variable.id}
+      //       {dataset.mainRun?.outputSummary?.indicators?.map((indicator) => (
+      //         <IndicatorButton
+      //           indicator={indicator.indicator}
+      //           key={indicator.indicator.id}
       //         />
       //       ))}
       //     </div>

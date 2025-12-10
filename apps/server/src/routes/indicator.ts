@@ -1,9 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
-  baseVariableSchema,
-  createVariableSchema,
-  updateVariableSchema,
-  variableQuerySchema,
+  baseIndicatorSchema,
+  createIndicatorSchema,
+  updateIndicatorSchema,
+  indicatorQuerySchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
@@ -16,7 +16,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { variable } from '../schemas/db'
+import { indicator } from '../schemas/db'
 import {
   baseColumns,
   createPayload,
@@ -25,7 +25,7 @@ import {
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 
-export const baseVariableQuery = {
+export const baseIndicatorQuery = {
   columns: {
     ...baseColumns,
     unit: true,
@@ -37,29 +37,29 @@ export const baseVariableQuery = {
       columns: baseColumns,
     },
   },
-} satisfies QueryForTable<'variable'>
+} satisfies QueryForTable<'indicator'>
 
-const variableNotFoundError = () =>
+const indicatorNotFoundError = () =>
   new ServerError({
     statusCode: 404,
-    message: 'Failed to get variable',
-    description: "variable you're looking for is not found",
+    message: 'Failed to get indicator',
+    description: "indicator you're looking for is not found",
   })
 
-const fetchFullVariable = async (id: string) => {
-  const record = await db.query.variable.findFirst({
-    where: (variable, { eq }) => eq(variable.id, id),
-    ...baseVariableQuery,
+const fetchFullIndicator = async (id: string) => {
+  const record = await db.query.indicator.findFirst({
+    where: (indicator, { eq }) => eq(indicator.id, id),
+    ...baseIndicatorQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullVariableOrThrow = async (id: string) => {
-  const record = await fetchFullVariable(id)
+const fetchFullIndicatorOrThrow = async (id: string) => {
+  const record = await fetchFullIndicator(id)
 
   if (!record) {
-    throw variableNotFoundError()
+    throw indicatorNotFoundError()
   }
 
   return record
@@ -68,23 +68,23 @@ const fetchFullVariableOrThrow = async (id: string) => {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
-      description: 'List variables with pagination metadata.',
+      description: 'List indicators with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:variable' })],
+      middleware: [authMiddleware({ permission: 'read:indicator' })],
       request: {
-        query: variableQuerySchema,
+        query: indicatorQuerySchema,
       },
       responses: {
         200: {
-          description: 'List variables with pagination metadata.',
+          description: 'List indicators with pagination metadata.',
           content: {
             'application/json': {
               schema: createResponseSchema(
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(baseVariableSchema),
+                  data: z.array(baseIndicatorSchema),
                 }),
               ),
             },
@@ -92,32 +92,32 @@ const app = createOpenAPIApp()
         },
         401: jsonErrorResponse('Unauthorized'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to list variables'),
+        500: jsonErrorResponse('Failed to list indicators'),
       },
     }),
     async (c) => {
-      const { variableIds } = c.req.valid('query')
+      const { indicatorIds } = c.req.valid('query')
       const { pageCount, totalCount, ...query } = await parseQuery(
-        variable,
+        indicator,
         c.req.valid('query'),
         {
-          defaultOrderBy: desc(variable.createdAt),
-          searchableColumns: [variable.name],
+          defaultOrderBy: desc(indicator.createdAt),
+          searchableColumns: [indicator.name],
         },
       )
 
-      if (variableIds) {
+      if (indicatorIds) {
         query.where = and(
           query.where,
           inArray(
-            variable.id,
-            Array.isArray(variableIds) ? variableIds : [variableIds],
+            indicator.id,
+            Array.isArray(indicatorIds) ? indicatorIds : [indicatorIds],
           ),
         )
       }
 
-      const data = await db.query.variable.findMany({
-        ...baseVariableQuery,
+      const data = await db.query.indicator.findMany({
+        ...baseIndicatorQuery,
         ...query,
       })
 
@@ -135,31 +135,31 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Retrieve a variable.',
+      description: 'Retrieve a indicator.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:variable' })],
+      middleware: [authMiddleware({ permission: 'read:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
       responses: {
         200: {
-          description: 'Successfully retrieved a variable.',
+          description: 'Successfully retrieved a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseVariableSchema),
+              schema: createResponseSchema(baseIndicatorSchema),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Variable not found'),
+        404: jsonErrorResponse('Indicator not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to fetch variable'),
+        500: jsonErrorResponse('Failed to fetch indicator'),
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullVariableOrThrow(id)
+      const record = await fetchFullIndicatorOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -167,32 +167,32 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Create a variable.',
+      description: 'Create a indicator.',
       method: 'post',
       path: '/',
-      middleware: [authMiddleware({ permission: 'write:variable' })],
+      middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         body: {
           required: true,
           content: {
             'application/json': {
-              schema: createVariableSchema,
+              schema: createIndicatorSchema,
             },
           },
         },
       },
       responses: {
         201: {
-          description: 'Successfully created a variable.',
+          description: 'Successfully created a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseVariableSchema),
+              schema: createResponseSchema(baseIndicatorSchema),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to create variable'),
+        500: jsonErrorResponse('Failed to create indicator'),
       },
     }),
     async (c) => {
@@ -201,55 +201,55 @@ const app = createOpenAPIApp()
         ...payload,
         categoryId: payload.categoryId ?? null,
       }
-      const [newVariable] = await db
-        .insert(variable)
+      const [newIndicator] = await db
+        .insert(indicator)
         .values(createPayload(data))
         .returning()
 
-      if (!newVariable) {
+      if (!newIndicator) {
         throw new ServerError({
           statusCode: 500,
-          message: 'Failed to create variable',
-          description: 'Variable insert did not return a record',
+          message: 'Failed to create indicator',
+          description: 'Indicator insert did not return a record',
         })
       }
 
-      const record = await fetchFullVariableOrThrow(newVariable.id)
+      const record = await fetchFullIndicatorOrThrow(newIndicator.id)
 
-      return generateJsonResponse(c, record, 201, 'Variable created')
+      return generateJsonResponse(c, record, 201, 'Indicator created')
     },
   )
 
   .openapi(
     createRoute({
-      description: 'Update a variable.',
+      description: 'Update a indicator.',
       method: 'patch',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'write:variable' })],
+      middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
         body: {
           required: true,
           content: {
             'application/json': {
-              schema: updateVariableSchema,
+              schema: updateIndicatorSchema,
             },
           },
         },
       },
       responses: {
         200: {
-          description: 'Successfully updated a variable.',
+          description: 'Successfully updated a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseVariableSchema),
+              schema: createResponseSchema(baseIndicatorSchema),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Variable not found'),
+        404: jsonErrorResponse('Indicator not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to update variable'),
+        500: jsonErrorResponse('Failed to update indicator'),
       },
     }),
     async (c) => {
@@ -263,52 +263,52 @@ const app = createOpenAPIApp()
       }
 
       const [record] = await db
-        .update(variable)
+        .update(indicator)
         .set(updatePayload(data))
-        .where(eq(variable.id, id))
+        .where(eq(indicator.id, id))
         .returning()
 
       if (!record) {
-        throw variableNotFoundError()
+        throw indicatorNotFoundError()
       }
 
-      const fullRecord = await fetchFullVariableOrThrow(record.id)
+      const fullRecord = await fetchFullIndicatorOrThrow(record.id)
 
-      return generateJsonResponse(c, fullRecord, 200, 'Variable updated')
+      return generateJsonResponse(c, fullRecord, 200, 'Indicator updated')
     },
   )
 
   .openapi(
     createRoute({
-      description: 'Delete a variable.',
+      description: 'Delete a indicator.',
       method: 'delete',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'write:variable' })],
+      middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
       responses: {
         200: {
-          description: 'Successfully deleted a variable.',
+          description: 'Successfully deleted a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseVariableSchema),
+              schema: createResponseSchema(baseIndicatorSchema),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Variable not found'),
+        404: jsonErrorResponse('Indicator not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to delete variable'),
+        500: jsonErrorResponse('Failed to delete indicator'),
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullVariableOrThrow(id)
+      const record = await fetchFullIndicatorOrThrow(id)
 
-      await db.delete(variable).where(eq(variable.id, id))
+      await db.delete(indicator).where(eq(indicator.id, id))
 
-      return generateJsonResponse(c, record, 200, 'Variable deleted')
+      return generateJsonResponse(c, record, 200, 'Indicator deleted')
     },
   )
 

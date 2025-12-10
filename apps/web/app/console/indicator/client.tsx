@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createVariableSchema } from '@repo/schemas/crud'
+import { createIndicatorSchema } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,
@@ -18,18 +18,18 @@ import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
 import { SelectWithSearchWithCreate } from '../../../components/form/select-with-search-with-create'
-import { VariableButton } from './_components/variable-button'
-import { VariableCategoryButton } from './_components/variable-category-button'
+import { IndicatorButton } from './_components/indicator-button'
+import { IndicatorCategoryButton } from './_components/indicator-category-button'
 import {
-  useCreateVariable,
-  useCreateVariableCategory,
-  useVariableCategories,
-  useVariableLink,
-  useVariables,
-  VariableListItem,
+  useCreateIndicator,
+  useCreateIndicatorCategory,
+  useIndicatorCategories,
+  useIndicatorLink,
+  useIndicators,
+  IndicatorListItem,
 } from './_hooks'
 
-const VariableFeature = () => {
+const IndicatorFeature = () => {
   const {
     data,
     query,
@@ -37,12 +37,12 @@ const VariableFeature = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useVariables(undefined, true)
-  const { data: variableCategories } = useVariableCategories()
-  const createVariable = useCreateVariable()
-  const createVariableCategory = useCreateVariableCategory()
+  } = useIndicators(undefined, true)
+  const { data: indicatorCategories } = useIndicatorCategories()
+  const createIndicator = useCreateIndicator()
+  const createIndicatorCategory = useCreateIndicatorCategory()
 
-  const variableLink = useVariableLink()
+  const indicatorLink = useIndicatorLink()
 
   const baseColumns = useMemo(() => {
     return ['description', 'createdAt', 'updatedAt'] as const
@@ -54,7 +54,9 @@ const VariableFeature = () => {
         header: 'Category',
         cell: ({ row }) => {
           return row.original.category ? (
-            <VariableCategoryButton variableCategory={row.original.category} />
+            <IndicatorCategoryButton
+              indicatorCategory={row.original.category}
+            />
           ) : null
         },
       },
@@ -64,23 +66,23 @@ const VariableFeature = () => {
           return <div>{row.original.unit}</div>
         },
       },
-    ] satisfies ColumnDef<VariableListItem>[]
+    ] satisfies ColumnDef<IndicatorListItem>[]
   }, [])
 
   const form = useForm({
-    resolver: zodResolver(createVariableSchema),
+    resolver: zodResolver(createIndicatorSchema),
   })
 
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Variables</h1>
+        <h1 className="text-3xl font-medium mb-2">Indicators</h1>
         <CrudFormDialog
           form={form}
-          mutation={createVariable}
-          buttonText="Add Variable"
-          entityName="Variable"
-          entityNamePlural="variables"
+          mutation={createIndicator}
+          buttonText="Add Indicator"
+          entityName="Indicator"
+          entityNamePlural="indicators"
         >
           <FormField
             control={form.control}
@@ -101,25 +103,25 @@ const VariableFeature = () => {
             render={({ field }) => {
               return (
                 <FormItem>
-                  <FormLabel>Variable Category</FormLabel>
+                  <FormLabel>Indicator Category</FormLabel>
                   <FormControl>
                     <SelectWithSearchWithCreate
-                      options={variableCategories?.data}
+                      options={indicatorCategories?.data}
                       value={
-                        variableCategories?.data.find(
+                        indicatorCategories?.data.find(
                           (category) => category.id === field.value,
                         ) ?? null
                       }
                       onChange={(value) => field.onChange(value?.id)}
                       placeholder="Root Category"
                       onCreateOption={(input) => {
-                        createVariableCategory.mutate(
+                        createIndicatorCategory.mutate(
                           {
                             name: input,
                           },
                           {
-                            onSuccess: (variableCategory) => {
-                              field.onChange(variableCategory?.id)
+                            onSuccess: (indicatorCategory) => {
+                              field.onChange(indicatorCategory?.id)
                             },
                           },
                         )
@@ -136,7 +138,7 @@ const VariableFeature = () => {
       </div>
       <div>
         <SearchInput
-          placeholder="Search variables"
+          placeholder="Search indicators"
           value={query?.search ?? ''}
           onChange={(e) => setSearchParams({ search: e.target.value })}
         />
@@ -144,9 +146,9 @@ const VariableFeature = () => {
           data={data?.data || []}
           baseColumns={baseColumns}
           extraColumns={columns}
-          title="Variable"
-          itemLink={variableLink}
-          itemButton={(variable) => <VariableButton variable={variable} />}
+          title="Indicator"
+          itemLink={indicatorLink}
+          itemButton={(indicator) => <IndicatorButton indicator={indicator} />}
           query={query}
           onSortChange={setSearchParams}
         />
@@ -161,4 +163,4 @@ const VariableFeature = () => {
   )
 }
 
-export default VariableFeature
+export default IndicatorFeature
