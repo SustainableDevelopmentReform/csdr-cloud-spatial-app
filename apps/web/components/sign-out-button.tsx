@@ -6,7 +6,7 @@ import { LogOutIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
-export const SignOutButton = () => {
+export const SignOutButton = ({ onClick }: { onClick?: () => void }) => {
   const router = useRouter()
   const authClient = useAuthClient()
   return (
@@ -17,6 +17,7 @@ export const SignOutButton = () => {
           toast.error(res.error.message)
         } else {
           router.push('/')
+          onClick?.()
         }
       }}
     >
