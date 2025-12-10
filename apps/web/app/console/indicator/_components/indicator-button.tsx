@@ -1,11 +1,11 @@
-import { ArrowUpRightIcon } from 'lucide-react'
+import { ArrowUpRightIcon, AudioLinesIcon, CalculatorIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
-import { useIndicatorLink } from '../_hooks'
+import { IndicatorLinkParams, useIndicatorLink } from '../_hooks'
 
 export const IndicatorButtons = ({
   indicators,
 }: {
-  indicators: { id: string; name: string }[] | undefined
+  indicators: IndicatorLinkParams[] | undefined
 }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -19,11 +19,12 @@ export const IndicatorButtons = ({
 export const IndicatorButton = ({
   indicator,
 }: {
-  indicator: { id: string; name: string }
+  indicator: IndicatorLinkParams
 }) => {
   const indicatorLink = useIndicatorLink()
   return (
     <BadgeLink href={indicatorLink(indicator)} variant="indicator">
+      {indicator.isDerived && <AudioLinesIcon className="size-4" />}
       {indicator.name}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>

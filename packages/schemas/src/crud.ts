@@ -79,11 +79,13 @@ export const indicatorSchema = baseResourceSchema
     category: baseResourceSchema.nullable(),
     displayOrder: z.number().int().nullable(),
     categoryId: z.string().nullable(),
+    isDerived: z.literal(false).optional(),
   })
   .openapi('IndicatorSchema')
 
 export const indicatorQuerySchema = baseQuerySchema.extend({
   indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
+  type: z.enum(['measure', 'derived', 'all']).optional(),
 })
 
 export const createIndicatorSchema = baseCreateResourceSchema.extend({
@@ -103,6 +105,7 @@ export const derivedIndicatorSchema = indicatorSchema
   .extend({
     expression: z.string(),
     indicators: z.array(indicatorSchema),
+    isDerived: z.literal(true),
   })
   .openapi('DerivedIndicatorSchema')
 

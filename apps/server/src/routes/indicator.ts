@@ -19,7 +19,11 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { derivedIndicator, indicator } from '../schemas/db'
+import {
+  derivedIndicator,
+  derivedIndicatorToIndicator,
+  indicator,
+} from '../schemas/db'
 import {
   baseColumns,
   createPayload,
@@ -95,7 +99,11 @@ const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
     throw derivedIndicatorNotFoundError()
   }
 
-  return { ...record, indicators: record.indicators.map((i) => i.indicator) }
+  return {
+    ...record,
+    indicators: record.indicators.map((i) => i.indicator),
+    isDerived: true as const,
+  }
 }
 
 const fetchFullIndicatorOrThrow = async (id: string) => {
@@ -190,22 +198,38 @@ const app = createOpenAPIApp()
       const pageSize = indicatorQuery.limit ?? 10
       const pageCount = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
 
+      const fetchIndicators =
+        queryParams.type === 'measure' ||
+        queryParams.type === 'all' ||
+        queryParams.type === undefined
+      const fetchDerivedIndicators =
+        queryParams.type === 'derived' ||
+        queryParams.type === 'all' ||
+        queryParams.type === undefined
+
       // Fetch from both tables with their full relations
       const [indicators, derivedIndicators] = await Promise.all([
-        db.query.indicator.findMany({
-          ...baseIndicatorQuery,
-          where: indicatorWhere,
-        }),
-        db.query.derivedIndicator.findMany({
-          ...baseDerivedIndicatorQuery,
-          where: derivedWhere,
-        }),
+        fetchIndicators
+          ? db.query.indicator.findMany({
+              ...baseIndicatorQuery,
+              where: indicatorWhere,
+            })
+          : [],
+        fetchDerivedIndicators
+          ? db.query.derivedIndicator.findMany({
+              ...baseDerivedIndicatorQuery,
+              where: derivedWhere,
+            })
+          : [],
       ])
 
       // Transform derived indicators to include the indicators array properly
       const transformedDerived = derivedIndicators.map((d) => ({
         ...d,
-        indicators: d.indicators.map((i) => i.indicator),
+        indicators: d.indicators.map((i) => ({
+          ...i.indicator,
+        })),
+        isDerived: true,
       }))
 
       // Merge and sort both arrays
@@ -272,6 +296,38 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const record = await fetchFullIndicatorOrThrow(id)
+
+      return generateJsonResponse(c, record, 200)
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Retrieve a derived indicator.',
+      method: 'get',
+      path: 'derived/:id',
+      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Successfully retrieved a derived indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(derivedIndicatorSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Derived indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch derived indicator'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const record = await fetchFullDerivedIndicatorOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -363,7 +419,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const payload = c.req.valid('json')
+      const { indicatorIds, ...payload } = c.req.valid('json')
       const data = {
         ...payload,
         categoryId: payload.categoryId ?? null,
@@ -379,6 +435,28 @@ const app = createOpenAPIApp()
           message: 'Failed to create derived indicator',
           description: 'Indicator insert did not return a record',
         })
+      }
+
+      if (indicatorIds?.length) {
+        // Throw error if any of the indicatorIds are derived indicators
+        const derivedIndicators = await db.query.derivedIndicator.findMany({
+          where: inArray(derivedIndicator.id, indicatorIds),
+        })
+        if (derivedIndicators.length > 0) {
+          throw new ServerError({
+            statusCode: 422,
+            message: 'Cannot create derived indicator with derived indicators',
+            description:
+              'Cannot create derived indicator with derived indicators',
+          })
+        }
+
+        await db.insert(derivedIndicatorToIndicator).values(
+          indicatorIds.map((indicatorId) => ({
+            derivedIndicatorId: newIndicator.id,
+            indicatorId,
+          })),
+        )
       }
 
       const record = await fetchFullDerivedIndicatorOrThrow(newIndicator.id)
@@ -479,7 +557,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const payload = c.req.valid('json')
+      const { indicatorIds, ...payload } = c.req.valid('json')
       const data = {
         ...payload,
         ...(payload.categoryId !== undefined && {
@@ -492,6 +570,32 @@ const app = createOpenAPIApp()
         .set(updatePayload(data))
         .where(eq(derivedIndicator.id, id))
         .returning()
+
+      await db
+        .delete(derivedIndicatorToIndicator)
+        .where(eq(derivedIndicatorToIndicator.derivedIndicatorId, id))
+
+      if (indicatorIds?.length) {
+        // Throw error if any of the indicatorIds are derived indicators
+        const derivedIndicators = await db.query.derivedIndicator.findMany({
+          where: inArray(derivedIndicator.id, indicatorIds),
+        })
+        if (derivedIndicators.length > 0) {
+          throw new ServerError({
+            statusCode: 422,
+            message: 'Cannot create derived indicator with derived indicators',
+            description:
+              'Cannot create derived indicator with derived indicators',
+          })
+        }
+
+        await db.insert(derivedIndicatorToIndicator).values(
+          indicatorIds?.map((indicatorId) => ({
+            derivedIndicatorId: id,
+            indicatorId,
+          })),
+        )
+      }
 
       if (!record) {
         throw derivedIndicatorNotFoundError()
