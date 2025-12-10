@@ -100,9 +100,11 @@ pnpm seed
 
 ### Updating Better Auth DB Schema
 
+Note: you may need to update the version (eg `@1.3.18`) of the better-auth CLI to the version used in the project.
+
 ```bash
 cd apps/server
-npx @better-auth/cli@latest generate --output src/schemas/auth.ts --config src/lib/auth.ts
+npx @better-auth/cli@1.3.18 generate --output src/schemas/auth.ts --config src/lib/auth.ts
 ```
 
 Then follow the instructions in the terminal to generate and run the migration...
