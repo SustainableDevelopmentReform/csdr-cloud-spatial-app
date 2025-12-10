@@ -1,7 +1,10 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createIndicatorSchema } from '@repo/schemas/crud'
+import {
+  createDerivedIndicatorSchema,
+  createIndicatorSchema,
+} from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,
@@ -23,9 +26,11 @@ import { IndicatorCategorySelect } from './_components/indicator-category-select
 import {
   IndicatorListItem,
   useCreateIndicator,
+  useCreateDerivedIndicator,
   useIndicatorLink,
   useIndicators,
 } from './_hooks'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 
 const IndicatorFeature = () => {
   const {
@@ -37,6 +42,7 @@ const IndicatorFeature = () => {
     isFetchingNextPage,
   } = useIndicators(undefined, true)
   const createIndicator = useCreateIndicator()
+  const createDerivedIndicator = useCreateDerivedIndicator()
   const indicatorLink = useIndicatorLink()
 
   const baseColumns = useMemo(() => {
@@ -64,53 +70,112 @@ const IndicatorFeature = () => {
     ] satisfies ColumnDef<IndicatorListItem>[]
   }, [])
 
-  const form = useForm({
+  const indicatorForm = useForm({
     resolver: zodResolver(createIndicatorSchema),
+  })
+
+  const derivedIndicatorForm = useForm({
+    resolver: zodResolver(createDerivedIndicatorSchema),
   })
 
   return (
     <div>
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Indicators</h1>
-        <CrudFormDialog
-          form={form}
-          mutation={createIndicator}
-          buttonText="Add Indicator"
-          entityName="Indicator"
-          entityNamePlural="indicators"
-        >
-          <FormField
-            control={form.control}
-            name="unit"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Unit</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="categoryId"
-            render={({ field }) => {
-              return (
+        <div className="flex gap-2">
+          <CrudFormDialog
+            form={indicatorForm}
+            mutation={createIndicator}
+            buttonText="Add Indicator"
+            entityName="Indicator"
+            entityNamePlural="indicators"
+          >
+            <FormField
+              control={indicatorForm.control}
+              name="unit"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Indicator Category</FormLabel>
+                  <FormLabel>Unit</FormLabel>
                   <FormControl>
-                    <IndicatorCategorySelect
-                      value={field.value}
-                      onChange={(value) => field.onChange(value?.id)}
-                    />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-              )
-            }}
-          />
-        </CrudFormDialog>
+              )}
+            />
+            <FormField
+              control={indicatorForm.control}
+              name="categoryId"
+              render={({ field }) => {
+                return (
+                  <FormItem>
+                    <FormLabel>Indicator Category</FormLabel>
+                    <FormControl>
+                      <IndicatorCategorySelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value?.id)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+          </CrudFormDialog>
+          <CrudFormDialog
+            form={derivedIndicatorForm}
+            mutation={createDerivedIndicator}
+            buttonText="Add Derived Indicator"
+            entityName="Derived Indicator"
+            entityNamePlural="derived indicators"
+          >
+            <FormField
+              control={derivedIndicatorForm.control}
+              name="unit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={derivedIndicatorForm.control}
+              name="categoryId"
+              render={({ field }) => {
+                return (
+                  <FormItem>
+                    <FormLabel>Indicator Category</FormLabel>
+                    <FormControl>
+                      <IndicatorCategorySelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value?.id)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+
+            <FormField
+              control={derivedIndicatorForm.control}
+              name={'expression'}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Expression</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} className={'font-mono'} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CrudFormDialog>
+        </div>
       </div>
       <div>
         <SearchInput

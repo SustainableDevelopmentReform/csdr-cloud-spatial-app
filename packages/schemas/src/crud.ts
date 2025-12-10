@@ -73,14 +73,14 @@ export const baseUpdateResourceSchema = z.object({
 })
 
 /* INDICATOR RESOURCE SCHEMAS */
-export const baseIndicatorSchema = baseResourceSchema
+export const indicatorSchema = baseResourceSchema
   .extend({
     unit: z.string(),
     category: baseResourceSchema.nullable(),
     displayOrder: z.number().int().nullable(),
     categoryId: z.string().nullable(),
   })
-  .openapi('IndicatorSchemaBase')
+  .openapi('IndicatorSchema')
 
 export const indicatorQuerySchema = baseQuerySchema.extend({
   indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
@@ -97,6 +97,23 @@ export const updateIndicatorSchema = baseUpdateResourceSchema.extend({
   unit: z.string().optional(),
   categoryId: z.string().nullable().optional(),
   displayOrder: z.number().nullable().optional(),
+})
+
+export const derivedIndicatorSchema = indicatorSchema
+  .extend({
+    expression: z.string(),
+    indicators: z.array(indicatorSchema),
+  })
+  .openapi('DerivedIndicatorSchema')
+
+export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
+  expression: z.string(),
+  indicatorIds: z.array(z.string()),
+})
+
+export const updateDerivedIndicatorSchema = updateIndicatorSchema.extend({
+  expression: z.string().optional(),
+  indicatorIds: z.array(z.string()).optional(),
 })
 
 /* INDICATOR CATEGORY RESOURCE SCHEMAS */
@@ -322,7 +339,7 @@ export const baseProductRunOutputSummarySchema = z
     timePoints: z.array(z.date()).nullable(),
     indicators: z.array(
       z.object({
-        indicator: baseIndicatorSchema,
+        indicator: indicatorSchema,
       }),
     ),
   })
@@ -341,7 +358,7 @@ export const fullProductRunOutputSummarySchema = z
         avgValue: z.number().nullable(),
         count: z.number().int(),
         lastUpdated: z.date(),
-        indicator: baseIndicatorSchema,
+        indicator: indicatorSchema,
       }),
     ),
   })
@@ -439,7 +456,7 @@ export const baseProductOutputSchema = baseResourceSchema
         .nullable(),
     }),
     geometryOutput: baseGeometryOutputSchema.nullable(),
-    indicator: baseIndicatorSchema,
+    indicator: indicatorSchema,
   })
   .openapi('ProductOutputBase')
 

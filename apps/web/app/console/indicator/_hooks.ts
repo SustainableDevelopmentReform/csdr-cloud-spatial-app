@@ -31,8 +31,18 @@ export type UpdateIndicatorPayload = NonNullable<
   InferRequestType<Client['api']['v0']['indicator'][':id']['$patch']>['json']
 >
 
+export type UpdateDerivedIndicatorPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['derived'][':id']['$patch']
+  >['json']
+>
+
 export type CreateIndicatorPayload = NonNullable<
   InferRequestType<Client['api']['v0']['indicator']['$post']>['json']
+>
+
+export type CreateDerivedIndicatorPayload = NonNullable<
+  InferRequestType<Client['api']['v0']['indicator']['derived']['$post']>['json']
 >
 
 export type IndicatorCategoryListItem = NonNullable<
@@ -69,6 +79,12 @@ const indicatorQueryKeys = {
     [...indicatorQueryKeys.all, 'list', { query }] as const,
   detail: (indicatorId: string | undefined) =>
     [...indicatorQueryKeys.all, 'detail', indicatorId] as const,
+}
+
+const derivedIndicatorQueryKeys = {
+  all: ['derivedIndicator'] as const,
+  detail: (derivedIndicatorId: string | undefined) =>
+    [...derivedIndicatorQueryKeys.all, 'detail', derivedIndicatorId] as const,
 }
 
 const indicatorCategoryQueryKeys = {
@@ -220,6 +236,25 @@ export const useCreateIndicator = () => {
   })
 }
 
+export const useCreateDerivedIndicator = () => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (data: CreateDerivedIndicatorPayload) => {
+      const res = client.api.v0.indicator.derived.$post({
+        json: data,
+      })
+      const derivedIndicator = await unwrapResponse(res, 201)
+      return derivedIndicator.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: derivedIndicatorQueryKeys.all,
+      })
+    },
+  })
+}
+
 export const useCreateIndicatorCategory = () => {
   const queryClient = useQueryClient()
   const client = useApiClient()
@@ -307,6 +342,41 @@ export const useDeleteIndicator = (
       if (indicatorId) {
         queryClient.removeQueries({
           queryKey: indicatorQueryKeys.detail(indicatorId),
+        })
+      }
+      queryClient.invalidateQueries({
+        queryKey: indicatorQueryKeys.all,
+      })
+      if (redirect) {
+        router.push(redirect)
+      }
+    },
+  })
+}
+
+export const useDeleteDerivedIndicator = (
+  _derivedIndicatorId?: string,
+  redirect: string | null = null,
+) => {
+  const { indicatorId } = useIndicatorParams(_derivedIndicatorId)
+  const queryClient = useQueryClient()
+  const router = useRouter()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async () => {
+      if (!indicatorId) return
+      const res = client.api.v0.indicator.derived[':id'].$delete({
+        param: {
+          id: indicatorId,
+        },
+      })
+
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      if (indicatorId) {
+        queryClient.removeQueries({
+          queryKey: derivedIndicatorQueryKeys.detail(indicatorId),
         })
       }
       queryClient.invalidateQueries({

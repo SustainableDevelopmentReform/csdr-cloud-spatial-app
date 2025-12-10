@@ -7,6 +7,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   ReferenceConfig,
   text,
   timestamp,
@@ -322,17 +323,21 @@ export const indicatorCategory = pgTable(
   ],
 )
 
+const indicatorBaseColumns = {
+  ...baseColumns,
+  unit: text('unit').notNull(),
+  displayOrder: integer('display_order').default(0),
+  // Link to category
+  categoryId: text('category_id').references(() => indicatorCategory.id, {
+    onDelete: 'cascade',
+  }),
+}
+
 // Actual measurable indicators
 export const indicator = pgTable(
   'indicator',
   {
-    ...baseColumns,
-    unit: text('unit').notNull(),
-    displayOrder: integer('display_order').default(0),
-    // Link to category
-    categoryId: text('category_id').references(() => indicatorCategory.id, {
-      onDelete: 'cascade',
-    }),
+    ...indicatorBaseColumns,
   },
   (table) => [
     index('indicator_category_idx').on(table.categoryId),
@@ -342,6 +347,39 @@ export const indicator = pgTable(
       table.categoryId,
       table.displayOrder,
     ),
+  ],
+)
+
+// Actual derived indicators
+export const derivedIndicator = pgTable(
+  'derived_indicator',
+  {
+    ...indicatorBaseColumns,
+    expression: text('expression').notNull(),
+  },
+  (table) => [
+    index('derived_indicator_category_idx').on(table.categoryId),
+    index('derived_indicator_name_idx').on(table.name),
+    // Composite index for listing indicators within a category with ordering
+    index('derived_indicator_category_order_idx').on(
+      table.categoryId,
+      table.displayOrder,
+    ),
+  ],
+)
+
+export const derivedIndicatorToIndicator = pgTable(
+  'derived_indicator_to_indicator',
+  {
+    derivedIndicatorId: text('derived_indicator_id')
+      .notNull()
+      .references(() => derivedIndicator.id, { onDelete: 'cascade' }),
+    indicatorId: text('indicator_id')
+      .notNull()
+      .references(() => indicator.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.derivedIndicatorId, table.indicatorId] }),
   ],
 )
 
@@ -469,6 +507,7 @@ export const indicatorCategoryRelations = relations(
       relationName: 'category_tree',
     }),
     indicators: many(indicator),
+    derivedIndicators: many(derivedIndicator),
   }),
 )
 
@@ -477,9 +516,35 @@ export const indicatorRelations = relations(indicator, ({ one, many }) => ({
     fields: [indicator.categoryId],
     references: [indicatorCategory.id],
   }),
+  derivedIndicators: many(derivedIndicatorToIndicator),
   productOutputs: many(productOutput),
   productSummaries: many(productOutputSummaryIndicator),
 }))
+
+export const derivedIndicatorRelations = relations(
+  derivedIndicator,
+  ({ one, many }) => ({
+    category: one(indicatorCategory, {
+      fields: [derivedIndicator.categoryId],
+      references: [indicatorCategory.id],
+    }),
+    indicators: many(derivedIndicatorToIndicator),
+  }),
+)
+
+export const derivedIndicatorToIndicatorRelations = relations(
+  derivedIndicatorToIndicator,
+  ({ one }) => ({
+    derivedIndicator: one(derivedIndicator, {
+      fields: [derivedIndicatorToIndicator.derivedIndicatorId],
+      references: [derivedIndicator.id],
+    }),
+    indicator: one(indicator, {
+      fields: [derivedIndicatorToIndicator.indicatorId],
+      references: [indicator.id],
+    }),
+  }),
+)
 
 export const productOutputSummaryRelations = relations(
   productOutputSummary,
