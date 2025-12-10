@@ -5,6 +5,7 @@ import {
   anonymous,
   apiKey,
   openAPI,
+  organization,
   twoFactor,
 } from 'better-auth/plugins'
 import { env } from '~/env'
@@ -17,6 +18,7 @@ export type Plugins = [
   ReturnType<typeof openAPI>,
   ReturnType<typeof anonymous>,
   ReturnType<typeof apiKey>,
+  ReturnType<typeof organization>,
 ]
 
 const plugins: Plugins = [
@@ -31,11 +33,19 @@ const plugins: Plugins = [
       timeWindow: 1000 * 60 * 60,
       maxRequests: 10000,
     },
+    enableSessionForAPIKeys: true,
   }),
-  // organization(),
+  organization(),
 ]
 
 const authConfig = {
+  logger: {
+    level: 'info',
+    disabled: false,
+    log: (level, message) => {
+      console.log(level, message)
+    },
+  },
   baseURL: env.INTERNAL_BACKEND_URL,
   trustedOrigins: env.TRUSTED_ORIGINS,
   database: drizzleAdapter(db, {

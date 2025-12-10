@@ -1,14 +1,13 @@
+import { relations } from 'drizzle-orm'
 import {
-  boolean,
-  index,
-  integer,
-  jsonb,
   pgTable,
   text,
   timestamp,
+  boolean,
+  integer,
+  index,
 } from 'drizzle-orm/pg-core'
 
-// AUTH tables
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -16,13 +15,16 @@ export const user = pgTable('user', {
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  isAnonymous: boolean('is_anonymous'),
+  updatedAt: timestamp('updated_at')
+    .defaultNow()
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
   role: text('role'),
-  banned: boolean('banned'),
+  banned: boolean('banned').default(false),
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
-  twoFactorEnabled: boolean('two_factor_enabled'),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  isAnonymous: boolean('is_anonymous').default(false),
 })
 
 export const session = pgTable(
@@ -31,8 +33,10 @@ export const session = pgTable(
     id: text('id').primaryKey(),
     expiresAt: timestamp('expires_at').notNull(),
     token: text('token').notNull().unique(),
-    createdAt: timestamp('created_at').notNull(),
-    updatedAt: timestamp('updated_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
     userId: text('user_id')
@@ -41,7 +45,7 @@ export const session = pgTable(
     impersonatedBy: text('impersonated_by'),
     activeOrganizationId: text('active_organization_id'),
   },
-  (table) => [index('session_user_id_idx').on(table.userId)],
+  (table) => [index('session_userId_idx').on(table.userId)],
 )
 
 export const account = pgTable(
@@ -60,10 +64,12 @@ export const account = pgTable(
     refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
     scope: text('scope'),
     password: text('password'),
-    createdAt: timestamp('created_at').notNull(),
-    updatedAt: timestamp('updated_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
-  (table) => [index('account_user_id_idx').on(table.userId)],
+  (table) => [index('account_userId_idx').on(table.userId)],
 )
 
 export const verification = pgTable(
@@ -74,7 +80,10 @@ export const verification = pgTable(
     value: text('value').notNull(),
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 )
@@ -82,7 +91,7 @@ export const verification = pgTable(
 export const organization = pgTable('organization', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-
+  slug: text('slug').notNull().unique(),
   logo: text('logo'),
   createdAt: timestamp('created_at').notNull(),
   metadata: text('metadata'),
@@ -102,8 +111,8 @@ export const member = pgTable(
     createdAt: timestamp('created_at').notNull(),
   },
   (table) => [
-    index('member_user_id_idx').on(table.userId),
-    index('member_organization_id_idx').on(table.organizationId),
+    index('member_organizationId_idx').on(table.organizationId),
+    index('member_userId_idx').on(table.userId),
   ],
 )
 
@@ -118,13 +127,14 @@ export const invitation = pgTable(
     role: text('role'),
     status: text('status').default('pending').notNull(),
     expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
     inviterId: text('inviter_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
   },
   (table) => [
+    index('invitation_organizationId_idx').on(table.organizationId),
     index('invitation_email_idx').on(table.email),
-    index('invitation_organization_id_idx').on(table.organizationId),
   ],
 )
 
@@ -138,7 +148,10 @@ export const twoFactor = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
   },
-  (table) => [index('two_factor_secret_idx').on(table.secret)],
+  (table) => [
+    index('twoFactor_secret_idx').on(table.secret),
+    index('twoFactor_userId_idx').on(table.userId),
+  ],
 )
 
 export const apikey = pgTable(
@@ -155,23 +168,85 @@ export const apikey = pgTable(
     refillInterval: integer('refill_interval'),
     refillAmount: integer('refill_amount'),
     lastRefillAt: timestamp('last_refill_at'),
-    enabled: boolean('enabled').notNull().default(true),
-    rateLimitEnabled: boolean('rate_limit_enabled').notNull().default(false),
-    rateLimitTimeWindow: integer('rate_limit_time_window'),
-    rateLimitMax: integer('rate_limit_max'),
-    requestCount: integer('request_count').notNull().default(0),
+    enabled: boolean('enabled').default(true),
+    rateLimitEnabled: boolean('rate_limit_enabled').default(false),
+    rateLimitTimeWindow: integer('rate_limit_time_window').default(3600000),
+    rateLimitMax: integer('rate_limit_max').default(10000),
+    requestCount: integer('request_count').default(0),
     remaining: integer('remaining'),
     lastRequest: timestamp('last_request'),
     expiresAt: timestamp('expires_at'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').notNull(),
+    updatedAt: timestamp('updated_at').notNull(),
     permissions: text('permissions'),
-    metadata: jsonb('metadata'),
+    metadata: text('metadata'),
   },
   (table) => [
-    index('api_key_user_id_idx').on(table.userId),
-    index('api_key_prefix_idx').on(table.prefix),
-    index('api_key_enabled_idx').on(table.enabled),
-    index('api_key_expires_at_idx').on(table.expiresAt),
+    index('apikey_key_idx').on(table.key),
+    index('apikey_userId_idx').on(table.userId),
   ],
 )
+
+export const userRelations = relations(user, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  twoFactors: many(twoFactor),
+  apikeys: many(apikey),
+  members: many(member),
+  invitations: many(invitation),
+}))
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, {
+    fields: [session.userId],
+    references: [user.id],
+  }),
+}))
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
+  }),
+}))
+
+export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
+  user: one(user, {
+    fields: [twoFactor.userId],
+    references: [user.id],
+  }),
+}))
+
+export const apikeyRelations = relations(apikey, ({ one }) => ({
+  user: one(user, {
+    fields: [apikey.userId],
+    references: [user.id],
+  }),
+}))
+
+export const organizationRelations = relations(organization, ({ many }) => ({
+  members: many(member),
+  invitations: many(invitation),
+}))
+
+export const memberRelations = relations(member, ({ one }) => ({
+  organization: one(organization, {
+    fields: [member.organizationId],
+    references: [organization.id],
+  }),
+  user: one(user, {
+    fields: [member.userId],
+    references: [user.id],
+  }),
+}))
+
+export const invitationRelations = relations(invitation, ({ one }) => ({
+  organization: one(organization, {
+    fields: [invitation.organizationId],
+    references: [organization.id],
+  }),
+  user: one(user, {
+    fields: [invitation.inviterId],
+    references: [user.id],
+  }),
+}))
