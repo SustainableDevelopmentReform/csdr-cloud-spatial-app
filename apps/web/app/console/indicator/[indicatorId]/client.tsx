@@ -15,6 +15,7 @@ import {
   FormLabel,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { IndicatorCategorySelect } from '../_components/indicator-category-select'
 
 const IndicatorDetails = () => {
   const { data: indicator } = useIndicator()
@@ -53,6 +54,24 @@ const IndicatorDetails = () => {
               <FormMessage />
             </FormItem>
           )}
+        />
+        <FormField
+          control={form.control}
+          name="categoryId"
+          render={({ field }) => {
+            return (
+              <FormItem>
+                <FormLabel>Indicator Category</FormLabel>
+                <FormControl>
+                  <IndicatorCategorySelect
+                    value={field.value}
+                    onChange={(value) => field.onChange(value?.id ?? null)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )
+          }}
         />
       </CrudForm>
     </div>

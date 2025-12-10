@@ -17,16 +17,14 @@ import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
-import { SelectWithSearchWithCreate } from '../../../components/form/select-with-search-with-create'
 import { IndicatorButton } from './_components/indicator-button'
 import { IndicatorCategoryButton } from './_components/indicator-category-button'
+import { IndicatorCategorySelect } from './_components/indicator-category-select'
 import {
+  IndicatorListItem,
   useCreateIndicator,
-  useCreateIndicatorCategory,
-  useIndicatorCategories,
   useIndicatorLink,
   useIndicators,
-  IndicatorListItem,
 } from './_hooks'
 
 const IndicatorFeature = () => {
@@ -38,10 +36,7 @@ const IndicatorFeature = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useIndicators(undefined, true)
-  const { data: indicatorCategories } = useIndicatorCategories()
   const createIndicator = useCreateIndicator()
-  const createIndicatorCategory = useCreateIndicatorCategory()
-
   const indicatorLink = useIndicatorLink()
 
   const baseColumns = useMemo(() => {
@@ -105,28 +100,9 @@ const IndicatorFeature = () => {
                 <FormItem>
                   <FormLabel>Indicator Category</FormLabel>
                   <FormControl>
-                    <SelectWithSearchWithCreate
-                      options={indicatorCategories?.data}
-                      value={
-                        indicatorCategories?.data.find(
-                          (category) => category.id === field.value,
-                        ) ?? null
-                      }
+                    <IndicatorCategorySelect
+                      value={field.value}
                       onChange={(value) => field.onChange(value?.id)}
-                      placeholder="Root Category"
-                      onCreateOption={(input) => {
-                        createIndicatorCategory.mutate(
-                          {
-                            name: input,
-                          },
-                          {
-                            onSuccess: (indicatorCategory) => {
-                              field.onChange(indicatorCategory?.id)
-                            },
-                          },
-                        )
-                      }}
-                      isClearable
                     />
                   </FormControl>
                   <FormMessage />
