@@ -97,3 +97,14 @@ To seed the database, run:
 ```bash
 pnpm seed
 ```
+
+### Updating Better Auth DB Schema
+
+Note: you may need to update the version (eg `@1.4.6`) of the better-auth CLI to the version used in the project.
+
+```bash
+cd apps/server
+npx @better-auth/cli@1.4.6 generate --output src/schemas/auth.ts --config src/lib/auth.ts
+```
+
+Then follow the instructions in the terminal to generate and run the migration...
