@@ -14,7 +14,10 @@ import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
-import { INDICATORS_BASE_PATH } from '../../../lib/paths'
+import {
+  INDICATORS_BASE_PATH,
+  INDICATORS_DERIVED_BASE_PATH,
+} from '../../../lib/paths'
 
 export type IndicatorListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['indicator']['$get'], 200>['data']
@@ -70,6 +73,7 @@ export type CreateIndicatorCategoryPayload = NonNullable<
 
 const indicatorParamsSchema = z.object({
   indicatorId: z.string().optional(),
+  derivedIndicatorId: z.string().optional(),
   indicatorCategoryId: z.string().optional(),
 })
 
@@ -95,21 +99,24 @@ const indicatorCategoryQueryKeys = {
 
 const useIndicatorParams = (
   _indicatorId?: string,
+  _derivedIndicatorId?: string,
   _indicatorCategoryId?: string,
 ) => {
   const params = useParams()
-  const { indicatorId, indicatorCategoryId } =
+  const { indicatorId, indicatorCategoryId, derivedIndicatorId } =
     indicatorParamsSchema.parse(params)
 
   return {
     indicatorId: _indicatorId ?? indicatorId,
     indicatorCategoryId: _indicatorCategoryId ?? indicatorCategoryId,
+    derivedIndicatorId: _derivedIndicatorId ?? derivedIndicatorId,
   }
 }
 
 export const useIndicators = (
   _query?: z.infer<typeof indicatorQuerySchema>,
   useSearchParams?: boolean,
+  enabled = true,
 ) => {
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
@@ -138,6 +145,7 @@ export const useIndicators = (
       const nextPage = allPages.length + 1
       return nextPage <= lastPage.pageCount ? nextPage : undefined
     },
+    enabled: enabled ?? true,
   })
 
   const aggregatedData = useMemo(
@@ -195,8 +203,30 @@ export const useIndicator = (id?: string) => {
   })
 }
 
+export const useDerivedIndicator = (id?: string) => {
+  const { derivedIndicatorId } = useIndicatorParams(undefined, id)
+  const client = useApiClient()
+  return useQuery({
+    queryKey: derivedIndicatorQueryKeys.detail(derivedIndicatorId),
+    queryFn: async () => {
+      if (!derivedIndicatorId) return null
+      const res = client.api.v0.indicator.derived[':id'].$get({
+        param: {
+          id: derivedIndicatorId,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+
+      return json.data
+    },
+
+    enabled: !!derivedIndicatorId,
+  })
+}
+
 export const useIndicatorCategory = (id?: string) => {
-  const { indicatorCategoryId } = useIndicatorParams(undefined, id)
+  const { indicatorCategoryId } = useIndicatorParams(undefined, undefined, id)
   const client = useApiClient()
   return useQuery({
     queryKey: indicatorCategoryQueryKeys.detail(indicatorCategoryId),
@@ -295,8 +325,30 @@ export const useUpdateIndicator = (_indicatorId?: string) => {
   })
 }
 
+export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
+  const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateDerivedIndicatorPayload) => {
+      if (!derivedIndicatorId) return
+      const res = client.api.v0.indicator.derived[':id'].$patch({
+        param: { id: derivedIndicatorId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: derivedIndicatorQueryKeys.all,
+      })
+    },
+  })
+}
+
 export const useUpdateIndicatorCategory = (_indicatorCategoryId?: string) => {
   const { indicatorCategoryId } = useIndicatorParams(
+    undefined,
     undefined,
     _indicatorCategoryId,
   )
@@ -358,25 +410,28 @@ export const useDeleteDerivedIndicator = (
   _derivedIndicatorId?: string,
   redirect: string | null = null,
 ) => {
-  const { indicatorId } = useIndicatorParams(_derivedIndicatorId)
+  const { derivedIndicatorId } = useIndicatorParams(
+    undefined,
+    _derivedIndicatorId,
+  )
   const queryClient = useQueryClient()
   const router = useRouter()
   const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
-      if (!indicatorId) return
+      if (!derivedIndicatorId) return
       const res = client.api.v0.indicator.derived[':id'].$delete({
         param: {
-          id: indicatorId,
+          id: derivedIndicatorId,
         },
       })
 
       return await unwrapResponse(res)
     },
     onSuccess: () => {
-      if (indicatorId) {
+      if (derivedIndicatorId) {
         queryClient.removeQueries({
-          queryKey: derivedIndicatorQueryKeys.detail(indicatorId),
+          queryKey: derivedIndicatorQueryKeys.detail(derivedIndicatorId),
         })
       }
       queryClient.invalidateQueries({
@@ -394,6 +449,7 @@ export const useDeleteIndicatorCategory = (
   redirect: string | null = null,
 ) => {
   const { indicatorCategoryId } = useIndicatorParams(
+    undefined,
     undefined,
     _indicatorCategoryId,
   )
@@ -427,7 +483,10 @@ export const useDeleteIndicatorCategory = (
   })
 }
 
-export type IndicatorLinkParams = Pick<IndicatorListItem, 'id' | 'name'>
+export type IndicatorLinkParams = Pick<
+  IndicatorListItem,
+  'id' | 'name' | 'isDerived'
+>
 export type IndicatorCategoryLinkParams = Pick<
   IndicatorCategoryListItem,
   'id' | 'name'
@@ -443,7 +502,7 @@ export const useIndicatorsLink = () =>
 export const useIndicatorLink = () =>
   useCallback(
     (indicator: IndicatorLinkParams) =>
-      `${INDICATORS_BASE_PATH}/${indicator.id}`,
+      `${indicator.isDerived ? INDICATORS_DERIVED_BASE_PATH : INDICATORS_BASE_PATH}/${indicator.id}`,
     [],
   )
 

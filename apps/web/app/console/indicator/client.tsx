@@ -31,6 +31,8 @@ import {
   useIndicators,
 } from './_hooks'
 import { Textarea } from '@repo/ui/components/ui/textarea'
+import { GeometriesSelect } from '../geometries/_components/geometries-select'
+import { IndicatorsSelect } from './_components/indicators-select'
 
 const IndicatorFeature = () => {
   const {
@@ -159,6 +161,24 @@ const IndicatorFeature = () => {
                   </FormItem>
                 )
               }}
+            />
+
+            <FormField
+              control={derivedIndicatorForm.control}
+              name="indicatorIds"
+              render={({ field }) => (
+                <FormItem>
+                  <IndicatorsSelect
+                    value={field.value ?? []}
+                    onChange={(selectedIndicators) =>
+                      field.onChange(selectedIndicators.map((i) => i.id))
+                    }
+                    isClearable
+                    isMulti
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
             />
 
             <FormField
