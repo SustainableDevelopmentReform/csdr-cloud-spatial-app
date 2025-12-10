@@ -1,25 +1,13 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@repo/ui/components/ui/alert-dialog'
-import { Button } from '@repo/ui/components/ui/button'
+import { Badge } from '@repo/ui/components/ui/badge'
 import {
   createColumnHelper,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import React from 'react'
+import { DeleteAlertDialog } from '../../../../../components/form/delete-alert-dialog'
 import Table from '../../../../../components/table/table'
 import { ApiKey, useDeleteApiKey } from '../../_hooks'
-import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
-import { DeleteAlertDialog } from '../../../../../components/form/delete-alert-dialog'
 
 interface UsersTableProps {
   data: ApiKey[]
@@ -33,10 +21,19 @@ const columns = [
     cell: (info) => info.getValue(),
     minSize: 160,
   }),
-  columnHelper.accessor('enabled', {
+  columnHelper.display({
+    id: 'enabled',
     header: () => <span>Enabled</span>,
-    cell: (info) => info.getValue(),
-    minSize: 160,
+    cell: ({ row }) => {
+      const value = row.original.enabled
+
+      if (value) {
+        return <Badge variant="default">Enabled</Badge>
+      } else {
+        return <Badge variant="destructive">Disabled</Badge>
+      }
+    },
+    size: 120,
   }),
   columnHelper.accessor('createdAt', {
     header: () => <span>Date added</span>,

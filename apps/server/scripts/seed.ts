@@ -60,6 +60,7 @@ async function main() {
     .insert(schema.organization)
     .values({
       id: 'default-organization',
+      slug: 'default-organization',
       name: 'Default Organization',
       createdAt: new Date(),
       metadata: '{}',
