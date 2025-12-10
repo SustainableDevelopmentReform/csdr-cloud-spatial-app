@@ -127,6 +127,13 @@
       "when": 1765341008591,
       "tag": "0017_friendly_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1765343655386,
+      "tag": "0018_silky_zarda",
+      "breakpoints": true
     }
   ]
 }
