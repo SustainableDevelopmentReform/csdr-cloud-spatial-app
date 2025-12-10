@@ -1,5 +1,5 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { SelectWithSearch } from '../../../../components/form/select-with-search'
+import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
 import { ProductListItem, useProduct, useProducts } from '../_hooks'
 
 export const ProductSelect = ({

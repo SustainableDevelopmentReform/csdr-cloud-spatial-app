@@ -1,6 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { SelectWithSearch } from '../../../../components/form/select-with-search'
-import { SelectWithSearchWithCreate } from '../../../../components/form/select-with-search-with-create'
+import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import { SelectWithSearchWithCreate } from '@repo/ui/components/ui/select-with-search-with-create'
 import {
   IndicatorListItem,
   useCreateIndicator,
