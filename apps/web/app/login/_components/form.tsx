@@ -62,7 +62,11 @@ const LoginForm = () => {
   return (
     <>
       <Form {...form}>
-        <form className="grid gap-4 w-full" onSubmit={handleSubmit(onSubmit)}>
+        <form
+          method="post"
+          className="grid gap-4 w-full"
+          onSubmit={handleSubmit(onSubmit)}
+        >
           <FormField
             control={control}
             name="email"
