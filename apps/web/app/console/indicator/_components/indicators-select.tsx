@@ -2,13 +2,13 @@ import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '../../../../components/form/select-with-search'
 import { SelectWithSearchWithCreate } from '../../../../components/form/select-with-search-with-create'
 import {
-  VariableListItem,
-  useCreateVariable,
-  useVariable,
-  useVariables,
+  IndicatorListItem,
+  useCreateIndicator,
+  useIndicator,
+  useIndicators,
 } from '../_hooks'
 
-export const VariablesSelect = ({
+export const IndicatorsSelect = ({
   value,
   onChange,
   isDisabled,
@@ -17,31 +17,31 @@ export const VariablesSelect = ({
   creatable,
 }: {
   value: string | null | undefined
-  onChange: (variable: VariableListItem | null) => void
+  onChange: (indicator: IndicatorListItem | null) => void
   isDisabled?: boolean
   isClearable?: boolean
   placeholder?: string
   creatable?: boolean
 }) => {
   const {
-    data: variables,
+    data: indicators,
     setSearchParams,
     fetchNextPage,
     hasNextPage,
-    isLoading: isLoadingVariables,
+    isLoading: isLoadingIndicators,
     isFetchingNextPage,
-  } = useVariables()
+  } = useIndicators()
 
-  const { data: selectedVariable } = useVariable(value ?? undefined)
-  const createVariable = useCreateVariable()
+  const { data: selectedIndicator } = useIndicator(value ?? undefined)
+  const createIndicator = useCreateIndicator()
 
   return (
-    <FieldGroup title="Select Variable" disabled={isDisabled}>
+    <FieldGroup title="Select Indicator" disabled={isDisabled}>
       {creatable ? (
         <SelectWithSearchWithCreate
           placeholder={placeholder}
-          options={variables?.data}
-          value={selectedVariable ?? null}
+          options={indicators?.data}
+          value={selectedIndicator ?? null}
           onSearch={(search) => {
             setSearchParams({ search })
           }}
@@ -49,7 +49,7 @@ export const VariablesSelect = ({
             onChange(nextValue)
           }}
           isDisabled={isDisabled}
-          isLoading={isLoadingVariables || isFetchingNextPage}
+          isLoading={isLoadingIndicators || isFetchingNextPage}
           onMenuScrollToBottom={() => {
             if (hasNextPage) {
               fetchNextPage()
@@ -57,14 +57,14 @@ export const VariablesSelect = ({
           }}
           isClearable={isClearable}
           onCreateOption={(input) => {
-            createVariable.mutate(
+            createIndicator.mutate(
               {
                 name: input,
                 unit: '',
               },
               {
-                onSuccess: (variable) => {
-                  onChange(variable)
+                onSuccess: (indicator) => {
+                  onChange(indicator)
                 },
               },
             )
@@ -73,8 +73,8 @@ export const VariablesSelect = ({
       ) : (
         <SelectWithSearch
           placeholder={placeholder}
-          options={variables?.data}
-          value={selectedVariable ?? null}
+          options={indicators?.data}
+          value={selectedIndicator ?? null}
           onSearch={(search) => {
             setSearchParams({ search })
           }}
@@ -82,7 +82,7 @@ export const VariablesSelect = ({
             onChange(nextValue)
           }}
           isDisabled={isDisabled}
-          isLoading={isLoadingVariables || isFetchingNextPage}
+          isLoading={isLoadingIndicators || isFetchingNextPage}
           onMenuScrollToBottom={() => {
             if (hasNextPage) {
               fetchNextPage()

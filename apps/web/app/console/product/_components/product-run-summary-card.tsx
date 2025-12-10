@@ -3,7 +3,7 @@ import { ArrowUpRightIcon, RefreshCwIcon } from 'lucide-react'
 import { formatDateTime, formatDate } from '@repo/ui/lib/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
-import { VariableButton } from '../../variable/_components/variable-button'
+import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import {
   ProductRunDetail,
   useProductRunLink,
@@ -56,15 +56,15 @@ export const ProductRunSummaryCard = ({
         <div className="flex flex-col gap-4">
           {`${run?.outputSummary?.outputCount} outputs`}
           <div className="flex flex-col gap-4">
-            {run?.outputSummary?.variables?.map((variable) => (
-              <div className="flex flex-col gap-2" key={variable.variable.id}>
-                <VariableButton variable={variable.variable} />
+            {run?.outputSummary?.indicators?.map((indicator) => (
+              <div className="flex flex-col gap-2" key={indicator.indicator.id}>
+                <IndicatorButton indicator={indicator.indicator} />
                 <div className="flex flex-col gap-1">
-                  <div>Count: {variable.count}</div>
+                  <div>Count: {indicator.count}</div>
                   <div>
-                    Data range: {variable.minValue} to {variable.maxValue}
+                    Data range: {indicator.minValue} to {indicator.maxValue}
                   </div>
-                  <div>Mean: {variable.avgValue}</div>
+                  <div>Mean: {indicator.avgValue}</div>
                 </div>
               </div>
             ))}

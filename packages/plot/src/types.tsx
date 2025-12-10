@@ -9,7 +9,7 @@ export type PlotChartConfiguration = {
   type: 'plot'
   subType: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
   productRunId: string
-  variableIds?: string[]
+  indicatorIds?: string[]
   geometryOutputIds?: string[]
   timePoints?: string[]
 } & BaseChartConfiguration
@@ -17,20 +17,20 @@ export type PlotChartConfiguration = {
 export type MapChartConfiguration = {
   type: 'map'
   productRunId: string
-  variableId: string
+  indicatorId: string
   timePoint: string
   geometryOutputIds?: string[]
 } & BaseChartConfiguration
 
 export type TableChartDimension =
   | 'timePoint'
-  | 'variableName'
+  | 'indicatorName'
   | 'geometryOutputName'
 
 export type TableChartConfiguration = {
   type: 'table'
   productRunId: string
-  variableIds?: string[]
+  indicatorIds?: string[]
   geometryOutputIds?: string[]
   xDimension: TableChartDimension
   yDimension: TableChartDimension

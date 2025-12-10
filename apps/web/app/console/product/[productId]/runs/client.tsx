@@ -18,7 +18,7 @@ import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { DatasetRunSelect } from '../../../dataset/_components/dataset-run-select'
 import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
-import { VariableButtons } from '../../../variable/_components/variable-button'
+import { IndicatorButtons } from '../../../indicator/_components/indicator-button'
 import { ProductButton } from '../../_components/product-button'
 import { ProductRunButton } from '../../_components/product-run-button'
 import {
@@ -54,12 +54,12 @@ const ProductRunFeature = () => {
   const columns = useMemo(() => {
     return [
       {
-        header: 'Variables',
+        header: 'Indicators',
         cell: ({ row }) => {
           return (
-            <VariableButtons
-              variables={row.original.outputSummary?.variables.map(
-                (v) => v.variable,
+            <IndicatorButtons
+              indicators={row.original.outputSummary?.indicators.map(
+                (v) => v.indicator,
               )}
             />
           )

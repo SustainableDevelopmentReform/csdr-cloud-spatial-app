@@ -34,8 +34,8 @@ import {
   useProductOutputs,
   useProductRun,
 } from '../../../_hooks'
-import { VariableButton } from '../../../../variable/_components/variable-button'
-import { VariablesSelect } from '../../../../variable/_components/variables-select'
+import { IndicatorButton } from '../../../../indicator/_components/indicator-button'
+import { IndicatorsSelect } from '../../../../indicator/_components/indicators-select'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -59,11 +59,11 @@ const ProductOutputFeature = () => {
   const columns = useMemo(
     () =>
       [
-        columnHelper.accessor((row) => row.variable.name, {
-          id: 'variable',
-          header: () => <span>Variable</span>,
+        columnHelper.accessor((row) => row.indicator.name, {
+          id: 'indicator',
+          header: () => <span>Indicator</span>,
           cell: (info) => {
-            return <VariableButton variable={info.row.original.variable} />
+            return <IndicatorButton indicator={info.row.original.indicator} />
           },
           size: 20,
         }),
@@ -180,10 +180,10 @@ const ProductOutputFeature = () => {
             />
             <FormField
               control={form.control}
-              name="variableId"
+              name="indicatorId"
               render={({ field }) => (
                 <FormItem>
-                  <VariablesSelect
+                  <IndicatorsSelect
                     value={field.value}
                     onChange={(value) => field.onChange(value?.id ?? null)}
                     creatable

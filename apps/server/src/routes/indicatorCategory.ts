@@ -10,15 +10,15 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { variableCategory } from '../schemas/db'
+import { indicatorCategory } from '../schemas/db'
 import { baseColumns, QueryForTable } from '../schemas/util'
 import {
-  createVariableCategorySchema,
-  updateVariableCategorySchema,
-  variableCategorySchema,
+  createIndicatorCategorySchema,
+  updateIndicatorCategorySchema,
+  indicatorCategorySchema,
 } from '@repo/schemas/crud'
 
-const variableCategoryQuery = {
+const indicatorCategoryQuery = {
   columns: {
     ...baseColumns,
     parentId: true,
@@ -29,29 +29,29 @@ const variableCategoryQuery = {
       columns: baseColumns,
     },
   },
-} satisfies QueryForTable<'variableCategory'>
+} satisfies QueryForTable<'indicatorCategory'>
 
-const variableCategoryNotFoundError = () =>
+const indicatorCategoryNotFoundError = () =>
   new ServerError({
     statusCode: 404,
-    message: 'Failed to get variableCategory',
-    description: "variableCategory you're looking for is not found",
+    message: 'Failed to get indicatorCategory',
+    description: "indicatorCategory you're looking for is not found",
   })
 
-const fetchFullVariableCategory = async (id: string) => {
-  const record = await db.query.variableCategory.findFirst({
-    where: (variableCategory, { eq }) => eq(variableCategory.id, id),
-    ...variableCategoryQuery,
+const fetchFullIndicatorCategory = async (id: string) => {
+  const record = await db.query.indicatorCategory.findFirst({
+    where: (indicatorCategory, { eq }) => eq(indicatorCategory.id, id),
+    ...indicatorCategoryQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullVariableCategoryOrThrow = async (id: string) => {
-  const record = await fetchFullVariableCategory(id)
+const fetchFullIndicatorCategoryOrThrow = async (id: string) => {
+  const record = await fetchFullIndicatorCategory(id)
 
   if (!record) {
-    throw variableCategoryNotFoundError()
+    throw indicatorCategoryNotFoundError()
   }
 
   return record
@@ -60,22 +60,22 @@ const fetchFullVariableCategoryOrThrow = async (id: string) => {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
-      description: 'List all variable categories.',
+      description: 'List all indicator categories.',
       method: 'get',
       path: '/',
       middleware: [
         authMiddleware({
-          permission: 'read:variableCategory',
+          permission: 'read:indicatorCategory',
         }),
       ],
       responses: {
         200: {
-          description: 'Successfully listed all variable categories.',
+          description: 'Successfully listed all indicator categories.',
           content: {
             'application/json': {
               schema: createResponseSchema(
                 z.object({
-                  data: z.array(variableCategorySchema),
+                  data: z.array(indicatorCategorySchema),
                   totalCount: z.number().int(),
                 }),
               ),
@@ -83,7 +83,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        500: jsonErrorResponse('Failed to list variable categories'),
+        500: jsonErrorResponse('Failed to list indicator categories'),
       },
     }),
     async (c) => {
@@ -91,11 +91,11 @@ const app = createOpenAPIApp()
         .select({
           count: count(),
         })
-        .from(variableCategory)
+        .from(indicatorCategory)
 
-      const data = await db.query.variableCategory.findMany({
-        ...variableCategoryQuery,
-        orderBy: desc(variableCategory.createdAt),
+      const data = await db.query.indicatorCategory.findMany({
+        ...indicatorCategoryQuery,
+        orderBy: desc(indicatorCategory.createdAt),
       })
 
       return generateJsonResponse(
@@ -111,31 +111,31 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Get a single variable category.',
+      description: 'Get a single indicator category.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:variableCategory' })],
+      middleware: [authMiddleware({ permission: 'read:indicatorCategory' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
       responses: {
         200: {
-          description: 'Successfully retrieved a variable category.',
+          description: 'Successfully retrieved a indicator category.',
           content: {
             'application/json': {
-              schema: createResponseSchema(variableCategorySchema),
+              schema: createResponseSchema(indicatorCategorySchema),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Variable category not found'),
+        404: jsonErrorResponse('Indicator category not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to fetch variable category'),
+        500: jsonErrorResponse('Failed to fetch indicator category'),
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullVariableCategoryOrThrow(id)
+      const record = await fetchFullIndicatorCategoryOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -143,12 +143,12 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Create a variable category.',
+      description: 'Create a indicator category.',
       method: 'post',
       path: '/',
       middleware: [
         authMiddleware({
-          permission: 'write:variableCategory',
+          permission: 'write:indicatorCategory',
         }),
       ],
       request: {
@@ -156,57 +156,57 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: createVariableCategorySchema,
+              schema: createIndicatorCategorySchema,
             },
           },
         },
       },
       responses: {
         201: {
-          description: 'Successfully created a variable category.',
+          description: 'Successfully created a indicator category.',
           content: {
             'application/json': {
-              schema: createResponseSchema(variableCategorySchema),
+              schema: createResponseSchema(indicatorCategorySchema),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to create variable category'),
+        500: jsonErrorResponse('Failed to create indicator category'),
       },
     }),
     async (c) => {
       const data = c.req.valid('json')
       const id = crypto.randomUUID()
-      const [newVariableCategory] = await db
-        .insert(variableCategory)
+      const [newIndicatorCategory] = await db
+        .insert(indicatorCategory)
         .values({ ...data, id })
         .returning()
 
-      if (!newVariableCategory) {
+      if (!newIndicatorCategory) {
         throw new ServerError({
           statusCode: 500,
-          message: 'Failed to create variableCategory',
-          description: 'Variable category insert did not return a record',
+          message: 'Failed to create indicatorCategory',
+          description: 'Indicator category insert did not return a record',
         })
       }
 
-      const record = await fetchFullVariableCategoryOrThrow(
-        newVariableCategory.id,
+      const record = await fetchFullIndicatorCategoryOrThrow(
+        newIndicatorCategory.id,
       )
 
-      return generateJsonResponse(c, record, 201, 'Variable category created')
+      return generateJsonResponse(c, record, 201, 'Indicator category created')
     },
   )
 
   .openapi(
     createRoute({
-      description: 'Update a variable category.',
+      description: 'Update a indicator category.',
       method: 'patch',
       path: '/:id',
       middleware: [
         authMiddleware({
-          permission: 'write:variableCategory',
+          permission: 'write:indicatorCategory',
         }),
       ],
       request: {
@@ -215,14 +215,14 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: updateVariableCategorySchema,
+              schema: updateIndicatorCategorySchema,
             },
           },
         },
       },
       responses: {
         200: {
-          description: 'Successfully updated a variable category.',
+          description: 'Successfully updated a indicator category.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -230,43 +230,43 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Variable category not found'),
+        404: jsonErrorResponse('Indicator category not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to update variable category'),
+        500: jsonErrorResponse('Failed to update indicator category'),
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param')
       const data = c.req.valid('json')
       const [record] = await db
-        .update(variableCategory)
+        .update(indicatorCategory)
         .set(data)
-        .where(eq(variableCategory.id, id))
+        .where(eq(indicatorCategory.id, id))
         .returning()
 
       if (!record) {
-        throw variableCategoryNotFoundError()
+        throw indicatorCategoryNotFoundError()
       }
 
-      const fullRecord = await fetchFullVariableCategoryOrThrow(record.id)
+      const fullRecord = await fetchFullIndicatorCategoryOrThrow(record.id)
 
       return generateJsonResponse(
         c,
         fullRecord,
         200,
-        'Variable category updated',
+        'Indicator category updated',
       )
     },
   )
 
   .openapi(
     createRoute({
-      description: 'Delete a variable category.',
+      description: 'Delete a indicator category.',
       method: 'delete',
       path: '/:id',
       middleware: [
         authMiddleware({
-          permission: 'write:variableCategory',
+          permission: 'write:indicatorCategory',
         }),
       ],
       request: {
@@ -274,7 +274,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Successfully deleted a variable category.',
+          description: 'Successfully deleted a indicator category.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.any()),
@@ -282,18 +282,18 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Variable category not found'),
+        404: jsonErrorResponse('Indicator category not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to delete variable category'),
+        500: jsonErrorResponse('Failed to delete indicator category'),
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullVariableCategoryOrThrow(id)
+      const record = await fetchFullIndicatorCategoryOrThrow(id)
 
-      await db.delete(variableCategory).where(eq(variableCategory.id, id))
+      await db.delete(indicatorCategory).where(eq(indicatorCategory.id, id))
 
-      return generateJsonResponse(c, record, 200, 'Variable category deleted')
+      return generateJsonResponse(c, record, 200, 'Indicator category deleted')
     },
   )
 

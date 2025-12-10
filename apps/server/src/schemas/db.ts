@@ -205,9 +205,9 @@ export const productOutput = pgTable(
     ),
 
     value: numeric('value', { mode: 'number' }).notNull(),
-    variableId: text('variable_id')
+    indicatorId: text('indicator_id')
       .notNull()
-      .references(() => variable.id),
+      .references(() => indicator.id),
 
     timePoint: timestamp('time_point', {
       mode: 'date',
@@ -220,17 +220,17 @@ export const productOutput = pgTable(
     index('product_output_product_run_idx').on(table.productRunId),
     index('product_output_created_at_idx').on(table.createdAt),
     index('product_output_geometry_output_id_idx').on(table.geometryOutputId),
-    index('product_output_variable_id_idx').on(table.variableId),
+    index('product_output_indicator_id_idx').on(table.indicatorId),
     // Composite index for querying outputs by multiple criteria
-    index('product_output_run_variable_idx').on(
+    index('product_output_run_indicator_idx').on(
       table.productRunId,
-      table.variableId,
+      table.indicatorId,
     ),
     unique(
-      'product_output_run_variable_time_point_geometry_output_id_unique',
+      'product_output_run_indicator_time_point_geometry_output_id_unique',
     ).on(
       table.productRunId,
-      table.variableId,
+      table.indicatorId,
       table.timePoint,
       table.geometryOutputId,
     ),
@@ -239,7 +239,7 @@ export const productOutput = pgTable(
 
 // Table for product output summaries - automatically maintained via triggers
 // This table aggregates product outputs from each product's runs
-// to provide temporal ranges and variable lists for browsing products
+// to provide temporal ranges and indicator lists for browsing products
 export const productOutputSummary = pgTable(
   'product_output_summary',
   {
@@ -268,19 +268,19 @@ export const productOutputSummary = pgTable(
   ],
 )
 
-// Junction table for many-to-many relationship between productOutputSummary and variables
-export const productOutputSummaryVariable = pgTable(
-  'product_output_summary_variable',
+// Junction table for many-to-many relationship between productOutputSummary and indicators
+export const productOutputSummaryIndicator = pgTable(
+  'product_output_summary_indicator',
   {
     productRunId: text('product_run_id')
       .notNull()
       .references(() => productOutputSummary.productRunId, {
         onDelete: 'cascade',
       }),
-    variableId: text('variable_id')
+    indicatorId: text('indicator_id')
       .notNull()
-      .references(() => variable.id, { onDelete: 'cascade' }),
-    // Optional: track aggregated stats per variable
+      .references(() => indicator.id, { onDelete: 'cascade' }),
+    // Optional: track aggregated stats per indicator
     minValue: numeric('min_value', { mode: 'number' }),
     maxValue: numeric('max_value', { mode: 'number' }),
     avgValue: numeric('avg_value', { mode: 'number' }),
@@ -288,22 +288,22 @@ export const productOutputSummaryVariable = pgTable(
     lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   },
   (table) => [
-    index('summary_variable_product_run_idx').on(table.productRunId),
-    index('summary_variable_variable_idx').on(table.variableId),
+    index('summary_indicator_product_run_idx').on(table.productRunId),
+    index('summary_indicator_indicator_idx').on(table.indicatorId),
     // Composite primary key for the junction table
-    unique('summary_variable_pk').on(table.productRunId, table.variableId),
+    unique('summary_indicator_pk').on(table.productRunId, table.indicatorId),
   ],
 )
 
 // Taxonomy/category tree structure
-export const variableCategory = pgTable(
-  'variable_category',
+export const indicatorCategory = pgTable(
+  'indicator_category',
   {
     ...baseColumns,
 
     // Tree structure
     parentId: text('parent_id').references(
-      (): AnyPgColumn => variableCategory.id,
+      (): AnyPgColumn => indicatorCategory.id,
       { onDelete: 'set null' },
     ),
 
@@ -312,33 +312,33 @@ export const variableCategory = pgTable(
     displayOrder: integer('display_order').default(0),
   },
   (table) => [
-    index('variable_category_parent_idx').on(table.parentId),
-    index('variable_category_name_idx').on(table.name),
+    index('indicator_category_parent_idx').on(table.parentId),
+    index('indicator_category_name_idx').on(table.name),
     // Composite index for hierarchical queries with ordering
-    index('variable_category_parent_order_idx').on(
+    index('indicator_category_parent_order_idx').on(
       table.parentId,
       table.displayOrder,
     ),
   ],
 )
 
-// Actual measurable variables
-export const variable = pgTable(
-  'variable',
+// Actual measurable indicators
+export const indicator = pgTable(
+  'indicator',
   {
     ...baseColumns,
     unit: text('unit').notNull(),
     displayOrder: integer('display_order').default(0),
     // Link to category
-    categoryId: text('category_id').references(() => variableCategory.id, {
+    categoryId: text('category_id').references(() => indicatorCategory.id, {
       onDelete: 'cascade',
     }),
   },
   (table) => [
-    index('variable_category_idx').on(table.categoryId),
-    index('variable_name_idx').on(table.name),
-    // Composite index for listing variables within a category with ordering
-    index('variable_category_order_idx').on(
+    index('indicator_category_idx').on(table.categoryId),
+    index('indicator_name_idx').on(table.name),
+    // Composite index for listing indicators within a category with ordering
+    index('indicator_category_order_idx').on(
       table.categoryId,
       table.displayOrder,
     ),
@@ -439,7 +439,7 @@ export const productRunRelations = relations(productRun, ({ one, many }) => ({
     fields: [productRun.id],
     references: [productOutputSummary.productRunId],
   }),
-  outputSummaryVariables: many(productOutputSummaryVariable),
+  outputSummaryIndicators: many(productOutputSummaryIndicator),
 }))
 
 export const productOutputRelations = relations(productOutput, ({ one }) => ({
@@ -451,34 +451,34 @@ export const productOutputRelations = relations(productOutput, ({ one }) => ({
     fields: [productOutput.geometryOutputId],
     references: [geometryOutput.id],
   }),
-  variable: one(variable, {
-    fields: [productOutput.variableId],
-    references: [variable.id],
+  indicator: one(indicator, {
+    fields: [productOutput.indicatorId],
+    references: [indicator.id],
   }),
 }))
 
-export const variableCategoryRelations = relations(
-  variableCategory,
+export const indicatorCategoryRelations = relations(
+  indicatorCategory,
   ({ one, many }) => ({
-    parent: one(variableCategory, {
-      fields: [variableCategory.parentId],
-      references: [variableCategory.id],
+    parent: one(indicatorCategory, {
+      fields: [indicatorCategory.parentId],
+      references: [indicatorCategory.id],
       relationName: 'category_tree',
     }),
-    children: many(variableCategory, {
+    children: many(indicatorCategory, {
       relationName: 'category_tree',
     }),
-    variables: many(variable),
+    indicators: many(indicator),
   }),
 )
 
-export const variableRelations = relations(variable, ({ one, many }) => ({
-  category: one(variableCategory, {
-    fields: [variable.categoryId],
-    references: [variableCategory.id],
+export const indicatorRelations = relations(indicator, ({ one, many }) => ({
+  category: one(indicatorCategory, {
+    fields: [indicator.categoryId],
+    references: [indicatorCategory.id],
   }),
   productOutputs: many(productOutput),
-  productSummaries: many(productOutputSummaryVariable),
+  productSummaries: many(productOutputSummaryIndicator),
 }))
 
 export const productOutputSummaryRelations = relations(
@@ -488,24 +488,24 @@ export const productOutputSummaryRelations = relations(
       fields: [productOutputSummary.productRunId],
       references: [productRun.id],
     }),
-    variables: many(productOutputSummaryVariable),
+    indicators: many(productOutputSummaryIndicator),
   }),
 )
 
-export const productOutputSummaryVariableRelations = relations(
-  productOutputSummaryVariable,
+export const productOutputSummaryIndicatorRelations = relations(
+  productOutputSummaryIndicator,
   ({ one }) => ({
     productRun: one(productRun, {
-      fields: [productOutputSummaryVariable.productRunId],
+      fields: [productOutputSummaryIndicator.productRunId],
       references: [productRun.id],
     }),
     productOutputSummary: one(productOutputSummary, {
-      fields: [productOutputSummaryVariable.productRunId],
+      fields: [productOutputSummaryIndicator.productRunId],
       references: [productOutputSummary.productRunId],
     }),
-    variable: one(variable, {
-      fields: [productOutputSummaryVariable.variableId],
-      references: [variable.id],
+    indicator: one(indicator, {
+      fields: [productOutputSummaryIndicator.indicatorId],
+      references: [indicator.id],
     }),
   }),
 )

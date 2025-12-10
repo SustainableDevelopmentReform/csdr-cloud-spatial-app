@@ -627,14 +627,14 @@ export const useImportProductOutputs = () => {
       const res = client.api.v0['product-output'].import.$post({
         form: {
           ...payload,
-          variableMappings: JSON.stringify(payload.variableMappings),
+          indicatorMappings: JSON.stringify(payload.indicatorMappings),
         },
       })
       return await unwrapResponse(res, 201)
     },
-    onSuccess: (response, variables) => {
+    onSuccess: (response, indicators) => {
       const productRunId =
-        response?.data?.productRunId ?? variables.productRunId
+        response?.data?.productRunId ?? indicators.productRunId
       const productId = response?.data?.productId
 
       queryClient.invalidateQueries({

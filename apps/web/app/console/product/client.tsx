@@ -26,7 +26,7 @@ import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
-import { VariableButtons } from '../variable/_components/variable-button'
+import { IndicatorButtons } from '../indicator/_components/indicator-button'
 import { ProductButton } from './_components/product-button'
 import {
   ProductListItem,
@@ -59,13 +59,13 @@ const columns = [
     size: 120,
   }),
   columnHelper.display({
-    id: 'variables',
-    header: () => <span>Variables</span>,
+    id: 'indicators',
+    header: () => <span>Indicators</span>,
     cell: ({ row }) => {
       return (
-        <VariableButtons
-          variables={row.original.mainRun?.outputSummary?.variables.map(
-            (v) => v.variable,
+        <IndicatorButtons
+          indicators={row.original.mainRun?.outputSummary?.indicators.map(
+            (v) => v.indicator,
           )}
         />
       )

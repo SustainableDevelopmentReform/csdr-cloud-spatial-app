@@ -49,16 +49,16 @@ erDiagram
         text id PK
         text product_run_id FK
         text geometry_output_id FK
-        text variable_id FK "e.g., 'mangrove_total_area'"
+        text indicator_id FK "e.g., 'mangrove_total_area'"
         numeric value "e.g., 12543.75"
     }
 
-    variable_category {
+    indicator_category {
         text id PK "e.g., 'ecology', 'coverage'"
         text name "e.g., 'Ecology', 'Coverage Metrics'"
     }
 
-    variable {
+    indicator {
         text id PK "e.g., 'mangrove_total_area'"
         text name "e.g., 'Mangrove Total Area'"
         text unit "e.g., 'm²', '%'"
@@ -80,10 +80,10 @@ erDiagram
     product_run ||--o{ product_output : "produces"
     geometry_output ||--o{ product_output : "referenced by"
 
-    variable_category ||--o{ variable_category : "parent of"
-    variable_category ||--o{ variable : "contains"
+    indicator_category ||--o{ indicator_category : "parent of"
+    indicator_category ||--o{ indicator : "contains"
 
-    variable ||--o{ product_output : "measured in"
+    indicator ||--o{ product_output : "measured in"
 ```
 
 ## Model Overview
@@ -135,17 +135,17 @@ The CSDR data model tracks spatial data processing pipelines from source data th
 
 **`product_output`** - Statistical results from a `product_run`
 
-- Links a `geometry_output` to a `variable` with a computed value
+- Links a `geometry_output` to a `indicator` with a computed value
 - Example: Tasmania + mangrove_total_area = 0
 
-### Variable System
+### Indicator System
 
-**`variable_category`** - Hierarchical organization of variables
+**`indicator_category`** - Hierarchical organization of indicators
 
 - Self-referential parent relationship for nested categories
 - Example: Ecology > Coverage
 
-**`variable`** - Defines what can be measured
+**`indicator`** - Defines what can be measured
 
 - Belongs to a category and includes units
 - Example: Mangrove Total Area (m²)

@@ -134,6 +134,13 @@
       "when": 1765343655386,
       "tag": "0018_silky_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1765346278928,
+      "tag": "0019_chemical_thena",
+      "breakpoints": true
     }
   ]
 }

@@ -82,9 +82,9 @@ const config = {
           DEFAULT: 'hsl(var(--product-run))',
           foreground: 'hsl(var(--product-run-foreground))',
         },
-        variable: {
-          DEFAULT: 'hsl(var(--variable))',
-          foreground: 'hsl(var(--variable-foreground))',
+        indicator: {
+          DEFAULT: 'hsl(var(--indicator))',
+          foreground: 'hsl(var(--indicator-foreground))',
         },
       },
       borderRadius: {

@@ -266,12 +266,12 @@ export const useCreateDatasetRun = () => {
       })
       await unwrapResponse(res, 201)
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_, indicators) => {
       queryClient.invalidateQueries({
-        queryKey: datasetRunQueryKeys.scope(variables.datasetId),
+        queryKey: datasetRunQueryKeys.scope(indicators.datasetId),
       })
       queryClient.invalidateQueries({
-        queryKey: datasetQueryKeys.detail(variables.datasetId),
+        queryKey: datasetQueryKeys.detail(indicators.datasetId),
       })
     },
   })

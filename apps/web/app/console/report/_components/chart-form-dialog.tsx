@@ -40,14 +40,14 @@ import { FieldGroup } from '../../../../components/form/action'
 import { ProductGeometryOutputSelect } from '../../product/_components/product-run-geometry-output-select'
 import { ProductRunSelect } from '../../product/_components/product-run-select'
 import { ProductOutputTimeSelect } from '../../product/_components/product-run-time-select'
-import { ProductRunVariablesSelect } from '../../product/_components/product-run-variables-select'
+import { ProductRunIndicatorsSelect } from '../../product/_components/product-run-indicators-select'
 import { ProductSelect } from '../../product/_components/product-select'
 import { ProductListItem } from '../../product/_hooks'
 import { ChartRenderer } from './chart-renderer'
 
 const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
   { value: 'timePoint', label: 'Time' },
-  { value: 'variableName', label: 'Variable' },
+  { value: 'indicatorName', label: 'Indicator' },
   { value: 'geometryOutputName', label: 'Geometry' },
 ]
 
@@ -59,7 +59,7 @@ const baseChartSchema = z.object({
 })
 
 const multiSeriesSelectionSchema = baseChartSchema.extend({
-  variableIds: z.array(z.string()).optional(),
+  indicatorIds: z.array(z.string()).optional(),
   geometryOutputIds: z.array(z.string()).optional(),
   timePoints: z.array(z.string()).optional(),
 })
@@ -70,24 +70,24 @@ const plotSchema = multiSeriesSelectionSchema
     subType: z.enum(['line', 'stacked-bar', 'grouped-bar', 'dot']),
   })
   .superRefine((data, context) => {
-    const multipleVariablesSelected =
-      (data.variableIds?.length ?? 0) > 1 || !data.variableIds?.length
+    const multipleIndicatorsSelected =
+      (data.indicatorIds?.length ?? 0) > 1 || !data.indicatorIds?.length
     const multipleGeometryOutputsSelected =
       (data.geometryOutputIds?.length ?? 0) > 1 ||
       !data.geometryOutputIds?.length
 
-    if (multipleVariablesSelected && multipleGeometryOutputsSelected) {
+    if (multipleIndicatorsSelected && multipleGeometryOutputsSelected) {
       context.addIssue({
         code: 'custom',
         message:
-          'Can only have multiple variables or multiple geometry outputs - not both',
-        path: ['variableIds'],
-        input: data.variableIds,
+          'Can only have multiple indicators or multiple geometry outputs - not both',
+        path: ['indicatorIds'],
+        input: data.indicatorIds,
       })
       context.addIssue({
         code: 'custom',
         message:
-          'Can only have multiple variables or multiple geometry outputs - not both',
+          'Can only have multiple indicators or multiple geometry outputs - not both',
         path: ['geometryOutputIds'],
         input: data.geometryOutputIds,
       })
@@ -96,7 +96,7 @@ const plotSchema = multiSeriesSelectionSchema
 
 const mapSchema = baseChartSchema.extend({
   type: z.literal('map'),
-  variableId: z.string(),
+  indicatorId: z.string(),
   timePoint: z.string(),
   geometryOutputIds: z
     .array(z.string())
@@ -109,26 +109,26 @@ const mapSchema = baseChartSchema.extend({
 const tablePlotSchema = multiSeriesSelectionSchema
   .extend({
     type: z.literal('table'),
-    xDimension: z.enum(['timePoint', 'variableName', 'geometryOutputName']),
-    yDimension: z.enum(['timePoint', 'variableName', 'geometryOutputName']),
+    xDimension: z.enum(['timePoint', 'indicatorName', 'geometryOutputName']),
+    yDimension: z.enum(['timePoint', 'indicatorName', 'geometryOutputName']),
   })
   .superRefine((data, context) => {
-    const multipleVariablesSelected =
-      (data.variableIds?.length ?? 0) > 1 || !data.variableIds?.length
+    const multipleIndicatorsSelected =
+      (data.indicatorIds?.length ?? 0) > 1 || !data.indicatorIds?.length
     const multipleGeometryOutputsSelected =
       (data.geometryOutputIds?.length ?? 0) > 1 ||
       !data.geometryOutputIds?.length
     const multipleTimePointsSelected =
       (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
 
-    const allowsMultipleVariables =
-      data.xDimension === 'variableName' || data.yDimension === 'variableName'
-    if (!allowsMultipleVariables && multipleVariablesSelected) {
+    const allowsMultipleIndicators =
+      data.xDimension === 'indicatorName' || data.yDimension === 'indicatorName'
+    if (!allowsMultipleIndicators && multipleIndicatorsSelected) {
       context.addIssue({
         code: 'custom',
-        message: 'Variable is not used as a table axis, one must be selected.',
-        path: ['variableIds'],
-        input: data.variableIds,
+        message: 'Indicator is not used as a table axis, one must be selected.',
+        path: ['indicatorIds'],
+        input: data.indicatorIds,
       })
     }
 
@@ -217,10 +217,10 @@ export const ChartFormDialog = ({
   const xDimension = form.watch('xDimension')
   const yDimension = form.watch('yDimension')
 
-  const allowsMultipleVariables =
+  const allowsMultipleIndicators =
     chartType === 'plot' ||
     (chartType === 'table' &&
-      (xDimension === 'variableName' || yDimension === 'variableName'))
+      (xDimension === 'indicatorName' || yDimension === 'indicatorName'))
 
   const allowsMultipleGeometry =
     chartType === 'plot' ||
@@ -239,14 +239,14 @@ export const ChartFormDialog = ({
       form.setValue('productId', product.id)
       if (product.mainRunId) form.setValue('productRunId', product.mainRunId)
 
-      // Use the first variable if available
-      const firstVariable = product.mainRun?.outputSummary?.variables?.[0]
-      if (firstVariable) {
-        form.setValue('variableId', firstVariable.variable.id)
-        form.setValue('variableIds', [firstVariable.variable.id])
+      // Use the first indicator if available
+      const firstIndicator = product.mainRun?.outputSummary?.indicators?.[0]
+      if (firstIndicator) {
+        form.setValue('indicatorId', firstIndicator.indicator.id)
+        form.setValue('indicatorIds', [firstIndicator.indicator.id])
       } else {
-        form.resetField('variableId')
-        form.resetField('variableIds')
+        form.resetField('indicatorId')
+        form.resetField('indicatorIds')
       }
       form.resetField('geometryOutputIds')
 
@@ -454,8 +454,8 @@ export const ChartFormDialog = ({
                     {...field}
                     onChange={(productRun) => {
                       field.onChange(productRun?.id ?? null)
-                      form.resetField('variableId')
-                      form.resetField('variableIds')
+                      form.resetField('indicatorId')
+                      form.resetField('indicatorIds')
                       form.resetField('geometryOutputIds')
                       form.resetField('timePoint')
                     }}
@@ -468,23 +468,23 @@ export const ChartFormDialog = ({
             {(chartType === 'plot' || chartType === 'table') && (
               <FormField
                 control={form.control}
-                name={'variableIds'}
+                name={'indicatorIds'}
                 render={({ field }) => {
-                  const isMultiple = allowsMultipleVariables
+                  const isMultiple = allowsMultipleIndicators
                   return (
                     <FormItem>
                       {isMultiple ? (
-                        <ProductRunVariablesSelect
+                        <ProductRunIndicatorsSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value ?? []}
-                          placeholder={'All Variables'}
+                          placeholder={'All Indicators'}
                           isMulti
                           onChange={(value) =>
                             field.onChange(value.map((v) => v.id))
                           }
                         />
                       ) : (
-                        <ProductRunVariablesSelect
+                        <ProductRunIndicatorsSelect
                           productRunId={form.getValues('productRunId')}
                           value={field.value?.[0] ?? null}
                           onChange={(value) =>
@@ -502,10 +502,10 @@ export const ChartFormDialog = ({
             {chartType === 'map' && (
               <FormField
                 control={form.control}
-                name={'variableId'}
+                name={'indicatorId'}
                 render={({ field }) => (
                   <FormItem>
-                    <ProductRunVariablesSelect
+                    <ProductRunIndicatorsSelect
                       productRunId={form.getValues('productRunId')}
                       value={field.value ?? null}
                       onChange={(value) => field.onChange(value?.id ?? null)}
@@ -561,7 +561,7 @@ export const ChartFormDialog = ({
                 rules={{
                   deps: [
                     'geometryOutputIds',
-                    'variableIds',
+                    'indicatorIds',
                     'xDimension',
                     'yDimension',
                   ],
