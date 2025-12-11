@@ -108,3 +108,15 @@ npx @better-auth/cli@1.4.6 generate --output src/schemas/auth.ts --config src/li
 ```
 
 Then follow the instructions in the terminal to generate and run the migration...
+
+## Reset DB local
+
+If your local DB has become a mess or the schema needs to be updated to the latest you can do this:
+
+1. Delete container running DB locally
+2. Run `docker-compose -f docker-compose-dev.yml up -d`
+3. Run `pnpm i`
+4. Run `pnpm migrate`
+5. Run `pnpm seed`
+
+Now your local DB is the latest version and has a clean start of data.
