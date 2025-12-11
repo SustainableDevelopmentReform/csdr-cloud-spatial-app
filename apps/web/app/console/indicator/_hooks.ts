@@ -83,12 +83,13 @@ const indicatorQueryKeys = {
     [...indicatorQueryKeys.all, 'list', { query }] as const,
   detail: (indicatorId: string | undefined) =>
     [...indicatorQueryKeys.all, 'detail', indicatorId] as const,
-}
-
-const derivedIndicatorQueryKeys = {
-  all: ['derivedIndicator'] as const,
-  detail: (derivedIndicatorId: string | undefined) =>
-    [...derivedIndicatorQueryKeys.all, 'detail', derivedIndicatorId] as const,
+  derivedDetail: (derivedIndicatorId: string | undefined) =>
+    [
+      ...indicatorQueryKeys.all,
+      'derived',
+      'detail',
+      derivedIndicatorId,
+    ] as const,
 }
 
 const indicatorCategoryQueryKeys = {
@@ -207,7 +208,7 @@ export const useDerivedIndicator = (id?: string) => {
   const { derivedIndicatorId } = useIndicatorParams(undefined, id)
   const client = useApiClient()
   return useQuery({
-    queryKey: derivedIndicatorQueryKeys.detail(derivedIndicatorId),
+    queryKey: indicatorQueryKeys.derivedDetail(derivedIndicatorId),
     queryFn: async () => {
       if (!derivedIndicatorId) return null
       const res = client.api.v0.indicator.derived[':id'].$get({
@@ -279,7 +280,7 @@ export const useCreateDerivedIndicator = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: derivedIndicatorQueryKeys.all,
+        queryKey: indicatorQueryKeys.all,
       })
     },
   })
@@ -340,7 +341,7 @@ export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: derivedIndicatorQueryKeys.all,
+        queryKey: indicatorQueryKeys.all,
       })
     },
   })
@@ -431,7 +432,7 @@ export const useDeleteDerivedIndicator = (
     onSuccess: () => {
       if (derivedIndicatorId) {
         queryClient.removeQueries({
-          queryKey: derivedIndicatorQueryKeys.detail(derivedIndicatorId),
+          queryKey: indicatorQueryKeys.derivedDetail(derivedIndicatorId),
         })
       }
       queryClient.invalidateQueries({
