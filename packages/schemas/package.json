@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "wkx": "catalog:"
   }
 }
