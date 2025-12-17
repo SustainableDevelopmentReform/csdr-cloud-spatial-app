@@ -45,6 +45,9 @@ catalogs:
     typescript:
       specifier: ^5.9.2
       version: 5.9.2
+    wkx:
+      specifier: ^0.5.0
+      version: 0.5.0
     zod:
       specifier: ^4.1.13
       version: 4.1.13
@@ -169,7 +172,7 @@ importers:
         specifier: ^11.1.0
         version: 11.1.0
       wkx:
-        specifier: ^0.5.0
+        specifier: 'catalog:'
         version: 0.5.0
       zod:
         specifier: 'catalog:'
@@ -447,6 +450,9 @@ importers:
       '@hono/zod-openapi':
         specifier: 'catalog:'
         version: 1.1.5(hono@4.10.8)(zod@4.1.13)
+      wkx:
+        specifier: 'catalog:'
+        version: 0.5.0
       zod:
         specifier: 'catalog:'
         version: 4.1.13
