@@ -39,18 +39,17 @@ export const WKBSchema = z
     wkb: z.string().openapi({
       title: 'WKB',
       description:
-        'Well-Known Binary (WKB) hexadecimal representation of a geometry. Only Polygon and MultiPolygon are supported. Must be in WGS84 (EPSG:4326).',
-      format: 'hex',
+        'Well-Known Binary (WKB) base64 representation of a geometry. Only Polygon and MultiPolygon are supported. Must be in WGS84 (EPSG:4326).',
+      format: 'base64',
     }),
   })
   .openapi('WKBSchema', {
     title: 'WKB',
-    description:
-      'Well-Known Binary (WKB) hexadecimal representation of a geometry.',
-    format: 'hex',
+    description: 'Well-Known Binary (WKB) base64 representation of a geometry.',
+    format: 'base64',
   })
   .transform((value) => {
-    const b = Buffer.from(value.wkb, 'hex')
+    const b = Buffer.from(value.wkb, 'base64')
     const geometry = wkx.Geometry.parse(b)
 
     if (geometry.srid !== 4326) {
