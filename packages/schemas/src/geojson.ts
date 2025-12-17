@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi'
 import type { Position, BBox, Polygon, MultiPolygon } from 'geojson'
+import wkx from 'wkx'
 
 // Adapted from https://github.com/timbtimbtimb/zod-geojson-schemas
 // Under MIT license Copyright (c) 2025 Timothée Billiet Cadart
@@ -32,3 +33,38 @@ export const MultiPolygonSchema = z.object({
   bbox: BBoxSchema.optional(),
   coordinates: z.array(z.array(z.array(PositionSchema))),
 }) satisfies z.ZodType<MultiPolygon>
+
+export const WKBSchema = z
+  .object({
+    wkb: z.string().openapi({
+      title: 'WKB',
+      description:
+        'Well-Known Binary (WKB) hexadecimal representation of a geometry. Only Polygon and MultiPolygon are supported. Must be in WGS84 (EPSG:4326).',
+      format: 'hex',
+    }),
+  })
+  .openapi('WKBSchema', {
+    title: 'WKB',
+    description:
+      'Well-Known Binary (WKB) hexadecimal representation of a geometry.',
+    format: 'hex',
+  })
+  .transform((value) => {
+    const b = Buffer.from(value.wkb, 'hex')
+    const geometry = wkx.Geometry.parse(b)
+
+    if (geometry.srid !== 4326) {
+      throw new Error(
+        `Invalid WKB ("${value.wkb}") - only SRID 4326 is supported`,
+      )
+    }
+
+    if (
+      geometry instanceof wkx.Polygon ||
+      geometry instanceof wkx.MultiPolygon
+    ) {
+      return geometry.toGeoJSON({ shortCrs: true }) as Polygon | MultiPolygon
+    }
+
+    throw new Error('Invalid WKB - only Polygon and MultiPolygon are supported')
+  }) satisfies z.ZodType<Polygon | MultiPolygon>
