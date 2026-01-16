@@ -1,5 +1,5 @@
 import { z } from '@hono/zod-openapi'
-import { MultiPolygonSchema, PolygonSchema } from './geojson'
+import { MultiPolygonSchema, PolygonSchema, WKBSchema } from './geojson'
 import type { MultiPolygon } from 'geojson'
 
 const fileSchema = z.instanceof(File).openapi('FileSchema', {
@@ -291,6 +291,7 @@ const inputGeometrySchema = z
     MultiPolygonSchema.openapi({
       title: 'GeoJSON MultiPolygon',
     }),
+    WKBSchema.openapi({ title: 'WKB' }),
   ])
   .transform((data) => {
     if (data.type === 'Polygon') {
