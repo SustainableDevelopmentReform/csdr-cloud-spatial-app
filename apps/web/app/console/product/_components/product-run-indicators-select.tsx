@@ -36,9 +36,9 @@ export const ProductRunIndicatorsSelect = ({
   const { data: productRun } = useProductRun(productRunId ?? undefined)
 
   const options = useMemo(() => {
-    return productRun?.outputSummary?.indicators.map(
-      (indicator) => indicator.indicator,
-    )
+    return productRun?.outputSummary?.indicators
+      .map((indicator) => indicator.indicator)
+      .filter((indicator): indicator is IndicatorListItem => !!indicator)
   }, [productRun])
 
   const discriminatedProps = useMemo(() => {

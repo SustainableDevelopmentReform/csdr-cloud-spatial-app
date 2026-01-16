@@ -73,15 +73,15 @@ export const baseUpdateResourceSchema = z.object({
 })
 
 /* INDICATOR RESOURCE SCHEMAS */
-export const indicatorSchema = baseResourceSchema
+export const baseMeasuredIndicatorSchema = baseResourceSchema
   .extend({
     unit: z.string(),
     category: baseResourceSchema.nullable(),
     displayOrder: z.number().int().nullable(),
     categoryId: z.string().nullable(),
-    isDerived: z.literal(false).optional(),
+    type: z.literal('measured'),
   })
-  .openapi('IndicatorSchema')
+  .openapi('MeasuredIndicatorSchema')
 
 export const indicatorQuerySchema = baseQuerySchema.extend({
   indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
@@ -101,13 +101,23 @@ export const updateIndicatorSchema = baseUpdateResourceSchema.extend({
   displayOrder: z.number().nullable().optional(),
 })
 
-export const derivedIndicatorSchema = indicatorSchema
+export const baseDerivedIndicatorSchema = baseMeasuredIndicatorSchema
   .extend({
     expression: z.string(),
-    indicators: z.array(indicatorSchema),
-    isDerived: z.literal(true),
+    type: z.literal('derived'),
   })
-  .openapi('DerivedIndicatorSchema')
+  .openapi('DerivedIndicatorSchemaBase')
+
+export const fullDerivedIndicatorSchema = baseDerivedIndicatorSchema
+  .extend({
+    indicators: z.array(baseMeasuredIndicatorSchema),
+  })
+  .openapi('DerivedIndicatorSchemaFull')
+
+export const anyBaseIndicatorSchema = z.union([
+  baseMeasuredIndicatorSchema,
+  baseDerivedIndicatorSchema,
+])
 
 export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
   expression: z.string(),
@@ -341,11 +351,7 @@ export const baseProductRunOutputSummarySchema = z
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
     timePoints: z.array(z.date()).nullable(),
-    indicators: z.array(
-      z.object({
-        indicator: indicatorSchema,
-      }),
-    ),
+    indicators: z.array(anyBaseIndicatorSchema),
   })
   .openapi('ProductRunOutputSummaryBase')
 
@@ -362,7 +368,7 @@ export const fullProductRunOutputSummarySchema = z
         avgValue: z.number().nullable(),
         count: z.number().int(),
         lastUpdated: z.date(),
-        indicator: indicatorSchema,
+        indicator: anyBaseIndicatorSchema.nullable(),
       }),
     ),
   })
@@ -460,7 +466,7 @@ export const baseProductOutputSchema = baseResourceSchema
         .nullable(),
     }),
     geometryOutput: baseGeometryOutputSchema.nullable(),
-    indicator: indicatorSchema,
+    indicator: anyBaseIndicatorSchema.nullable(),
   })
   .openapi('ProductOutputBase')
 
@@ -473,8 +479,9 @@ export const fullProductOutputSchema = baseProductOutputSchema
 export const productOutputExportSchema = z
   .object({
     id: z.string(),
-    indicatorId: z.string(),
-    indicatorName: z.string(),
+    indicatorId: z.string().nullable(),
+    indicatorName: z.string().nullable(),
+    indicatorType: z.enum(['measured', 'derived']),
     timePoint: z.iso.datetime(),
     geometryOutputId: z.string().optional(),
     geometryOutputName: z.string().optional(),

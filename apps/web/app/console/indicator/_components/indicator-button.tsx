@@ -24,7 +24,7 @@ export const IndicatorButton = ({
   const indicatorLink = useIndicatorLink()
   return (
     <BadgeLink href={indicatorLink(indicator)} variant="indicator">
-      {indicator.isDerived && <AudioLinesIcon className="size-4" />}
+      {indicator.type === 'derived' && <AudioLinesIcon className="size-4" />}
       {indicator.name}
       <ArrowUpRightIcon className="size-4" />
     </BadgeLink>

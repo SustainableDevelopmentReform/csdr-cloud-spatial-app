@@ -486,7 +486,7 @@ export const useDeleteIndicatorCategory = (
 
 export type IndicatorLinkParams = Pick<
   IndicatorListItem,
-  'id' | 'name' | 'isDerived'
+  'id' | 'name' | 'type'
 >
 export type IndicatorCategoryLinkParams = Pick<
   IndicatorCategoryListItem,
@@ -503,7 +503,7 @@ export const useIndicatorsLink = () =>
 export const useIndicatorLink = () =>
   useCallback(
     (indicator: IndicatorLinkParams) =>
-      `${indicator.isDerived ? INDICATORS_DERIVED_BASE_PATH : INDICATORS_BASE_PATH}/${indicator.id}`,
+      `${indicator.type === 'derived' ? INDICATORS_DERIVED_BASE_PATH : INDICATORS_BASE_PATH}/${indicator.id}`,
     [],
   )
 

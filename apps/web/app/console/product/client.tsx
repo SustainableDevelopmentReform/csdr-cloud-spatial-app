@@ -64,9 +64,7 @@ const columns = [
     cell: ({ row }) => {
       return (
         <IndicatorButtons
-          indicators={row.original.mainRun?.outputSummary?.indicators.map(
-            (v) => v.indicator,
-          )}
+          indicators={row.original.mainRun?.outputSummary?.indicators}
         />
       )
     },

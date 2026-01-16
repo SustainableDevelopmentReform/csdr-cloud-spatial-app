@@ -1,12 +1,13 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
-  indicatorSchema,
+  baseMeasuredIndicatorSchema,
   createIndicatorSchema,
   updateIndicatorSchema,
   indicatorQuerySchema,
-  derivedIndicatorSchema,
+  fullDerivedIndicatorSchema,
   updateDerivedIndicatorSchema,
   createDerivedIndicatorSchema,
+  anyBaseIndicatorSchema,
 } from '@repo/schemas/crud'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
@@ -27,12 +28,13 @@ import {
 import {
   baseColumns,
   createPayload,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 
-export const baseIndicatorQuery = {
+export const fullMeasuredIndicatorQuery = {
   columns: {
     ...baseColumns,
     unit: true,
@@ -48,14 +50,21 @@ export const baseIndicatorQuery = {
 
 export const baseDerivedIndicatorQuery = {
   columns: {
-    ...baseIndicatorQuery.columns,
+    ...fullMeasuredIndicatorQuery.columns,
     expression: true,
   },
   with: {
-    ...baseIndicatorQuery.with,
+    ...fullMeasuredIndicatorQuery.with,
+  },
+} satisfies QueryForTable<'derivedIndicator'>
+
+export const fullDerivedIndicatorQuery = {
+  ...baseDerivedIndicatorQuery,
+  with: {
+    ...baseDerivedIndicatorQuery.with,
     indicators: {
       with: {
-        indicator: baseIndicatorQuery,
+        indicator: fullMeasuredIndicatorQuery,
       },
     },
   },
@@ -75,22 +84,62 @@ const derivedIndicatorNotFoundError = () =>
     description: "derived indicator you're looking for is not found",
   })
 
+export const parseFullMeasuredIndicator = <
+  T extends InferQueryModel<'indicator', typeof fullMeasuredIndicatorQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    type: 'measured' as const,
+  }
+}
 const fetchFullIndicator = async (id: string) => {
   const indicatorRecord = await db.query.indicator.findFirst({
     where: (indicator, { eq }) => eq(indicator.id, id),
-    ...baseIndicatorQuery,
+    ...fullMeasuredIndicatorQuery,
   })
 
-  return indicatorRecord ?? null
+  return indicatorRecord ? parseFullMeasuredIndicator(indicatorRecord) : null
+}
+
+export const parseBaseDerivedIndicator = <
+  T extends InferQueryModel<
+    'derivedIndicator',
+    typeof baseDerivedIndicatorQuery
+  >,
+>(
+  record: T,
+) => {
+  return { ...record, type: 'derived' as const }
+}
+
+export const parseFullDerivedIndicator = <
+  T extends InferQueryModel<
+    'derivedIndicator',
+    typeof fullDerivedIndicatorQuery
+  >,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    type: 'derived' as const,
+    indicators: record.indicators.map((i) =>
+      parseFullMeasuredIndicator(i.indicator),
+    ),
+  }
 }
 
 const fetchFullDerivedIndicator = async (id: string) => {
   const derivedIndicatorRecord = await db.query.derivedIndicator.findFirst({
     where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
-    ...baseDerivedIndicatorQuery,
+    ...fullDerivedIndicatorQuery,
   })
 
-  return derivedIndicatorRecord ?? null
+  return derivedIndicatorRecord
+    ? parseFullDerivedIndicator(derivedIndicatorRecord)
+    : null
 }
 const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
   const record = await fetchFullDerivedIndicator(id)
@@ -99,11 +148,7 @@ const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
     throw derivedIndicatorNotFoundError()
   }
 
-  return {
-    ...record,
-    indicators: record.indicators.map((i) => i.indicator),
-    isDerived: true as const,
-  }
+  return record
 }
 
 const fetchFullIndicatorOrThrow = async (id: string) => {
@@ -136,9 +181,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(
-                    z.union([indicatorSchema, derivedIndicatorSchema]),
-                  ),
+                  data: z.array(anyBaseIndicatorSchema),
                 }),
               ),
             },
@@ -208,10 +251,10 @@ const app = createOpenAPIApp()
         queryParams.type === undefined
 
       // Fetch from both tables with their full relations
-      const [indicators, derivedIndicators] = await Promise.all([
+      const [measuredIndicators, derivedIndicators] = await Promise.all([
         fetchIndicators
           ? db.query.indicator.findMany({
-              ...baseIndicatorQuery,
+              ...fullMeasuredIndicatorQuery,
               where: indicatorWhere,
             })
           : [],
@@ -223,17 +266,17 @@ const app = createOpenAPIApp()
           : [],
       ])
 
+      const transformedMeasured = measuredIndicators.map((i) =>
+        parseFullMeasuredIndicator(i),
+      )
+
       // Transform derived indicators to include the indicators array properly
-      const transformedDerived = derivedIndicators.map((d) => ({
-        ...d,
-        indicators: d.indicators.map((i) => ({
-          ...i.indicator,
-        })),
-        isDerived: true,
-      }))
+      const transformedDerived = derivedIndicators.map((d) =>
+        parseBaseDerivedIndicator(d),
+      )
 
       // Merge and sort both arrays
-      const combined = [...indicators, ...transformedDerived]
+      const combined = [...transformedMeasured, ...transformedDerived]
 
       // Sort using the same column and direction from parseQuery
       const sortOrder = queryParams.order ?? 'desc'
@@ -283,7 +326,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(indicatorSchema),
+              schema: createResponseSchema(baseMeasuredIndicatorSchema),
             },
           },
         },
@@ -315,7 +358,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a derived indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(derivedIndicatorSchema),
+              schema: createResponseSchema(fullDerivedIndicatorSchema),
             },
           },
         },
@@ -354,7 +397,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(indicatorSchema),
+              schema: createResponseSchema(baseMeasuredIndicatorSchema),
             },
           },
         },
@@ -409,7 +452,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a derived indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(derivedIndicatorSchema),
+              schema: createResponseSchema(fullDerivedIndicatorSchema),
             },
           },
         },
@@ -487,7 +530,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(indicatorSchema),
+              schema: createResponseSchema(baseMeasuredIndicatorSchema),
             },
           },
         },
@@ -545,7 +588,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a derived indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(derivedIndicatorSchema),
+              schema: createResponseSchema(fullDerivedIndicatorSchema),
             },
           },
         },
@@ -626,7 +669,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(indicatorSchema),
+              schema: createResponseSchema(baseMeasuredIndicatorSchema),
             },
           },
         },
@@ -660,7 +703,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a derived indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(derivedIndicatorSchema),
+              schema: createResponseSchema(fullDerivedIndicatorSchema),
             },
           },
         },

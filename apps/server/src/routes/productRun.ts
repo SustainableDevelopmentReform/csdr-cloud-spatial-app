@@ -8,7 +8,19 @@ import {
   productOutputQuerySchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
-import { and, avg, count, desc, eq, inArray, max, min, SQL } from 'drizzle-orm'
+import {
+  and,
+  avg,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  max,
+  min,
+  or,
+  SQL,
+} from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -31,16 +43,22 @@ import {
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 import { baseDatasetRunQuery } from './datasetRun'
 import { baseGeometriesRunQuery } from './geometriesRun'
+import {
+  baseDerivedIndicatorQuery,
+  fullMeasuredIndicatorQuery,
+  parseBaseDerivedIndicator,
+  parseFullMeasuredIndicator,
+} from './indicator'
 import { baseProductOutputQuery } from './productOutput'
-import { baseIndicatorQuery } from './indicator'
 
-export const baseProductRunOutputSummaryQuery = {
+const baseProductRunOutputSummaryQuery = {
   columns: {
     lastUpdated: true,
     startTime: true,
@@ -51,13 +69,14 @@ export const baseProductRunOutputSummaryQuery = {
   with: {
     indicators: {
       with: {
-        indicator: baseIndicatorQuery,
+        indicator: fullMeasuredIndicatorQuery,
+        derivedIndicator: baseDerivedIndicatorQuery,
       },
     },
   },
 } satisfies QueryForTable<'productOutputSummary'>
 
-export const fullProductRunOutputSummaryQuery = {
+const fullProductRunOutputSummaryQuery = {
   columns: baseProductRunOutputSummaryQuery.columns,
   with: {
     indicators: {
@@ -69,7 +88,8 @@ export const fullProductRunOutputSummaryQuery = {
         lastUpdated: true,
       },
       with: {
-        indicator: baseIndicatorQuery,
+        indicator: fullMeasuredIndicatorQuery,
+        derivedIndicator: baseDerivedIndicatorQuery,
       },
     },
   },
@@ -103,6 +123,82 @@ export const fullProductRunQuery = {
   },
 } satisfies QueryForTable<'productRun'>
 
+export const parseFullProductRunOutputSummary = <
+  T extends InferQueryModel<
+    'productOutputSummary',
+    typeof fullProductRunOutputSummaryQuery
+  >,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    indicators:
+      record.indicators?.map((indicator) => ({
+        ...indicator,
+        indicator: indicator.indicator
+          ? parseFullMeasuredIndicator(indicator.indicator)
+          : indicator.derivedIndicator
+            ? parseBaseDerivedIndicator(indicator.derivedIndicator)
+            : null,
+      })) ?? [],
+  }
+}
+
+export const parseBaseProductRunOutputSummary = <
+  T extends InferQueryModel<
+    'productOutputSummary',
+    typeof baseProductRunOutputSummaryQuery
+  >,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    indicators:
+      record.indicators
+        ?.map((indicator) =>
+          indicator.indicator
+            ? parseFullMeasuredIndicator(indicator.indicator)
+            : indicator.derivedIndicator
+              ? parseBaseDerivedIndicator(indicator.derivedIndicator)
+              : undefined,
+        )
+        .filter(
+          (indicator): indicator is NonNullable<typeof indicator> =>
+            indicator !== undefined,
+        ) ?? [],
+  }
+}
+
+export const parseBaseProductRun = <
+  T extends InferQueryModel<'productRun', typeof baseProductRunQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
+    outputSummary: record.outputSummary
+      ? parseBaseProductRunOutputSummary(record.outputSummary)
+      : null,
+  }
+}
+
+export const parseFullProductRun = <
+  T extends InferQueryModel<'productRun', typeof fullProductRunQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
+    outputSummary: record.outputSummary
+      ? parseFullProductRunOutputSummary(record.outputSummary)
+      : null,
+  }
+}
+
 const productRunNotFoundError = () =>
   new ServerError({
     statusCode: 404,
@@ -116,7 +212,7 @@ const fetchFullProductRun = async (id: string) => {
     ...fullProductRunQuery,
   })
 
-  return record ?? null
+  return record ? parseFullProductRun(record) : null
 }
 
 const fetchFullProductRunOrThrow = async (id: string) => {
@@ -204,10 +300,15 @@ const app = createOpenAPIApp()
           searchableColumns: [productOutput.name],
         },
       )
-      const filters: SQL[] = [eq(productOutput.productRunId, id)]
+      const filters: (SQL | undefined)[] = [eq(productOutput.productRunId, id)]
 
       if (indicatorId) {
-        filters.push(eq(productOutput.indicatorId, indicatorId))
+        filters.push(
+          or(
+            eq(productOutput.indicatorId, indicatorId),
+            eq(productOutput.derivedIndicatorId, indicatorId),
+          ),
+        )
       }
       if (geometryOutputId) {
         filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
@@ -222,11 +323,20 @@ const app = createOpenAPIApp()
         where: and(query.where, ...filters),
       })
 
+      const parsedData = data.map((output) => ({
+        ...output,
+        indicator: output.indicator
+          ? parseFullMeasuredIndicator(output.indicator)
+          : output.derivedIndicator
+            ? parseBaseDerivedIndicator(output.derivedIndicator)
+            : null,
+      }))
+
       return generateJsonResponse(
         c,
         {
           pageCount,
-          data,
+          data: parsedData,
           totalCount,
         },
         200,
@@ -265,13 +375,26 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
 
-      const filters: SQL[] = [eq(productOutput.productRunId, id)]
+      const filters: (SQL | undefined)[] = [eq(productOutput.productRunId, id)]
 
       if (indicatorId) {
         const indicatorIds = Array.isArray(indicatorId)
           ? indicatorId
           : [indicatorId]
-        filters.push(inArray(productOutput.indicatorId, indicatorIds))
+
+        // Filter for indicators or derived indicators
+        filters.push(
+          or(
+            and(
+              isNull(productOutput.derivedIndicatorId),
+              inArray(productOutput.indicatorId, indicatorIds),
+            ),
+            and(
+              isNull(productOutput.indicatorId),
+              inArray(productOutput.derivedIndicatorId, indicatorIds),
+            ),
+          ),
+        )
       }
       if (geometryOutputId) {
         const geometryOutputIds = Array.isArray(geometryOutputId)
@@ -294,12 +417,18 @@ const app = createOpenAPIApp()
         columns: {
           id: true,
           indicatorId: true,
+          derivedIndicatorId: true,
           timePoint: true,
           geometryOutputId: true,
           value: true,
         },
         with: {
           indicator: {
+            columns: {
+              name: true,
+            },
+          },
+          derivedIndicator: {
             columns: {
               name: true,
             },
@@ -320,7 +449,12 @@ const app = createOpenAPIApp()
 
       const dataWithIndicatorName = data.map((output) => ({
         ...output,
-        indicatorName: output.indicator.name,
+        indicatorId: output.indicatorId ?? output.derivedIndicatorId ?? null,
+        indicatorName:
+          output.indicator?.name ?? output.derivedIndicator?.name ?? null,
+        indicatorType: output.derivedIndicator
+          ? ('derived' as const)
+          : ('measured' as const),
         geometryOutputName: output.geometryOutput?.name ?? undefined,
         geometryOutputId: output.geometryOutputId ?? undefined,
       }))

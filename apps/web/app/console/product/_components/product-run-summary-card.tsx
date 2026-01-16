@@ -57,8 +57,13 @@ export const ProductRunSummaryCard = ({
           {`${run?.outputSummary?.outputCount} outputs`}
           <div className="flex flex-col gap-4">
             {run?.outputSummary?.indicators?.map((indicator) => (
-              <div className="flex flex-col gap-2" key={indicator.indicator.id}>
-                <IndicatorButton indicator={indicator.indicator} />
+              <div
+                className="flex flex-col gap-2"
+                key={indicator.indicator?.id}
+              >
+                {indicator.indicator && (
+                  <IndicatorButton indicator={indicator.indicator} />
+                )}
                 <div className="flex flex-col gap-1">
                   <div>Count: {indicator.count}</div>
                   <div>
