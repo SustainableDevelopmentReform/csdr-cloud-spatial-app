@@ -20,7 +20,7 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometryOutput, productOutput, productRun } from '../schemas/db'
+import { derivedIndicator, geometryOutput, productOutput } from '../schemas/db'
 import {
   baseColumns,
   createPayload,
@@ -33,7 +33,12 @@ import {
   baseGeometryOutputQuery,
   fetchFullGeometryOutputOrThrow,
 } from './geometryOutput'
-import { baseIndicatorQuery } from './indicator'
+import {
+  baseDerivedIndicatorQuery,
+  fullMeasuredIndicatorQuery,
+  parseBaseDerivedIndicator,
+  parseFullMeasuredIndicator,
+} from './indicator'
 
 export const baseProductOutputQuery = {
   columns: {
@@ -67,7 +72,8 @@ export const baseProductOutputQuery = {
       },
     },
 
-    indicator: baseIndicatorQuery,
+    indicator: fullMeasuredIndicatorQuery,
+    derivedIndicator: baseDerivedIndicatorQuery,
     geometryOutput: baseGeometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
@@ -95,20 +101,13 @@ const fetchBaseProductOutputOrThrow = async (id: string) => {
     throw productOutputNotFoundError()
   }
 
-  return record
-}
-
-type PendingProductOutput = {
-  payload: {
-    productRunId: string
-    geometryOutputId: string
-    indicatorId: string
-    value: number
-    timePoint: Date
-  }
-  context: {
-    rowNumber: number
-    column: string
+  return {
+    ...record,
+    indicator: record.indicator
+      ? parseFullMeasuredIndicator(record.indicator)
+      : record.derivedIndicator
+        ? parseBaseDerivedIndicator(record.derivedIndicator)
+        : null,
   }
 }
 
@@ -351,7 +350,14 @@ const app = createOpenAPIApp()
           })
         }
 
-        return record
+        return {
+          ...record,
+          indicator: record.indicator
+            ? parseFullMeasuredIndicator(record.indicator)
+            : record.derivedIndicator
+              ? parseBaseDerivedIndicator(record.derivedIndicator)
+              : null,
+        }
       })
 
       return generateJsonResponse(
@@ -483,7 +489,19 @@ const app = createOpenAPIApp()
         knownGeometryOutputs.map((output) => output.id),
       )
 
-      const pendingOutputs: PendingProductOutput[] = []
+      const pendingOutputs: {
+        payload: {
+          productRunId: string
+          geometryOutputId: string
+          indicatorId: string
+          value: number
+          timePoint: Date
+        }
+        context: {
+          rowNumber: number
+          column: string
+        }
+      }[] = []
       const warnings: { message: string; description?: string }[] = []
 
       rows.forEach((row, rowIndex) => {

@@ -176,7 +176,7 @@ const GeometriesMapViewer = ({
       }
 
     const indicatorSummary = productRun?.outputSummary?.indicators.find(
-      (v) => v.indicator.id === indicator.id,
+      (v) => v.indicator?.id === indicator.id,
     )
 
     const colorFn = (value: number | null) => {

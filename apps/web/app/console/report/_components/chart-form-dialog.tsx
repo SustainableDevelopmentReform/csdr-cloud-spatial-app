@@ -242,8 +242,8 @@ export const ChartFormDialog = ({
       // Use the first indicator if available
       const firstIndicator = product.mainRun?.outputSummary?.indicators?.[0]
       if (firstIndicator) {
-        form.setValue('indicatorId', firstIndicator.indicator.id)
-        form.setValue('indicatorIds', [firstIndicator.indicator.id])
+        form.setValue('indicatorId', firstIndicator.id)
+        form.setValue('indicatorIds', [firstIndicator.id])
       } else {
         form.resetField('indicatorId')
         form.resetField('indicatorIds')

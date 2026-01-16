@@ -183,8 +183,6 @@ export const productRun = pgTable(
       () => geometriesRun.id,
       { onDelete: 'cascade' },
     ),
-
-    //Store product output here, as JSON - and then publish to output
   },
   (table) => [
     index('product_run_dataset_idx').on(table.datasetRunId),
@@ -206,9 +204,14 @@ export const productOutput = pgTable(
     ),
 
     value: numeric('value', { mode: 'number' }).notNull(),
-    indicatorId: text('indicator_id')
-      .notNull()
-      .references(() => indicator.id),
+    indicatorId: text('indicator_id').references(() => indicator.id, {
+      onDelete: 'cascade',
+    }),
+
+    derivedIndicatorId: text('derived_indicator_id').references(
+      () => derivedIndicator.id,
+      { onDelete: 'cascade' },
+    ),
 
     timePoint: timestamp('time_point', {
       mode: 'date',
@@ -232,6 +235,7 @@ export const productOutput = pgTable(
     ).on(
       table.productRunId,
       table.indicatorId,
+      table.derivedIndicatorId,
       table.timePoint,
       table.geometryOutputId,
     ),
@@ -278,9 +282,14 @@ export const productOutputSummaryIndicator = pgTable(
       .references(() => productOutputSummary.productRunId, {
         onDelete: 'cascade',
       }),
-    indicatorId: text('indicator_id')
-      .notNull()
-      .references(() => indicator.id, { onDelete: 'cascade' }),
+    indicatorId: text('indicator_id').references(() => indicator.id, {
+      onDelete: 'cascade',
+    }),
+
+    derivedIndicatorId: text('derived_indicator_id').references(
+      () => derivedIndicator.id,
+      { onDelete: 'cascade' },
+    ),
     // Optional: track aggregated stats per indicator
     minValue: numeric('min_value', { mode: 'number' }),
     maxValue: numeric('max_value', { mode: 'number' }),
@@ -291,8 +300,15 @@ export const productOutputSummaryIndicator = pgTable(
   (table) => [
     index('summary_indicator_product_run_idx').on(table.productRunId),
     index('summary_indicator_indicator_idx').on(table.indicatorId),
+    index('summary_indicator_derived_indicator_idx').on(
+      table.derivedIndicatorId,
+    ),
     // Composite primary key for the junction table
-    unique('summary_indicator_pk').on(table.productRunId, table.indicatorId),
+    unique('summary_indicator_pk').on(
+      table.productRunId,
+      table.indicatorId,
+      table.derivedIndicatorId,
+    ),
   ],
 )
 
@@ -493,6 +509,10 @@ export const productOutputRelations = relations(productOutput, ({ one }) => ({
     fields: [productOutput.indicatorId],
     references: [indicator.id],
   }),
+  derivedIndicator: one(derivedIndicator, {
+    fields: [productOutput.derivedIndicatorId],
+    references: [derivedIndicator.id],
+  }),
 }))
 
 export const indicatorCategoryRelations = relations(
@@ -571,6 +591,10 @@ export const productOutputSummaryIndicatorRelations = relations(
     indicator: one(indicator, {
       fields: [productOutputSummaryIndicator.indicatorId],
       references: [indicator.id],
+    }),
+    derivedIndicator: one(derivedIndicator, {
+      fields: [productOutputSummaryIndicator.derivedIndicatorId],
+      references: [derivedIndicator.id],
     }),
   }),
 )

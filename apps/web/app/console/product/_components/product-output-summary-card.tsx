@@ -21,7 +21,11 @@ export const ProductOutputSummaryCard = ({
       title={productOutput.value.toString()}
       description="Output Value"
       footer={formatDateTime(productOutput.timePoint)}
-      subFooter={<IndicatorButton indicator={productOutput.indicator} />}
+      subFooter={
+        productOutput.indicator && (
+          <IndicatorButton indicator={productOutput.indicator} />
+        )
+      }
       actionText={showLink ? 'Open' : undefined}
       actionLink={showLink ? productOutputLink(productOutput) : undefined}
       actionIcon={showLink ? <ArrowUpRightIcon /> : undefined}

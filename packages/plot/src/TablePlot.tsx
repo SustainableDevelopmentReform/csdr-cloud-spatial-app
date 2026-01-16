@@ -10,7 +10,7 @@ type BaseTableRecord = {
   id: string
   value: number | null | undefined
   timePoint: Date | string
-  indicatorName: string
+  indicatorName: string | null | undefined
   geometryOutputName?: string | null | undefined
 }
 

@@ -58,9 +58,7 @@ const ProductRunFeature = () => {
         cell: ({ row }) => {
           return (
             <IndicatorButtons
-              indicators={row.original.outputSummary?.indicators.map(
-                (v) => v.indicator,
-              )}
+              indicators={row.original.outputSummary?.indicators}
             />
           )
         },

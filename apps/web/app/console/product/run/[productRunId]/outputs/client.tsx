@@ -59,11 +59,15 @@ const ProductOutputFeature = () => {
   const columns = useMemo(
     () =>
       [
-        columnHelper.accessor((row) => row.indicator.name, {
+        columnHelper.accessor((row) => row.indicator?.name, {
           id: 'indicator',
           header: () => <span>Indicator</span>,
           cell: (info) => {
-            return <IndicatorButton indicator={info.row.original.indicator} />
+            return (
+              info.row.original.indicator && (
+                <IndicatorButton indicator={info.row.original.indicator} />
+              )
+            )
           },
           size: 20,
         }),
