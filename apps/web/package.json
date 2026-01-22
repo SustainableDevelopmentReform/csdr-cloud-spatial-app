@@ -11,6 +11,8 @@
     "typecheck:watch": "tsc --noEmit --watch"
   },
   "dependencies": {
+    "@deck.gl/react": "^9.2.6",
+    "@geoarrow/deck.gl-layers": "^0.3.1",
     "@hookform/resolvers": "catalog:",
     "@icons-pack/react-simple-icons": "catalog:",
     "@repo/plot": "workspace:*",
@@ -22,6 +24,7 @@
     "@tanstack/react-table": "^8.21.2",
     "@turf/turf": "^7.2.0",
     "@vis.gl/react-maplibre": "^8.0.4",
+    "apache-arrow": "^21.1.0",
     "better-auth": "catalog:",
     "d3-scale-chromatic": "^3.1.0",
     "hono": "catalog:",
@@ -31,6 +34,7 @@
     "nuqs": "^2.4.0",
     "ofetch": "^1.4.1",
     "papaparse": "^5.5.3",
+    "parquet-wasm": "^0.7.1",
     "pmtiles": "^4.3.0",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
