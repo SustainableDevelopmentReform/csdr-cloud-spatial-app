@@ -81,10 +81,10 @@ const DatasetRunDetails = () => {
 
       <>Test the viz here:</>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="w-full h-[500px] bg-gray-50 rounded-md p-3">
+        <div className="w-full bg-gray-50 rounded-md p-3">
           <DatasetRunMapCog />
         </div>
-        <div className="w-full h-[500px] bg-gray-50 rounded-md p-3">
+        <div className="w-full bg-gray-50 rounded-md p-3">
           <DatasetRunMapParquet />
         </div>
       </div>
