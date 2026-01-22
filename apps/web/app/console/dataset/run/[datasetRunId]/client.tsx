@@ -24,6 +24,8 @@ import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { DatasetRunSummaryCard } from '../../../dataset/_components/dataset-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+import { DatasetRunMapCog } from '../../../dataset/_components/dataset-run-map-cog'
+import { DatasetRunMapParquet } from '../../../dataset/_components/dataset-run-map-parquet'
 import {
   useDatasetRun,
   useDatasetRunsLink,
@@ -252,6 +254,30 @@ const DatasetRunDetails = () => {
               />
             </div>
           </div>
+        </CrudForm>
+      </div>
+
+      <div>
+        <>Test the viz here:</>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="w-full h-[500px] bg-gray-50 rounded-md p-3">
+            <DatasetRunMapCog />
+          </div>
+          <div className="w-full h-[500px] bg-gray-50 rounded-md p-3">
+            <DatasetRunMapParquet />
+          </div>
+        </div>
+
+        <CrudForm
+          form={form}
+          mutation={updateDatasetRun}
+          deleteMutation={deleteDatasetRun}
+          entityName="Dataset Run"
+          entityNamePlural="dataset runs"
+          actions={formActions}
+          successMessage="Updated Dataset Run"
+        >
+          <CrudFormRunFields form={form} readOnlyFields={'all'} />
         </CrudForm>
       </div>
     </ResourcePageState>
