@@ -10,6 +10,8 @@ import { tableFromIPC } from 'apache-arrow'
 // Must use the "_native" version where the geometry column is GeoArrow:
 const GEOPARQUET_URL =
   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
+// This gets CORS error, and is encoding using WKB for geometry column, instead of GeoArrow. Both critical errors that need fixing.
+// const GEOPARQUET_URL = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
 export const DatasetRunMapParquet: React.FC = () => {
   const [jsTable, setJsTable] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
