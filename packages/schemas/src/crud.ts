@@ -388,6 +388,11 @@ export const fullProductRunSchema = baseProductRunSchema
     datasetRun: baseDatasetRunSchema.nullable(),
     geometriesRun: baseGeometriesRunSchema.nullable(),
     outputSummary: fullProductRunOutputSummarySchema,
+    assignedDerivedIndicators: z.array(
+      z.object({
+        derivedIndicator: baseDerivedIndicatorSchema,
+      }),
+    ),
   })
   .openapi('ProductRunFull')
 

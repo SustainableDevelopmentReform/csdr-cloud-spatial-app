@@ -61,7 +61,12 @@ const ProductRunDetails = () => {
         disabled: productRun?.id === productRun?.product.mainRunId,
       },
     ],
-    [refreshProductRunSummary],
+    [
+      productRun?.id,
+      productRun?.product.mainRunId,
+      refreshProductRunSummary,
+      setProductMainRun,
+    ],
   )
 
   useEffect(() => {
