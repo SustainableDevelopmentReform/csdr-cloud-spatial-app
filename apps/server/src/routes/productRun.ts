@@ -122,6 +122,9 @@ export const fullProductRunQuery = {
     datasetRun: baseDatasetRunQuery,
     geometriesRun: baseGeometriesRunQuery,
     outputSummary: fullProductRunOutputSummaryQuery,
+    assignedDerivedIndicators: {
+      with: { derivedIndicator: baseDerivedIndicatorQuery },
+    },
   },
 } satisfies QueryForTable<'productRun'>
 
@@ -198,6 +201,13 @@ export const parseFullProductRun = <
     outputSummary: record.outputSummary
       ? parseFullProductRunOutputSummary(record.outputSummary)
       : null,
+    assignedDerivedIndicators: record.assignedDerivedIndicators
+      ? record.assignedDerivedIndicators.map((assignedDerivedIndicator) => ({
+          derivedIndicator: parseBaseDerivedIndicator(
+            assignedDerivedIndicator.derivedIndicator,
+          ),
+        }))
+      : [],
   }
 }
 
