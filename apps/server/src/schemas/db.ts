@@ -191,6 +191,30 @@ export const productRun = pgTable(
   ],
 )
 
+export const productRunAssignedDerivedIndicator = pgTable(
+  'product_run_assigned_derived_indicator',
+  {
+    productRunId: text('product_run_id')
+      .notNull()
+      .references(() => productRun.id, { onDelete: 'cascade' }),
+    derivedIndicatorId: text('derived_indicator_id')
+      .notNull()
+      .references(() => derivedIndicator.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    index('product_run_assigned_derived_indicator_product_run_idx').on(
+      table.productRunId,
+    ),
+    index('product_run_assigned_derived_indicator_derived_indicator_idx').on(
+      table.derivedIndicatorId,
+    ),
+    unique('product_run_assigned_derived_indicator_pk').on(
+      table.productRunId,
+      table.derivedIndicatorId,
+    ),
+  ],
+)
+
 export const productOutput = pgTable(
   'product_output',
   {
@@ -238,6 +262,29 @@ export const productOutput = pgTable(
       table.derivedIndicatorId,
       table.timePoint,
       table.geometryOutputId,
+    ),
+  ],
+)
+
+export const productOutputDependency = pgTable(
+  'product_output_dependency',
+  {
+    derivedProductOutputId: text('derived_product_output_id')
+      .notNull()
+      .references(() => productOutput.id, { onDelete: 'cascade' }),
+    dependencyProductOutputId: text('dependency_product_output_id')
+      .notNull()
+      .references(() => productOutput.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.derivedProductOutputId, table.dependencyProductOutputId],
+    }),
+    index('product_output_dependency_derived_product_output_idx').on(
+      table.derivedProductOutputId,
+    ),
+    index('product_output_dependency_dependency_product_output_idx').on(
+      table.dependencyProductOutputId,
     ),
   ],
 )
@@ -349,7 +396,6 @@ const indicatorBaseColumns = {
   }),
 }
 
-// Actual measurable indicators
 export const indicator = pgTable(
   'indicator',
   {
@@ -366,7 +412,6 @@ export const indicator = pgTable(
   ],
 )
 
-// Actual derived indicators
 export const derivedIndicator = pgTable(
   'derived_indicator',
   {
@@ -494,26 +539,63 @@ export const productRunRelations = relations(productRun, ({ one, many }) => ({
     references: [productOutputSummary.productRunId],
   }),
   outputSummaryIndicators: many(productOutputSummaryIndicator),
+  assignedDerivedIndicators: many(productRunAssignedDerivedIndicator),
 }))
 
-export const productOutputRelations = relations(productOutput, ({ one }) => ({
-  productRun: one(productRun, {
-    fields: [productOutput.productRunId],
-    references: [productRun.id],
+export const productRunAssignedDerivedIndicatorRelations = relations(
+  productRunAssignedDerivedIndicator,
+  ({ one }) => ({
+    productRun: one(productRun, {
+      fields: [productRunAssignedDerivedIndicator.productRunId],
+      references: [productRun.id],
+    }),
+    derivedIndicator: one(derivedIndicator, {
+      fields: [productRunAssignedDerivedIndicator.derivedIndicatorId],
+      references: [derivedIndicator.id],
+    }),
   }),
-  geometryOutput: one(geometryOutput, {
-    fields: [productOutput.geometryOutputId],
-    references: [geometryOutput.id],
+)
+
+export const productOutputRelations = relations(
+  productOutput,
+  ({ one, many }) => ({
+    productRun: one(productRun, {
+      fields: [productOutput.productRunId],
+      references: [productRun.id],
+    }),
+    geometryOutput: one(geometryOutput, {
+      fields: [productOutput.geometryOutputId],
+      references: [geometryOutput.id],
+    }),
+    indicator: one(indicator, {
+      fields: [productOutput.indicatorId],
+      references: [indicator.id],
+    }),
+    derivedIndicator: one(derivedIndicator, {
+      fields: [productOutput.derivedIndicatorId],
+      references: [derivedIndicator.id],
+    }),
+    dependencyProductOutputs: many(productOutputDependency, {
+      relationName: 'dependency_product_output',
+    }),
   }),
-  indicator: one(indicator, {
-    fields: [productOutput.indicatorId],
-    references: [indicator.id],
+)
+
+export const productOutputDependencyRelations = relations(
+  productOutputDependency,
+  ({ one }) => ({
+    derivedProductOutput: one(productOutput, {
+      fields: [productOutputDependency.derivedProductOutputId],
+      references: [productOutput.id],
+      relationName: 'derived_product_output',
+    }),
+    dependencyProductOutput: one(productOutput, {
+      fields: [productOutputDependency.dependencyProductOutputId],
+      references: [productOutput.id],
+      relationName: 'dependency_product_output',
+    }),
   }),
-  derivedIndicator: one(derivedIndicator, {
-    fields: [productOutput.derivedIndicatorId],
-    references: [derivedIndicator.id],
-  }),
-}))
+)
 
 export const indicatorCategoryRelations = relations(
   indicatorCategory,
@@ -549,6 +631,7 @@ export const derivedIndicatorRelations = relations(
       references: [indicatorCategory.id],
     }),
     indicators: many(derivedIndicatorToIndicator),
+    productOutputs: many(productOutput),
   }),
 )
 

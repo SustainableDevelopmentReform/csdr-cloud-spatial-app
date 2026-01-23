@@ -447,6 +447,12 @@ export const createProductRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateProductRunSchema = baseUpdateResourceSchema
 
+export const productRunDerivedIndicatorSchema = z
+  .object({
+    derivedIndicatorId: z.string().min(1),
+  })
+  .openapi('ProductRunDerivedIndicatorSchema')
+
 /* PRODUCT OUTPUT RESOURCE SCHEMAS */
 export const baseProductOutputSchema = baseResourceSchema
   .extend({

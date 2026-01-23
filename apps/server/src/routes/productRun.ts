@@ -6,6 +6,7 @@ import {
   productOutputExportQuerySchema,
   productOutputExportSchema,
   productOutputQuerySchema,
+  productRunDerivedIndicatorSchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
 import {
@@ -37,6 +38,7 @@ import {
   productOutputSummary,
   productOutputSummaryIndicator,
   productRun,
+  productRunAssignedDerivedIndicator,
 } from '../schemas/db'
 import {
   baseRunColumns,
@@ -569,6 +571,112 @@ const app = createOpenAPIApp()
       const fullRecord = await fetchFullProductRunOrThrow(record.id)
 
       return generateJsonResponse(c, fullRecord, 200, 'Product run updated')
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Assign a derived indicator to a product run.',
+      method: 'post',
+      path: '/:id/derived-indicators',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: productRunDerivedIndicatorSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Successfully assigned a derived indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductRunSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to assign derived indicator'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { derivedIndicatorId } = c.req.valid('json')
+
+      await fetchFullProductRunOrThrow(id)
+
+      await db
+        .insert(productRunAssignedDerivedIndicator)
+        .values({
+          productRunId: id,
+          derivedIndicatorId,
+        })
+        .onConflictDoNothing()
+
+      const record = await fetchFullProductRunOrThrow(id)
+
+      return generateJsonResponse(c, record, 201, 'Derived indicator assigned')
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Remove a derived indicator from a product run.',
+      method: 'delete',
+      path: '/:id/derived-indicators',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: productRunDerivedIndicatorSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully removed a derived indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductRunSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to remove derived indicator'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { derivedIndicatorId } = c.req.valid('json')
+
+      const record = await fetchFullProductRunOrThrow(id)
+
+      await db
+        .delete(productRunAssignedDerivedIndicator)
+        .where(
+          and(
+            eq(productRunAssignedDerivedIndicator.productRunId, id),
+            eq(
+              productRunAssignedDerivedIndicator.derivedIndicatorId,
+              derivedIndicatorId,
+            ),
+          ),
+        )
+
+      return generateJsonResponse(c, record, 200, 'Derived indicator removed')
     },
   )
 
