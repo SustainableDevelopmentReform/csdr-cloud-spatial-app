@@ -141,7 +141,7 @@ const fetchFullDerivedIndicator = async (id: string) => {
     ? parseFullDerivedIndicator(derivedIndicatorRecord)
     : null
 }
-const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
+export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
   const record = await fetchFullDerivedIndicator(id)
 
   if (!record) {

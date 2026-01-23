@@ -802,6 +802,32 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
   })
 }
 
+export const useComputeDerivedIndicatorsForProductRun = (
+  run?: ProductRunLinkParams | null,
+) => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async () => {
+      if (!run) return
+      const res = client.api.v0['product-run'][':id'][
+        'compute-derived-indicators'
+      ].$post({
+        param: { id: run.id },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+    },
+  })
+}
+
 export const useAssignDerivedIndicatorToProductRun = (
   _productRunId?: string,
 ) => {
