@@ -107,6 +107,17 @@ export type CreateProductRunOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product-output']['$post']>['json']
 >
 
+export type AssignDerivedIndicatorPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['product-run'][':id']['derived-indicators']['$post']
+  >['json']
+>
+export type RemoveDerivedIndicatorPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['product-run'][':id']['derived-indicators']['$delete']
+  >['json']
+>
+
 export type ImportProductOutputsPayload = z.infer<
   typeof importProductOutputsSchema
 >
@@ -784,6 +795,82 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useAssignDerivedIndicatorToProductRun = (
+  _productRunId?: string,
+) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: AssignDerivedIndicatorPayload) => {
+      if (!productRunId) return
+      const res = client.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$post({
+        param: { id: productRunId },
+        json: payload,
+      })
+      return await unwrapResponse(res, 201)
+    },
+    onSuccess: (response) => {
+      const resolvedProductRunId = response?.data?.id ?? productRunId
+      const resolvedProductId = response?.data?.product?.id
+
+      if (resolvedProductRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(resolvedProductRunId),
+        })
+      }
+      if (resolvedProductId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(resolvedProductId),
+        })
+      }
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useRemoveDerivedIndicatorFromProductRun = (
+  _productRunId?: string,
+) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: RemoveDerivedIndicatorPayload) => {
+      if (!productRunId) return
+      const res = client.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$delete({
+        param: { id: productRunId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: (response) => {
+      const resolvedProductRunId = response?.data?.id ?? productRunId
+      const resolvedProductId = response?.data?.product?.id
+
+      if (resolvedProductRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(resolvedProductRunId),
+        })
+      }
+      if (resolvedProductId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(resolvedProductId),
+        })
+      }
       queryClient.invalidateQueries({
         queryKey: productRunQueryKeys.all,
       })
