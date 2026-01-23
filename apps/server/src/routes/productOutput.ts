@@ -20,12 +20,13 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { derivedIndicator, geometryOutput, productOutput } from '../schemas/db'
+import { geometryOutput, productOutput } from '../schemas/db'
 import {
   baseColumns,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -78,6 +79,18 @@ export const baseProductOutputQuery = {
   },
 } satisfies QueryForTable<'productOutput'>
 
+const fullProductOutputQuery = {
+  ...baseProductOutputQuery,
+  with: {
+    ...baseProductOutputQuery.with,
+    dependencyProductOutputs: {
+      with: {
+        dependencyProductOutput: baseProductOutputQuery,
+      },
+    },
+  },
+} satisfies QueryForTable<'productOutput'>
+
 const productOutputNotFoundError = () =>
   new ServerError({
     statusCode: 404,
@@ -85,13 +98,66 @@ const productOutputNotFoundError = () =>
     description: "productOutput you're looking for is not found",
   })
 
+type BaseProductOutputRecord = InferQueryModel<
+  'productOutput',
+  typeof baseProductOutputQuery
+>
+type ParsedMeasuredIndicator = ReturnType<
+  typeof parseFullMeasuredIndicator<
+    InferQueryModel<'indicator', typeof fullMeasuredIndicatorQuery>
+  >
+>
+type ParsedDerivedIndicator = ReturnType<
+  typeof parseBaseDerivedIndicator<
+    InferQueryModel<'derivedIndicator', typeof baseDerivedIndicatorQuery>
+  >
+>
+type ParsedBaseProductOutput = Omit<
+  BaseProductOutputRecord,
+  'indicator' | 'derivedIndicator'
+> & {
+  indicator: ParsedMeasuredIndicator | ParsedDerivedIndicator | null
+  derivedIndicator?: undefined
+}
+
+const parseBaseProductOutput = (
+  record: BaseProductOutputRecord,
+): ParsedBaseProductOutput => {
+  return {
+    ...record,
+    derivedIndicator: undefined,
+    indicator: record.indicator
+      ? parseFullMeasuredIndicator(record.indicator)
+      : record.derivedIndicator
+        ? parseBaseDerivedIndicator(record.derivedIndicator)
+        : null,
+  }
+}
+
+const parseFullProductOutput = <
+  T extends InferQueryModel<'productOutput', typeof fullProductOutputQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...parseBaseProductOutput(record),
+    dependencyProductOutputs:
+      record.dependencyProductOutputs?.map((dependencyProductOutput) => ({
+        ...dependencyProductOutput,
+        dependencyProductOutput: parseBaseProductOutput(
+          dependencyProductOutput.dependencyProductOutput,
+        ),
+      })) ?? [],
+  }
+}
+
 const fetchBaseProductOutput = async (id: string) => {
   const record = await db.query.productOutput.findFirst({
     where: (productOutput, { eq }) => eq(productOutput.id, id),
     ...baseProductOutputQuery,
   })
 
-  return record ?? null
+  return record ? parseBaseProductOutput(record) : null
 }
 
 const fetchBaseProductOutputOrThrow = async (id: string) => {
@@ -101,14 +167,26 @@ const fetchBaseProductOutputOrThrow = async (id: string) => {
     throw productOutputNotFoundError()
   }
 
-  return {
-    ...record,
-    indicator: record.indicator
-      ? parseFullMeasuredIndicator(record.indicator)
-      : record.derivedIndicator
-        ? parseBaseDerivedIndicator(record.derivedIndicator)
-        : null,
+  return record
+}
+
+const fetchFullProductOutput = async (id: string) => {
+  const record = await db.query.productOutput.findFirst({
+    where: (productOutput, { eq }) => eq(productOutput.id, id),
+    ...fullProductOutputQuery,
+  })
+
+  return record ? parseFullProductOutput(record) : null
+}
+
+const fetchFullProductOutputOrThrow = async (id: string) => {
+  const record = await fetchFullProductOutput(id)
+
+  if (!record) {
+    throw productOutputNotFoundError()
   }
+
+  return record
 }
 
 const parseCsvFile = async (file: File) => {
@@ -201,6 +279,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      // TODO: Use fetchFullProductOutputOrThrow instead
       const record = await fetchBaseProductOutputOrThrow(id)
 
       const geometryOutput = record.geometryOutput

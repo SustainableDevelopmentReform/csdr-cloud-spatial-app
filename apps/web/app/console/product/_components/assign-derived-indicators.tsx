@@ -17,6 +17,7 @@ import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import {
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
+  useComputeDerivedIndicatorsForProductRun,
   useRemoveDerivedIndicatorFromProductRun,
 } from '../_hooks'
 
@@ -51,7 +52,8 @@ export const AssignDerivedIndicatorsDialog = ({
   const removeDerivedIndicator = useRemoveDerivedIndicatorFromProductRun(
     run?.id,
   )
-
+  const computeDerivedIndicatorsForProductRun =
+    useComputeDerivedIndicatorsForProductRun(run)
   const assignedIndicators = useMemo(
     () => run?.assignedDerivedIndicators ?? [],
     [run?.assignedDerivedIndicators],
@@ -185,6 +187,37 @@ export const AssignDerivedIndicatorsDialog = ({
               </p>
             )}
           </div>
+        </div>
+        <div>
+          <Button
+            onClick={() =>
+              computeDerivedIndicatorsForProductRun.mutate(undefined, {
+                onSuccess: (response) => {
+                  if (response?.data.warnings?.length) {
+                    toast.warning(
+                      'Derived indicators computed with warnings - see console for details',
+                      {
+                        description: response.data.warnings
+                          .map((warning) => warning.message)
+                          .join(', '),
+                      },
+                    )
+                    console.warn(response?.data.warnings)
+                  } else {
+                    toast.success('Derived indicators computed')
+                  }
+                },
+                onError: (error) => {
+                  toast.error(getErrorMessage(error))
+                },
+              })
+            }
+            disabled={computeDerivedIndicatorsForProductRun.isPending}
+          >
+            {computeDerivedIndicatorsForProductRun.isPending
+              ? 'Computing...'
+              : 'Compute'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
