@@ -11,8 +11,7 @@ import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import { DetailCard } from '../../../_components/detail-cards'
 import { DatasetRunSummaryCard } from '../../../dataset/_components/dataset-run-summary-card'
-import { DatasetRunMapCog } from '../../../dataset/_components/dataset-run-map-cog'
-import { DatasetRunMapParquet } from '../../../dataset/_components/dataset-run-map-parquet'
+import { DatasetRunMap } from '../../../dataset/_components/dataset-run-map'
 import {
   useDatasetRun,
   useDatasetRunsLink,
@@ -79,15 +78,10 @@ const DatasetRunDetails = () => {
         </div>
       </div>
 
-      <>Test the viz here:</>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="w-full bg-gray-50 rounded-md p-3">
-          <DatasetRunMapCog />
-        </div>
-        <div className="w-full bg-gray-50 rounded-md p-3">
-          <DatasetRunMapParquet />
-        </div>
-      </div>
+      <DatasetRunMap
+        dataType={datasetRun?.dataType}
+        dataUrl={datasetRun?.dataUrl}
+      />
 
       <CrudForm
         form={form}
