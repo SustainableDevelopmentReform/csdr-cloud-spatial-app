@@ -22,6 +22,12 @@ export const DatasetRunMap = ({
 }) => {
   const [jsTable, setJsTable] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
+  const [layers, setLayers] = useState<any[]>([])
+  const [viewState, setViewState] = useState({
+    longitude: 0,
+    latitude: 0,
+    zoom: 1,
+  })
 
   // Must use the "_native" version where the geometry column is GeoArrow:
   const GEOPARQUET_URL_POINTS_S3 =
@@ -50,9 +56,9 @@ export const DatasetRunMap = ({
     fetchParquet()
   }, []) // Don't want dataUrl as hook dependency. Don't want it to run twice, just on initial load.
 
-  let geometryType = null
-  const layers = []
-  if (jsTable) {
+  useEffect(() => {
+    if (!jsTable) return
+    let geometryType = null
     // Detect points or polygons
     const geometryVector = jsTable?.getChild('geometry')
     if (
@@ -62,7 +68,7 @@ export const DatasetRunMap = ({
       geometryVector?.type?.children[1]?.name === 'y'
     ) {
       geometryType = 'Point'
-      layers.push(
+      setLayers([
         new GeoArrowScatterplotLayer({
           id: 'dataset',
           data: jsTable,
@@ -75,7 +81,7 @@ export const DatasetRunMap = ({
           getRadius: 50000,
           pickable: true,
         }),
-      )
+      ])
     } else if (
       geometryVector?.type?.typeId === 12 && // List
       geometryVector?.type?.children?.[0]?.type?.typeId === 12 && // List
@@ -85,7 +91,7 @@ export const DatasetRunMap = ({
         ?.children?.[0]?.type?.typeId === 13 // Struct(x, y)
     ) {
       geometryType = 'Polygon'
-      layers.push(
+      setLayers([
         new GeoArrowPolygonLayer({
           id: 'dataset',
           data: jsTable,
@@ -98,9 +104,41 @@ export const DatasetRunMap = ({
           pickable: true,
           // onClick // if dataType === "stac-geoparquet", show STAC item selector and load COG. Else if dataType === "geoparquet", show details popup.
         }),
-      )
+      ])
     }
-  }
+  }, [jsTable])
+
+  useEffect(() => {
+    console.log(loading)
+    if (loading) return
+
+    // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
+    // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
+    // This COG hits the same projection error:
+    // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
+
+    // This COG works and is just for testing:
+    const COG_URL =
+      'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
+    const cogLayer = new COGLayer({
+      id: 'cog-layer',
+      geotiff: COG_URL,
+      onGeoTIFFLoad: (tiff, options) => {
+        console.log('COG loaded', { tiff, options })
+
+        const { west, south, east, north } = options.geographicBounds
+        const centerLongitude = (west + east) / 2
+        const centerLatitude = (south + north) / 2
+        setViewState((vs) => ({
+          ...vs,
+          longitude: centerLongitude,
+          latitude: centerLatitude,
+          zoom: 6,
+        }))
+      },
+    })
+    setLayers((prevLayers) => [...prevLayers, cogLayer])
+  }, [loading])
 
   // {dataType && dataUrl &&
   return (
@@ -109,10 +147,11 @@ export const DatasetRunMap = ({
         <p>Parquet Test (GeoArrow encoded geometry column)</p>
         <p>Data Type: {dataType}</p>
         <p>Data URL: {dataUrl}</p>
-        <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p>
+        {/* <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p> */}
         <div style={{ height: '500px', width: '100%', position: 'relative' }}>
           <DeckGL
-            initialViewState={{ longitude: 0, latitude: 0, zoom: 1 }}
+            viewState={viewState}
+            onViewStateChange={({ viewState }) => setViewState(viewState)}
             controller={true}
             layers={layers}
           >
@@ -136,38 +175,3 @@ export const DatasetRunMap = ({
     </div>
   )
 }
-
-// COG map stuff
-// See example here: https://developmentseed.org/deck.gl-raster/examples/land-cover/
-
-// export const DatasetRunMapCog: React.FC = () => {
-//   // const COG_URL = 'https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com/sentinel-2-pre-c1-l2a/32/T/LR/2022/11/S2B_T32TLR_20221125T103254_L2A/B04.tif';
-//   // const COG_URL = "https://s3.us-east-1.amazonaws.com/ds-deck.gl-raster-public/cog/Annual_NLCD_LndCov_2024_CU_C1V1.tif"
-//   // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
-//   // const COG_URL = "https://data.source.coop/tge-labs/aef/v1/annual/2024/12N/x03l2pi8jf4om2szj-0000000000-0000000000.tiff"
-//   // const COG_URL = "https://ai4edataeuwest.blob.core.windows.net/usgs-gap/conus/gap_landfire_nationalterrestrialecosystems2011_-861135_1762215_-561135_1462215.tif"
-//   // This works if CORS is enabled:
-//   const COG_URL =
-//     'https://s3.us-east-1.amazonaws.com/ds-deck.gl-raster-public/cog/Annual_NLCD_LndCov_2024_CU_C1V1.tif'
-//   const cogLayer = new COGLayer({
-//     id: 'cog-layer',
-//     geotiff: COG_URL,
-//   })
-//   return (
-//     <div>
-//       COG Test (Cloud Optimized GeoTIFF)
-//       <div style={{ height: '500px', width: '100%', position: 'relative' }}>
-//         <DeckGL
-//           initialViewState={{ longitude: 0, latitude: 0, zoom: 1 }}
-//           controller={true}
-//           layers={[cogLayer]}
-//         >
-//           <Map
-//             style={{ width: '100%', height: '100%' }}
-//             mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
-//           />
-//         </DeckGL>
-//       </div>
-//     </div>
-//   )
-// }
