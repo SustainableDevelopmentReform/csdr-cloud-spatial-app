@@ -23,20 +23,30 @@ export const DatasetRunMap = ({
   const [jsTable, setJsTable] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
   const [layers, setLayers] = useState<any[]>([])
+  const [geometryType, setGeometryType] = useState<string>()
   const [viewState, setViewState] = useState({
     longitude: 0,
     latitude: 0,
     zoom: 1,
   })
 
+  // Here is the command to convert a parquet to use GeoArrow for geometry column:
+  // ogr2ogr -f Parquet /Users/wj/Downloads/gmw-geoarrow.parquet "/Users/wj/Downloads/gmw (4).parquet" -lco GEOMETRY_ENCODING=geoarrow
+  // This will be done in the CSDR pipeline when generating GeoParquet files.
+
+  const stac_parquet_arrow_s3 =
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
+
+  // Test files:
   // Must use the "_native" version where the geometry column is GeoArrow:
-  const GEOPARQUET_URL_POINTS_S3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/natural-earth_cities_native.parquet'
-  dataUrl = GEOPARQUET_URL_POINTS_S3 // Just for dev
-  const GEOPARQUET_URL_POINTS =
-    'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
-  const GEOPARQUET_URL_POLYGONS =
-    'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
+  // const GEOPARQUET_URL_POINTS_S3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
+  // const GEOPARQUET_URL_POINTS =
+  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
+  // const GEOPARQUET_URL_POLYGONS =
+  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
+
+  dataUrl = stac_parquet_arrow_s3 // Just for dev. Dataurl should come from props.
 
   useEffect(() => {
     const fetchParquet = async () => {
@@ -58,21 +68,23 @@ export const DatasetRunMap = ({
 
   useEffect(() => {
     if (!jsTable) return
-    let geometryType = null
+    console.log('jsTable', jsTable)
     // Detect points or polygons
-    const geometryVector = jsTable?.getChild('geometry')
+    // Geometry column can have different names e.g. "geometry" or "proj:geometry"
+    const geometryVector =
+      jsTable?.getChild('geometry') || jsTable?.getChild('proj:geometry')
     if (
-      geometryVector?.type?.typeId === 13 && // Struct
-      geometryVector?.type?.children?.length === 2 &&
-      geometryVector?.type?.children[0]?.name === 'x' &&
-      geometryVector?.type?.children[1]?.name === 'y'
+      geometryVector?.type?.typeId === 13 // Struct
+      // geometryVector?.type?.children?.length === 2 &&
+      // geometryVector?.type?.children[0]?.name === 'x' &&
+      // geometryVector?.type?.children[1]?.name === 'y'
     ) {
-      geometryType = 'Point'
+      setGeometryType('Point')
       setLayers([
         new GeoArrowScatterplotLayer({
           id: 'dataset',
           data: jsTable,
-          getPosition: jsTable.getChild('geometry'),
+          getPosition: geometryVector,
           getFillColor: [255, 140, 0, 180],
           stroked: true,
           getLineColor: [0, 0, 0, 255],
@@ -83,19 +95,19 @@ export const DatasetRunMap = ({
         }),
       ])
     } else if (
-      geometryVector?.type?.typeId === 12 && // List
-      geometryVector?.type?.children?.[0]?.type?.typeId === 12 && // List
-      geometryVector?.type?.children?.[0]?.type?.children?.[0]?.type?.typeId ===
-        12 && // List
-      geometryVector?.type?.children?.[0]?.type?.children?.[0]?.type
-        ?.children?.[0]?.type?.typeId === 13 // Struct(x, y)
+      geometryVector?.type?.typeId === 12 // List
+      // geometryVector?.type?.children?.[0]?.type?.typeId === 12 && // List
+      // geometryVector?.type?.children?.[0]?.type?.children?.[0]?.type?.typeId ===
+      //   12 && // List
+      // geometryVector?.type?.children?.[0]?.type?.children?.[0]?.type
+      //   ?.children?.[0]?.type?.typeId === 13 // Struct(x, y)
     ) {
-      geometryType = 'Polygon'
+      setGeometryType('Polygon')
       setLayers([
         new GeoArrowPolygonLayer({
           id: 'dataset',
           data: jsTable,
-          getPolygon: jsTable.getChild('geometry'),
+          getPolygon: geometryVector,
           getFillColor: [255, 140, 0, 180],
           getLineColor: [0, 0, 0, 255],
           getLineWidth: 1,
@@ -105,6 +117,8 @@ export const DatasetRunMap = ({
           // onClick // if dataType === "stac-geoparquet", show STAC item selector and load COG. Else if dataType === "geoparquet", show details popup.
         }),
       ])
+    } else {
+      console.error('Unknown geometry type in GeoParquet')
     }
   }, [jsTable])
 
@@ -147,7 +161,7 @@ export const DatasetRunMap = ({
         <p>Parquet Test (GeoArrow encoded geometry column)</p>
         <p>Data Type: {dataType}</p>
         <p>Data URL: {dataUrl}</p>
-        {/* <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p> */}
+        <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p>
         <div style={{ height: '500px', width: '100%', position: 'relative' }}>
           <DeckGL
             viewState={viewState}
