@@ -118,16 +118,20 @@ export const DatasetRunMap = ({
           pickable: true,
           onClick: (info) => {
             if (info && info.object) {
-              setSelectedCogLink(
-                Object.fromEntries(Object.entries(info.object))[
-                  'assets.mangrove.href'
-                ],
-              )
-            }
-            if (dataType === 'stac-geoparquet') {
-              // Show STAC item selector and load COG.
-            } else if (dataType === 'geoparquet') {
-              // Show details popup.
+              if (dataType === 'stac-geoparquet') {
+                let s3_link: string = Object.fromEntries(
+                  Object.entries(info.object),
+                )['assets.mangrove.href']
+                s3_link = s3_link.replace(
+                  's3://csdr-public-dev',
+                  'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
+                )
+                setSelectedCogLink(s3_link)
+              } else if (dataType === 'geoparquet') {
+                // Show details popup.
+                console.log('Polygon clicked', info.object)
+                // show popup
+              }
             }
           },
         }),
@@ -158,16 +162,29 @@ export const DatasetRunMap = ({
 
       // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
       // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
-      // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
       // s3://csdr-public-dev/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif
       // This COG hits the same projection error:
       // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
 
       // This COG works and is just for testing:
+      // const COG_URL =
+      //   'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
+
+      // This has been reprojected to UTM zone 32S, EPSG:32732. This fixes the CRS issue when loading the GMW COG from S3.
+      // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s.tif"
+      // gdalwarp -t_srs EPSG:32732 -co COMPRESS=DEFLATE -co TILED=YES -co COPY_SRC_OVERVIEWS=YES -co PROFILE=COG "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif"
+
+      // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
       const COG_URL =
-        'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
+        'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s_rgb.tif'
+      // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
+      //   -b 1 -b 1 -b 1 \
+      //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif" \
+      //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s_rgb.tif"
+
       const cogLayer = new COGLayer({
         id: cogLayerId,
+        // geotiff: selectedCogLink,
         geotiff: COG_URL,
         onGeoTIFFLoad: (tiff, options) => {
           console.log('COG loaded', { tiff, options })
@@ -179,7 +196,7 @@ export const DatasetRunMap = ({
             ...vs,
             longitude: centerLongitude,
             latitude: centerLatitude,
-            zoom: 6,
+            zoom: 8,
           }))
         },
       })
