@@ -23,7 +23,7 @@ export const DatasetRunMap = ({
   const [jsTable, setJsTable] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
   const [layers, setLayers] = useState<any[]>([])
-  const [selectedCogLink, setSelectedCogLink] = useState<string>()
+  const [selectedFeature, setSelectedFeature] = useState<any>()
   const [geometryType, setGeometryType] = useState<string>()
   const [viewState, setViewState] = useState({
     longitude: 0,
@@ -70,7 +70,6 @@ export const DatasetRunMap = ({
 
   useEffect(() => {
     if (!jsTable) return
-    console.log('jsTable', jsTable)
     // Detect points or polygons
     // Geometry column can have different names e.g. "geometry" or "proj:geometry"
     const geometryVector =
@@ -87,6 +86,7 @@ export const DatasetRunMap = ({
           id: 'dataset',
           data: jsTable,
           getPosition: geometryVector,
+          // TODO: Highlight selected point
           getFillColor: [255, 140, 0, 180],
           stroked: true,
           getLineColor: [0, 0, 0, 255],
@@ -94,6 +94,8 @@ export const DatasetRunMap = ({
           lineWidthUnits: 'pixels',
           getRadius: 50000,
           pickable: true,
+          // TODO: onClick to select point
+          // onClick
         }),
       ])
     } else if (
@@ -110,28 +112,38 @@ export const DatasetRunMap = ({
           id: 'dataset',
           data: jsTable,
           getPolygon: geometryVector,
-          getFillColor: [255, 140, 0, 180],
-          getLineColor: [0, 0, 0, 255],
-          getLineWidth: 1,
+          getFillColor: (d: any) => {
+            const featureId = jsTable?.getChild('id')?.get(d.index)
+            const selectedFeatureId = selectedFeature?.['id']
+            if (featureId == selectedFeatureId) {
+              return [0, 200, 255, 220] // Cyan highlight
+            }
+            return [255, 140, 0, 180]
+          },
+          getLineColor: (d) => {
+            const featureId = jsTable?.getChild('id')?.get(d.index)
+            const selectedFeatureId = selectedFeature?.['id']
+            if (featureId == selectedFeatureId) {
+              return [0, 0, 0, 255] // Black highlight
+            }
+            return [0, 0, 0, 100]
+          },
+          getLineWidth: (d) => {
+            const featureId = jsTable?.getChild('id')?.get(d.index)
+            const selectedFeatureId = selectedFeature?.['id']
+            if (featureId == selectedFeatureId) {
+              return 3
+            }
+            return 1
+          },
           lineWidthUnits: 'pixels',
           lineWidthMinPixels: 1,
           pickable: true,
           onClick: (info) => {
             if (info && info.object) {
-              if (dataType === 'stac-geoparquet') {
-                let s3_link: string = Object.fromEntries(
-                  Object.entries(info.object),
-                )['assets.mangrove.href']
-                s3_link = s3_link.replace(
-                  's3://csdr-public-dev',
-                  'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
-                )
-                setSelectedCogLink(s3_link)
-              } else if (dataType === 'geoparquet') {
-                // Show details popup.
-                console.log('Polygon clicked', info.object)
-                // show popup
-              }
+              setSelectedFeature(
+                Object.fromEntries(Object.entries(info.object)),
+              )
             }
           },
         }),
@@ -139,70 +151,75 @@ export const DatasetRunMap = ({
     } else {
       console.error('Unknown geometry type in GeoParquet')
     }
-  }, [jsTable])
+  }, [jsTable, selectedFeature])
 
   useEffect(() => {
-    const cogLayerId = 'cog-layer'
-    console.log(selectedCogLink)
+    if (dataType == 'stac-geoparquet') {
+      const cogLayerId = 'cog-layer'
 
-    if (!selectedCogLink) {
-      // Remove existing COG layer if any
-      setLayers((prevLayers) =>
-        prevLayers.filter((layer) => layer.id !== cogLayerId),
-      )
-      return
-    } else {
-      // Remove existing COG layer if any so it can be replaced
-      setLayers((prevLayers) =>
-        prevLayers.filter((layer) => layer.id !== cogLayerId),
-      )
-      // Add new COG layer
+      if (!selectedFeature) {
+        // Remove existing COG layer if any
+        setLayers((prevLayers) =>
+          prevLayers.filter((layer) => layer.id !== cogLayerId),
+        )
+        return
+      } else {
+        // Remove existing COG layer if any so it can be replaced
+        setLayers((prevLayers) =>
+          prevLayers.filter((layer) => layer.id !== cogLayerId),
+        )
+        // Add new COG layer
 
-      // TODO: Use selectedCogLink
+        // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
+        // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
+        // s3://csdr-public-dev/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif
+        // This COG hits the same projection error:
+        // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
 
-      // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
-      // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
-      // s3://csdr-public-dev/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif
-      // This COG hits the same projection error:
-      // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
+        // This COG works and is just for testing:
+        // const COG_URL =
+        //   'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
 
-      // This COG works and is just for testing:
-      // const COG_URL =
-      //   'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
+        // This has been reprojected to UTM zone 32S, EPSG:32732. This fixes the CRS issue when loading the GMW COG from S3.
+        // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s.tif"
+        // gdalwarp -t_srs EPSG:32732 -co COMPRESS=DEFLATE -co TILED=YES -co COPY_SRC_OVERVIEWS=YES -co PROFILE=COG "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif"
 
-      // This has been reprojected to UTM zone 32S, EPSG:32732. This fixes the CRS issue when loading the GMW COG from S3.
-      // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s.tif"
-      // gdalwarp -t_srs EPSG:32732 -co COMPRESS=DEFLATE -co TILED=YES -co COPY_SRC_OVERVIEWS=YES -co PROFILE=COG "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif"
+        // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
+        const COG_URL =
+          'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s_rgb.tif'
+        // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
+        //   -b 1 -b 1 -b 1 \
+        //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif" \
+        //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s_rgb.tif"
 
-      // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
-      const COG_URL =
-        'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s_rgb.tif'
-      // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
-      //   -b 1 -b 1 -b 1 \
-      //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif" \
-      //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s_rgb.tif"
+        // TODO: Use selectedFeatureLink
+        // const selectedFeatureLink = selectedFeature['assets.mangrove.href'].replace(
+        //   's3://csdr-public-dev',
+        //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
+        // )
 
-      const cogLayer = new COGLayer({
-        id: cogLayerId,
-        // geotiff: selectedCogLink,
-        geotiff: COG_URL,
-        onGeoTIFFLoad: (tiff, options) => {
-          console.log('COG loaded', { tiff, options })
+        const cogLayer = new COGLayer({
+          id: cogLayerId,
+          // geotiff: selectedFeatureLink,
+          geotiff: COG_URL,
+          onGeoTIFFLoad: (tiff, options) => {
+            console.log('COG loaded', { tiff, options })
 
-          const { west, south, east, north } = options.geographicBounds
-          const centerLongitude = (west + east) / 2
-          const centerLatitude = (south + north) / 2
-          setViewState((vs) => ({
-            ...vs,
-            longitude: centerLongitude,
-            latitude: centerLatitude,
-            zoom: 8,
-          }))
-        },
-      })
-      setLayers((prevLayers) => [...prevLayers, cogLayer])
+            const { west, south, east, north } = options.geographicBounds
+            const centerLongitude = (west + east) / 2
+            const centerLatitude = (south + north) / 2
+            setViewState((vs) => ({
+              ...vs,
+              longitude: centerLongitude,
+              latitude: centerLatitude,
+              zoom: 8,
+            }))
+          },
+        })
+        setLayers((prevLayers) => [...prevLayers, cogLayer])
+      }
     }
-  }, [selectedCogLink])
+  }, [selectedFeature])
 
   // {dataType && dataUrl &&
   return (
@@ -211,7 +228,6 @@ export const DatasetRunMap = ({
         <p>Data Type: {dataType}</p>
         <p>Data URL: {dataUrl}</p>
         <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p>
-        <p>Selected COG Link: {selectedCogLink ?? 'None'}</p>
         <div style={{ height: '500px', width: '100%', position: 'relative' }}>
           <DeckGL
             viewState={viewState}
@@ -235,6 +251,30 @@ export const DatasetRunMap = ({
             </div>
           )}
         </div>
+        {selectedFeature && (
+          <div className="my-20 bg-white p-2 rounded shadow max-h-200 overflow-auto">
+            <h2>Selected Feature Details:</h2>
+            <p>Data Type: {dataType}</p>
+            <table className="text-xs">
+              <thead>
+                <tr>
+                  <th className="text-left pr-2">Key</th>
+                  <th className="text-left">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(selectedFeature).map(([key, value]) => (
+                  <tr key={key}>
+                    <td className="pr-2 align-top font-mono">{key}</td>
+                    <td className="align-top font-mono break-all">
+                      {String(value)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
