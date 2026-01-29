@@ -23,6 +23,7 @@ export const DatasetRunMap = ({
   const [jsTable, setJsTable] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
   const [layers, setLayers] = useState<any[]>([])
+  const [selectedCogLink, setSelectedCogLink] = useState<string>()
   const [geometryType, setGeometryType] = useState<string>()
   const [viewState, setViewState] = useState({
     longitude: 0,
@@ -47,6 +48,7 @@ export const DatasetRunMap = ({
   //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
 
   dataUrl = stac_parquet_arrow_s3 // Just for dev. Dataurl should come from props.
+  dataType = 'stac-geoparquet' // Just for dev. dataType should come from props.
 
   useEffect(() => {
     const fetchParquet = async () => {
@@ -114,7 +116,20 @@ export const DatasetRunMap = ({
           lineWidthUnits: 'pixels',
           lineWidthMinPixels: 1,
           pickable: true,
-          // onClick // if dataType === "stac-geoparquet", show STAC item selector and load COG. Else if dataType === "geoparquet", show details popup.
+          onClick: (info) => {
+            if (info && info.object) {
+              setSelectedCogLink(
+                Object.fromEntries(Object.entries(info.object))[
+                  'assets.mangrove.href'
+                ],
+              )
+            }
+            if (dataType === 'stac-geoparquet') {
+              // Show STAC item selector and load COG.
+            } else if (dataType === 'geoparquet') {
+              // Show details popup.
+            }
+          },
         }),
       ])
     } else {
@@ -123,45 +138,63 @@ export const DatasetRunMap = ({
   }, [jsTable])
 
   useEffect(() => {
-    console.log(loading)
-    if (loading) return
+    const cogLayerId = 'cog-layer'
+    console.log(selectedCogLink)
 
-    // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
-    // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
-    // This COG hits the same projection error:
-    // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
+    if (!selectedCogLink) {
+      // Remove existing COG layer if any
+      setLayers((prevLayers) =>
+        prevLayers.filter((layer) => layer.id !== cogLayerId),
+      )
+      return
+    } else {
+      // Remove existing COG layer if any so it can be replaced
+      setLayers((prevLayers) =>
+        prevLayers.filter((layer) => layer.id !== cogLayerId),
+      )
+      // Add new COG layer
 
-    // This COG works and is just for testing:
-    const COG_URL =
-      'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
-    const cogLayer = new COGLayer({
-      id: 'cog-layer',
-      geotiff: COG_URL,
-      onGeoTIFFLoad: (tiff, options) => {
-        console.log('COG loaded', { tiff, options })
+      // TODO: Use selectedCogLink
 
-        const { west, south, east, north } = options.geographicBounds
-        const centerLongitude = (west + east) / 2
-        const centerLatitude = (south + north) / 2
-        setViewState((vs) => ({
-          ...vs,
-          longitude: centerLongitude,
-          latitude: centerLatitude,
-          zoom: 6,
-        }))
-      },
-    })
-    setLayers((prevLayers) => [...prevLayers, cogLayer])
-  }, [loading])
+      // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
+      // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
+      // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
+      // s3://csdr-public-dev/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif
+      // This COG hits the same projection error:
+      // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
+
+      // This COG works and is just for testing:
+      const COG_URL =
+        'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
+      const cogLayer = new COGLayer({
+        id: cogLayerId,
+        geotiff: COG_URL,
+        onGeoTIFFLoad: (tiff, options) => {
+          console.log('COG loaded', { tiff, options })
+
+          const { west, south, east, north } = options.geographicBounds
+          const centerLongitude = (west + east) / 2
+          const centerLatitude = (south + north) / 2
+          setViewState((vs) => ({
+            ...vs,
+            longitude: centerLongitude,
+            latitude: centerLatitude,
+            zoom: 6,
+          }))
+        },
+      })
+      setLayers((prevLayers) => [...prevLayers, cogLayer])
+    }
+  }, [selectedCogLink])
 
   // {dataType && dataUrl &&
   return (
     <div className="grid grid-cols-1">
       <div className="w-full rounded-md">
-        <p>Parquet Test (GeoArrow encoded geometry column)</p>
         <p>Data Type: {dataType}</p>
         <p>Data URL: {dataUrl}</p>
         <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p>
+        <p>Selected COG Link: {selectedCogLink ?? 'None'}</p>
         <div style={{ height: '500px', width: '100%', position: 'relative' }}>
           <DeckGL
             viewState={viewState}
