@@ -500,6 +500,9 @@ export const productOutputQuerySchema = baseQuerySchema.extend({
   geometryOutputId: z.string().optional(),
   indicatorId: z.string().optional(),
   timePoint: z.iso.datetime().optional(),
+  sort: z
+    .enum(['name', 'createdAt', 'updatedAt', 'value', 'timePoint'])
+    .optional(),
 })
 
 export const productOutputExportQuerySchema = z.object({
@@ -511,7 +514,12 @@ export const productOutputExportQuerySchema = z.object({
 export const createProductOutputSchema = baseCreateResourceSchema.extend({
   productRunId: z.string(),
   geometryOutputId: z.string(),
-  value: z.number(),
+  value: z.union([z.number(), z.string()]).transform((data) => {
+    if (typeof data === 'string') {
+      return parseFloat(data)
+    }
+    return data
+  }),
   indicatorId: z.string(),
   timePoint: z.iso.datetime(),
 })
