@@ -7,12 +7,22 @@ import {
 } from '@geoarrow/deck.gl-layers'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
 import { tableFromIPC } from 'apache-arrow'
-import { COGLayer } from '@developmentseed/deck.gl-geotiff'
 
-// Can't use this one because the geometry column is not GeoArrow:
-// const GEOPARQUET_URL = "https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities.parquet";
-// This gets CORS error, and is encoding using WKB for geometry column, instead of GeoArrow. Both critical errors that need fixing.
-// const GEOPARQUET_URL = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
+import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
+import { toProj4 } from 'geotiff-geokeys-to-proj4'
+
+async function geoKeysParser(
+  geoKeys: Record<string, any>,
+): Promise<proj.ProjectionInfo> {
+  const projDefinition = toProj4(geoKeys as any)
+
+  return {
+    def: projDefinition.proj4,
+    parsed: proj.parseCrs(projDefinition.proj4),
+    coordinatesUnits: projDefinition.coordinatesUnits as proj.SupportedCrsUnit,
+  }
+}
+
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
@@ -154,71 +164,63 @@ export const DatasetRunMap = ({
   }, [jsTable, selectedFeature])
 
   useEffect(() => {
-    if (dataType == 'stac-geoparquet') {
-      const cogLayerId = 'cog-layer'
+    async function loadCOG() {
+      if (dataType == 'stac-geoparquet') {
+        const cogLayerId = 'cog-layer'
 
-      if (!selectedFeature) {
-        // Remove existing COG layer if any
-        setLayers((prevLayers) =>
-          prevLayers.filter((layer) => layer.id !== cogLayerId),
-        )
-        return
-      } else {
-        // Remove existing COG layer if any so it can be replaced
-        setLayers((prevLayers) =>
-          prevLayers.filter((layer) => layer.id !== cogLayerId),
-        )
-        // Add new COG layer
+        if (!selectedFeature) {
+          // Remove existing COG layer if any
+          setLayers((prevLayers) =>
+            prevLayers.filter((layer) => layer.id !== cogLayerId),
+          )
+          return
+        } else {
+          // Remove existing COG layer if any so it can be replaced
+          setLayers((prevLayers) =>
+            prevLayers.filter((layer) => layer.id !== cogLayerId),
+          )
+          // Add new COG layer
+          // This COG is from our S3 bucket. It errors because it is single band instead of 3 band (RGB).
+          // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
 
-        // This COG is from our own S3 bucket with CORS enabled. It hits an error that sounds like projection.
-        // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
-        // s3://csdr-public-dev/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif
-        // This COG hits the same projection error:
-        // const COG_URL = "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2002/06/01/20020601090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif"
+          // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
+          const COG_URL =
+            'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_rgb.tif'
+          // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
+          //   -b 1 -b 1 -b 1 \
+          //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" \
+          //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_rgb.tif"
 
-        // This COG works and is just for testing:
-        // const COG_URL =
-        //   'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/18/T/WL/2026/1/S2B_18TWL_20260101_0_L2A/TCI.tif'
+          // TODO: Use selectedFeatureLink
+          // const selectedFeatureLink = selectedFeature['assets.mangrove.href'].replace(
+          //   's3://csdr-public-dev',
+          //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
+          // )
 
-        // This has been reprojected to UTM zone 32S, EPSG:32732. This fixes the CRS issue when loading the GMW COG from S3.
-        // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s.tif"
-        // gdalwarp -t_srs EPSG:32732 -co COMPRESS=DEFLATE -co TILED=YES -co COPY_SRC_OVERVIEWS=YES -co PROFILE=COG "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif"
+          const cogLayer = new COGLayer({
+            id: cogLayerId,
+            // geotiff: selectedFeatureLink,
+            geotiff: COG_URL,
+            geoKeysParser,
+            onGeoTIFFLoad: (tiff, options) => {
+              console.log('COG loaded', { tiff, options })
 
-        // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
-        const COG_URL =
-          'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_utm32s_rgb.tif'
-        // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
-        //   -b 1 -b 1 -b 1 \
-        //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s.tif" \
-        //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_utm32s_rgb.tif"
-
-        // TODO: Use selectedFeatureLink
-        // const selectedFeatureLink = selectedFeature['assets.mangrove.href'].replace(
-        //   's3://csdr-public-dev',
-        //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
-        // )
-
-        const cogLayer = new COGLayer({
-          id: cogLayerId,
-          // geotiff: selectedFeatureLink,
-          geotiff: COG_URL,
-          onGeoTIFFLoad: (tiff, options) => {
-            console.log('COG loaded', { tiff, options })
-
-            const { west, south, east, north } = options.geographicBounds
-            const centerLongitude = (west + east) / 2
-            const centerLatitude = (south + north) / 2
-            setViewState((vs) => ({
-              ...vs,
-              longitude: centerLongitude,
-              latitude: centerLatitude,
-              zoom: 8,
-            }))
-          },
-        })
-        setLayers((prevLayers) => [...prevLayers, cogLayer])
+              const { west, south, east, north } = options.geographicBounds
+              const centerLongitude = (west + east) / 2
+              const centerLatitude = (south + north) / 2
+              setViewState((vs) => ({
+                ...vs,
+                longitude: centerLongitude,
+                latitude: centerLatitude,
+                zoom: 8,
+              }))
+            },
+          })
+          setLayers((prevLayers) => [...prevLayers, cogLayer])
+        }
       }
     }
+    loadCOG()
   }, [selectedFeature])
 
   // {dataType && dataUrl &&

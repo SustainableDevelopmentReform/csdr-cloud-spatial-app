@@ -28,6 +28,7 @@
     "apache-arrow": "^21.1.0",
     "better-auth": "catalog:",
     "d3-scale-chromatic": "^3.1.0",
+    "geotiff-geokeys-to-proj4": "^2024.4.13",
     "hono": "catalog:",
     "lucide-react": "catalog:",
     "maplibre-gl": "^5.6.2",
