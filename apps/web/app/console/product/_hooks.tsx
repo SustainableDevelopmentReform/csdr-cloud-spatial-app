@@ -812,12 +812,18 @@ export const useComputeDerivedIndicatorsForProductRun = (
       })
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
       })
       queryClient.invalidateQueries({
         queryKey: productRunQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          response?.data?.productRun.product?.id,
+          response?.data?.productRun.id,
+        ),
       })
     },
   })

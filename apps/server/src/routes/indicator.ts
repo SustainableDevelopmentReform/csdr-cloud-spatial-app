@@ -600,7 +600,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { indicatorIds, ...payload } = c.req.valid('json')
+      const payload = c.req.valid('json')
       const data = {
         ...payload,
         ...(payload.categoryId !== undefined && {
@@ -617,28 +617,6 @@ const app = createOpenAPIApp()
       await db
         .delete(derivedIndicatorToIndicator)
         .where(eq(derivedIndicatorToIndicator.derivedIndicatorId, id))
-
-      if (indicatorIds?.length) {
-        // Throw error if any of the indicatorIds are derived indicators
-        const derivedIndicators = await db.query.derivedIndicator.findMany({
-          where: inArray(derivedIndicator.id, indicatorIds),
-        })
-        if (derivedIndicators.length > 0) {
-          throw new ServerError({
-            statusCode: 422,
-            message: 'Cannot create derived indicator with derived indicators',
-            description:
-              'Cannot create derived indicator with derived indicators',
-          })
-        }
-
-        await db.insert(derivedIndicatorToIndicator).values(
-          indicatorIds?.map((indicatorId) => ({
-            derivedIndicatorId: id,
-            indicatorId,
-          })),
-        )
-      }
 
       if (!record) {
         throw derivedIndicatorNotFoundError()

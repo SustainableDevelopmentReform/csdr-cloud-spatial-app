@@ -39,7 +39,7 @@ type ParseQueryResult = {
 
 export const parseQuery = async <
   Table extends PgTable,
-  Params extends z.input<typeof baseQuerySchema> & {
+  Params extends Omit<z.output<typeof baseQuerySchema>, 'sort'> & {
     sort?: TableColumnKeys<Table>
   },
 >(
@@ -47,10 +47,8 @@ export const parseQuery = async <
   params: Params,
   options: QueryOptions<Table>,
 ): Promise<ParseQueryResult> => {
-  const parsed = baseQuerySchema.parse(params)
-
-  const page = parsed.page && parsed.page > 0 ? parsed.page : 1
-  const size = parsed.size && parsed.size > 0 ? parsed.size : 10
+  const page = params.page && params.page > 0 ? params.page : 1
+  const size = params.size && params.size > 0 ? params.size : 10
   const limit = size
   const offset = (page - 1) * size
 
@@ -62,7 +60,7 @@ export const parseQuery = async <
   const total = Number(totalCount ?? 0)
   const pageCount = size > 0 ? Math.ceil(total / size) : 0
 
-  const searchValue = parsed.search?.trim()
+  const searchValue = params.search?.trim()
   let where: SQL | undefined
 
   if (searchValue && options.searchableColumns?.length) {
@@ -74,13 +72,13 @@ export const parseQuery = async <
 
   let orderBy: ValueOrArray<AnyColumn | SQL> = options.defaultOrderBy
 
-  if (parsed.sort && parsed.sort in table) {
+  if (params.sort && params.sort in table) {
     // TODO: figure out how to type this
-    const column = table[parsed.sort as keyof typeof table] as
+    const column = table[params.sort as keyof typeof table] as
       | TableColumn<Table>
       | undefined
     if (column) {
-      const direction = parsed.order ?? 'desc'
+      const direction = params.order ?? 'desc'
       orderBy = direction === 'asc' ? asc(column) : desc(column)
     }
   }

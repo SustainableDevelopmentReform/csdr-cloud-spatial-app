@@ -1,7 +1,10 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createProductOutputSchema } from '@repo/schemas/crud'
+import {
+  createProductOutputSchema,
+  productOutputQuerySchema,
+} from '@repo/schemas/crud'
 import { CalendarSelect } from '@repo/ui/components/ui/calendar-select'
 import {
   FormControl,
@@ -16,7 +19,9 @@ import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../../../../components/form/crud-form-dialog'
-import BaseCrudTable from '../../../../../../components/table/crud-table'
+import BaseCrudTable, {
+  SortButton,
+} from '../../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../../components/table/search-input'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { DatasetButton } from '../../../../dataset/_components/dataset-button'
@@ -36,6 +41,7 @@ import {
 } from '../../../_hooks'
 import { IndicatorButton } from '../../../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../../../indicator/_components/indicators-select'
+import z from 'zod'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -73,7 +79,16 @@ const ProductOutputFeature = () => {
         }),
         columnHelper.accessor((row) => row.value, {
           id: 'value',
-          header: () => <span>Value</span>,
+          header: ({ column }) => (
+            <SortButton
+              order={column.getIsSorted()}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === 'asc')
+              }
+            >
+              Value
+            </SortButton>
+          ),
           cell: (info) => {
             return info.getValue()
           },
@@ -81,7 +96,16 @@ const ProductOutputFeature = () => {
         }),
         columnHelper.accessor((row) => row.timePoint, {
           id: 'timePoint',
-          header: () => <span>Time Point</span>,
+          header: ({ column }) => (
+            <SortButton
+              order={column.getIsSorted()}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === 'asc')
+              }
+            >
+              Time Point
+            </SortButton>
+          ),
           cell: (info) => {
             return formatDateTime(info.getValue())
           },
@@ -237,7 +261,10 @@ const ProductOutputFeature = () => {
           value={query?.search ?? ''}
           onChange={(e) => setSearchParams({ search: e.target.value })}
         />
-        <BaseCrudTable
+        <BaseCrudTable<
+          ProductOutputListItem,
+          Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
+        >
           data={data?.data || []}
           baseColumns={baseColumns}
           extraColumns={columns}
@@ -246,8 +273,8 @@ const ProductOutputFeature = () => {
           itemButton={(productOutput) => (
             <ProductOutputButton productOutput={productOutput} />
           )}
-          query={query}
-          onSortChange={setSearchParams}
+          query={{ sort: query?.sort, order: query?.order }}
+          onSortChange={(next) => setSearchParams(next)}
         />
         <Pagination
           className="justify-end mt-4"
