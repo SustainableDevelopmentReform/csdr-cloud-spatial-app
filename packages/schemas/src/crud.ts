@@ -472,14 +472,15 @@ export const baseProductOutputSchema = baseResourceSchema
         })
         .nullable(),
     }),
-    geometryOutput: baseGeometryOutputSchema.nullable(),
+    geometryOutput: baseGeometryOutputSchema.nullable().optional(),
     indicator: anyBaseIndicatorSchema.nullable(),
   })
   .openapi('ProductOutputBase')
 
 export const fullProductOutputSchema = baseProductOutputSchema
   .extend({
-    geometryOutput: fullGeometryOutputSchema.optional(),
+    geometryOutput: fullGeometryOutputSchema.nullable().optional(),
+    dependencyProductOutputs: z.array(baseProductOutputSchema),
   })
   .openapi('ProductOutputFull')
 

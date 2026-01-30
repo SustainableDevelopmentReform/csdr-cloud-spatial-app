@@ -1,5 +1,5 @@
 import { formatDateTime } from '@repo/ui/lib/date'
-import { ProductOutputDetail, useProductOutputLink } from '../_hooks'
+import { ProductOutputListItem, useProductOutputLink } from '../_hooks'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { DetailCard } from '../../_components/detail-cards'
 import { ArrowUpRightIcon } from 'lucide-react'
@@ -8,7 +8,7 @@ export const ProductOutputSummaryCard = ({
   productOutput,
   showLink,
 }: {
-  productOutput: ProductOutputDetail | undefined | null
+  productOutput: ProductOutputListItem | undefined | null
   showLink?: boolean
 }) => {
   const productOutputLink = useProductOutputLink()

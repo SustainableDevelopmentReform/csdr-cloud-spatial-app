@@ -37,6 +37,7 @@ import { generateJsonResponse } from '../lib/response'
 import {
   product,
   productOutput,
+  productOutputDependency,
   productOutputSummary,
   productOutputSummaryIndicator,
   productRun,
@@ -936,6 +937,7 @@ const app = createOpenAPIApp()
         value: number
         timePoint: Date
         name?: string
+        dependencyOutputIds: string[]
       }[] = []
 
       for (const assignedDerivedIndicator of productRun.assignedDerivedIndicators) {
@@ -1017,6 +1019,7 @@ const app = createOpenAPIApp()
         // Fetch all dependent indicator product outputs (grouped by geometryOutputId and timePoint)
         const dependentIndicatorProductOutputs = await db
           .select({
+            id: productOutput.id,
             indicatorId: productOutput.indicatorId,
             geometryOutputId: productOutput.geometryOutputId,
             timePoint: productOutput.timePoint,
@@ -1036,8 +1039,16 @@ const app = createOpenAPIApp()
             geometryOutputId: string | null
             timePoint: Date
             values: Map<string, number>
+            dependencyOutputIds: string[]
           }
         >()
+
+        if (dependentIndicatorProductOutputs.length === 0) {
+          warnings.push({
+            message: `No dependent indicator product outputs found for derived indicator "${derivedIndicator.name}".`,
+          })
+          continue
+        }
 
         for (const output of dependentIndicatorProductOutputs) {
           if (!output.indicatorId) continue
@@ -1046,8 +1057,10 @@ const app = createOpenAPIApp()
             geometryOutputId: output.geometryOutputId ?? null,
             timePoint: output.timePoint,
             values: new Map<string, number>(),
+            dependencyOutputIds: [],
           }
           group.values.set(output.indicatorId, output.value)
+          group.dependencyOutputIds.push(output.id)
           groupedOutputs.set(key, group)
         }
 
@@ -1107,19 +1120,33 @@ const app = createOpenAPIApp()
             derivedIndicatorId,
             value: computedValue,
             timePoint: group.timePoint,
+            dependencyOutputIds: group.dependencyOutputIds,
           })
         }
       }
 
       let insertedCount = 0
       for (const output of pendingOutputs) {
+        const { dependencyOutputIds, ...outputData } = output
         const [inserted] = await db
           .insert(productOutput)
-          .values(createPayload(output))
+          .values(createPayload(outputData))
           .onConflictDoNothing()
           .returning({ id: productOutput.id })
         if (inserted?.id) {
           insertedCount++
+          // Insert dependency links
+          if (dependencyOutputIds.length > 0) {
+            await db
+              .insert(productOutputDependency)
+              .values(
+                dependencyOutputIds.map((dependencyProductOutputId) => ({
+                  derivedProductOutputId: inserted.id,
+                  dependencyProductOutputId,
+                })),
+              )
+              .onConflictDoNothing()
+          }
         }
       }
 

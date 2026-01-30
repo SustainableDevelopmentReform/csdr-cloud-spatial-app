@@ -176,6 +176,7 @@ const IndicatorFeature = () => {
                     onChange={(selectedIndicators) =>
                       field.onChange(selectedIndicators.map((i) => i.id))
                     }
+                    queryOptions={{ type: 'measure' }}
                     isClearable
                     isMulti
                   />
