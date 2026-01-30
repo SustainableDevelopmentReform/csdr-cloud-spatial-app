@@ -352,6 +352,9 @@ importers:
       d3-scale-chromatic:
         specifier: 'catalog:'
         version: 3.1.0
+      geotiff-geokeys-to-proj4:
+        specifier: ^2024.4.13
+        version: 2024.4.13
       hono:
         specifier: 'catalog:'
         version: 4.12.14
@@ -6175,6 +6178,9 @@ packages:
 
   geojson-polygon-self-intersections@1.2.1:
     resolution: {integrity: sha512-/QM1b5u2d172qQVO//9CGRa49jEmclKEsYOQmWP9ooEjj63tBM51m2805xsbxkzlEELQ2REgTf700gUhhlegxA==}
+
+  geotiff-geokeys-to-proj4@2024.4.13:
+    resolution: {integrity: sha512-Jgtm/lcPkgB44wCqQHaVQx5/fyhmiVDRUKQcI/vMolsED8/GRWBnn5qkQo/CgutQg9xkGzig21DY9Px9mFRdvg==}
 
   geotiff@2.1.3:
     resolution: {integrity: sha512-PT6uoF5a1+kbC3tHmZSUsLHBp2QJlHasxxxxPW47QIY1VBKpFB+FcDvX+MxER6UzgLQZ0xDzJ9s48B9JbOCTqA==}
@@ -14969,6 +14975,8 @@ snapshots:
   geojson-polygon-self-intersections@1.2.1:
     dependencies:
       rbush: 2.0.2
+
+  geotiff-geokeys-to-proj4@2024.4.13: {}
 
   geotiff@2.1.3:
     dependencies:
