@@ -640,60 +640,6 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Remove a derived indicator from a product run.',
-      method: 'delete',
-      path: '/:id/derived-indicators',
-      middleware: [authMiddleware({ permission: 'write:productRun' })],
-      request: {
-        params: z.object({ id: z.string().min(1) }),
-        body: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: productRunDerivedIndicatorSchema,
-            },
-          },
-        },
-      },
-      responses: {
-        200: {
-          description: 'Successfully removed a derived indicator.',
-          content: {
-            'application/json': {
-              schema: createResponseSchema(fullProductRunSchema),
-            },
-          },
-        },
-        401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Product run not found'),
-        422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to remove derived indicator'),
-      },
-    }),
-    async (c) => {
-      const { id } = c.req.valid('param')
-      const { derivedIndicatorId } = c.req.valid('json')
-
-      const record = await fetchFullProductRunOrThrow(id)
-
-      await db
-        .delete(productRunAssignedDerivedIndicator)
-        .where(
-          and(
-            eq(productRunAssignedDerivedIndicator.productRunId, id),
-            eq(
-              productRunAssignedDerivedIndicator.derivedIndicatorId,
-              derivedIndicatorId,
-            ),
-          ),
-        )
-
-      return generateJsonResponse(c, record, 200, 'Derived indicator removed')
-    },
-  )
-
-  .openapi(
-    createRoute({
       description: 'Delete a product run.',
       method: 'delete',
       path: '/:id',
@@ -1055,6 +1001,9 @@ const app = createOpenAPIApp()
           .then((result) => (result[0]?.count ?? 0) > 0)
 
         if (hasDerivedIndicatorBeenComputed) {
+          warnings.push({
+            message: `Derived indicator "${derivedIndicator.name}" has already been computed - skipping.`,
+          })
           continue
         }
 

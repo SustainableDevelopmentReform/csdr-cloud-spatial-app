@@ -7,6 +7,7 @@ import {
 } from '@repo/schemas/crud'
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -33,6 +34,7 @@ import {
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
 import { IndicatorsSelect } from './_components/indicators-select'
+import { Badge } from '@repo/ui/components/ui/badge'
 
 const IndicatorFeature = () => {
   const {
@@ -169,6 +171,7 @@ const IndicatorFeature = () => {
               render={({ field }) => (
                 <FormItem>
                   <IndicatorsSelect
+                    description="The indicators that are used to compute the derived indicator. This cannot be changed after creation."
                     value={field.value ?? []}
                     onChange={(selectedIndicators) =>
                       field.onChange(selectedIndicators.map((i) => i.id))
@@ -187,6 +190,32 @@ const IndicatorFeature = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Expression</FormLabel>
+                  <FormDescription>
+                    The expression cannot be changed after creation.
+                    {(derivedIndicatorForm.watch('indicatorIds')?.length ?? 0) >
+                      0 && (
+                      <>
+                        <div className="mt-2">
+                          You can reference the indicators using the following
+                          variables:
+                        </div>
+                        <div className="my-2 flex flex-wrap gap-2">
+                          {derivedIndicatorForm
+                            .watch('indicatorIds')
+                            .map((indicatorId, index) => {
+                              const indicator = data?.data?.find(
+                                (indicator) => indicator.id === indicatorId,
+                              )
+                              return (
+                                <Badge key={indicatorId} variant="secondary">
+                                  ${index + 1}={indicator?.name}
+                                </Badge>
+                              )
+                            })}
+                        </div>
+                      </>
+                    )}
+                  </FormDescription>
                   <FormControl>
                     <Textarea {...field} className={'font-mono'} />
                   </FormControl>

@@ -18,10 +18,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { getSearchParams } from '~/utils/browser'
+import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
+import { useApiClient } from '../../../hooks/useApiClient'
+import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import {
   PRODUCTS_BASE_PATH,
   PRODUCTS_RUNS_BASE_PATH,
@@ -110,11 +110,6 @@ export type CreateProductRunOutputPayload = NonNullable<
 export type AssignDerivedIndicatorPayload = NonNullable<
   InferRequestType<
     Client['api']['v0']['product-run'][':id']['derived-indicators']['$post']
-  >['json']
->
-export type RemoveDerivedIndicatorPayload = NonNullable<
-  InferRequestType<
-    Client['api']['v0']['product-run'][':id']['derived-indicators']['$delete']
   >['json']
 >
 
@@ -844,44 +839,6 @@ export const useAssignDerivedIndicatorToProductRun = (
         json: payload,
       })
       return await unwrapResponse(res, 201)
-    },
-    onSuccess: (response) => {
-      const resolvedProductRunId = response?.data?.id ?? productRunId
-      const resolvedProductId = response?.data?.product?.id
-
-      if (resolvedProductRunId) {
-        queryClient.invalidateQueries({
-          queryKey: productRunQueryKeys.detail(resolvedProductRunId),
-        })
-      }
-      if (resolvedProductId) {
-        queryClient.invalidateQueries({
-          queryKey: productQueryKeys.detail(resolvedProductId),
-        })
-      }
-      queryClient.invalidateQueries({
-        queryKey: productRunQueryKeys.all,
-      })
-    },
-  })
-}
-
-export const useRemoveDerivedIndicatorFromProductRun = (
-  _productRunId?: string,
-) => {
-  const { productRunId } = useProductParams(undefined, _productRunId)
-  const queryClient = useQueryClient()
-  const client = useApiClient()
-  return useMutation({
-    mutationFn: async (payload: RemoveDerivedIndicatorPayload) => {
-      if (!productRunId) return
-      const res = client.api.v0['product-run'][':id'][
-        'derived-indicators'
-      ].$delete({
-        param: { id: productRunId },
-        json: payload,
-      })
-      return await unwrapResponse(res)
     },
     onSuccess: (response) => {
       const resolvedProductRunId = response?.data?.id ?? productRunId

@@ -14,16 +14,17 @@ import { DatasetButton } from '../../../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../../../dataset/_components/dataset-run-button'
 import { GeometriesButton } from '../../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../../geometries/_components/geometries-run-button'
+import { AssignDerivedIndicatorsDialog } from '../../_components/assign-derived-indicators'
 import { ProductRunSummaryCard } from '../../_components/product-run-summary-card'
+import { RefreshProductSummary } from '../../_components/refresh-product-summary'
 import {
-  useProductRun,
-  useUpdateProductRun,
   useDeleteProductRun,
+  useProductRun,
   useProductRunLink,
   useProductRunOutputsLink,
-  useRefreshProductRunSummary,
-  useSetProductMainRun,
   useProductRunsLink,
+  useSetProductMainRun,
+  useUpdateProductRun,
 } from '../../_hooks'
 
 const ProductRunDetails = () => {
@@ -36,7 +37,6 @@ const ProductRunDetails = () => {
   )
   const productRunLink = useProductRunLink()
   const productRunOutputsLink = useProductRunOutputsLink()
-  const refreshProductRunSummary = useRefreshProductRunSummary(productRun)
   const setProductMainRun = useSetProductMainRun(productRun)
 
   const form = useForm({
@@ -46,11 +46,14 @@ const ProductRunDetails = () => {
   const formActions: CrudFormAction[] = useMemo(
     () => [
       {
+        title: 'Assign Derived Indicators',
+        description: 'Assign derived indicators to the product run',
+        component: <AssignDerivedIndicatorsDialog run={productRun} />,
+      },
+      {
         title: 'Refresh summary',
         description: 'Refresh the product run summary',
-        buttonVariant: 'outline',
-        buttonTitle: 'Refresh',
-        mutation: refreshProductRunSummary,
+        component: <RefreshProductSummary run={productRun} />,
       },
       {
         title: 'Set as Main Run',
@@ -61,12 +64,7 @@ const ProductRunDetails = () => {
         disabled: productRun?.id === productRun?.product.mainRunId,
       },
     ],
-    [
-      productRun?.id,
-      productRun?.product.mainRunId,
-      refreshProductRunSummary,
-      setProductMainRun,
-    ],
+    [setProductMainRun, productRun],
   )
 
   useEffect(() => {
