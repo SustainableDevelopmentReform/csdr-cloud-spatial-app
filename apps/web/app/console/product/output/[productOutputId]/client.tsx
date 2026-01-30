@@ -12,6 +12,7 @@ import { useGeometryOutputLink } from '../../../geometries/_hooks'
 import { ProductOutputDependenciesCard } from '../../_components/product-output-dependencies-card'
 import { ProductOutputSummaryCard } from '../../_components/product-output-summary-card'
 import { useProductOutput, useUpdateProductOutput } from '../../_hooks'
+import { ProductOutputDerivedDependenciesCard } from '../../_components/product-output-derived-dependencies-card'
 
 const ProductRunDetails = () => {
   const { data: productOutput } = useProductOutput()
@@ -78,9 +79,21 @@ const ProductRunDetails = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 grid-rows-1 gap-4">
-        <ProductOutputSummaryCard productOutput={productOutput} />
-        <ProductOutputDependenciesCard productOutput={productOutput} />
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 grid-rows-1 gap-4">
+          <ProductOutputSummaryCard productOutput={productOutput} />
+          <ProductOutputDependenciesCard productOutput={productOutput} />
+        </div>
+        <div className="flex flex-col gap-4">
+          {productOutput?.dependencyProductOutputs.map(
+            (dependencyProductOutput) => (
+              <ProductOutputDerivedDependenciesCard
+                productOutput={dependencyProductOutput}
+                parentProductOutput={productOutput}
+              />
+            ),
+          )}
+        </div>
       </div>
 
       <CrudForm

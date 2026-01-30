@@ -2,16 +2,13 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createProductRunSchema } from '@repo/schemas/crud'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
+import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
+import { BadgeLink } from '../../../../../components/badge-link'
 import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
@@ -26,6 +23,7 @@ import {
   useCreateProductRun,
   useProduct,
   useProductRunLink,
+  useProductRunOutputsLink,
   useProductRuns,
 } from '../../_hooks'
 
@@ -43,6 +41,7 @@ const ProductRunFeature = () => {
   } = useProductRuns(undefined, undefined, true)
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
+  const productRunOutputsLink = useProductRunOutputsLink()
 
   const { data: product } = useProduct()
 
@@ -66,7 +65,15 @@ const ProductRunFeature = () => {
       {
         header: 'Number of outputs',
         cell: ({ row }) => {
-          return <div>{row.original.outputSummary?.outputCount}</div>
+          return (
+            <BadgeLink
+              href={productRunOutputsLink(row.original)}
+              variant="outline"
+            >
+              {row.original.outputSummary?.outputCount}
+              <ArrowUpRightIcon className="size-4" />
+            </BadgeLink>
+          )
         },
       },
     ] satisfies ColumnDef<ProductRunListItem>[]

@@ -20,7 +20,11 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometryOutput, productOutput } from '../schemas/db'
+import {
+  geometryOutput,
+  productOutput,
+  productOutputDependency,
+} from '../schemas/db'
 import {
   baseColumns,
   createPayload,
@@ -79,18 +83,6 @@ export const baseProductOutputQuery = {
   },
 } satisfies QueryForTable<'productOutput'>
 
-const fullProductOutputQuery = {
-  ...baseProductOutputQuery,
-  with: {
-    ...baseProductOutputQuery.with,
-    dependencyProductOutputs: {
-      with: {
-        dependencyProductOutput: baseProductOutputQuery,
-      },
-    },
-  },
-} satisfies QueryForTable<'productOutput'>
-
 const productOutputNotFoundError = () =>
   new ServerError({
     statusCode: 404,
@@ -134,23 +126,6 @@ const parseBaseProductOutput = (
   }
 }
 
-const parseFullProductOutput = <
-  T extends InferQueryModel<'productOutput', typeof fullProductOutputQuery>,
->(
-  record: T,
-) => {
-  return {
-    ...parseBaseProductOutput(record),
-    dependencyProductOutputs:
-      record.dependencyProductOutputs?.map((dependencyProductOutput) => ({
-        ...dependencyProductOutput,
-        dependencyProductOutput: parseBaseProductOutput(
-          dependencyProductOutput.dependencyProductOutput,
-        ),
-      })) ?? [],
-  }
-}
-
 const fetchBaseProductOutput = async (id: string) => {
   const record = await db.query.productOutput.findFirst({
     where: (productOutput, { eq }) => eq(productOutput.id, id),
@@ -171,12 +146,44 @@ const fetchBaseProductOutputOrThrow = async (id: string) => {
 }
 
 const fetchFullProductOutput = async (id: string) => {
-  const record = await db.query.productOutput.findFirst({
-    where: (productOutput, { eq }) => eq(productOutput.id, id),
-    ...fullProductOutputQuery,
-  })
+  const record = await fetchBaseProductOutput(id)
 
-  return record ? parseFullProductOutput(record) : null
+  if (!record) {
+    return null
+  }
+
+  // If this output has a derived indicator, fetch its dependencies
+  if (record.indicator?.type === 'derived') {
+    const dependencyLinks = await db
+      .select({
+        dependencyProductOutputId:
+          productOutputDependency.dependencyProductOutputId,
+      })
+      .from(productOutputDependency)
+      .where(eq(productOutputDependency.derivedProductOutputId, id))
+
+    const dependencyIds = dependencyLinks.map(
+      (d) => d.dependencyProductOutputId,
+    )
+
+    if (dependencyIds.length > 0) {
+      const dependencies = await db.query.productOutput.findMany({
+        where: (productOutput, { inArray }) =>
+          inArray(productOutput.id, dependencyIds),
+        ...baseProductOutputQuery,
+      })
+
+      return {
+        ...record,
+        dependencyProductOutputs: dependencies.map(parseBaseProductOutput),
+      }
+    }
+  }
+
+  return {
+    ...record,
+    dependencyProductOutputs: [],
+  }
 }
 
 const fetchFullProductOutputOrThrow = async (id: string) => {
@@ -279,8 +286,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      // TODO: Use fetchFullProductOutputOrThrow instead
-      const record = await fetchBaseProductOutputOrThrow(id)
+      const record = await fetchFullProductOutputOrThrow(id)
 
       const geometryOutput = record.geometryOutput
         ? await fetchFullGeometryOutputOrThrow(record.geometryOutput.id)
