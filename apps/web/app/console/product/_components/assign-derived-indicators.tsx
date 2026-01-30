@@ -9,17 +9,15 @@ import {
   DialogTrigger,
 } from '@repo/ui/components/ui/dialog'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { ColumnDef } from '@tanstack/react-table'
-import { useCallback, useMemo, useState } from 'react'
-import BaseCrudTable from '../../../../components/table/crud-table'
+import { useMemo, useState } from 'react'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import {
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
   useComputeDerivedIndicatorsForProductRun,
-  useRemoveDerivedIndicatorFromProductRun,
 } from '../_hooks'
+import { FieldGroup } from '../../../../components/form/action'
 
 type DerivedIndicatorItem = NonNullable<
   ProductRunDetail['assignedDerivedIndicators']
@@ -47,11 +45,10 @@ export const AssignDerivedIndicatorsDialog = ({
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(
     null,
   )
+  const [warnings, setWarnings] = useState<string[]>([])
 
   const assignDerivedIndicator = useAssignDerivedIndicatorToProductRun(run?.id)
-  const removeDerivedIndicator = useRemoveDerivedIndicatorFromProductRun(
-    run?.id,
-  )
+
   const computeDerivedIndicatorsForProductRun =
     useComputeDerivedIndicatorsForProductRun(run)
   const assignedIndicators = useMemo(
@@ -98,50 +95,14 @@ export const AssignDerivedIndicatorsDialog = ({
     )
   }
 
-  const handleRemove = useCallback(
-    (derivedIndicatorId: string) => {
-      removeDerivedIndicator.mutate(
-        { derivedIndicatorId },
-        {
-          onSuccess: () => {
-            toast.success('Derived indicator removed')
-          },
-          onError: (error) => {
-            toast.error(getErrorMessage(error))
-          },
-        },
-      )
-    },
-    [removeDerivedIndicator],
-  )
-
-  const columns = useMemo<ColumnDef<DerivedIndicatorItem>[]>(
-    () => [
-      {
-        id: 'delete',
-        header: () => <span className="sr-only">Delete</span>,
-        cell: ({ row }) => (
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleRemove(row.original.id)}
-              disabled={removeDerivedIndicator.isPending}
-            >
-              Delete
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    [handleRemove, removeDerivedIndicator.isPending],
-  )
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <span>
-          <Button variant="outline" disabled={!run?.id}>
+          <Button
+            disabled={!run?.id}
+            className="bg-indicator text-indicator-foreground hover:bg-indicator/70"
+          >
             Assign Derived Indicators
           </Button>
         </span>
@@ -154,6 +115,8 @@ export const AssignDerivedIndicatorsDialog = ({
         <div className="grid gap-6">
           <div className="grid gap-3">
             <IndicatorsSelect
+              title="Select Derived Indicator"
+              description="Select the derived indicator to assign to the product run. This cannot be removed after assignment."
               value={selectedIndicatorId}
               onChange={(indicator) =>
                 setSelectedIndicatorId(indicator?.id ?? null)
@@ -169,17 +132,11 @@ export const AssignDerivedIndicatorsDialog = ({
 
           <div className="grid gap-3">
             <div className="text-sm font-medium">Assigned indicators</div>
-            {assignedIndicators.length ? (
-              <div className="overflow-hidden rounded-md border">
-                <BaseCrudTable
-                  data={assignedIndicatorItems}
-                  baseColumns={[]}
-                  extraColumns={columns}
-                  title="Derived Indicator"
-                  itemButton={(indicator) => (
-                    <IndicatorButton indicator={indicator} />
-                  )}
-                />
+            {assignedIndicatorItems.length ? (
+              <div className="flex flex-wrap gap-2">
+                {assignedIndicatorItems.map((indicator) => (
+                  <IndicatorButton indicator={indicator} key={indicator.id} />
+                ))}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -189,36 +146,55 @@ export const AssignDerivedIndicatorsDialog = ({
           </div>
         </div>
         <div>
-          <Button
-            onClick={() =>
-              computeDerivedIndicatorsForProductRun.mutate(undefined, {
-                onSuccess: (response) => {
-                  if (response?.data.warnings?.length) {
-                    toast.warning(
-                      'Derived indicators computed with warnings - see console for details',
-                      {
-                        description: response.data.warnings
-                          .map((warning) => warning.message)
-                          .join(', '),
-                      },
-                    )
-                    console.warn(response?.data.warnings)
-                  } else {
-                    toast.success('Derived indicators computed')
-                  }
-                },
-                onError: (error) => {
-                  toast.error(getErrorMessage(error))
-                },
-              })
-            }
-            disabled={computeDerivedIndicatorsForProductRun.isPending}
+          <FieldGroup
+            title="Compute Derived Indicators"
+            description="After assigning derived indicators, you can compute them for the product run. Existing computed derived indicators will be skipped."
           >
-            {computeDerivedIndicatorsForProductRun.isPending
-              ? 'Computing...'
-              : 'Compute'}
-          </Button>
+            <div className="flex justify-end">
+              <Button
+                onClick={() =>
+                  computeDerivedIndicatorsForProductRun.mutate(undefined, {
+                    onSuccess: (response) => {
+                      const warningMessages =
+                        response?.data.warnings?.map(
+                          (warning) => warning.message,
+                        ) ?? []
+                      setWarnings(warningMessages)
+                      if (warningMessages.length) {
+                        toast.warning(
+                          'Derived indicators computed with warnings - see console for details',
+                        )
+                        console.warn(response?.data.warnings)
+                      } else {
+                        toast.success('Derived indicators computed')
+                      }
+                    },
+                    onError: (error) => {
+                      toast.error(getErrorMessage(error))
+                      setWarnings([])
+                    },
+                  })
+                }
+                disabled={computeDerivedIndicatorsForProductRun.isPending}
+              >
+                {computeDerivedIndicatorsForProductRun.isPending
+                  ? 'Computing...'
+                  : 'Compute'}
+              </Button>
+            </div>
+          </FieldGroup>
         </div>
+        {warnings.length > 0 && (
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Warnings</div>
+
+            <ul className="list-disc pl-5 text-sm text-amber-600 space-y-1">
+              {warnings.map((warning, index) => (
+                <li key={`${warning}-${index}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -17,6 +17,7 @@ import {
 
 type IndicatorsSelectBaseProps = {
   title?: string
+  description?: string
   isDisabled?: boolean
   isClearable?: boolean
   placeholder?: string
@@ -42,6 +43,7 @@ type IndicatorsSelectProps = IndicatorsSelectBaseProps &
 export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
   const {
     title,
+    description,
     isDisabled,
     isClearable,
     placeholder,
@@ -100,7 +102,11 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
 
   if (discriminatedProps.isMulti) {
     return (
-      <FieldGroup title={title ?? 'Select Indicator(s)'} disabled={isDisabled}>
+      <FieldGroup
+        title={title ?? 'Select Indicator(s)'}
+        description={description}
+        disabled={isDisabled}
+      >
         <SelectWithSearch
           {...commonProps}
           value={discriminatedProps.value}
@@ -114,7 +120,11 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
   const singleOnChange = discriminatedProps.onChange
 
   return (
-    <FieldGroup title={title ?? 'Select Indicator'} disabled={isDisabled}>
+    <FieldGroup
+      title={title ?? 'Select Indicator'}
+      description={description}
+      disabled={isDisabled}
+    >
       {creatable ? (
         <SelectWithSearchWithCreate
           {...commonProps}

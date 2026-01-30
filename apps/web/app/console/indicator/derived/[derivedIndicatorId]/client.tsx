@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { updateDerivedIndicatorSchema } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,
@@ -19,9 +20,6 @@ import {
   useDerivedIndicator,
   useUpdateDerivedIndicator,
 } from '../../_hooks'
-import { updateDerivedIndicatorSchema } from '@repo/schemas/crud'
-import { Textarea } from '@repo/ui/components/ui/textarea'
-import { IndicatorsSelect } from '../../_components/indicators-select'
 
 const IndicatorDetails = () => {
   const { data: derivedIndicator } = useDerivedIndicator()
@@ -38,10 +36,6 @@ const IndicatorDetails = () => {
   useEffect(() => {
     if (derivedIndicator) {
       form.reset(derivedIndicator)
-      form.setValue(
-        'indicatorIds',
-        derivedIndicator.indicators.map((i) => i.id),
-      )
     }
   }, [derivedIndicator, form])
 
@@ -85,42 +79,6 @@ const IndicatorDetails = () => {
               </FormItem>
             )
           }}
-        />
-        <FormField
-          control={form.control}
-          name="indicatorIds"
-          render={({ field }) => (
-            <FormItem>
-              <IndicatorsSelect
-                queryOptions={{ type: 'measure' }}
-                value={
-                  field.value ??
-                  derivedIndicator?.indicators.map((i) => i.id) ??
-                  []
-                }
-                onChange={(selectedIndicators) =>
-                  field.onChange(selectedIndicators.map((i) => i.id))
-                }
-                isClearable
-                isMulti
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name={'expression'}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Expression</FormLabel>
-              <FormControl>
-                <Textarea {...field} className={'font-mono'} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
         />
       </CrudForm>
     </div>

@@ -124,11 +124,7 @@ export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
   indicatorIds: z.array(z.string()),
 })
 
-export const updateDerivedIndicatorSchema = updateIndicatorSchema.extend({
-  expression: z.string().optional(),
-  indicatorIds: z.array(z.string()).optional(),
-})
-
+export const updateDerivedIndicatorSchema = updateIndicatorSchema
 /* INDICATOR CATEGORY RESOURCE SCHEMAS */
 export const indicatorCategorySchema = baseResourceSchema
   .extend({

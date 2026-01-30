@@ -10,6 +10,7 @@ import {
   useRefreshProductRunSummary,
 } from '../_hooks'
 import { AssignDerivedIndicatorsDialog } from './assign-derived-indicators'
+import { RefreshProductSummary } from './refresh-product-summary'
 
 export const ProductRunSummaryCard = ({
   run,
@@ -76,6 +77,7 @@ export const ProductRunSummaryCard = ({
             ))}
           </div>
           <AssignDerivedIndicatorsDialog run={run} />
+          <RefreshProductSummary run={run} />
         </div>
       }
     />
