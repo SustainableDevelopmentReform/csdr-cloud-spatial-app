@@ -9,19 +9,31 @@ import {
   DialogTrigger,
 } from '@repo/ui/components/ui/dialog'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { useMemo, useState } from 'react'
+import { StatusMessage } from '../../../../components/status-message'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
+import { IndicatorListItem, useDerivedIndicator } from '../../indicator/_hooks'
 import {
+  ProductRunAssignedDerivedIndicator,
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
   useComputeDerivedIndicatorsForProductRun,
+  useProductRun,
+  useProductRunDerivedIndicators,
 } from '../_hooks'
 import { FieldGroup } from '../../../../components/form/action'
+import { ProductSelect } from './product-select'
+import { ProductRunSelect } from './product-run-select'
 
-type DerivedIndicatorItem = NonNullable<
-  ProductRunDetail['assignedDerivedIndicators']
->[number]['derivedIndicator']
+type DerivedIndicatorItem =
+  ProductRunAssignedDerivedIndicator['derivedIndicator']
+
+type DependencyMapping = {
+  indicatorId: string
+  productId: string | null
+  sourceProductRunId: string | null
+}
 
 const getErrorMessage = (error: unknown) => {
   if (
@@ -36,6 +48,109 @@ const getErrorMessage = (error: unknown) => {
   return 'Failed to update derived indicators'
 }
 
+const DependencyMappingRow = ({
+  indicator,
+  defaultProductId,
+  defaultProductRunId,
+  currentGeometriesRunId,
+  onChange,
+}: {
+  indicator: IndicatorListItem
+  defaultProductId: string | null
+  defaultProductRunId: string | null
+  currentGeometriesRunId: string | null | undefined
+  onChange: (productId: string | null, productRunId: string | null) => void
+}) => {
+  const [productId, setProductId] = useState<string | null>(defaultProductId)
+  const [productRunId, setProductRunId] = useState<string | null>(
+    defaultProductRunId,
+  )
+
+  // Fetch the selected product run to check geometriesRunId
+  const { data: selectedProductRun } = useProductRun(productRunId ?? undefined)
+
+  // Check if geometries run differs from current
+  const hasDifferentGeometriesRun = useMemo(() => {
+    if (!selectedProductRun || !currentGeometriesRunId) return false
+    return selectedProductRun.geometriesRun?.id !== currentGeometriesRunId
+  }, [selectedProductRun, currentGeometriesRunId])
+
+  // Find the indicator summary in the selected product run's output summary
+  const indicatorSummary = useMemo(() => {
+    if (!selectedProductRun?.outputSummary?.indicators) return null
+    return selectedProductRun.outputSummary.indicators.find(
+      (i) => i.indicator?.id === indicator.id,
+    )
+  }, [selectedProductRun, indicator.id])
+
+  // Initialize with defaults
+  useEffect(() => {
+    setProductId(defaultProductId)
+    setProductRunId(defaultProductRunId)
+  }, [defaultProductId, defaultProductRunId])
+
+  const handleProductChange = useCallback(
+    (product: { id: string } | null) => {
+      const newProductId = product?.id ?? null
+      setProductId(newProductId)
+      // Reset product run when product changes
+      setProductRunId(null)
+      onChange(newProductId, null)
+    },
+    [onChange],
+  )
+
+  const handleProductRunChange = useCallback(
+    (productRun: { id: string } | null) => {
+      const newProductRunId = productRun?.id ?? null
+      setProductRunId(newProductRunId)
+      onChange(productId, newProductRunId)
+    },
+    [onChange, productId],
+  )
+
+  return (
+    <div className="border rounded-md p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <IndicatorButton indicator={indicator} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <ProductSelect
+          value={productId}
+          onChange={handleProductChange}
+          isClearable
+        />
+        <ProductRunSelect
+          value={productRunId}
+          productId={productId}
+          onChange={handleProductRunChange}
+          disabled={!productId}
+          isClearable
+        />
+      </div>
+      {hasDifferentGeometriesRun && (
+        <StatusMessage variant="warning">
+          This product run uses a different geometries run. Geometry output IDs
+          must match for derived indicators to compute correctly.
+        </StatusMessage>
+      )}
+      {selectedProductRun && !indicatorSummary && (
+        <StatusMessage variant="warning">
+          This product run has no output values for this indicator.
+        </StatusMessage>
+      )}
+      {indicatorSummary && (
+        <StatusMessage variant="primary">
+          {indicatorSummary.count} outputs (min:{' '}
+          {indicatorSummary.minValue?.toFixed(2) ?? 'N/A'}, max:{' '}
+          {indicatorSummary.maxValue?.toFixed(2) ?? 'N/A'}, avg:{' '}
+          {indicatorSummary.avgValue?.toFixed(2) ?? 'N/A'})
+        </StatusMessage>
+      )}
+    </div>
+  )
+}
+
 export const AssignDerivedIndicatorsDialog = ({
   run,
 }: {
@@ -45,20 +160,48 @@ export const AssignDerivedIndicatorsDialog = ({
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(
     null,
   )
-  const [warnings, setWarnings] = useState<string[]>([])
+  const [dependencyMappings, setDependencyMappings] = useState<
+    DependencyMapping[]
+  >([])
+  const [warnings, setWarnings] = useState<
+    { message: string; description?: string }[]
+  >([])
+
+  // Fetch the full derived indicator with its dependency indicators
+  const { data: selectedDerivedIndicator, isLoading: isLoadingIndicator } =
+    useDerivedIndicator(selectedIndicatorId ?? undefined)
+
+  // Get default product and product run from the current run
+  const defaultProductId = run?.product?.id ?? null
+  const defaultProductRunId = run?.id ?? null
+
+  // Initialize dependency mappings when derived indicator is selected
+  useEffect(() => {
+    if (selectedDerivedIndicator?.indicators) {
+      setDependencyMappings(
+        selectedDerivedIndicator.indicators.map((indicator) => ({
+          indicatorId: indicator.id,
+          productId: defaultProductId,
+          sourceProductRunId: defaultProductRunId,
+        })),
+      )
+    } else {
+      setDependencyMappings([])
+    }
+  }, [selectedDerivedIndicator, defaultProductId, defaultProductRunId])
 
   const assignDerivedIndicator = useAssignDerivedIndicatorToProductRun(run?.id)
 
   const computeDerivedIndicatorsForProductRun =
     useComputeDerivedIndicatorsForProductRun(run)
-  const assignedIndicators = useMemo(
-    () => run?.assignedDerivedIndicators ?? [],
-    [run?.assignedDerivedIndicators],
-  )
+
+  // Fetch assigned derived indicators separately
+  const { data: assignedIndicators } = useProductRunDerivedIndicators(run?.id)
+
   const assignedIndicatorIds = useMemo(
     () =>
       new Set(
-        assignedIndicators.map(
+        (assignedIndicators ?? []).map(
           (assignedIndicator) => assignedIndicator.derivedIndicator.id,
         ),
       ),
@@ -66,26 +209,59 @@ export const AssignDerivedIndicatorsDialog = ({
   )
   const assignedIndicatorItems = useMemo<DerivedIndicatorItem[]>(
     () =>
-      assignedIndicators.map(
+      (assignedIndicators ?? []).map(
         (assignedIndicator) => assignedIndicator.derivedIndicator,
       ),
     [assignedIndicators],
   )
 
+  // Check if all dependencies have been mapped
+  const allDependenciesMapped = useMemo(() => {
+    if (!selectedDerivedIndicator?.indicators?.length) return false
+    return dependencyMappings.every((mapping) => mapping.sourceProductRunId)
+  }, [selectedDerivedIndicator, dependencyMappings])
+
   const isAssignDisabled =
     !run?.id ||
     !selectedIndicatorId ||
     assignedIndicatorIds.has(selectedIndicatorId) ||
+    !allDependenciesMapped ||
     assignDerivedIndicator.isPending
 
+  const handleDependencyMappingChange = useCallback(
+    (
+      indicatorId: string,
+      productId: string | null,
+      productRunId: string | null,
+    ) => {
+      setDependencyMappings((prev) =>
+        prev.map((mapping) =>
+          mapping.indicatorId === indicatorId
+            ? { ...mapping, productId, sourceProductRunId: productRunId }
+            : mapping,
+        ),
+      )
+    },
+    [],
+  )
+
   const handleAssign = () => {
-    if (!selectedIndicatorId || !run?.id) return
+    if (!selectedIndicatorId || !run?.id || !allDependenciesMapped) return
 
     assignDerivedIndicator.mutate(
-      { derivedIndicatorId: selectedIndicatorId },
+      {
+        derivedIndicatorId: selectedIndicatorId,
+        dependencies: dependencyMappings
+          .filter((m) => m.sourceProductRunId)
+          .map((m) => ({
+            indicatorId: m.indicatorId,
+            sourceProductRunId: m.sourceProductRunId!,
+          })),
+      },
       {
         onSuccess: () => {
           setSelectedIndicatorId(null)
+          setDependencyMappings([])
           toast.success('Derived indicator assigned')
         },
         onError: (error) => {
@@ -107,7 +283,7 @@ export const AssignDerivedIndicatorsDialog = ({
           </Button>
         </span>
       </DialogTrigger>
-      <DialogContent className="w-[800px] max-w-full">
+      <DialogContent className="w-[900px] max-w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Assign Derived Indicators</DialogTitle>
         </DialogHeader>
@@ -118,11 +294,50 @@ export const AssignDerivedIndicatorsDialog = ({
               title="Select Derived Indicator"
               description="Select the derived indicator to assign to the product run. This cannot be removed after assignment."
               value={selectedIndicatorId}
-              onChange={(indicator) =>
+              onChange={(indicator) => {
                 setSelectedIndicatorId(indicator?.id ?? null)
-              }
+              }}
               queryOptions={{ type: 'derived' }}
             />
+
+            {selectedIndicatorId && (
+              <div className="grid gap-3">
+                <FieldGroup
+                  title="Map Dependency Indicators"
+                  description="For each dependency indicator, select the product and product run to source the data from."
+                >
+                  {isLoadingIndicator ? (
+                    <div className="text-sm text-muted-foreground">
+                      Loading indicator dependencies...
+                    </div>
+                  ) : selectedDerivedIndicator?.indicators?.length ? (
+                    <div className="grid gap-3">
+                      {selectedDerivedIndicator.indicators.map((indicator) => (
+                        <DependencyMappingRow
+                          key={indicator.id}
+                          indicator={indicator}
+                          defaultProductId={defaultProductId}
+                          defaultProductRunId={defaultProductRunId}
+                          currentGeometriesRunId={run?.geometriesRun?.id}
+                          onChange={(productId, productRunId) =>
+                            handleDependencyMappingChange(
+                              indicator.id,
+                              productId,
+                              productRunId,
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      This derived indicator has no dependency indicators.
+                    </div>
+                  )}
+                </FieldGroup>
+              </div>
+            )}
+
             <div className="flex justify-end">
               <Button onClick={handleAssign} disabled={isAssignDisabled}>
                 {assignDerivedIndicator.isPending ? 'Assigning...' : 'Assign'}
@@ -155,16 +370,14 @@ export const AssignDerivedIndicatorsDialog = ({
                 onClick={() =>
                   computeDerivedIndicatorsForProductRun.mutate(undefined, {
                     onSuccess: (response) => {
-                      const warningMessages =
-                        response?.data.warnings?.map(
-                          (warning) => warning.message,
-                        ) ?? []
+                      const warningMessages = response?.data.warnings ?? []
+
                       setWarnings(warningMessages)
                       if (warningMessages.length) {
                         toast.warning(
                           'Derived indicators computed with warnings - see console for details',
                         )
-                        console.warn(response?.data.warnings)
+                        console.warn(warningMessages)
                       } else {
                         toast.success('Derived indicators computed')
                       }
@@ -190,7 +403,14 @@ export const AssignDerivedIndicatorsDialog = ({
 
             <ul className="list-disc pl-5 text-sm text-amber-600 space-y-1">
               {warnings.map((warning, index) => (
-                <li key={`${warning}-${index}`}>{warning}</li>
+                <div key={`${warning.message}-${index}`}>
+                  <span>{warning.message}</span>
+                  {warning.description && (
+                    <span className="text-amber-400 pl-2">
+                      {warning.description}
+                    </span>
+                  )}
+                </div>
               ))}
             </ul>
           </div>

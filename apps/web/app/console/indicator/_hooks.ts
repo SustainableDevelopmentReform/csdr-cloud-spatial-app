@@ -18,6 +18,7 @@ import {
   INDICATORS_BASE_PATH,
   INDICATORS_DERIVED_BASE_PATH,
 } from '../../../lib/paths'
+import { productQueryKeys, productRunQueryKeys } from '../product/_hooks'
 
 export type IndicatorListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['indicator']['$get'], 200>['data']
@@ -399,6 +400,12 @@ export const useDeleteIndicator = (
       }
       queryClient.invalidateQueries({
         queryKey: indicatorQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)

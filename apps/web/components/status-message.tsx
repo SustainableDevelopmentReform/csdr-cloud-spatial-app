@@ -1,0 +1,48 @@
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { cn } from '@repo/ui/lib/utils'
+
+const variantStyles = {
+  warning:
+    'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+  error:
+    'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
+  primary: 'border-border bg-muted text-muted-foreground',
+} as const
+
+const iconMap = {
+  warning: AlertTriangle,
+  error: AlertTriangle,
+  primary: CheckCircle2,
+} as const
+
+type Variant = keyof typeof variantStyles
+
+export interface StatusMessageProps
+  extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: Variant
+  icon?: React.ReactNode
+}
+
+export const StatusMessage = ({
+  className,
+  variant = 'primary',
+  icon,
+  children,
+  ...props
+}: StatusMessageProps) => {
+  const Icon = iconMap[variant]
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-md border p-3 text-sm',
+        variantStyles[variant],
+        className,
+      )}
+      {...props}
+    >
+      {icon ?? <Icon className="h-4 w-4 flex-shrink-0" />}
+      <span>{children}</span>
+    </div>
+  )
+}

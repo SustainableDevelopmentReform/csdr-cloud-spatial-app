@@ -380,16 +380,25 @@ export const baseProductRunSchema = baseRunResourceSchema
   })
   .openapi('ProductRunBase')
 
+// Schema for assigned derived indicator with its dependency mappings
+export const assignedDerivedIndicatorWithDependenciesSchema = z
+  .object({
+    id: z.string(),
+    derivedIndicator: baseDerivedIndicatorSchema,
+    dependencies: z.array(
+      z.object({
+        indicator: baseMeasuredIndicatorSchema,
+        sourceProductRun: baseIdResourceSchema,
+      }),
+    ),
+  })
+  .openapi('AssignedDerivedIndicatorWithDependenciesSchema')
+
 export const fullProductRunSchema = baseProductRunSchema
   .extend({
     datasetRun: baseDatasetRunSchema.nullable(),
     geometriesRun: baseGeometriesRunSchema.nullable(),
     outputSummary: fullProductRunOutputSummarySchema,
-    assignedDerivedIndicators: z.array(
-      z.object({
-        derivedIndicator: baseDerivedIndicatorSchema,
-      }),
-    ),
   })
   .openapi('ProductRunFull')
 
@@ -449,15 +458,18 @@ export const createProductRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateProductRunSchema = baseUpdateResourceSchema
 
+// Schema for assigning a derived indicator's dependency mappings
+export const assignedDerivedIndicatorDependencySchema = z
+  .object({
+    indicatorId: z.string().min(1),
+    sourceProductRunId: z.string().min(1),
+  })
+  .openapi('AssignedDerivedIndicatorDependencySchema')
+
 export const productRunAssignDerivedIndicatorSchema = z
   .object({
     derivedIndicatorId: z.string().min(1),
-    dependencies: z.array(
-      z.object({
-        productOutputId: z.string().min(1),
-        indicatorId: z.string().min(1),
-      }),
-    ),
+    dependencies: z.array(assignedDerivedIndicatorDependencySchema),
   })
   .openapi('ProductRunAssignDerivedIndicatorSchema')
 
