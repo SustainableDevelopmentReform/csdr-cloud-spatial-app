@@ -6,7 +6,7 @@ import {
   productOutputExportQuerySchema,
   productOutputExportSchema,
   productOutputQuerySchema,
-  productRunDerivedIndicatorSchema,
+  productRunAssignDerivedIndicatorSchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
 import {
@@ -599,7 +599,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: productRunDerivedIndicatorSchema,
+              schema: productRunAssignDerivedIndicatorSchema,
             },
           },
         },

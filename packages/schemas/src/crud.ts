@@ -125,6 +125,7 @@ export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
 })
 
 export const updateDerivedIndicatorSchema = updateIndicatorSchema
+
 /* INDICATOR CATEGORY RESOURCE SCHEMAS */
 export const indicatorCategorySchema = baseResourceSchema
   .extend({
@@ -448,11 +449,17 @@ export const createProductRunSchema = baseCreateRunResourceSchema.extend({
 
 export const updateProductRunSchema = baseUpdateResourceSchema
 
-export const productRunDerivedIndicatorSchema = z
+export const productRunAssignDerivedIndicatorSchema = z
   .object({
     derivedIndicatorId: z.string().min(1),
+    dependencies: z.array(
+      z.object({
+        productOutputId: z.string().min(1),
+        indicatorId: z.string().min(1),
+      }),
+    ),
   })
-  .openapi('ProductRunDerivedIndicatorSchema')
+  .openapi('ProductRunAssignDerivedIndicatorSchema')
 
 /* PRODUCT OUTPUT RESOURCE SCHEMAS */
 export const baseProductOutputSchema = baseResourceSchema

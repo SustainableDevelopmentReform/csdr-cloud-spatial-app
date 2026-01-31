@@ -5,6 +5,7 @@ import {
   createDerivedIndicatorSchema,
   createIndicatorSchema,
 } from '@repo/schemas/crud'
+import { Badge } from '@repo/ui/components/ui/badge'
 import {
   FormControl,
   FormDescription,
@@ -14,9 +15,13 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 import { ColumnDef } from '@tanstack/react-table'
+import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { parse } from 'mathjs'
 import { useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, UseFormReturn } from 'react-hook-form'
+import { z } from 'zod'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
@@ -24,17 +29,103 @@ import { SearchInput } from '../../../components/table/search-input'
 import { IndicatorButton } from './_components/indicator-button'
 import { IndicatorCategoryButton } from './_components/indicator-category-button'
 import { IndicatorCategorySelect } from './_components/indicator-category-select'
+import { IndicatorsSelect } from './_components/indicators-select'
 import {
   IndicatorListItem,
-  useCreateIndicator,
   useCreateDerivedIndicator,
+  useCreateIndicator,
   useIndicatorLink,
   useIndicators,
 } from './_hooks'
-import { Textarea } from '@repo/ui/components/ui/textarea'
-import { GeometriesSelect } from '../geometries/_components/geometries-select'
-import { IndicatorsSelect } from './_components/indicators-select'
-import { Badge } from '@repo/ui/components/ui/badge'
+
+function validateExpression(expression: string | undefined): string | null {
+  if (!expression || expression.trim() === '') {
+    return null
+  }
+
+  try {
+    parse(expression)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Invalid expression syntax'
+  }
+}
+
+type DerivedIndicatorFormValues = z.infer<typeof createDerivedIndicatorSchema>
+
+function ExpressionField({
+  form,
+  indicators,
+}: {
+  form: UseFormReturn<DerivedIndicatorFormValues>
+  indicators: IndicatorListItem[]
+}) {
+  const expression = form.watch('expression')
+  const indicatorIds = form.watch('indicatorIds') ?? []
+
+  const error = useMemo(() => validateExpression(expression), [expression])
+
+  return (
+    <FormField
+      control={form.control}
+      name={'expression'}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Expression</FormLabel>
+          <FormDescription>
+            See{' '}
+            <a
+              href="https://mathjs.org/docs/expressions/syntax.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-600"
+            >
+              the Math.js syntax
+            </a>{' '}
+            for more information. The expression cannot be changed after
+            creation.
+            {indicatorIds.length > 0 && (
+              <>
+                <div className="mt-2">
+                  You can reference the indicators using the following
+                  variables:
+                </div>
+                <div className="my-2 flex flex-wrap gap-2">
+                  {indicatorIds.map((indicatorId: string, index: number) => {
+                    const indicator = indicators.find(
+                      (indicator) => indicator.id === indicatorId,
+                    )
+                    return (
+                      <Badge key={indicatorId} variant="secondary">
+                        ${index + 1}={indicator?.name}
+                      </Badge>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </FormDescription>
+          <FormControl>
+            <Textarea {...field} className={'font-mono'} />
+          </FormControl>
+          <FormMessage />
+          {error && (
+            <div className="mt-2 flex items-center gap-2 rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          {!error && expression && expression.trim() !== '' && (
+            <div className="mt-2 flex items-center gap-2 rounded-md border border-green-500 bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-400">
+              <CheckCircle className="h-4 w-4 flex-shrink-0" />
+              <span>Expression is valid</span>
+            </div>
+          )}
+        </FormItem>
+      )}
+    />
+  )
+}
 
 const IndicatorFeature = () => {
   const {
@@ -78,7 +169,7 @@ const IndicatorFeature = () => {
     resolver: zodResolver(createIndicatorSchema),
   })
 
-  const derivedIndicatorForm = useForm({
+  const derivedIndicatorForm = useForm<DerivedIndicatorFormValues>({
     resolver: zodResolver(createDerivedIndicatorSchema),
   })
 
@@ -185,44 +276,9 @@ const IndicatorFeature = () => {
               )}
             />
 
-            <FormField
-              control={derivedIndicatorForm.control}
-              name={'expression'}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Expression</FormLabel>
-                  <FormDescription>
-                    The expression cannot be changed after creation.
-                    {(derivedIndicatorForm.watch('indicatorIds')?.length ?? 0) >
-                      0 && (
-                      <>
-                        <div className="mt-2">
-                          You can reference the indicators using the following
-                          variables:
-                        </div>
-                        <div className="my-2 flex flex-wrap gap-2">
-                          {derivedIndicatorForm
-                            .watch('indicatorIds')
-                            .map((indicatorId, index) => {
-                              const indicator = data?.data?.find(
-                                (indicator) => indicator.id === indicatorId,
-                              )
-                              return (
-                                <Badge key={indicatorId} variant="secondary">
-                                  ${index + 1}={indicator?.name}
-                                </Badge>
-                              )
-                            })}
-                        </div>
-                      </>
-                    )}
-                  </FormDescription>
-                  <FormControl>
-                    <Textarea {...field} className={'font-mono'} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <ExpressionField
+              form={derivedIndicatorForm}
+              indicators={data?.data ?? []}
             />
           </CrudFormDialog>
         </div>
