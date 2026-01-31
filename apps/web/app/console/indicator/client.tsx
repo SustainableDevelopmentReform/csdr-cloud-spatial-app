@@ -17,7 +17,7 @@ import {
 import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { ColumnDef } from '@tanstack/react-table'
-import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { StatusMessage } from '../../../components/status-message'
 import { parse } from 'mathjs'
 import { useMemo } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
@@ -110,16 +110,14 @@ function ExpressionField({
           </FormControl>
           <FormMessage />
           {error && (
-            <div className="mt-2 flex items-center gap-2 rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
+            <StatusMessage variant="error" className="mt-2">
+              {error}
+            </StatusMessage>
           )}
           {!error && expression && expression.trim() !== '' && (
-            <div className="mt-2 flex items-center gap-2 rounded-md border border-green-500 bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-400">
-              <CheckCircle className="h-4 w-4 flex-shrink-0" />
-              <span>Expression is valid</span>
-            </div>
+            <StatusMessage variant="primary" className="mt-2">
+              Expression is valid
+            </StatusMessage>
           )}
         </FormItem>
       )}

@@ -1,6 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
-import { ProductRunListItem, useProductRun, useProductRuns } from '../_hooks'
+import { ProductRunListItem, useProductRuns } from '../_hooks'
 
 export const ProductRunSelect = ({
   value,
@@ -24,13 +24,14 @@ export const ProductRunSelect = ({
     isFetchingNextPage,
   } = useProductRuns(productId ?? undefined)
 
-  const { data: selectedProductRun } = useProductRun(value ?? undefined)
+  const selectedProductRun =
+    productRuns?.data?.find((run) => run.id === value) ?? null
 
   return (
     <FieldGroup title="Select Product Run" disabled={disabled}>
       <SelectWithSearch
         options={productRuns?.data}
-        value={selectedProductRun ?? null}
+        value={selectedProductRun}
         onSearch={(search) => {
           setSearchParams({ search })
         }}

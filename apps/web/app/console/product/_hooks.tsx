@@ -113,6 +113,13 @@ export type AssignDerivedIndicatorPayload = NonNullable<
   >['json']
 >
 
+export type ProductRunAssignedDerivedIndicator = NonNullable<
+  InferResponseType<
+    Client['api']['v0']['product-run'][':id']['derived-indicators']['$get'],
+    200
+  >['data']
+>[number]
+
 export type ImportProductOutputsPayload = z.infer<
   typeof importProductOutputsSchema
 >
@@ -123,14 +130,14 @@ const productParamsSchema = z.object({
   productOutputId: z.string().optional(),
 })
 
-const productQueryKeys = {
+export const productQueryKeys = {
   all: ['product'] as const,
   list: (query: z.infer<typeof productQuerySchema> | undefined) =>
     [...productQueryKeys.all, 'list', { query }] as const,
   detail: (productId: string | undefined) =>
     [...productQueryKeys.all, 'detail', productId] as const,
 }
-const productRunQueryKeys = {
+export const productRunQueryKeys = {
   all: ['productRun'] as const,
   scopeByProduct: (productId: string | undefined) =>
     [...productRunQueryKeys.all, productId] as const,
@@ -147,6 +154,8 @@ const productRunQueryKeys = {
   // This means we need to invalidate the productRun.all query key when we create/delete a new product run
   detail: (productRunId: string | undefined) =>
     [...productRunQueryKeys.all, 'detail', productRunId] as const,
+  derivedIndicators: (productRunId: string | undefined) =>
+    [...productRunQueryKeys.all, 'derivedIndicators', productRunId] as const,
 }
 const productOutputQueryKeys = {
   all: ['productOutput'] as const,
@@ -511,6 +520,33 @@ export const useProductRun = (
   })
 }
 
+export const useProductRunDerivedIndicators = (
+  _productRunId?: string,
+  enabled: boolean = true,
+) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const client = useApiClient()
+  return useQuery({
+    queryKey: productRunQueryKeys.derivedIndicators(productRunId),
+    queryFn: async () => {
+      if (!productRunId) return null
+      const res = client.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$get({
+        param: {
+          id: productRunId,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+
+      return json.data
+    },
+
+    enabled: enabled && !!productRunId,
+  })
+}
+
 export const useProductOutput = (
   _productOutputId?: string,
   enabled: boolean = true,
@@ -853,6 +889,9 @@ export const useAssignDerivedIndicatorToProductRun = (
       if (resolvedProductRunId) {
         queryClient.invalidateQueries({
           queryKey: productRunQueryKeys.detail(resolvedProductRunId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.derivedIndicators(resolvedProductRunId),
         })
       }
       if (resolvedProductId) {

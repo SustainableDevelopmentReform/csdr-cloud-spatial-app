@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  assignedDerivedIndicatorWithDependenciesSchema,
   baseProductOutputSchema,
   createProductRunSchema,
   fullProductRunSchema,
@@ -42,6 +43,7 @@ import {
   productOutputSummaryIndicator,
   productRun,
   productRunAssignedDerivedIndicator,
+  productRunAssignedDerivedIndicatorDependency,
 } from '../schemas/db'
 import {
   baseRunColumns,
@@ -125,11 +127,26 @@ export const fullProductRunQuery = {
     datasetRun: baseDatasetRunQuery,
     geometriesRun: baseGeometriesRunQuery,
     outputSummary: fullProductRunOutputSummaryQuery,
-    assignedDerivedIndicators: {
-      with: { derivedIndicator: baseDerivedIndicatorQuery },
-    },
   },
 } satisfies QueryForTable<'productRun'>
+
+// Separate query for assigned derived indicators (to avoid deeply nested query issues)
+export const assignedDerivedIndicatorsQuery = {
+  columns: {
+    id: true,
+  },
+  with: {
+    derivedIndicator: baseDerivedIndicatorQuery,
+    dependencies: {
+      with: {
+        indicator: fullMeasuredIndicatorQuery,
+        sourceProductRun: {
+          columns: idColumns,
+        },
+      },
+    },
+  },
+} satisfies QueryForTable<'productRunAssignedDerivedIndicator'>
 
 export const parseFullProductRunOutputSummary = <
   T extends InferQueryModel<
@@ -204,15 +221,24 @@ export const parseFullProductRun = <
     outputSummary: record.outputSummary
       ? parseFullProductRunOutputSummary(record.outputSummary)
       : null,
-    assignedDerivedIndicators: record.assignedDerivedIndicators
-      ? record.assignedDerivedIndicators.map((assignedDerivedIndicator) => ({
-          derivedIndicator: parseBaseDerivedIndicator(
-            assignedDerivedIndicator.derivedIndicator,
-          ),
-        }))
-      : [],
   }
 }
+
+export const parseAssignedDerivedIndicator = <
+  T extends InferQueryModel<
+    'productRunAssignedDerivedIndicator',
+    typeof assignedDerivedIndicatorsQuery
+  >,
+>(
+  record: T,
+) => ({
+  id: record.id,
+  derivedIndicator: parseBaseDerivedIndicator(record.derivedIndicator),
+  dependencies: record.dependencies.map((dep) => ({
+    indicator: parseFullMeasuredIndicator(dep.indicator),
+    sourceProductRun: dep.sourceProductRun,
+  })),
+})
 
 const productRunNotFoundError = () =>
   new ServerError({
@@ -589,6 +615,51 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Get assigned derived indicators for a product run.',
+      method: 'get',
+      path: '/:id/derived-indicators',
+      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description:
+            'Successfully retrieved assigned derived indicators for a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.array(assignedDerivedIndicatorWithDependenciesSchema),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch assigned derived indicators'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+
+      // Verify product run exists
+      await fetchFullProductRunOrThrow(id)
+
+      const assignedIndicators =
+        await db.query.productRunAssignedDerivedIndicator.findMany({
+          where: (table, { eq }) => eq(table.productRunId, id),
+          ...assignedDerivedIndicatorsQuery,
+        })
+
+      const parsed = assignedIndicators.map(parseAssignedDerivedIndicator)
+
+      return generateJsonResponse(c, parsed, 200)
+    },
+  )
+
+  .openapi(
+    createRoute({
       description: 'Assign a derived indicator to a product run.',
       method: 'post',
       path: '/:id/derived-indicators',
@@ -621,17 +692,38 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { derivedIndicatorId } = c.req.valid('json')
+      const { derivedIndicatorId, dependencies } = c.req.valid('json')
 
       await fetchFullProductRunOrThrow(id)
 
-      await db
-        .insert(productRunAssignedDerivedIndicator)
-        .values({
-          productRunId: id,
-          derivedIndicatorId,
-        })
-        .onConflictDoNothing()
+      // Generate a unique ID for the assigned derived indicator
+      const assignedId = crypto.randomUUID()
+
+      await db.transaction(async (tx) => {
+        // Insert the assigned derived indicator
+        await tx
+          .insert(productRunAssignedDerivedIndicator)
+          .values({
+            id: assignedId,
+            productRunId: id,
+            derivedIndicatorId,
+          })
+          .onConflictDoNothing()
+
+        // Insert the dependency mappings
+        if (dependencies.length > 0) {
+          await tx
+            .insert(productRunAssignedDerivedIndicatorDependency)
+            .values(
+              dependencies.map((dep) => ({
+                assignedDerivedIndicatorId: assignedId,
+                indicatorId: dep.indicatorId,
+                sourceProductRunId: dep.sourceProductRunId,
+              })),
+            )
+            .onConflictDoNothing()
+        }
+      })
 
       const record = await fetchFullProductRunOrThrow(id)
 
@@ -928,7 +1020,9 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
 
-      const productRun = await fetchFullProductRunOrThrow(id)
+      // Verify product run exists
+      await fetchFullProductRunOrThrow(id)
+
       const warnings: { message: string; description?: string }[] = []
       const pendingOutputs: {
         productRunId: string
@@ -940,7 +1034,17 @@ const app = createOpenAPIApp()
         dependencyOutputIds: string[]
       }[] = []
 
-      for (const assignedDerivedIndicator of productRun.assignedDerivedIndicators) {
+      // Fetch assigned derived indicators separately
+      const assignedDerivedIndicatorsRaw =
+        await db.query.productRunAssignedDerivedIndicator.findMany({
+          where: (table, { eq }) => eq(table.productRunId, id),
+          ...assignedDerivedIndicatorsQuery,
+        })
+      const assignedDerivedIndicators = assignedDerivedIndicatorsRaw.map(
+        parseAssignedDerivedIndicator,
+      )
+
+      for (const assignedDerivedIndicator of assignedDerivedIndicators) {
         const derivedIndicatorId = assignedDerivedIndicator.derivedIndicator.id
         const derivedIndicator = await db.query.derivedIndicator.findFirst({
           where: (derivedIndicator, { eq }) =>
@@ -991,6 +1095,16 @@ const app = createOpenAPIApp()
           ]),
         )
 
+        // Build a map of indicatorId -> sourceProductRunId from dependencies
+        // If no dependency mapping exists for an indicator, fall back to the current product run
+        const indicatorToSourceProductRunId = new Map<string, string>()
+        for (const dep of assignedDerivedIndicator.dependencies) {
+          indicatorToSourceProductRunId.set(
+            dep.indicator.id,
+            dep.sourceProductRun.id,
+          )
+        }
+
         const hasDerivedIndicatorBeenComputed = await db
           .select({ count: count() })
           .from(productOutput)
@@ -1016,22 +1130,47 @@ const app = createOpenAPIApp()
           continue
         }
 
-        // Fetch all dependent indicator product outputs (grouped by geometryOutputId and timePoint)
-        const dependentIndicatorProductOutputs = await db
-          .select({
-            id: productOutput.id,
-            indicatorId: productOutput.indicatorId,
-            geometryOutputId: productOutput.geometryOutputId,
-            timePoint: productOutput.timePoint,
-            value: productOutput.value,
-          })
-          .from(productOutput)
-          .where(
-            and(
-              eq(productOutput.productRunId, id),
-              inArray(productOutput.indicatorId, indicatorIds),
-            ),
-          )
+        // Fetch all dependent indicator product outputs from their respective source product runs
+        // Group queries by source product run for efficiency
+        const productRunIndicatorGroups = new Map<string, string[]>()
+        for (const indicatorId of indicatorIds) {
+          const sourceProductRunId =
+            indicatorToSourceProductRunId.get(indicatorId) ?? id
+          const group = productRunIndicatorGroups.get(sourceProductRunId) ?? []
+          group.push(indicatorId)
+          productRunIndicatorGroups.set(sourceProductRunId, group)
+        }
+
+        // Fetch outputs from each source product run
+        const dependentIndicatorProductOutputs: {
+          id: string
+          indicatorId: string | null
+          geometryOutputId: string | null
+          timePoint: Date
+          value: number
+        }[] = []
+
+        for (const [
+          sourceProductRunId,
+          sourceIndicatorIds,
+        ] of productRunIndicatorGroups) {
+          const outputs = await db
+            .select({
+              id: productOutput.id,
+              indicatorId: productOutput.indicatorId,
+              geometryOutputId: productOutput.geometryOutputId,
+              timePoint: productOutput.timePoint,
+              value: productOutput.value,
+            })
+            .from(productOutput)
+            .where(
+              and(
+                eq(productOutput.productRunId, sourceProductRunId),
+                inArray(productOutput.indicatorId, sourceIndicatorIds),
+              ),
+            )
+          dependentIndicatorProductOutputs.push(...outputs)
+        }
 
         const groupedOutputs = new Map<
           string,
