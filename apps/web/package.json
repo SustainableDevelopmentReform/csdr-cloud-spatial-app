@@ -54,6 +54,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@deck.gl/core": "^9.2.6",
     "@next/eslint-plugin-next": "15.5.15",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",

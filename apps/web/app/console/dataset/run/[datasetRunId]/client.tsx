@@ -89,6 +89,10 @@ const DatasetRunDetails = () => {
       notFoundMessage="Dataset run not found"
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <DatasetRunMap
+          dataType={datasetRun?.dataType}
+          dataUrl={datasetRun?.dataUrl}
+        />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <DatasetRunSummaryCard run={datasetRun} />
           <div className="grid grid-cols-1 gap-4">
@@ -255,11 +259,6 @@ const DatasetRunDetails = () => {
           </div>
         </CrudForm>
       </div>
-
-      <DatasetRunMap
-        dataType={datasetRun?.dataType}
-        dataUrl={datasetRun?.dataUrl}
-      />
 
         <CrudForm
           form={form}
