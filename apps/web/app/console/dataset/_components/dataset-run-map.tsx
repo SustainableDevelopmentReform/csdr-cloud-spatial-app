@@ -12,9 +12,10 @@ import { Table, tableFromIPC } from 'apache-arrow'
 import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
 
-const fillColor = [0, 0, 0, 0] // Transparent.
-// const outlineColor = getComputedStyle(document.documentElement).getPropertyValue('--dataset'); // This seems hacky so don't use it.
-const outlineColor = [30, 119, 179, 255] // This color is also defined in CSS as --dataset
+type colorArray = [number, number, number, number]
+const fillColor: colorArray = [0, 0, 0, 0] // Transparent.
+// const outlineColor: colorArray = getComputedStyle(document.documentElement).getPropertyValue('--dataset'); // This seems hacky so don't use it.
+const outlineColor: colorArray = [30, 119, 179, 255] // This color is also defined in CSS as --dataset
 
 async function geoKeysParser(
   geoKeys: Record<string, any>,
@@ -28,6 +29,7 @@ async function geoKeysParser(
   }
 }
 
+// TODO: Add 'csdr-id' to feature interface for selection.
 interface Feature {
   [key: string]: any
 }
@@ -233,7 +235,9 @@ export const DatasetRunMap = ({
         {/* <div style={{ height: '500px', width: '100%', position: 'relative' }}> */}
         <DeckGL
           viewState={viewState}
-          onViewStateChange={({ viewState }) => setViewState(viewState)}
+          onViewStateChange={({ viewState }) =>
+            setViewState(viewState as MapViewState)
+          }
           controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
