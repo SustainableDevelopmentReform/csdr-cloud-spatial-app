@@ -59,20 +59,26 @@ export const DatasetRunMap = ({
   //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
 
   // For testing STAC-Geoparquet polygons:
+  // const stac_parquet_arrow_s3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
   const stac_parquet_arrow_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
   dataUrl = stac_parquet_arrow_s3 as Exclude<
     DatasetRunListItem['dataUrl'],
     null
-  > // Just for dev. Dataurl will come from props.
+  >
+  // Just for dev. Dataurl will come from props.
   dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
+
+  // Reef. 500MB - breaks browser.
+  // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
+  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
 
   // For testing parquet points:
   // const GEOPARQUET_URL_POINTS_S3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
   // dataUrl = GEOPARQUET_URL_POINTS_S3 // Just for dev. Dataurl should come from props.
   // dataType = 'geoparquet' // Just for dev. dataType should come from props.
 
-  //// Datasets:
+  // // Datasets:
   // STAC-Geoparquet datasets:
   // - gmw: ['assets.mangrove.href']. Has id column.
   // - ACE: Has many possible COG links. ['assets.classification.href']. Has id column. Data overlaps for the 2 years. Need to allow the user to select overlapping data.
@@ -189,7 +195,10 @@ export const DatasetRunMap = ({
             }),
           ]
         } else {
-          console.error('Unknown geometry type in GeoParquet')
+          // debugger;
+          const errorMessage = 'Unknown geometry type in GeoParquet'
+          console.error(errorMessage)
+          handleSetError(errorMessage)
         }
         handleSetLayers(newLayers)
 
@@ -213,15 +222,18 @@ export const DatasetRunMap = ({
           //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" \
           //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_rgb.tif"
 
-          // TODO: Use selectedFeatureLink. This will need a list of possible fields to read from. Maybe let the user choose from a list.
-          // const selectedFeatureLink = selectedFeature['assets.mangrove.href'].replace(
+          // TODO: Once COGLayer supports single band COG, then use this link.
+          // TODO: This will need a list of possible fields to read from. Maybe let the user choose from a list.
+          // const selectedFeatureLink = selectedFeature['assets']['mangrove']['href'].replace(
           //   's3://csdr-public-dev',
           //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
           // )
+          console.log('selectedFeature', selectedFeature)
 
           const cogLayer = new COGLayer({
             id: cogLayerId,
             geotiff: COG_URL,
+            // geotiff: selectedFeatureLink,
             geoKeysParser,
             onGeoTIFFLoad: (tiff, options) => {
               const { west, south, east, north } = options.geographicBounds
