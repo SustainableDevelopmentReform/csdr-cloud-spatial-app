@@ -48,20 +48,23 @@ export const DatasetRunMap = ({
     zoom: 1,
   })
 
-  const stac_parquet_arrow_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
-
   // Test files:
   // Must use the "_native" version where the geometry column is GeoArrow:
-  // const GEOPARQUET_URL_POINTS_S3 =
-  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
   // const GEOPARQUET_URL_POINTS =
   //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
   // const GEOPARQUET_URL_POLYGONS =
   //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
 
+  // For testing STAC-Geoparquet polygons:
+  const stac_parquet_arrow_s3 =
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
   dataUrl = stac_parquet_arrow_s3 // Just for dev. Dataurl should come from props.
   dataType = 'stac-geoparquet' // Just for dev. dataType should come from props.
+
+  // For testing parquet points:
+  // const GEOPARQUET_URL_POINTS_S3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
+  // dataUrl = GEOPARQUET_URL_POINTS_S3 // Just for dev. Dataurl should come from props.
+  // dataType = 'geoparquet' // Just for dev. dataType should come from props.
 
   // useCallback setters
   const handleSetJsTable = useCallback((table: Table) => {
@@ -108,23 +111,24 @@ export const DatasetRunMap = ({
               stroked: true,
               getLineColor: outlineColor,
               getLineWidth: (d: Feature) => {
-                const featureId = jsTable?.getChild('id')?.get(d.index)
-                const selectedFeatureId = selectedFeature?.['id']
+                // TODO: This dataset doesn't have an id field. I think we should use 'csdr-id' for prod data.
+                const featureId = jsTable?.getChild('name')?.get(d.index)
+                const selectedFeatureId = selectedFeature?.['name']
                 if (featureId == selectedFeatureId) {
                   return 3
                 }
                 return 1
               },
               getRadius: (d: Feature) => {
-                const featureId = jsTable?.getChild('id')?.get(d.index)
-                const selectedFeatureId = selectedFeature?.['id']
+                // TODO: This dataset doesn't have an id field. I think we should use 'csdr-id' for prod data.
+                const featureId = jsTable?.getChild('name')?.get(d.index)
+                const selectedFeatureId = selectedFeature?.['name']
                 if (featureId == selectedFeatureId) {
-                  return 10
+                  return 200000
                 }
-                return 4
+                return 80000
               },
               lineWidthUnits: 'pixels',
-              radiusUnits: 'pixels',
               pickable: true,
               onClick: (info) => {
                 if (info && info.object) {
@@ -232,6 +236,7 @@ export const DatasetRunMap = ({
           onViewStateChange={({ viewState }) => setViewState(viewState)}
           controller={true}
           layers={layers}
+          getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
         >
           <Map
             style={{ width: '100%', height: '100%' }}
@@ -250,13 +255,16 @@ export const DatasetRunMap = ({
         )}
         {jsTable && dataType === 'geoparquet' && (
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
-            Click a Geoparquet Item to view its details.
+            Click a feature to view its details.
           </div>
         )}
       </div>
       {selectedFeature && (
         <div className="bg-white p-2 rounded-lg shadow">
-          <p>Selected STAC Item Details:</p>
+          <p>
+            Selected {dataType === 'stac-geoparquet' ? 'STAC Item' : 'feature'}{' '}
+            Details:
+          </p>
           <table className="text-xs">
             <thead>
               <tr>
