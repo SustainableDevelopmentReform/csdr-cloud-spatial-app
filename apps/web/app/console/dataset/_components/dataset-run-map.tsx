@@ -11,6 +11,7 @@ import { Table, tableFromIPC } from 'apache-arrow'
 
 import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
+import { DatasetRunListItem } from '../_hooks'
 
 type colorArray = [number, number, number, number]
 const fillColor: colorArray = [0, 0, 0, 0] // Transparent.
@@ -29,7 +30,6 @@ async function geoKeysParser(
   }
 }
 
-// TODO: Add 'csdr-id' to feature interface for selection.
 interface Feature {
   [key: string]: any
 }
@@ -38,8 +38,8 @@ export const DatasetRunMap = ({
   dataType,
   dataUrl,
 }: {
-  dataType: string | null | undefined // TODO: fix type with datasetRun.dataType
-  dataUrl: string | null | undefined
+  dataType: Exclude<DatasetRunListItem['dataType'], null>
+  dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
 }) => {
   const [jsTable, setJsTable] = useState<Table | null>(null)
   const [layers, setLayers] = useState<LayersList>([])
@@ -49,6 +49,7 @@ export const DatasetRunMap = ({
     latitude: 0,
     zoom: 1,
   })
+  const [error, setError] = useState<string | null>(null)
 
   // Test files:
   // Must use the "_native" version where the geometry column is GeoArrow:
@@ -60,13 +61,25 @@ export const DatasetRunMap = ({
   // For testing STAC-Geoparquet polygons:
   const stac_parquet_arrow_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
-  dataUrl = stac_parquet_arrow_s3 // Just for dev. Dataurl should come from props.
-  dataType = 'stac-geoparquet' // Just for dev. dataType should come from props.
+  dataUrl = stac_parquet_arrow_s3 as Exclude<
+    DatasetRunListItem['dataUrl'],
+    null
+  > // Just for dev. Dataurl will come from props.
+  dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
 
   // For testing parquet points:
   // const GEOPARQUET_URL_POINTS_S3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
   // dataUrl = GEOPARQUET_URL_POINTS_S3 // Just for dev. Dataurl should come from props.
   // dataType = 'geoparquet' // Just for dev. dataType should come from props.
+
+  //// Datasets:
+  // STAC-Geoparquet datasets:
+  // - gmw: ['assets.mangrove.href']. Has id column.
+  // - ACE: Has many possible COG links. ['assets.classification.href']. Has id column. Data overlaps for the 2 years. Need to allow the user to select overlapping data.
+  // - seagrass: Has many possible COG links including ['assets.seagrass.href']. Has id column.
+  // Parquet datasets:
+  // - reef: No id or name.
+  // - buildings: we only index the bboxes of the sa2 building parquets. Maybe the user can click a bbox and load/vizualise that data from Source Coop? Has s2_code id column.
 
   // useCallback setters
   const handleSetJsTable = useCallback((table: Table) => {
@@ -83,6 +96,10 @@ export const DatasetRunMap = ({
 
   const handleSetViewState = useCallback((vs: MapViewState) => {
     setViewState(vs)
+  }, [])
+
+  const handleSetError = useCallback((error: string | null) => {
+    setError(error)
   }, [])
 
   // Single async useEffect for data loading and layer setup
@@ -113,7 +130,7 @@ export const DatasetRunMap = ({
               stroked: true,
               getLineColor: outlineColor,
               getLineWidth: (d: Feature) => {
-                // TODO: This dataset doesn't have an id field. I think we should use 'csdr-id' for prod data.
+                // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
                 const featureId = jsTable?.getChild('name')?.get(d.index)
                 const selectedFeatureId = selectedFeature?.['name']
                 if (featureId == selectedFeatureId) {
@@ -122,7 +139,7 @@ export const DatasetRunMap = ({
                 return 1
               },
               getRadius: (d: Feature) => {
-                // TODO: This dataset doesn't have an id field. I think we should use 'csdr-id' for prod data.
+                // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
                 const featureId = jsTable?.getChild('name')?.get(d.index)
                 const selectedFeatureId = selectedFeature?.['name']
                 if (featureId == selectedFeatureId) {
@@ -151,6 +168,7 @@ export const DatasetRunMap = ({
               getFillColor: fillColor,
               getLineColor: outlineColor,
               getLineWidth: (d: Feature) => {
+                // TODO: There is no standard id field for datasets.
                 const featureId = jsTable?.getChild('id')?.get(d.index)
                 const selectedFeatureId = selectedFeature?.['id']
                 if (featureId == selectedFeatureId) {
@@ -189,16 +207,18 @@ export const DatasetRunMap = ({
           // This COG is from our S3 bucket. It errors because it is single band instead of 3 band (RGB).
           // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
 
+          // TODO: Remove this once @developmentseed/deck.gl-geotiff merges the single band fix.
           // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
           //   -b 1 -b 1 -b 1 \
           //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" \
           //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_rgb.tif"
 
-          // TODO: Use selectedFeatureLink
+          // TODO: Use selectedFeatureLink. This will need a list of possible fields to read from. Maybe let the user choose from a list.
           // const selectedFeatureLink = selectedFeature['assets.mangrove.href'].replace(
           //   's3://csdr-public-dev',
           //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
           // )
+
           const cogLayer = new COGLayer({
             id: cogLayerId,
             geotiff: COG_URL,
@@ -219,20 +239,25 @@ export const DatasetRunMap = ({
           handleSetLayers(newLayers)
         }
       } catch (e) {
-        console.error('Failed to load GeoParquet', e)
+        const errorMessage = 'Failed to load GeoParquet data.'
+        console.error(errorMessage, e)
+        handleSetError(errorMessage)
       }
     }
     fetchAndVisualise()
     return () => {
+      // Cleanup
       isMounted = false
     }
   }, [dataType, dataUrl, selectedFeature])
 
-  // {dataType && dataUrl &&
+  if (error) {
+    return <p className="text-red-500">Error: {error}</p>
+  }
+
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="rounded-lg overflow-hidden h-96 relative">
-        {/* <div style={{ height: '500px', width: '100%', position: 'relative' }}> */}
         <DeckGL
           viewState={viewState}
           onViewStateChange={({ viewState }) =>
@@ -260,6 +285,13 @@ export const DatasetRunMap = ({
         {jsTable && dataType === 'geoparquet' && (
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
             Click a feature to view its details.
+          </div>
+        )}
+        {selectedFeature && (
+          <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow">
+            <button onClick={() => handleSetSelectedFeature(null)}>
+              Clear Selection
+            </button>
           </div>
         )}
       </div>
