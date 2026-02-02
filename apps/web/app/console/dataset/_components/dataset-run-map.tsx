@@ -1,20 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import { Map } from '@vis.gl/react-maplibre'
 import DeckGL from '@deck.gl/react'
+import { MapViewState, LayersList, Layer } from '@deck.gl/core'
 import {
   GeoArrowScatterplotLayer,
   GeoArrowPolygonLayer,
 } from '@geoarrow/deck.gl-layers'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
-import { tableFromIPC } from 'apache-arrow'
+import { Table, tableFromIPC } from 'apache-arrow'
 
 import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
-import { toProj4 } from 'geotiff-geokeys-to-proj4'
+import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
+
+const fillColor = [0, 0, 0, 0] // Transparent.
+// const outlineColor = getComputedStyle(document.documentElement).getPropertyValue('--dataset'); // This seems hacky so don't use it.
+const outlineColor = [30, 119, 179, 255] // This color is also defined in CSS as --dataset
 
 async function geoKeysParser(
   geoKeys: Record<string, any>,
 ): Promise<proj.ProjectionInfo> {
-  const projDefinition = toProj4(geoKeys as any)
+  const projDefinition = toProj4(geoKeys as GeoKeys)
 
   return {
     def: projDefinition.proj4,
@@ -23,27 +28,26 @@ async function geoKeysParser(
   }
 }
 
+interface Feature {
+  [key: string]: any
+}
+
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
 }: {
-  dataType: string | null // TODO: fix type with datasetRun.dataType
-  dataUrl: string | null
+  dataType: string | null | undefined // TODO: fix type with datasetRun.dataType
+  dataUrl: string | null | undefined
 }) => {
-  const [jsTable, setJsTable] = useState<any | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [layers, setLayers] = useState<any[]>([])
-  const [selectedFeature, setSelectedFeature] = useState<any>()
-  const [geometryType, setGeometryType] = useState<string>()
-  const [viewState, setViewState] = useState({
+  const [jsTable, setJsTable] = useState<Table | null>(null)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [layers, setLayers] = useState<LayersList>([])
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
+  const [viewState, setViewState] = useState<MapViewState>({
     longitude: 0,
     latitude: 0,
     zoom: 1,
   })
-
-  // Here is the command to convert a parquet to use GeoArrow for geometry column:
-  // ogr2ogr -f Parquet /Users/wj/Downloads/gmw-geoarrow.parquet "/Users/wj/Downloads/gmw (4).parquet" -lco GEOMETRY_ENCODING=geoarrow
-  // This will be done in the CSDR pipeline when generating GeoParquet files.
 
   const stac_parquet_arrow_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
@@ -90,22 +94,42 @@ export const DatasetRunMap = ({
       // geometryVector?.type?.children[0]?.name === 'x' &&
       // geometryVector?.type?.children[1]?.name === 'y'
     ) {
-      setGeometryType('Point')
+      // GeometryType : Point
       setLayers([
         new GeoArrowScatterplotLayer({
           id: 'dataset',
           data: jsTable,
           getPosition: geometryVector,
-          // TODO: Highlight selected point
-          getFillColor: [255, 140, 0, 180],
+          getFillColor: fillColor,
           stroked: true,
-          getLineColor: [0, 0, 0, 255],
-          getLineWidth: 1,
+          getLineColor: outlineColor,
+          getLineWidth: (d: Feature) => {
+            const featureId = jsTable?.getChild('id')?.get(d.index)
+            const selectedFeatureId = selectedFeature?.['id']
+            if (featureId == selectedFeatureId) {
+              return 3
+            }
+            return 1
+          },
+          getRadius: (d: Feature) => {
+            const featureId = jsTable?.getChild('id')?.get(d.index)
+            const selectedFeatureId = selectedFeature?.['id']
+            if (featureId == selectedFeatureId) {
+              return 10
+            }
+            return 4
+          },
           lineWidthUnits: 'pixels',
-          getRadius: 50000,
+          radiusUnits: 'pixels',
           pickable: true,
-          // TODO: onClick to select point
-          // onClick
+          // TODO: Make onClick a function.
+          onClick: (info) => {
+            if (info && info.object) {
+              setSelectedFeature(
+                Object.fromEntries(Object.entries(info.object)),
+              )
+            }
+          },
         }),
       ])
     } else if (
@@ -116,39 +140,26 @@ export const DatasetRunMap = ({
       // geometryVector?.type?.children?.[0]?.type?.children?.[0]?.type
       //   ?.children?.[0]?.type?.typeId === 13 // Struct(x, y)
     ) {
-      setGeometryType('Polygon')
+      // GeometryType : Polygon
       setLayers([
         new GeoArrowPolygonLayer({
           id: 'dataset',
           data: jsTable,
           getPolygon: geometryVector,
-          getFillColor: (d: any) => {
+          getFillColor: fillColor,
+          getLineColor: outlineColor,
+          getLineWidth: (d: Feature) => {
             const featureId = jsTable?.getChild('id')?.get(d.index)
             const selectedFeatureId = selectedFeature?.['id']
             if (featureId == selectedFeatureId) {
-              return [0, 200, 255, 220] // Cyan highlight
-            }
-            return [255, 140, 0, 180]
-          },
-          getLineColor: (d) => {
-            const featureId = jsTable?.getChild('id')?.get(d.index)
-            const selectedFeatureId = selectedFeature?.['id']
-            if (featureId == selectedFeatureId) {
-              return [0, 0, 0, 255] // Black highlight
-            }
-            return [0, 0, 0, 100]
-          },
-          getLineWidth: (d) => {
-            const featureId = jsTable?.getChild('id')?.get(d.index)
-            const selectedFeatureId = selectedFeature?.['id']
-            if (featureId == selectedFeatureId) {
-              return 3
+              return 5
             }
             return 1
           },
           lineWidthUnits: 'pixels',
           lineWidthMinPixels: 1,
           pickable: true,
+          // TODO: Make onClick a function.
           onClick: (info) => {
             if (info && info.object) {
               setSelectedFeature(
@@ -169,15 +180,15 @@ export const DatasetRunMap = ({
         const cogLayerId = 'cog-layer'
 
         if (!selectedFeature) {
-          // Remove existing COG layer if any
-          setLayers((prevLayers) =>
-            prevLayers.filter((layer) => layer.id !== cogLayerId),
+          // Remove existing COG layer if there is no longer one selected.
+          setLayers((prevLayers: LayersList) =>
+            prevLayers.filter((layer: Layer) => layer.id !== cogLayerId),
           )
           return
         } else {
-          // Remove existing COG layer if any so it can be replaced
-          setLayers((prevLayers) =>
-            prevLayers.filter((layer) => layer.id !== cogLayerId),
+          // Remove existing COG layer if there is one selected so it can be replaced
+          setLayers((prevLayers: LayersList) =>
+            prevLayers.filter((layer: Layer) => layer.id !== cogLayerId),
           )
           // Add new COG layer
           // This COG is from our S3 bucket. It errors because it is single band instead of 3 band (RGB).
@@ -208,7 +219,7 @@ export const DatasetRunMap = ({
               const { west, south, east, north } = options.geographicBounds
               const centerLongitude = (west + east) / 2
               const centerLatitude = (south + north) / 2
-              setViewState((vs) => ({
+              setViewState((vs: MapViewState) => ({
                 ...vs,
                 longitude: centerLongitude,
                 latitude: centerLatitude,
@@ -216,7 +227,7 @@ export const DatasetRunMap = ({
               }))
             },
           })
-          setLayers((prevLayers) => [...prevLayers, cogLayer])
+          setLayers((prevLayers: LayersList) => [...prevLayers, cogLayer])
         }
       }
     }
@@ -225,59 +236,59 @@ export const DatasetRunMap = ({
 
   // {dataType && dataUrl &&
   return (
-    <div className="grid grid-cols-1">
-      <div className="w-full rounded-md">
-        <p>Data Type: {dataType}</p>
-        <p>Data URL: {dataUrl}</p>
-        <p>Detected Geometry Type: {geometryType ?? 'Unknown'}</p>
-        <div style={{ height: '500px', width: '100%', position: 'relative' }}>
-          <DeckGL
-            viewState={viewState}
-            onViewStateChange={({ viewState }) => setViewState(viewState)}
-            controller={true}
-            layers={layers}
-          >
-            <Map
-              style={{ width: '100%', height: '100%' }}
-              mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
-            />
-          </DeckGL>
-          {loading && (
-            <div className="absolute top-14 left-2 bg-white p-2 rounded shadow">
-              Loading {dataType}...
-            </div>
-          )}
-          {!loading && dataType === 'stac-geoparquet' && (
-            <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
-              This is a STAC-Geoparquet so you can select an item to load a COG.
-            </div>
-          )}
-        </div>
-        {selectedFeature && (
-          <div className="my-20 bg-white p-2 rounded shadow max-h-200 overflow-auto">
-            <h2>Selected Feature Details:</h2>
-            <p>Data Type: {dataType}</p>
-            <table className="text-xs">
-              <thead>
-                <tr>
-                  <th className="text-left pr-2">Key</th>
-                  <th className="text-left">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(selectedFeature).map(([key, value]) => (
-                  <tr key={key}>
-                    <td className="pr-2 align-top font-mono">{key}</td>
-                    <td className="align-top font-mono break-all">
-                      {String(value)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="w-[800px] max-w-full gap-8 flex flex-col">
+      <div className="rounded-lg overflow-hidden h-96 relative">
+        {/* <div style={{ height: '500px', width: '100%', position: 'relative' }}> */}
+        <DeckGL
+          viewState={viewState}
+          onViewStateChange={({ viewState }) => setViewState(viewState)}
+          controller={true}
+          layers={layers}
+        >
+          <Map
+            style={{ width: '100%', height: '100%' }}
+            mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
+          />
+        </DeckGL>
+        {loading && (
+          <div className="absolute top-14 left-2 bg-white p-2 rounded shadow">
+            Loading {dataType}...
+          </div>
+        )}
+        {!loading && dataType === 'stac-geoparquet' && (
+          <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
+            Click a STAC-Geoparquet Item to view its details and COGs.
+          </div>
+        )}
+        {!loading && dataType === 'geoparquet' && (
+          <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
+            Click a Geoparquet Item to view its details.
           </div>
         )}
       </div>
+      {selectedFeature && (
+        <div className="bg-white p-2 rounded-lg shadow">
+          <p>Selected STAC Item Details:</p>
+          <table className="text-xs">
+            <thead>
+              <tr>
+                <th className="text-left pr-2">Key</th>
+                <th className="text-left">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(selectedFeature).map(([key, value]) => (
+                <tr key={key}>
+                  <td className="pr-2 align-top font-mono">{key}</td>
+                  <td className="align-top font-mono break-all">
+                    {String(value)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
