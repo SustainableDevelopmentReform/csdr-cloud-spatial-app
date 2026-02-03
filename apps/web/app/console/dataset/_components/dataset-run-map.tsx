@@ -1,7 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Map } from '@vis.gl/react-maplibre'
 import DeckGL from '@deck.gl/react'
-import { MapViewState, LayersList, Layer } from '@deck.gl/core'
+import {
+  MapViewState,
+  LayersList,
+  Layer,
+  PickingInfo,
+  WebMercatorViewport,
+} from '@deck.gl/core'
 import {
   GeoArrowScatterplotLayer,
   GeoArrowPolygonLayer,
@@ -50,6 +56,20 @@ export const DatasetRunMap = ({
     zoom: 1,
   })
   const [error, setError] = useState<string | null>(null)
+  const deckRef = useRef<any | null>(null)
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false)
+
+  // const onAfterRender = useCallback(() => {
+  //   const layer = layers[0];
+  //   console.log(layer);
+  //   if (!hasLoaded && layer.isLoaded) {
+  //     setHasLoaded(true);
+
+  //     const viewport = layer.context.viewport as WebMercatorViewport;
+  //     const {longitude, latitude, zoom} = viewport.fitBounds(layer.getBounds());
+  //     setViewState({longitude, latitude, zoom});
+  //   }
+  // }, [])
 
   // Test files:
   // Must use the "_native" version where the geometry column is GeoArrow:
@@ -60,9 +80,17 @@ export const DatasetRunMap = ({
 
   // For testing STAC-Geoparquet polygons:
   // const stac_parquet_arrow_s3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
-  const stac_parquet_arrow_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
-  dataUrl = stac_parquet_arrow_s3 as Exclude<
+  // const stac_parquet_arrow_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
+
+  // These are all being written with arrow by the pipeline now and all work here :)
+  const gmw_v4_written_by_pipeline_s3 =
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
+  const seagrass_written_by_pipeline_s3 =
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
+  const ace_written_by_pipeline_s3 =
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
+  dataUrl = seagrass_written_by_pipeline_s3 as Exclude<
     DatasetRunListItem['dataUrl'],
     null
   >
@@ -100,12 +128,116 @@ export const DatasetRunMap = ({
     setSelectedFeature(feature)
   }, [])
 
-  const handleSetViewState = useCallback((vs: MapViewState) => {
-    setViewState(vs)
-  }, [])
+  const handleSetViewState = useCallback(
+    (vs: MapViewState, layerId: string | null) => {
+      if (layerId) {
+        // Fit to a layer's bounds
+        console.log(layers)
+        const layer = layers.find((lyr) => lyr.id === layerId)
+        console.log(layer)
+        console.log(deckRef)
+
+        // debugger;
+        // const lyr = deckRef.current.getLayer(layerId);
+
+        // const viewport = layer.context.viewport as WebMercatorViewport;
+        // console.log(viewport);
+        // const bounds = layer.getBounds();
+        // console.log(bounds);
+        // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
+        // console.log(longitude, latitude, zoom);
+        // setViewState({
+        //   ...vs,
+        //   longitude: longitude,
+        //   latitude: latitude,
+        //   zoom: zoom,
+        // })
+      } else {
+        // Simply set the viewState to what was provided.
+        setViewState(vs)
+      }
+    },
+    [layers, deckRef],
+  )
 
   const handleSetError = useCallback((error: string | null) => {
     setError(error)
+  }, [])
+
+  const handleLoad = useCallback(
+    (e: any) => {
+      console.log('Load event:', e)
+      console.log(layers)
+      console.log(deckRef)
+      // I want to fitbounds to parquet layer here but it is not available until after the effect that sets the layers.
+    },
+    [layers, deckRef],
+  )
+
+  const datasetLayerId = 'dataset'
+
+  // Callback when the pointer clicks on an object in any pickable layer
+  const onFeatureClick = useCallback((info: PickingInfo, event: any) => {
+    if (!info.object) {
+      handleSetSelectedFeature(null)
+      return
+    } else {
+      const feature = info.object.toJSON()
+      handleSetSelectedFeature(feature)
+    }
+    // console.log('Clicked:', info, event);
+    // // const clickedFeatures = deckRef.current.pickMultipleObjects(info.x, info.y, 0, [datasetLayerId])
+    // const clickedFeatures = deckRef.current.pickMultipleObjects({
+    //   x: info.x,
+    //   y: info.y,
+    //   radius: 0,
+    //   layerIds: [datasetLayerId]
+    // });
+    // const items = clickedFeatures.map((cf) => cf.object.toJSON());
+    // let tableRows = '';
+    // items.forEach((item, idx) => {
+    //   Object.entries(item).forEach(([key, value]) => {
+    //     tableRows += `<tr><td>${key}</td><td>${String(value)}</td></tr>`;
+    //   });
+    //   if (idx < items.length - 1) {
+    //     tableRows += `<tr><td colspan='2'><hr/></td></tr>`;
+    //   }
+    // });
+    // return {
+    //   html: `
+    //     <h2 style="color: #000">Selected Features</h2>
+    //     <table style="font-size:0.8em; background:#fff; border-radius:8px; padding:8px;">
+    //       <thead><tr><th>Key</th><th>Value</th></tr></thead>
+    //       <tbody>${tableRows}</tbody>
+    //     </table>
+    //   `,
+    //   style: {
+    //     backgroundColor: '#fff',
+    //     fontSize: '0.8em',
+    //     padding: '16px',
+    //     borderRadius: '8px',
+    //   }
+    // }
+  }, [])
+
+  // Callback to populate the default tooltip with content
+  // const getTooltip = useCallback(({object}: PickingInfo<Feature>) => {
+  //   return object && object.message;
+  // }, []);
+
+  const getTooltip = useCallback(({ object }: PickingInfo<Feature>) => {
+    // console.log('Tooltip object:', object);
+    return (
+      object && {
+        html: `<h2 style="color: '#000'">Message:</h2> <div>Test</div>`,
+        style: {
+          backgroundColor: '#fff',
+          fontSize: '0.8em',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      }
+    )
   }, [])
 
   // Single async useEffect for data loading and layer setup
@@ -125,16 +257,43 @@ export const DatasetRunMap = ({
         const geometryVector =
           jsTable?.getChild('geometry') || jsTable?.getChild('proj:geometry')
         let newLayers: LayersList = []
+
+        const sharedProps = {
+          id: datasetLayerId,
+          data: jsTable,
+          getFillColor: fillColor,
+          getLineColor: outlineColor,
+          lineWidthUnits: 'pixels' as any,
+          lineWidthMinPixels: 1,
+          pickable: true,
+          pickMultipleObjects: true,
+          onClick: onFeatureClick,
+          onDataLoad: handleLoad,
+          // (e: any) => {
+          //   console.log('GeoParquet data loaded into layer.', e)
+          // },
+          // (e: any) => {
+          //   console.log('Layer loaded:', e);
+          //   debugger;
+          //   // // const centerLongitude = (west + east) / 2
+          //   // // const centerLatitude = (south + north) / 2
+          //   // const viewport = cogLayer.context.viewport as WebMercatorViewport;
+          //   // const {longitude, latitude, zoom} = viewport.fitBounds(cogLayer.getBounds());
+          //   // handleSetViewState({
+          //   //   ...viewState,
+          //   //   longitude: longitude,
+          //   //   latitude: latitude,
+          //   //   zoom: zoom,
+          //   // })
+          // },
+        }
         if (geometryVector?.type?.typeId === 13) {
           // Point
           newLayers = [
             new GeoArrowScatterplotLayer({
-              id: 'dataset',
-              data: jsTable,
+              ...sharedProps,
               getPosition: geometryVector,
-              getFillColor: fillColor,
               stroked: true,
-              getLineColor: outlineColor,
               getLineWidth: (d: Feature) => {
                 // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
                 const featureId = jsTable?.getChild('name')?.get(d.index)
@@ -144,23 +303,15 @@ export const DatasetRunMap = ({
                 }
                 return 1
               },
+              radiusUnits: 'pixels',
               getRadius: (d: Feature) => {
                 // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
                 const featureId = jsTable?.getChild('name')?.get(d.index)
                 const selectedFeatureId = selectedFeature?.['name']
                 if (featureId == selectedFeatureId) {
-                  return 200000
+                  return 10
                 }
-                return 80000
-              },
-              lineWidthUnits: 'pixels',
-              pickable: true,
-              onClick: (info) => {
-                if (info && info.object) {
-                  handleSetSelectedFeature(
-                    Object.fromEntries(Object.entries(info.object)),
-                  )
-                }
+                return 15
               },
             }),
           ]
@@ -168,11 +319,8 @@ export const DatasetRunMap = ({
           // Polygon
           newLayers = [
             new GeoArrowPolygonLayer({
-              id: 'dataset',
-              data: jsTable,
+              ...sharedProps,
               getPolygon: geometryVector,
-              getFillColor: fillColor,
-              getLineColor: outlineColor,
               getLineWidth: (d: Feature) => {
                 // TODO: There is no standard id field for datasets.
                 const featureId = jsTable?.getChild('id')?.get(d.index)
@@ -181,16 +329,6 @@ export const DatasetRunMap = ({
                   return 5
                 }
                 return 1
-              },
-              lineWidthUnits: 'pixels',
-              lineWidthMinPixels: 1,
-              pickable: true,
-              onClick: (info) => {
-                if (info && info.object) {
-                  handleSetSelectedFeature(
-                    Object.fromEntries(Object.entries(info.object)),
-                  )
-                }
               },
             }),
           ]
@@ -201,6 +339,9 @@ export const DatasetRunMap = ({
           handleSetError(errorMessage)
         }
         handleSetLayers(newLayers)
+
+        // TODO: Fit to GeoParquet data bounds
+        // handleSetViewState(viewState, datasetLayerId)
 
         // COG logic
         if (dataType === 'stac-geoparquet' && selectedFeature) {
@@ -230,22 +371,30 @@ export const DatasetRunMap = ({
           // )
           console.log('selectedFeature', selectedFeature)
 
+          console.log(layers)
+
           const cogLayer = new COGLayer({
             id: cogLayerId,
             geotiff: COG_URL,
             // geotiff: selectedFeatureLink,
             geoKeysParser,
-            onGeoTIFFLoad: (tiff, options) => {
-              const { west, south, east, north } = options.geographicBounds
-              const centerLongitude = (west + east) / 2
-              const centerLatitude = (south + north) / 2
-              handleSetViewState({
-                ...viewState,
-                longitude: centerLongitude,
-                latitude: centerLatitude,
-                zoom: 8,
-              })
-            },
+            // onGeoTIFFLoad: (tiff, options) => {
+            //   // handleSetViewState(viewState, cogLayerId)
+            //   // const { west, south, east, north } = options.geographicBounds
+            //   // debugger;
+            //   // // const centerLongitude = (west + east) / 2
+            //   // // const centerLatitude = (south + north) / 2
+            //   // const viewport = cogLayer.context.viewport as WebMercatorViewport;
+            //   // const bounds = cogLayer.getBounds();
+            //   // console.log('COG bounds:', bounds);
+            //   // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
+            //   // handleSetViewState({
+            //   //   ...viewState,
+            //   //   longitude: longitude,
+            //   //   latitude: latitude,
+            //   //   zoom: zoom,
+            //   // })
+            // },
           })
           newLayers.push(cogLayer)
           handleSetLayers(newLayers)
@@ -263,6 +412,16 @@ export const DatasetRunMap = ({
     }
   }, [dataType, dataUrl, selectedFeature])
 
+  // This effect may be buggy. It just fitBounds the map to the last added layer.
+  useEffect(() => {
+    if (layers.length > 0 && deckRef.current) {
+      // Fit to the dataset layer bounds
+      const layer = layers[0]
+      console.log(layer)
+      handleSetViewState(viewState, layer.id)
+    }
+  }, [layers, deckRef])
+
   if (error) {
     return <p className="text-red-500">Error: {error}</p>
   }
@@ -271,6 +430,7 @@ export const DatasetRunMap = ({
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="rounded-lg overflow-hidden h-96 relative">
         <DeckGL
+          ref={deckRef}
           viewState={viewState}
           onViewStateChange={({ viewState }) =>
             setViewState(viewState as MapViewState)
@@ -278,6 +438,11 @@ export const DatasetRunMap = ({
           controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
+          getTooltip={getTooltip}
+          // getTooltip={onFeatureClick}
+          pickMultipleObjects={true}
+          onLoad={handleLoad}
+          // onAfterRender={onAfterRender}
         >
           <Map
             style={{ width: '100%', height: '100%' }}
