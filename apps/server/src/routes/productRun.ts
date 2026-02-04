@@ -733,6 +733,112 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Delete an assigned derived indicator from a product run.',
+      method: 'delete',
+      path: '/:id/derived-indicators/:assignedDerivedIndicatorId',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({
+          id: z.string().min(1),
+          assignedDerivedIndicatorId: z.string().min(1),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'Successfully deleted assigned derived indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductRunSchema),
+            },
+          },
+        },
+        400: jsonErrorResponse(
+          'Cannot delete derived indicator that exists in output summary',
+        ),
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse(
+          'Product run or assigned derived indicator not found',
+        ),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete assigned derived indicator'),
+      },
+    }),
+    async (c) => {
+      const { id, assignedDerivedIndicatorId } = c.req.valid('param')
+
+      // Verify product run exists
+      const run = await fetchFullProductRunOrThrow(id)
+
+      // Find the assigned derived indicator
+      const assignedIndicator =
+        await db.query.productRunAssignedDerivedIndicator.findFirst({
+          where: (table, { and, eq }) =>
+            and(
+              eq(table.id, assignedDerivedIndicatorId),
+              eq(table.productRunId, id),
+            ),
+          with: {
+            derivedIndicator: {
+              columns: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        })
+
+      if (!assignedIndicator) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Assigned derived indicator not found',
+          description: `Assigned derived indicator with ID ${assignedDerivedIndicatorId} does not exist for this product run`,
+        })
+      }
+
+      // Check if the derived indicator exists in the output summary
+      const derivedIndicatorId = assignedIndicator.derivedIndicator.id
+      const isInOutputSummary = run.outputSummary?.indicators?.some(
+        (indicator) => indicator.indicator?.id === derivedIndicatorId,
+      )
+
+      if (isInOutputSummary) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Cannot delete derived indicator',
+          description: `The derived indicator "${assignedIndicator.derivedIndicator.name}" exists in the run output summary and cannot be removed.`,
+        })
+      }
+
+      // Delete the assigned derived indicator (dependencies will cascade)
+      await db
+        .delete(productRunAssignedDerivedIndicator)
+        .where(
+          eq(productRunAssignedDerivedIndicator.id, assignedDerivedIndicatorId),
+        )
+
+      // Delete product outputs for the derived indicator
+      await db
+        .delete(productOutput)
+        .where(
+          and(
+            eq(productOutput.productRunId, id),
+            eq(productOutput.derivedIndicatorId, derivedIndicatorId),
+          ),
+        )
+
+      const record = await fetchFullProductRunOrThrow(id)
+
+      return generateJsonResponse(
+        c,
+        record,
+        200,
+        'Assigned derived indicator deleted',
+      )
+    },
+  )
+
+  .openapi(
+    createRoute({
       description: 'Delete a product run.',
       method: 'delete',
       path: '/:id',
@@ -1095,16 +1201,6 @@ const app = createOpenAPIApp()
           ]),
         )
 
-        // Build a map of indicatorId -> sourceProductRunId from dependencies
-        // If no dependency mapping exists for an indicator, fall back to the current product run
-        const indicatorToSourceProductRunId = new Map<string, string>()
-        for (const dep of assignedDerivedIndicator.dependencies) {
-          indicatorToSourceProductRunId.set(
-            dep.indicator.id,
-            dep.sourceProductRun.id,
-          )
-        }
-
         const hasDerivedIndicatorBeenComputed = await db
           .select({ count: count() })
           .from(productOutput)
@@ -1118,16 +1214,25 @@ const app = createOpenAPIApp()
 
         if (hasDerivedIndicatorBeenComputed) {
           warnings.push({
-            message: `Derived indicator "${derivedIndicator.name}" has already been computed - skipping.`,
+            message: `${derivedIndicator.name}: Has already been computed - skipping.`,
           })
           continue
         }
 
         if (!indicatorIds.length) {
           warnings.push({
-            message: `Derived indicator "${derivedIndicator.name}" has no dependency indicators.`,
+            message: `${derivedIndicator.name}: Has no dependency indicators.`,
           })
           continue
+        }
+
+        // Build a map of indicatorId -> sourceProductRunId from dependencies
+        const indicatorToSourceProductRunId = new Map<string, string>()
+        for (const dep of assignedDerivedIndicator.dependencies) {
+          indicatorToSourceProductRunId.set(
+            dep.indicator.id,
+            dep.sourceProductRun.id,
+          )
         }
 
         // Fetch all dependent indicator product outputs from their respective source product runs
@@ -1170,6 +1275,12 @@ const app = createOpenAPIApp()
               ),
             )
           dependentIndicatorProductOutputs.push(...outputs)
+
+          if (outputs.length === 0) {
+            warnings.push({
+              message: `${derivedIndicator.name}: No dependent indicator product outputs found for source product run "${sourceProductRunId}".`,
+            })
+          }
         }
 
         const groupedOutputs = new Map<
@@ -1184,7 +1295,7 @@ const app = createOpenAPIApp()
 
         if (dependentIndicatorProductOutputs.length === 0) {
           warnings.push({
-            message: `No dependent indicator product outputs found for derived indicator "${derivedIndicator.name}".`,
+            message: `${derivedIndicator.name}: No dependent indicator product outputs found.`,
           })
           continue
         }
@@ -1198,6 +1309,12 @@ const app = createOpenAPIApp()
             values: new Map<string, number>(),
             dependencyOutputIds: [],
           }
+          if (group.values.has(output.indicatorId)) {
+            warnings.push({
+              message: `${derivedIndicator.name}: Duplicate indicator output found for "${indicatorNames.get(output.indicatorId) ?? output.indicatorId}" at geometry output "${output.geometryOutputId ?? 'null'}" and time point "${output.timePoint.toISOString()}".`,
+            })
+            continue
+          }
           group.values.set(output.indicatorId, output.value)
           group.dependencyOutputIds.push(output.id)
           groupedOutputs.set(key, group)
@@ -1210,7 +1327,7 @@ const app = createOpenAPIApp()
 
           if (missingIndicatorIds.length) {
             warnings.push({
-              message: `Missing dependency indicators for "${derivedIndicator.name}" at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
+              message: `${derivedIndicator.name}: Missing dependency indicators at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
               description: `Missing indicators: ${missingIndicatorIds
                 .map(
                   (indicatorId) =>
@@ -1239,7 +1356,7 @@ const app = createOpenAPIApp()
             computedValue = typeof result === 'number' ? result : Number(result)
           } catch (error) {
             warnings.push({
-              message: `Failed to compute "${derivedIndicator.name}" at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
+              message: `${derivedIndicator.name}: Failed to compute at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
               description:
                 error instanceof Error ? error.message : 'Unknown error',
             })
@@ -1248,7 +1365,7 @@ const app = createOpenAPIApp()
 
           if (!Number.isFinite(computedValue)) {
             warnings.push({
-              message: `Derived indicator "${derivedIndicator.name}" produced a non-numeric result at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
+              message: `${derivedIndicator.name}: Produced a non-numeric result at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
             })
             continue
           }

@@ -906,6 +906,44 @@ export const useAssignDerivedIndicatorToProductRun = (
   })
 }
 
+export const useDeleteAssignedDerivedIndicator = (_productRunId?: string) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (assignedDerivedIndicatorId: string) => {
+      if (!productRunId) return
+      const res = client.api.v0['product-run'][':id']['derived-indicators'][
+        ':assignedDerivedIndicatorId'
+      ].$delete({
+        param: { id: productRunId, assignedDerivedIndicatorId },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: (response) => {
+      const resolvedProductRunId = response?.data?.id ?? productRunId
+      const resolvedProductId = response?.data?.product?.id
+
+      if (resolvedProductRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(resolvedProductRunId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.derivedIndicators(resolvedProductRunId),
+        })
+      }
+      if (resolvedProductId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(resolvedProductId),
+        })
+      }
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+    },
+  })
+}
+
 export const useDeleteProduct = (
   _productId?: string,
   redirect: string | null = null,
