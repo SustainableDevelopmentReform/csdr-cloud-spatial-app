@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { ReportLinkParams, useReportLink } from '../_hooks'
 
@@ -22,7 +21,6 @@ export const ReportButton = ({ report }: { report: ReportLinkParams }) => {
   return (
     <BadgeLink href={reportLink(report)} variant="outline">
       {report.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }

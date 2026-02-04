@@ -30,6 +30,12 @@ export type IndicatorDetail = NonNullable<
     200
   >['data']
 >
+export type DerivedIndicatorDetail = NonNullable<
+  InferResponseType<
+    Client['api']['v0']['indicator']['derived'][':id']['$get'],
+    200
+  >['data']
+>
 
 export type UpdateIndicatorPayload = NonNullable<
   InferRequestType<Client['api']['v0']['indicator'][':id']['$patch']>['json']

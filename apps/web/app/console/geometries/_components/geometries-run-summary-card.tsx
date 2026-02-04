@@ -1,8 +1,8 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
-import { GeometriesRunListItem, useGeometriesRunLink } from '../_hooks'
+import { GeometriesRunListItem } from '../_hooks'
+import { GeometriesRunButton } from './geometries-run-button'
 
 export const GeometriesRunSummaryCard = ({
   run,
@@ -11,8 +11,6 @@ export const GeometriesRunSummaryCard = ({
   run?: GeometriesRunListItem | undefined | null
   mainRun?: boolean
 }) => {
-  const geometriesRunLink = useGeometriesRunLink()
-
   if (!run && mainRun) {
     return <NoMainRunCard />
   }
@@ -23,9 +21,9 @@ export const GeometriesRunSummaryCard = ({
       description={
         mainRun ? 'Geometries Main Run Summary' : 'Geometries Run Summary'
       }
-      actionText="Open"
-      actionLink={run && mainRun ? geometriesRunLink(run) : undefined}
-      actionIcon={<ArrowUpRightIcon />}
+      actionButton={
+        run && mainRun ? <GeometriesRunButton geometriesRun={run} /> : undefined
+      }
       // footer={`Data range: ${formatDate(geometries?.mainRun?.outputSummary?.startTime)} to ${formatDate(geometries?.mainRun?.outputSummary?.endTime)}`}
       // subFooter={
       //   <div className="flex flex-col gap-2">

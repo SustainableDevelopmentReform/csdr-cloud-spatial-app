@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { GeometriesRunLinkParams, useGeometriesRunLink } from '../_hooks'
 import { MainRunBadge } from '../../_components/main-run-badge'
@@ -29,11 +28,10 @@ export const GeometriesRunButton = ({
 
   return (
     <BadgeLink href={geometriesRunLink(geometriesRun)} variant="geometriesRun">
-      {geometriesRun.name}
       {geometriesRun.geometries.mainRunId === geometriesRun.id && (
         <MainRunBadge size="xs" variant="geometries" />
       )}
-      <ArrowUpRightIcon className="size-4" />
+      {geometriesRun.name}
     </BadgeLink>
   )
 }

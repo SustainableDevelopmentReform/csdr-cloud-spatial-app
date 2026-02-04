@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { GeometriesLinkParams, useGeometriesLink } from '../_hooks'
 
@@ -26,7 +25,6 @@ export const GeometriesButton = ({
   return (
     <BadgeLink href={geometriesLink(geometries)} variant="geometries">
       {geometries.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }

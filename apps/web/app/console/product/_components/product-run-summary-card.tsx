@@ -1,16 +1,19 @@
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
-import { ArrowUpRightIcon, RefreshCwIcon } from 'lucide-react'
+import { RefreshCwIcon } from 'lucide-react'
 import { formatDateTime, formatDate } from '@repo/ui/lib/date'
 import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import {
   ProductRunDetail,
-  useProductRunLink,
+  useProductRunOutputsLink,
   useRefreshProductRunSummary,
 } from '../_hooks'
 import { AssignDerivedIndicatorsDialog } from './assign-derived-indicators'
 import { RefreshProductSummary } from './refresh-product-summary'
+import { BadgeLink } from '../../../../components/badge-link'
+import { Value } from '../../../../components/value'
+import { ProductRunButton } from './product-run-button'
 
 export const ProductRunSummaryCard = ({
   run,
@@ -19,7 +22,7 @@ export const ProductRunSummaryCard = ({
   run?: ProductRunDetail | undefined | null
   mainRun?: boolean
 }) => {
-  const productRunLink = useProductRunLink()
+  const productRunOutputsLink = useProductRunOutputsLink()
   const refreshProductRunSummary = useRefreshProductRunSummary(run)
 
   if (!run && mainRun) {
@@ -50,9 +53,9 @@ export const ProductRunSummaryCard = ({
     <DetailCard
       title={`Created at ${formatDateTime(run?.createdAt)}`}
       description={mainRun ? 'Product Main Run Summary' : 'Product Run Summary'}
-      actionText="Open"
-      actionLink={run && mainRun ? productRunLink(run) : undefined}
-      actionIcon={<ArrowUpRightIcon />}
+      actionButton={
+        run && mainRun ? <ProductRunButton productRun={run} /> : undefined
+      }
       footer={`Data range: ${formatDate(run?.outputSummary?.startTime)} to ${formatDate(run?.outputSummary?.endTime)}`}
       subFooter={
         <div className="flex flex-col gap-4">
@@ -67,11 +70,42 @@ export const ProductRunSummaryCard = ({
                   <IndicatorButton indicator={indicator.indicator} />
                 )}
                 <div className="flex flex-col gap-1">
-                  <div>Count: {indicator.count}</div>
-                  <div>
-                    Data range: {indicator.minValue} to {indicator.maxValue}
+                  <div className="flex items-center gap-2">
+                    Count:{' '}
+                    <BadgeLink
+                      href={productRunOutputsLink(run, {
+                        indicatorId: indicator.indicator?.id,
+                      })}
+                      variant="outline"
+                    >
+                      {indicator.count} outputs
+                    </BadgeLink>
                   </div>
-                  <div>Mean: {indicator.avgValue}</div>
+                  <div>
+                    Data range:{' '}
+                    {
+                      <Value
+                        value={indicator.minValue}
+                        indicator={indicator.indicator}
+                      />
+                    }{' '}
+                    to{' '}
+                    {
+                      <Value
+                        value={indicator.maxValue}
+                        indicator={indicator.indicator}
+                      />
+                    }
+                  </div>
+                  <div>
+                    Mean:{' '}
+                    {
+                      <Value
+                        value={indicator.avgValue}
+                        indicator={indicator.indicator}
+                      />
+                    }
+                  </div>
                 </div>
               </div>
             ))}

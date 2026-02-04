@@ -42,6 +42,7 @@ import {
 import { IndicatorButton } from '../../../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../../../indicator/_components/indicators-select'
 import z from 'zod'
+import { Value } from '../../../../../../components/value'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -53,6 +54,7 @@ const ProductOutputFeature = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    filters,
   } = useProductOutputs(undefined, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
@@ -90,7 +92,12 @@ const ProductOutputFeature = () => {
             </SortButton>
           ),
           cell: (info) => {
-            return info.getValue()
+            return (
+              <Value
+                value={info.getValue()}
+                indicator={info.row.original.indicator}
+              />
+            )
           },
           size: 120,
         }),
@@ -177,7 +184,12 @@ const ProductOutputFeature = () => {
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Product Outputs</h1>
+        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
+          Product Outputs
+          <div className="flex gap-2 items-center justify-center align-middle">
+            {filters}
+          </div>
+        </h1>
         <div className="flex items-center gap-3">
           {productRun?.id ? (
             <ProductOutputsImportDialog
@@ -261,6 +273,7 @@ const ProductOutputFeature = () => {
           value={query?.search ?? ''}
           onChange={(e) => setSearchParams({ search: e.target.value })}
         />
+
         <BaseCrudTable<
           ProductOutputListItem,
           Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>

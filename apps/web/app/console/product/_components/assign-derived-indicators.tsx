@@ -22,6 +22,7 @@ import {
   useDeleteAssignedDerivedIndicator,
   useProductRun,
   useProductRunDerivedIndicators,
+  useProductRunOutputsLink,
 } from '../_hooks'
 import { FieldGroup } from '../../../../components/form/action'
 import { ProductSelect } from './product-select'
@@ -34,6 +35,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@repo/ui/components/ui/tooltip'
+import { BadgeLink } from '../../../../components/badge-link'
 
 type DerivedIndicatorItem =
   ProductRunAssignedDerivedIndicator['derivedIndicator']
@@ -180,6 +182,8 @@ export const AssignDerivedIndicatorsDialog = ({
   const { data: selectedDerivedIndicator, isLoading: isLoadingIndicator } =
     useDerivedIndicator(selectedIndicatorId ?? undefined)
 
+  const productRunOutputsLink = useProductRunOutputsLink()
+
   // Get default product and product run from the current run
   const defaultProductId = run?.product?.id ?? null
   const defaultProductRunId = run?.id ?? null
@@ -219,24 +223,6 @@ export const AssignDerivedIndicatorsDialog = ({
       ),
     [assignedIndicators],
   )
-  const assignedIndicatorItems = useMemo<DerivedIndicatorItem[]>(
-    () =>
-      (assignedIndicators ?? []).map(
-        (assignedIndicator) => assignedIndicator.derivedIndicator,
-      ),
-    [assignedIndicators],
-  )
-
-  // Get the set of derived indicator IDs that are in the output summary
-  const derivedIndicatorIdsInSummary = useMemo(() => {
-    const ids = new Set<string>()
-    run?.outputSummary?.indicators?.forEach((indicator) => {
-      if (indicator.indicator?.id) {
-        ids.add(indicator.indicator.id)
-      }
-    })
-    return ids
-  }, [run?.outputSummary?.indicators])
 
   const handleDeleteAssignedIndicator = (assignmentId: string) => {
     deleteAssignedDerivedIndicator.mutate(assignmentId, {
@@ -404,12 +390,14 @@ export const AssignDerivedIndicatorsDialog = ({
         </div>
         <div className="grid gap-3">
           <div className="text-sm font-medium">Assigned indicators</div>
-          {assignedIndicators?.length ? (
+          {assignedIndicators?.length && run ? (
             <div className="border rounded-md divide-y">
               {assignedIndicators.map((assigned) => {
-                const isInSummary = derivedIndicatorIdsInSummary.has(
-                  assigned.derivedIndicator.id,
-                )
+                const outputSummaryIndicator =
+                  run?.outputSummary?.indicators?.find(
+                    (indicator) =>
+                      indicator.indicator?.id === assigned.derivedIndicator.id,
+                  )
                 return (
                   <div
                     key={assigned.id}
@@ -417,11 +405,14 @@ export const AssignDerivedIndicatorsDialog = ({
                   >
                     <div className="flex items-center gap-2">
                       <IndicatorButton indicator={assigned.derivedIndicator} />
-                      {isInSummary && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                          In run output summary
-                        </span>
-                      )}
+                      <BadgeLink
+                        href={productRunOutputsLink(run, {
+                          indicatorId: assigned.derivedIndicator.id,
+                        })}
+                        variant="outline"
+                      >
+                        {outputSummaryIndicator?.count ?? 'See'} outputs
+                      </BadgeLink>
                     </div>
                     <Tooltip>
                       <TooltipTrigger>
@@ -430,14 +421,14 @@ export const AssignDerivedIndicatorsDialog = ({
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                           disabled={
-                            isInSummary ||
+                            !!outputSummaryIndicator ||
                             deleteAssignedDerivedIndicator.isPending
                           }
                           onClick={() =>
                             handleDeleteAssignedIndicator(assigned.id)
                           }
                           title={
-                            isInSummary
+                            outputSummaryIndicator
                               ? 'Cannot delete - indicator exists in output summary'
                               : 'Delete assigned indicator'
                           }
@@ -445,7 +436,10 @@ export const AssignDerivedIndicatorsDialog = ({
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="left" hidden={!isInSummary}>
+                      <TooltipContent
+                        side="left"
+                        hidden={!outputSummaryIndicator}
+                      >
                         Cannot delete - indicator exists in output summary
                       </TooltipContent>
                     </Tooltip>

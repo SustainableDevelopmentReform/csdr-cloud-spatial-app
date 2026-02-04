@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { DatasetLinkParams, useDatasetLink } from '../_hooks'
 
@@ -22,7 +21,6 @@ export const DatasetButton = ({ dataset }: { dataset: DatasetLinkParams }) => {
   return (
     <BadgeLink href={datasetLink(dataset)} variant="dataset">
       {dataset.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }
