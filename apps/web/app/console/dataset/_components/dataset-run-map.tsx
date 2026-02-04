@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { Map } from '@vis.gl/react-maplibre'
+import { Map, Source } from '@vis.gl/react-maplibre' // Use Source for PMTiles, like geometries-map-viewer.tsx
 import DeckGL from '@deck.gl/react'
 import {
   MapViewState,
@@ -14,6 +14,8 @@ import {
 } from '@geoarrow/deck.gl-layers'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
 import { Table, tableFromIPC } from 'apache-arrow'
+import { TileSourceLayer } from '@deck.gl-community/geo-layers'
+import { PMTilesSource } from '@loaders.gl/pmtiles'
 
 import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
@@ -48,7 +50,20 @@ export const DatasetRunMap = ({
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
 }) => {
   const [jsTable, setJsTable] = useState<Table | null>(null)
-  const [layers, setLayers] = useState<LayersList>([])
+  const testPMTilesUrl =
+    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
+
+  const pmTilesLayer = new TileSourceLayer({
+    tileSource: PMTilesSource.createDataSource(testPMTilesUrl, {
+      /*props*/
+    }),
+  })
+
+  // const PMTileLayer = new TileSourceLayer({
+  //   tileSource: new PMTilesSource({url: testPMTilesUrl}),
+  // });
+  const startLayers = [pmTilesLayer]
+  const [layers, setLayers] = useState<LayersList>(startLayers)
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: 0,
@@ -90,16 +105,25 @@ export const DatasetRunMap = ({
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
   const ace_written_by_pipeline_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
-  dataUrl = seagrass_written_by_pipeline_s3 as Exclude<
-    DatasetRunListItem['dataUrl'],
-    null
-  >
-  // Just for dev. Dataurl will come from props.
-  dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
+  // dataUrl = gmw_v4_written_by_pipeline_s3 as Exclude<
+  //   DatasetRunListItem['dataUrl'],
+  //   null
+  // >
+  // // Just for dev. Dataurl will come from props.
+  // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
 
   // Reef. 500MB - breaks browser.
   // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
   // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+
+  // Buildings. Massive PMTiles file on Source Coop.
+  dataUrl =
+    'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
+      DatasetRunListItem['dataUrl'],
+      null
+    >
+  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+  // Could use this to display PMTiles https://github.com/visgl/deck.gl/issues/8615#issuecomment-1992673335
 
   // For testing parquet points:
   // const GEOPARQUET_URL_POINTS_S3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
@@ -378,23 +402,32 @@ export const DatasetRunMap = ({
             geotiff: COG_URL,
             // geotiff: selectedFeatureLink,
             geoKeysParser,
-            // onGeoTIFFLoad: (tiff, options) => {
-            //   // handleSetViewState(viewState, cogLayerId)
-            //   // const { west, south, east, north } = options.geographicBounds
-            //   // debugger;
-            //   // // const centerLongitude = (west + east) / 2
-            //   // // const centerLatitude = (south + north) / 2
-            //   // const viewport = cogLayer.context.viewport as WebMercatorViewport;
-            //   // const bounds = cogLayer.getBounds();
-            //   // console.log('COG bounds:', bounds);
-            //   // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
-            //   // handleSetViewState({
-            //   //   ...viewState,
-            //   //   longitude: longitude,
-            //   //   latitude: latitude,
-            //   //   zoom: zoom,
-            //   // })
-            // },
+            onGeoTIFFLoad: (tiff, options) => {
+              // handleSetViewState(viewState, cogLayerId)
+              const { west, south, east, north } = options.geographicBounds
+              // debugger;
+              const centerLongitude = (west + east) / 2
+              const centerLatitude = (south + north) / 2
+              // const viewport = cogLayer.context.viewport as WebMercatorViewport;
+              // const bounds = cogLayer.getBounds();
+              // console.log('COG bounds:', bounds);
+              // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
+              // handleSetViewState({
+              //   ...viewState,
+              //   longitude: longitude,
+              //   latitude: latitude,
+              //   zoom: zoom,
+              // })
+              handleSetViewState(
+                {
+                  ...viewState,
+                  longitude: centerLongitude,
+                  latitude: centerLatitude,
+                  zoom: 7,
+                },
+                null,
+              )
+            },
           })
           newLayers.push(cogLayer)
           handleSetLayers(newLayers)
@@ -438,10 +471,10 @@ export const DatasetRunMap = ({
           controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
-          getTooltip={getTooltip}
+          // getTooltip={getTooltip}
           // getTooltip={onFeatureClick}
           pickMultipleObjects={true}
-          onLoad={handleLoad}
+          // onLoad={handleLoad}
           // onAfterRender={onAfterRender}
         >
           <Map
