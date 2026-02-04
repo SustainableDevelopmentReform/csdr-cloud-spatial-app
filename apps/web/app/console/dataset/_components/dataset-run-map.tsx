@@ -60,7 +60,7 @@ export const DatasetRunMap = ({
   const mapRef = useRef<MapRef | null>(null)
 
   // Just for developing:
-  const datasetRunPMTilesUrl =
+  let datasetRunPMTilesUrl =
     's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
   dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
 
@@ -125,6 +125,19 @@ export const DatasetRunMap = ({
     throw new Error(`Unsupported dataType: ${dataType}`) // TODO: Handle this better.
   }
 
+  function s3UrlToHttps(s3Url: string): string {
+    if (s3Url.startsWith('s3://')) {
+      // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
+      const s3UrlWithoutPrefix = s3Url.replace('s3://', '')
+      const [bucket, ...pathParts] = s3UrlWithoutPrefix.split('/')
+      const path = pathParts.join('/')
+      return `https://${bucket}.s3.amazonaws.com/${path}`
+    }
+    return s3Url
+  }
+
+  datasetRunPMTilesUrl = s3UrlToHttps(datasetRunPMTilesUrl)
+
   const {
     data: pmtilesHeader,
     isLoading: isLoadingPmtilesHeader,
@@ -135,14 +148,6 @@ export const DatasetRunMap = ({
       let pmtilesUrl = datasetRunPMTilesUrl
 
       if (!pmtilesUrl) return null
-
-      if (pmtilesUrl.startsWith('s3://')) {
-        // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
-        const s3Url = pmtilesUrl.replace('s3://', '')
-        const [bucket, ...pathParts] = s3Url.split('/')
-        const path = pathParts.join('/')
-        pmtilesUrl = `https://${bucket}.s3.amazonaws.com/${path}`
-      }
 
       const p = new PMTiles(pmtilesUrl)
       return p.getHeader()
@@ -162,13 +167,7 @@ export const DatasetRunMap = ({
 
       if (!parquetArrowUrl) return null
 
-      if (parquetArrowUrl.startsWith('s3://')) {
-        // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
-        const s3Url = parquetArrowUrl.replace('s3://', '')
-        const [bucket, ...pathParts] = s3Url.split('/')
-        const path = pathParts.join('/')
-        parquetArrowUrl = `https://${bucket}.s3.amazonaws.com/${path}`
-      }
+      parquetArrowUrl = s3UrlToHttps(parquetArrowUrl)
 
       await initParquetWasm()
       const resp = await fetch(parquetArrowUrl)
@@ -183,62 +182,28 @@ export const DatasetRunMap = ({
   // console.log(parquetArrowTable);
   // console.log(pmtilesHeader);
 
-  // // Use useMemo to compute map bounds based on loaded data.
-  // const mapBounds = useMemo(() => {
-  //   if (
-  //     isLoadingPmtilesHeader ||
-  //     isLoadingGeometryOutputsToZoomTo ||
-  //     isLoadingGeometriesRun
-  //   )
-  //     return undefined
+  // Use useMemo to compute map bounds based on loaded data.
+  const mapBounds = useMemo(() => {
+    if (isLoadingPmtilesHeader) return undefined
 
-  //   if (
-  //     geometryOutputsToZoomTo?.data?.length &&
-  //     geometryOutputsToZoomTo.data.length > 0
-  //   ) {
-  //     return geometryOutputsToZoomTo.data.reduce<
-  //       [number, number, number, number]
-  //     >(
-  //       (acc, output) => {
-  //         const bbox = output.geometry?.bbox ?? turfBbox(output.geometry)
-  //         return [
-  //           Math.min(acc[0], bbox[0] ?? Infinity),
-  //           Math.min(acc[1], bbox[1] ?? Infinity),
-  //           Math.max(acc[2], bbox[2] ?? -Infinity),
-  //           Math.max(acc[3], bbox[3] ?? -Infinity),
-  //         ]
-  //       },
-  //       [Infinity, Infinity, -Infinity, -Infinity],
-  //     ) as [number, number, number, number]
-  //   }
+    if (pmtilesHeader) {
+      return [
+        pmtilesHeader.minLon,
+        pmtilesHeader.minLat,
+        pmtilesHeader.maxLon,
+        pmtilesHeader.maxLat,
+      ] as [number, number, number, number]
+    }
 
-  //   if (pmtilesHeader) {
-  //     return [
-  //       pmtilesHeader.minLon,
-  //       pmtilesHeader.minLat,
-  //       pmtilesHeader.maxLon,
-  //       pmtilesHeader.maxLat,
-  //     ] as [number, number, number, number]
-  //   }
-
-  //   if (geometriesRun) {
-  //     return [
-  //       geometriesRun.bounds.minX,
-  //       geometriesRun.bounds.minY,
-  //       geometriesRun.bounds.maxX,
-  //       geometriesRun.bounds.maxY,
-  //     ] as [number, number, number, number]
-  //   }
-
-  //   return undefined
-  // }, [
-  //   isLoadingPmtilesHeader,
-  //   isLoadingGeometryOutputsToZoomTo,
-  //   isLoadingGeometriesRun,
-  //   geometryOutputsToZoomTo,
-  //   pmtilesHeader,
-  //   geometriesRun,
-  // ])
+    return undefined
+  }, [
+    isLoadingPmtilesHeader,
+    // isLoadingGeometryOutputsToZoomTo,
+    // isLoadingGeometriesRun,
+    // geometryOutputsToZoomTo,
+    pmtilesHeader,
+    // geometriesRun,
+  ])
 
   // Callback when the pointer clicks on an object in any pickable layer
   const onFeatureClick = useCallback((info: PickingInfo, event: any) => {
@@ -368,11 +333,11 @@ export const DatasetRunMap = ({
   // });
   // const [layers, setLayers] = useState<LayersList>([])
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
-  const [viewState, setViewState] = useState<MapViewState>({
-    longitude: 0,
-    latitude: 0,
-    zoom: 1,
-  })
+  // const [viewState, setViewState] = useState<MapViewState>({
+  //   longitude: 0,
+  //   latitude: 0,
+  //   zoom: 1,
+  // })
   const deckRef = useRef<any | null>(null)
 
   // const onAfterRender = useCallback(() => {
@@ -674,11 +639,11 @@ export const DatasetRunMap = ({
       <div className="rounded-lg overflow-hidden h-96 relative">
         <DeckGL
           ref={deckRef}
-          viewState={viewState}
-          onViewStateChange={({ viewState }) =>
-            setViewState(viewState as MapViewState)
-          }
-          controller={true}
+          // viewState={viewState}
+          // onViewStateChange={({ viewState }) =>
+          //   setViewState(viewState as MapViewState)
+          // }
+          // controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
           // getTooltip={getTooltip}
@@ -694,11 +659,11 @@ export const DatasetRunMap = ({
           <MapViewer
             ref={mapRef}
             // interactiveLayerIds={['geometries-fill']}
-            // initialViewState={
-            //   mapBounds
-            //     ? { bounds: mapBounds, fitBoundsOptions: { padding: 20 } }
-            //     : undefined
-            // }
+            initialViewState={
+              mapBounds
+                ? { bounds: mapBounds, fitBoundsOptions: { padding: 20 } }
+                : undefined
+            }
             // onClick={onMouseClick}
             // transformRequest={transformRequest}
           >
@@ -713,15 +678,15 @@ export const DatasetRunMap = ({
               ]}
             />
             <Layer
-              id="geometries-fill"
-              source="geometries"
+              id="dataset-pmtiles-fill"
+              source="dataset-pmtiles-source"
               source-layer="data"
               type="fill"
               paint={fillPaint}
             />
             <Layer
-              id="geometries-line"
-              source="geometries"
+              id="dataset-pmtiles-line"
+              source="dataset-pmtiles-source"
               source-layer="data"
               type="line"
               paint={linePaint}
