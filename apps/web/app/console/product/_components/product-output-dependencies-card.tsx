@@ -1,10 +1,10 @@
-import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { DetailCard } from '../../_components/detail-cards'
+import { DatasetButton } from '../../dataset/_components/dataset-button'
+import { DatasetRunButton } from '../../dataset/_components/dataset-run-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../geometries/_components/geometries-run-button'
-import { DatasetRunButton } from '../../dataset/_components/dataset-run-button'
-import { ProductOutputDetail } from '../_hooks'
 import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
+import { ProductOutputListItem } from '../_hooks'
 import { ProductButton } from './product-button'
 import { ProductRunButton } from './product-run-button'
 
@@ -13,7 +13,7 @@ export const ProductOutputDependenciesCard = ({
   showProduct,
   showProductRun,
 }: {
-  productOutput: ProductOutputDetail | undefined | null
+  productOutput: ProductOutputListItem | undefined | null
   showProduct?: boolean
   showProductRun?: boolean
 }) => {

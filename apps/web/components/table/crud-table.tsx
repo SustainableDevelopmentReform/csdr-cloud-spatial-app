@@ -25,7 +25,7 @@ export interface BaseItem {
   description?: string | null
   createdAt: string
   updatedAt: string
-  metadata?: any
+  metadata?: unknown
 }
 
 interface BaseActionProps<T extends BaseItem> {
@@ -74,17 +74,23 @@ const Action = <T extends BaseItem>({
   )
 }
 
-interface BaseCrudTableProps<T extends BaseItem> extends BaseActionProps<T> {
+type BaseCrudTableQuery = {
+  sort?: string
+  order?: z.input<typeof baseQuerySchema>['order']
+}
+
+interface BaseCrudTableProps<
+  T extends BaseItem,
+  Q extends BaseCrudTableQuery = BaseCrudTableQuery,
+> extends BaseActionProps<T> {
   data: T[]
   baseColumns: readonly (keyof T)[]
   extraColumns?: ColumnDef<T>[]
-  query?: Pick<z.input<typeof baseQuerySchema>, 'sort' | 'order'>
-  onSortChange?: (
-    query: Pick<z.input<typeof baseQuerySchema>, 'sort' | 'order'>,
-  ) => void
+  query?: Q
+  onSortChange?: (query: Q) => void
 }
 
-const SortButton = ({
+export const SortButton = ({
   children,
   order,
   onClick,
@@ -111,6 +117,7 @@ const BaseCrudTable = <
   T extends BaseItem & {
     itemButton?: (item: T) => React.ReactNode
   },
+  Q extends BaseCrudTableQuery = BaseCrudTableQuery,
 >({
   data,
   query,
@@ -120,7 +127,7 @@ const BaseCrudTable = <
   itemLink,
   itemButton,
   onSortChange,
-}: BaseCrudTableProps<T>) => {
+}: BaseCrudTableProps<T, Q>) => {
   const columns = useMemo(() => {
     const columnHelper = createColumnHelper<T>()
 
@@ -189,7 +196,9 @@ const BaseCrudTable = <
         columnHelper.accessor((row) => row.description, {
           id: 'description',
           header: () => <span>Description</span>,
-          cell: (info) => info.getValue(),
+          cell: (info) => (
+            <span className="line-clamp-3">{info.getValue()}</span>
+          ),
           minSize: 120,
         }),
 
@@ -278,7 +287,7 @@ const BaseCrudTable = <
         // TODO add proper type for sort
         sort: sortingState[0]?.id as z.input<typeof baseQuerySchema>['sort'],
         order: sortingState[0]?.desc ? 'desc' : 'asc',
-      })
+      } as Q)
     },
   })
 

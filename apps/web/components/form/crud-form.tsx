@@ -86,7 +86,7 @@ export const CrudForm = <
       title: `Delete ${entityName}`,
       description: `Permanently remove the ${entityName?.toLowerCase()}, including all dependents.`,
       buttonVariant: 'destructive',
-      buttonTitle: 'Continue',
+      buttonTitle: 'Delete',
       mutation: deleteMutation,
       confirmDialog: {
         title: `Are you sure?`,
@@ -98,7 +98,9 @@ export const CrudForm = <
 
   const actions = useMemo(() => {
     return [...(actionsProp ?? []), deleteAction ?? undefined]
-  }, [actionsProp, deleteAction]).filter(Boolean) as CrudFormAction[]
+  }, [actionsProp, deleteAction]).filter(
+    (action): action is CrudFormAction => action !== undefined,
+  )
 
   return (
     <>

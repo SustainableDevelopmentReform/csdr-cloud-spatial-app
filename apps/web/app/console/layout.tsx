@@ -8,7 +8,7 @@ import {
   PRODUCTS_BASE_PATH,
   REPORTS_BASE_PATH,
   USERS_BASE_PATH,
-  VARIABLES_BASE_PATH,
+  INDICATORS_BASE_PATH,
 } from '../../lib/paths'
 import { getUserServerSession } from '../../utils/getUserServerSession'
 import { UserDropdown } from './_components/user-dropdown'
@@ -39,9 +39,9 @@ const SIDEBAR_CONFIG = [
     roles: ['admin', 'user'],
   },
   {
-    text: 'Variables',
-    icon: <SquareIcon className="fill-variable stroke-none size-6" />,
-    href: VARIABLES_BASE_PATH,
+    text: 'Indicators',
+    icon: <SquareIcon className="fill-indicator stroke-none size-6" />,
+    href: INDICATORS_BASE_PATH,
     roles: ['admin', 'user'],
   },
   {

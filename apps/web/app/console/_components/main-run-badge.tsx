@@ -10,7 +10,7 @@ export const MainRunBadge = ({
   if (size === 'xs') {
     return (
       <Badge
-        className="text-[10px] h-4 py-1 px-1 rounded-sm font-mono"
+        className="text-[10px] h-4 py-1 px-1  rounded-sm font-mono"
         variant={variant}
       >
         Main Run

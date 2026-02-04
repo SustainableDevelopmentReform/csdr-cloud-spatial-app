@@ -1,5 +1,8 @@
-import { DBQueryConfig, ExtractTablesWithRelations } from 'drizzle-orm'
-import { z } from '@hono/zod-openapi'
+import {
+  BuildQueryResult,
+  DBQueryConfig,
+  ExtractTablesWithRelations,
+} from 'drizzle-orm'
 import * as schema from './db'
 
 type TableSchema = ExtractTablesWithRelations<typeof schema>
@@ -8,6 +11,11 @@ export type QueryForTable<
   TableName extends keyof TableSchema,
   TRelationType extends 'one' | 'many' = 'one' | 'many',
 > = DBQueryConfig<TRelationType, boolean, TableSchema, TableSchema[TableName]>
+
+export type InferQueryModel<
+  TableName extends keyof TableSchema,
+  QBConfig extends QueryForTable<TableName>,
+> = BuildQueryResult<TableSchema, TableSchema[TableName], QBConfig>
 
 export const idColumns = {
   id: true,

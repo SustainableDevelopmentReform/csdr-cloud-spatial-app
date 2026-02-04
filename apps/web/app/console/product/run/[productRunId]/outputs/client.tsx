@@ -1,7 +1,10 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createProductOutputSchema } from '@repo/schemas/crud'
+import {
+  createProductOutputSchema,
+  productOutputQuerySchema,
+} from '@repo/schemas/crud'
 import { CalendarSelect } from '@repo/ui/components/ui/calendar-select'
 import {
   FormControl,
@@ -16,7 +19,9 @@ import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../../../../components/form/crud-form-dialog'
-import BaseCrudTable from '../../../../../../components/table/crud-table'
+import BaseCrudTable, {
+  SortButton,
+} from '../../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../../components/table/search-input'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { DatasetButton } from '../../../../dataset/_components/dataset-button'
@@ -34,8 +39,10 @@ import {
   useProductOutputs,
   useProductRun,
 } from '../../../_hooks'
-import { VariableButton } from '../../../../variable/_components/variable-button'
-import { VariablesSelect } from '../../../../variable/_components/variables-select'
+import { IndicatorButton } from '../../../../indicator/_components/indicator-button'
+import { IndicatorsSelect } from '../../../../indicator/_components/indicators-select'
+import z from 'zod'
+import { Value } from '../../../../../../components/value'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -47,6 +54,7 @@ const ProductOutputFeature = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    filters,
   } = useProductOutputs(undefined, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
@@ -59,25 +67,52 @@ const ProductOutputFeature = () => {
   const columns = useMemo(
     () =>
       [
-        columnHelper.accessor((row) => row.variable.name, {
-          id: 'variable',
-          header: () => <span>Variable</span>,
+        columnHelper.accessor((row) => row.indicator?.name, {
+          id: 'indicator',
+          header: () => <span>Indicator</span>,
           cell: (info) => {
-            return <VariableButton variable={info.row.original.variable} />
+            return (
+              info.row.original.indicator && (
+                <IndicatorButton indicator={info.row.original.indicator} />
+              )
+            )
           },
           size: 20,
         }),
         columnHelper.accessor((row) => row.value, {
           id: 'value',
-          header: () => <span>Value</span>,
+          header: ({ column }) => (
+            <SortButton
+              order={column.getIsSorted()}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === 'asc')
+              }
+            >
+              Value
+            </SortButton>
+          ),
           cell: (info) => {
-            return info.getValue()
+            return (
+              <Value
+                value={info.getValue()}
+                indicator={info.row.original.indicator}
+              />
+            )
           },
           size: 120,
         }),
         columnHelper.accessor((row) => row.timePoint, {
           id: 'timePoint',
-          header: () => <span>Time Point</span>,
+          header: ({ column }) => (
+            <SortButton
+              order={column.getIsSorted()}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === 'asc')
+              }
+            >
+              Time Point
+            </SortButton>
+          ),
           cell: (info) => {
             return formatDateTime(info.getValue())
           },
@@ -149,7 +184,12 @@ const ProductOutputFeature = () => {
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Product Outputs</h1>
+        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
+          Product Outputs
+          <div className="flex gap-2 items-center justify-center align-middle">
+            {filters}
+          </div>
+        </h1>
         <div className="flex items-center gap-3">
           {productRun?.id ? (
             <ProductOutputsImportDialog
@@ -180,10 +220,10 @@ const ProductOutputFeature = () => {
             />
             <FormField
               control={form.control}
-              name="variableId"
+              name="indicatorId"
               render={({ field }) => (
                 <FormItem>
-                  <VariablesSelect
+                  <IndicatorsSelect
                     value={field.value}
                     onChange={(value) => field.onChange(value?.id ?? null)}
                     creatable
@@ -233,7 +273,11 @@ const ProductOutputFeature = () => {
           value={query?.search ?? ''}
           onChange={(e) => setSearchParams({ search: e.target.value })}
         />
-        <BaseCrudTable
+
+        <BaseCrudTable<
+          ProductOutputListItem,
+          Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
+        >
           data={data?.data || []}
           baseColumns={baseColumns}
           extraColumns={columns}
@@ -242,8 +286,8 @@ const ProductOutputFeature = () => {
           itemButton={(productOutput) => (
             <ProductOutputButton productOutput={productOutput} />
           )}
-          query={query}
-          onSortChange={setSearchParams}
+          query={{ sort: query?.sort, order: query?.order }}
+          onSortChange={(next) => setSearchParams(next)}
         />
         <Pagination
           className="justify-end mt-4"

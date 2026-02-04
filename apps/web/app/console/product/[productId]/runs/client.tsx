@@ -2,23 +2,19 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createProductRunSchema } from '@repo/schemas/crud'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
+import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
+import { BadgeLink } from '../../../../../components/badge-link'
 import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { DatasetRunSelect } from '../../../dataset/_components/dataset-run-select'
 import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
-import { VariableButtons } from '../../../variable/_components/variable-button'
+import { IndicatorButtons } from '../../../indicator/_components/indicator-button'
 import { ProductButton } from '../../_components/product-button'
 import { ProductRunButton } from '../../_components/product-run-button'
 import {
@@ -26,6 +22,7 @@ import {
   useCreateProductRun,
   useProduct,
   useProductRunLink,
+  useProductRunOutputsLink,
   useProductRuns,
 } from '../../_hooks'
 
@@ -43,24 +40,23 @@ const ProductRunFeature = () => {
   } = useProductRuns(undefined, undefined, true)
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
+  const productRunOutputsLink = useProductRunOutputsLink()
 
   const { data: product } = useProduct()
 
   const baseColumns = useMemo(() => {
-    return ['createdAt', 'updatedAt'] as const
+    return ['createdAt'] as const
   }, [])
 
   // Add column to show mainfile badge if product.mainRunId === productRun.id
   const columns = useMemo(() => {
     return [
       {
-        header: 'Variables',
+        header: 'Indicators',
         cell: ({ row }) => {
           return (
-            <VariableButtons
-              variables={row.original.outputSummary?.variables.map(
-                (v) => v.variable,
-              )}
+            <IndicatorButtons
+              indicators={row.original.outputSummary?.indicators}
             />
           )
         },
@@ -68,7 +64,14 @@ const ProductRunFeature = () => {
       {
         header: 'Number of outputs',
         cell: ({ row }) => {
-          return <div>{row.original.outputSummary?.outputCount}</div>
+          return (
+            <BadgeLink
+              href={productRunOutputsLink(row.original)}
+              variant="outline"
+            >
+              {row.original.outputSummary?.outputCount}
+            </BadgeLink>
+          )
         },
       },
     ] satisfies ColumnDef<ProductRunListItem>[]

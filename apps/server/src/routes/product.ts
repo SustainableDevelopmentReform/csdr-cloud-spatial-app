@@ -24,13 +24,19 @@ import {
   baseColumns,
   createPayload,
   idColumns,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 import { fullDatasetQuery } from './dataset'
 import { fullGeometriesQuery } from './geometries'
-import { baseProductRunQuery, fullProductRunQuery } from './productRun'
+import {
+  baseProductRunQuery,
+  fullProductRunQuery,
+  parseBaseProductRun,
+  parseFullProductRun,
+} from './productRun'
 
 const baseProductQuery = {
   columns: {
@@ -61,6 +67,28 @@ const productNotFoundError = () =>
     description: "Product you're looking for is not found",
   })
 
+const parseBaseProduct = <
+  T extends InferQueryModel<'product', typeof baseProductQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    mainRun: record.mainRun ? parseBaseProductRun(record.mainRun) : null,
+  }
+}
+
+const parseFullProduct = <
+  T extends InferQueryModel<'product', typeof fullProductQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    mainRun: record.mainRun ? parseFullProductRun(record.mainRun) : null,
+  }
+}
+
 const fetchFullProduct = async (id: string) => {
   const record = await db.query.product.findFirst({
     where: (product, { eq }) => eq(product.id, id),
@@ -73,7 +101,7 @@ const fetchFullProduct = async (id: string) => {
 
   const runCount = await db.$count(productRun, eq(productRun.productId, id))
 
-  return { ...record, runCount }
+  return record ? parseFullProduct({ ...record, runCount }) : null
 }
 
 const fetchFullProductOrThrow = async (id: string) => {
@@ -141,11 +169,13 @@ const app = createOpenAPIApp()
         where: and(query.where, ...filters),
       })
 
+      const parsedProducts = data.map(parseBaseProduct)
+
       return generateJsonResponse(
         c,
         {
           pageCount,
-          data,
+          data: parsedProducts,
           totalCount,
         },
         200,
@@ -248,11 +278,13 @@ const app = createOpenAPIApp()
         where: and(query.where, ...filters),
       })
 
+      const parsedProductRuns = data.map(parseBaseProductRun)
+
       return generateJsonResponse(
         c,
         {
           pageCount,
-          data,
+          data: parsedProductRuns,
           totalCount,
         },
         200,

@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
 import { ProductRunLinkParams, useProductRunLink } from '../_hooks'
@@ -26,11 +25,10 @@ export const ProductRunButton = ({
 
   return (
     <BadgeLink href={productRunLink(productRun)} variant="productRun">
-      {productRun.name}
       {productRun.product.mainRunId === productRun.id && (
         <MainRunBadge size="xs" variant="product" />
       )}
-      <ArrowUpRightIcon className="size-4" />
+      {productRun.name}
     </BadgeLink>
   )
 }

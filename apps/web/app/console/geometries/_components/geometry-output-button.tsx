@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { GeometryOutputLinkParams, useGeometryOutputLink } from '../_hooks'
 
@@ -30,10 +29,9 @@ export const GeometryOutputButton = ({
     <BadgeLink
       href={geometriesRunLink(geometryOutput)}
       variant="outline"
-      className="border-geometriesRun"
+      className="border-geometry"
     >
       {geometryOutput.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }

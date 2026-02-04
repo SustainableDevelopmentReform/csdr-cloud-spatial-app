@@ -64,7 +64,7 @@ export const DeleteAlertDialog = (props: DeleteAlertDialogProps) => {
             {'mutation' in props && props.mutation.isPending ? (
               <LoadingIcon>'Loading...'</LoadingIcon>
             ) : (
-              'Continue'
+              'Delete'
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

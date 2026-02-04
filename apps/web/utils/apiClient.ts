@@ -57,6 +57,6 @@ export enum QueryKey {
   Users = 'users',
   ApiKeys = 'api-keys',
   UserProfile = 'user-profile',
-  Variable = 'variable',
-  VariableCategory = 'variable-category',
+  Indicator = 'indicator',
+  IndicatorCategory = 'indicator-category',
 }
