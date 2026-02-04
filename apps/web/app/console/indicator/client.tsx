@@ -56,9 +56,11 @@ type DerivedIndicatorFormValues = z.infer<typeof createDerivedIndicatorSchema>
 export const ExpressionFieldDescription = ({
   indicatorIds,
   indicators,
+  disabled,
 }: {
   indicatorIds?: string[]
   indicators: IndicatorListItem[]
+  disabled?: boolean
 }) => {
   const selectedIndicatorIds =
     indicatorIds ?? indicators.map((indicator) => indicator.id)
@@ -73,13 +75,12 @@ export const ExpressionFieldDescription = ({
       >
         the Math.js syntax
       </a>{' '}
-      for more information. The expression cannot be changed after creation.
+      for more information.{' '}
+      {disabled ? 'The expression cannot be changed after creation.' : ''}
       {selectedIndicatorIds.length > 0 && (
         <>
-          <div className="mt-2">
-            You can reference the indicators using the following variables:
-          </div>
           <div className="my-2 flex flex-wrap gap-2">
+            <div className="font-medium">Expression variables:</div>
             {selectedIndicatorIds.map((indicatorId: string, index: number) => {
               const indicator = indicators.find(
                 (indicator) => indicator.id === indicatorId,
