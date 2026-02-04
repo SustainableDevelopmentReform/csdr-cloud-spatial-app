@@ -196,7 +196,9 @@ const BaseCrudTable = <
         columnHelper.accessor((row) => row.description, {
           id: 'description',
           header: () => <span>Description</span>,
-          cell: (info) => info.getValue(),
+          cell: (info) => (
+            <span className="line-clamp-3">{info.getValue()}</span>
+          ),
           minSize: 120,
         }),
 

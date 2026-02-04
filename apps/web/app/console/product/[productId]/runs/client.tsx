@@ -46,7 +46,7 @@ const ProductRunFeature = () => {
   const { data: product } = useProduct()
 
   const baseColumns = useMemo(() => {
-    return ['createdAt', 'updatedAt'] as const
+    return ['createdAt'] as const
   }, [])
 
   // Add column to show mainfile badge if product.mainRunId === productRun.id
