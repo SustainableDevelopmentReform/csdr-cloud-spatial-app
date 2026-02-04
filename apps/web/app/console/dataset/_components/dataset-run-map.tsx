@@ -1,10 +1,16 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { Map, Source } from '@vis.gl/react-maplibre' // Use Source for PMTiles, like geometries-map-viewer.tsx
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import {
+  Map,
+  MapRef,
+  Source,
+  Layer,
+  LineLayerSpecification,
+  FillLayerSpecification,
+} from '@vis.gl/react-maplibre' // Use Source for PMTiles, like geometries-map-viewer.tsx
 import DeckGL from '@deck.gl/react'
 import {
   MapViewState,
   LayersList,
-  Layer,
   PickingInfo,
   WebMercatorViewport,
 } from '@deck.gl/core'
@@ -14,12 +20,13 @@ import {
 } from '@geoarrow/deck.gl-layers'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
 import { Table, tableFromIPC } from 'apache-arrow'
-import { TileSourceLayer } from '@deck.gl-community/geo-layers'
-import { PMTilesSource } from '@loaders.gl/pmtiles'
+import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
+import { useQuery } from '@tanstack/react-query'
 
 import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
 import { DatasetRunListItem } from '../_hooks'
+import { MapViewer } from '../../geometries/_components/map-viewer' // TODO: If this is generalised for datasets, move it out of geometries folder.
 
 type colorArray = [number, number, number, number]
 const fillColor: colorArray = [0, 0, 0, 0] // Transparent.
@@ -48,43 +55,14 @@ export const DatasetRunMap = ({
 }: {
   dataType: Exclude<DatasetRunListItem['dataType'], null>
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
+  // datasetRunPMTilesUrl: Exclude<DatasetRunListItem['dataPmtilesUrl'], null> // TODO: This doesn't exist yet.
 }) => {
-  const [jsTable, setJsTable] = useState<Table | null>(null)
-  const testPMTilesUrl =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
+  const mapRef = useRef<MapRef | null>(null)
 
-  const pmTilesLayer = new TileSourceLayer({
-    tileSource: PMTilesSource.createDataSource(testPMTilesUrl, {
-      /*props*/
-    }),
-  })
-
-  // const PMTileLayer = new TileSourceLayer({
-  //   tileSource: new PMTilesSource({url: testPMTilesUrl}),
-  // });
-  const startLayers = [pmTilesLayer]
-  const [layers, setLayers] = useState<LayersList>(startLayers)
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
-  const [viewState, setViewState] = useState<MapViewState>({
-    longitude: 0,
-    latitude: 0,
-    zoom: 1,
-  })
-  const [error, setError] = useState<string | null>(null)
-  const deckRef = useRef<any | null>(null)
-  const [hasLoaded, setHasLoaded] = useState<boolean>(false)
-
-  // const onAfterRender = useCallback(() => {
-  //   const layer = layers[0];
-  //   console.log(layer);
-  //   if (!hasLoaded && layer.isLoaded) {
-  //     setHasLoaded(true);
-
-  //     const viewport = layer.context.viewport as WebMercatorViewport;
-  //     const {longitude, latitude, zoom} = viewport.fitBounds(layer.getBounds());
-  //     setViewState({longitude, latitude, zoom});
-  //   }
-  // }, [])
+  // Just for developing:
+  const datasetRunPMTilesUrl =
+    's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
+  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
 
   // Test files:
   // Must use the "_native" version where the geometry column is GeoArrow:
@@ -99,17 +77,17 @@ export const DatasetRunMap = ({
   //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
 
   // These are all being written with arrow by the pipeline now and all work here :)
-  const gmw_v4_written_by_pipeline_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
-  const seagrass_written_by_pipeline_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
-  const ace_written_by_pipeline_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
+  // const gmw_v4_written_by_pipeline_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
+  // const seagrass_written_by_pipeline_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
+  // const ace_written_by_pipeline_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
   // dataUrl = gmw_v4_written_by_pipeline_s3 as Exclude<
   //   DatasetRunListItem['dataUrl'],
   //   null
   // >
-  // // Just for dev. Dataurl will come from props.
+  // // // Just for dev. Dataurl will come from props.
   // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
 
   // Reef. 500MB - breaks browser.
@@ -117,12 +95,12 @@ export const DatasetRunMap = ({
   // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
 
   // Buildings. Massive PMTiles file on Source Coop.
-  dataUrl =
-    'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
-      DatasetRunListItem['dataUrl'],
-      null
-    >
-  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+  // datasetRunPMTilesUrl =
+  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
+  //     DatasetRunListItem['dataUrl'],
+  //     null
+  //   >
+  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // Could use this to display PMTiles https://github.com/visgl/deck.gl/issues/8615#issuecomment-1992673335
 
   // For testing parquet points:
@@ -139,66 +117,128 @@ export const DatasetRunMap = ({
   // - reef: No id or name.
   // - buildings: we only index the bboxes of the sa2 building parquets. Maybe the user can click a bbox and load/vizualise that data from Source Coop? Has s2_code id column.
 
-  // useCallback setters
-  const handleSetJsTable = useCallback((table: Table) => {
-    setJsTable(table)
-  }, [])
+  if (dataType == 'stac-geoparquet') {
+    console.log('Data is STAC-Geoparquet. Load parquet arrow table.')
+  } else if (dataType == 'geoparquet') {
+    console.log('Data is Geoparquet. Load PMTiles.')
+  } else {
+    throw new Error(`Unsupported dataType: ${dataType}`) // TODO: Handle this better.
+  }
 
-  const handleSetLayers = useCallback((layers: LayersList) => {
-    setLayers(layers)
-  }, [])
+  const {
+    data: pmtilesHeader,
+    isLoading: isLoadingPmtilesHeader,
+    error: pmtilesHeaderError,
+  } = useQuery<PMTilesHeader | null>({
+    queryKey: ['pmtiles-header', datasetRunPMTilesUrl],
+    queryFn: async () => {
+      let pmtilesUrl = datasetRunPMTilesUrl
 
-  const handleSetSelectedFeature = useCallback((feature: Feature | null) => {
-    setSelectedFeature(feature)
-  }, [])
+      if (!pmtilesUrl) return null
 
-  const handleSetViewState = useCallback(
-    (vs: MapViewState, layerId: string | null) => {
-      if (layerId) {
-        // Fit to a layer's bounds
-        console.log(layers)
-        const layer = layers.find((lyr) => lyr.id === layerId)
-        console.log(layer)
-        console.log(deckRef)
-
-        // debugger;
-        // const lyr = deckRef.current.getLayer(layerId);
-
-        // const viewport = layer.context.viewport as WebMercatorViewport;
-        // console.log(viewport);
-        // const bounds = layer.getBounds();
-        // console.log(bounds);
-        // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
-        // console.log(longitude, latitude, zoom);
-        // setViewState({
-        //   ...vs,
-        //   longitude: longitude,
-        //   latitude: latitude,
-        //   zoom: zoom,
-        // })
-      } else {
-        // Simply set the viewState to what was provided.
-        setViewState(vs)
+      if (pmtilesUrl.startsWith('s3://')) {
+        // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
+        const s3Url = pmtilesUrl.replace('s3://', '')
+        const [bucket, ...pathParts] = s3Url.split('/')
+        const path = pathParts.join('/')
+        pmtilesUrl = `https://${bucket}.s3.amazonaws.com/${path}`
       }
+
+      const p = new PMTiles(pmtilesUrl)
+      return p.getHeader()
     },
-    [layers, deckRef],
-  )
+    // enabled: !!datasetRunPMTilesUrl, // TODO: Use the datasetRunPMTilesUrl prop instead
+    enabled: dataType === 'geoparquet' && !!datasetRunPMTilesUrl,
+  })
 
-  const handleSetError = useCallback((error: string | null) => {
-    setError(error)
-  }, [])
+  const {
+    data: parquetArrowTable,
+    isLoading: isLoadingParquetArrowTable,
+    error: parquetArrowTableError,
+  } = useQuery<Table | null>({
+    queryKey: ['parquet-arrow-table', dataUrl],
+    queryFn: async () => {
+      let parquetArrowUrl = dataUrl
 
-  const handleLoad = useCallback(
-    (e: any) => {
-      console.log('Load event:', e)
-      console.log(layers)
-      console.log(deckRef)
-      // I want to fitbounds to parquet layer here but it is not available until after the effect that sets the layers.
+      if (!parquetArrowUrl) return null
+
+      if (parquetArrowUrl.startsWith('s3://')) {
+        // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
+        const s3Url = parquetArrowUrl.replace('s3://', '')
+        const [bucket, ...pathParts] = s3Url.split('/')
+        const path = pathParts.join('/')
+        parquetArrowUrl = `https://${bucket}.s3.amazonaws.com/${path}`
+      }
+
+      await initParquetWasm()
+      const resp = await fetch(parquetArrowUrl)
+      const arrayBuffer = await resp.arrayBuffer()
+      const wasmTable = readParquet(new Uint8Array(arrayBuffer))
+      const parquetArrowTable = tableFromIPC(wasmTable.intoIPCStream())
+      return parquetArrowTable
     },
-    [layers, deckRef],
-  )
+    enabled: dataType === 'stac-geoparquet' && !!dataUrl,
+  })
 
-  const datasetLayerId = 'dataset'
+  // console.log(parquetArrowTable);
+  // console.log(pmtilesHeader);
+
+  // // Use useMemo to compute map bounds based on loaded data.
+  // const mapBounds = useMemo(() => {
+  //   if (
+  //     isLoadingPmtilesHeader ||
+  //     isLoadingGeometryOutputsToZoomTo ||
+  //     isLoadingGeometriesRun
+  //   )
+  //     return undefined
+
+  //   if (
+  //     geometryOutputsToZoomTo?.data?.length &&
+  //     geometryOutputsToZoomTo.data.length > 0
+  //   ) {
+  //     return geometryOutputsToZoomTo.data.reduce<
+  //       [number, number, number, number]
+  //     >(
+  //       (acc, output) => {
+  //         const bbox = output.geometry?.bbox ?? turfBbox(output.geometry)
+  //         return [
+  //           Math.min(acc[0], bbox[0] ?? Infinity),
+  //           Math.min(acc[1], bbox[1] ?? Infinity),
+  //           Math.max(acc[2], bbox[2] ?? -Infinity),
+  //           Math.max(acc[3], bbox[3] ?? -Infinity),
+  //         ]
+  //       },
+  //       [Infinity, Infinity, -Infinity, -Infinity],
+  //     ) as [number, number, number, number]
+  //   }
+
+  //   if (pmtilesHeader) {
+  //     return [
+  //       pmtilesHeader.minLon,
+  //       pmtilesHeader.minLat,
+  //       pmtilesHeader.maxLon,
+  //       pmtilesHeader.maxLat,
+  //     ] as [number, number, number, number]
+  //   }
+
+  //   if (geometriesRun) {
+  //     return [
+  //       geometriesRun.bounds.minX,
+  //       geometriesRun.bounds.minY,
+  //       geometriesRun.bounds.maxX,
+  //       geometriesRun.bounds.maxY,
+  //     ] as [number, number, number, number]
+  //   }
+
+  //   return undefined
+  // }, [
+  //   isLoadingPmtilesHeader,
+  //   isLoadingGeometryOutputsToZoomTo,
+  //   isLoadingGeometriesRun,
+  //   geometryOutputsToZoomTo,
+  //   pmtilesHeader,
+  //   geometriesRun,
+  // ])
 
   // Callback when the pointer clicks on an object in any pickable layer
   const onFeatureClick = useCallback((info: PickingInfo, event: any) => {
@@ -244,6 +284,158 @@ export const DatasetRunMap = ({
     // }
   }, [])
 
+  const layers = useMemo<LayersList>(() => {
+    const layerList: LayersList = []
+
+    if (parquetArrowTable) {
+      const datasetLayerId = 'dataset'
+
+      // Detect geometry type
+      const geometryVector =
+        parquetArrowTable?.getChild('geometry') ||
+        parquetArrowTable?.getChild('proj:geometry')
+
+      const sharedProps = {
+        id: datasetLayerId,
+        data: parquetArrowTable,
+        getFillColor: fillColor,
+        getLineColor: outlineColor,
+        lineWidthUnits: 'pixels' as any,
+        lineWidthMinPixels: 1,
+        pickable: true,
+        pickMultipleObjects: true,
+        onClick: onFeatureClick,
+      }
+      if (geometryVector?.type?.typeId === 13) {
+        // Point
+        layerList.push(
+          new GeoArrowScatterplotLayer({
+            ...sharedProps,
+            getPosition: geometryVector,
+            stroked: true,
+            getLineWidth: (d: Feature) => {
+              // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
+              const featureId = parquetArrowTable
+                ?.getChild('name')
+                ?.get(d.index)
+              const selectedFeatureId = selectedFeature?.['name']
+              if (featureId == selectedFeatureId) {
+                return 3
+              }
+              return 1
+            },
+            radiusUnits: 'pixels',
+            getRadius: (d: Feature) => {
+              // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
+              const featureId = parquetArrowTable
+                ?.getChild('name')
+                ?.get(d.index)
+              const selectedFeatureId = selectedFeature?.['name']
+              if (featureId == selectedFeatureId) {
+                return 10
+              }
+              return 15
+            },
+          }),
+        )
+      } else if (geometryVector?.type?.typeId === 12) {
+        // Polygon
+        layerList.push(
+          new GeoArrowPolygonLayer({
+            ...sharedProps,
+            getPolygon: geometryVector,
+            getLineWidth: (d: Feature) => {
+              // TODO: There is no standard id field for datasets.
+              const featureId = parquetArrowTable?.getChild('id')?.get(d.index)
+              const selectedFeatureId = selectedFeature?.['id']
+              if (featureId == selectedFeatureId) {
+                return 5
+              }
+              return 1
+            },
+          }),
+        )
+      } else {
+        // debugger;
+        throw new Error('Unknown geometry type in GeoParquet') // TODO: Handle this better.
+      }
+    }
+    return layerList
+  }, [parquetArrowTable, pmtilesHeader])
+
+  // const PMTileLayer = new TileSourceLayer({
+  //   tileSource: new PMTilesSource({url: testPMTilesUrl}),
+  // });
+  // const [layers, setLayers] = useState<LayersList>([])
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
+  const [viewState, setViewState] = useState<MapViewState>({
+    longitude: 0,
+    latitude: 0,
+    zoom: 1,
+  })
+  const deckRef = useRef<any | null>(null)
+
+  // const onAfterRender = useCallback(() => {
+  //   const layer = layers[0];
+  //   console.log(layer);
+  //   if (!hasLoaded && layer.isLoaded) {
+  //     setHasLoaded(true);
+  //     const viewport = layer.context.viewport as WebMercatorViewport;
+  //     const {longitude, latitude, zoom} = viewport.fitBounds(layer.getBounds());
+  //     setViewState({longitude, latitude, zoom});
+  //   }
+  // }, [])
+
+  // const handleSetLayers = useCallback((layers: LayersList) => {
+  //   setLayers(layers)
+  // }, [])
+
+  const handleSetSelectedFeature = useCallback((feature: Feature | null) => {
+    setSelectedFeature(feature)
+  }, [])
+
+  // const handleSetViewState = useCallback(
+  //   (vs: MapViewState, layerId: string | null) => {
+  //     if (layerId) {
+  //       // Fit to a layer's bounds
+  //       console.log(layers)
+  //       const layer = layers.find((lyr) => lyr.id === layerId)
+  //       console.log(layer)
+  //       console.log(deckRef)
+
+  //       // debugger;
+  //       // const lyr = deckRef.current.getLayer(layerId);
+
+  //       // const viewport = layer.context.viewport as WebMercatorViewport;
+  //       // console.log(viewport);
+  //       // const bounds = layer.getBounds();
+  //       // console.log(bounds);
+  //       // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
+  //       // console.log(longitude, latitude, zoom);
+  //       // setViewState({
+  //       //   ...vs,
+  //       //   longitude: longitude,
+  //       //   latitude: latitude,
+  //       //   zoom: zoom,
+  //       // })
+  //     } else {
+  //       // Simply set the viewState to what was provided.
+  //       setViewState(vs)
+  //     }
+  //   },
+  //   [layers, deckRef],
+  // )
+
+  // const handleLoad = useCallback(
+  //   (e: any) => {
+  //     console.log('Load event:', e)
+  //     console.log(layers)
+  //     console.log(deckRef)
+  //     // I want to fitbounds to parquet layer here but it is not available until after the effect that sets the layers.
+  //   },
+  //   [layers, deckRef],
+  // )
+
   // Callback to populate the default tooltip with content
   // const getTooltip = useCallback(({object}: PickingInfo<Feature>) => {
   //   return object && object.message;
@@ -264,200 +456,218 @@ export const DatasetRunMap = ({
     )
   }, [])
 
-  // Single async useEffect for data loading and layer setup
-  useEffect(() => {
-    let isMounted = true
-    const fetchAndVisualise = async () => {
-      try {
-        await initParquetWasm()
-        const resp = await fetch(dataUrl)
-        const arrayBuffer = await resp.arrayBuffer()
-        const wasmTable = readParquet(new Uint8Array(arrayBuffer))
-        const jsTable = tableFromIPC(wasmTable.intoIPCStream())
-        if (!isMounted) return
-        handleSetJsTable(jsTable)
+  // // Single async useEffect for data loading and layer setup
+  // useEffect(() => {
+  //   const fetchAndVisualise = async () => {
+  //     try {
 
-        // Detect geometry type
-        const geometryVector =
-          jsTable?.getChild('geometry') || jsTable?.getChild('proj:geometry')
-        let newLayers: LayersList = []
+  //       // TODO: Fit to GeoParquet data bounds
+  //       // handleSetViewState(viewState, datasetLayerId)
 
-        const sharedProps = {
-          id: datasetLayerId,
-          data: jsTable,
-          getFillColor: fillColor,
-          getLineColor: outlineColor,
-          lineWidthUnits: 'pixels' as any,
-          lineWidthMinPixels: 1,
-          pickable: true,
-          pickMultipleObjects: true,
-          onClick: onFeatureClick,
-          onDataLoad: handleLoad,
-          // (e: any) => {
-          //   console.log('GeoParquet data loaded into layer.', e)
-          // },
-          // (e: any) => {
-          //   console.log('Layer loaded:', e);
-          //   debugger;
-          //   // // const centerLongitude = (west + east) / 2
-          //   // // const centerLatitude = (south + north) / 2
-          //   // const viewport = cogLayer.context.viewport as WebMercatorViewport;
-          //   // const {longitude, latitude, zoom} = viewport.fitBounds(cogLayer.getBounds());
-          //   // handleSetViewState({
-          //   //   ...viewState,
-          //   //   longitude: longitude,
-          //   //   latitude: latitude,
-          //   //   zoom: zoom,
-          //   // })
-          // },
-        }
-        if (geometryVector?.type?.typeId === 13) {
-          // Point
-          newLayers = [
-            new GeoArrowScatterplotLayer({
-              ...sharedProps,
-              getPosition: geometryVector,
-              stroked: true,
-              getLineWidth: (d: Feature) => {
-                // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
-                const featureId = jsTable?.getChild('name')?.get(d.index)
-                const selectedFeatureId = selectedFeature?.['name']
-                if (featureId == selectedFeatureId) {
-                  return 3
-                }
-                return 1
-              },
-              radiusUnits: 'pixels',
-              getRadius: (d: Feature) => {
-                // TODO: This dataset doesn't have an id field. There is no standard id field for datasets.
-                const featureId = jsTable?.getChild('name')?.get(d.index)
-                const selectedFeatureId = selectedFeature?.['name']
-                if (featureId == selectedFeatureId) {
-                  return 10
-                }
-                return 15
-              },
-            }),
-          ]
-        } else if (geometryVector?.type?.typeId === 12) {
-          // Polygon
-          newLayers = [
-            new GeoArrowPolygonLayer({
-              ...sharedProps,
-              getPolygon: geometryVector,
-              getLineWidth: (d: Feature) => {
-                // TODO: There is no standard id field for datasets.
-                const featureId = jsTable?.getChild('id')?.get(d.index)
-                const selectedFeatureId = selectedFeature?.['id']
-                if (featureId == selectedFeatureId) {
-                  return 5
-                }
-                return 1
-              },
-            }),
-          ]
-        } else {
-          // debugger;
-          const errorMessage = 'Unknown geometry type in GeoParquet'
-          console.error(errorMessage)
-          handleSetError(errorMessage)
-        }
-        handleSetLayers(newLayers)
+  //       // COG logic
+  //       if (dataType === 'stac-geoparquet' && selectedFeature) {
+  //         const cogLayerId = 'cog-layer'
+  //         // Remove existing COG layer
+  //         newLayers = newLayers.filter(
+  //           (layer) => layer.id !== cogLayerId,
+  //         )
+  //         // Add new COG layer
+  //         // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
+  //         const COG_URL =
+  //           'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_rgb.tif'
+  //         // This COG is from our S3 bucket. It errors because it is single band instead of 3 band (RGB).
+  //         // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
 
-        // TODO: Fit to GeoParquet data bounds
-        // handleSetViewState(viewState, datasetLayerId)
+  //         // TODO: Remove this once @developmentseed/deck.gl-geotiff merges the single band fix.
+  //         // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
+  //         //   -b 1 -b 1 -b 1 \
+  //         //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" \
+  //         //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_rgb.tif"
 
-        // COG logic
-        if (dataType === 'stac-geoparquet' && selectedFeature) {
-          const cogLayerId = 'cog-layer'
-          // Remove existing COG layer
-          newLayers = newLayers.filter(
-            (layer: Layer) => layer.id !== cogLayerId,
-          )
-          // Add new COG layer
-          // The visualisation needs 3 bands (rgb), so I made the data fit into 3 bands:
-          const COG_URL =
-            'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_rgb.tif'
-          // This COG is from our S3 bucket. It errors because it is single band instead of 3 band (RGB).
-          // const COG_URL = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/data/GMW_N00E008_v4019_mng.tif"
+  //         // TODO: Once COGLayer supports single band COG, then use this link.
+  //         // TODO: This will need a list of possible fields to read from. Maybe let the user choose from a list.
+  //         // const selectedFeatureLink = selectedFeature['assets']['mangrove']['href'].replace(
+  //         //   's3://csdr-public-dev',
+  //         //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
+  //         // )
+  //         console.log('selectedFeature', selectedFeature)
 
-          // TODO: Remove this once @developmentseed/deck.gl-geotiff merges the single band fix.
-          // gdal_translate -of COG -co COMPRESS=DEFLATE -co TILED=YES -co PROFILE=COG \
-          //   -b 1 -b 1 -b 1 \
-          //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng (3).tif" \
-          //   "/Users/wj/Downloads/GMW_N00E008_v4019_mng_rgb.tif"
+  //         console.log(layers)
 
-          // TODO: Once COGLayer supports single band COG, then use this link.
-          // TODO: This will need a list of possible fields to read from. Maybe let the user choose from a list.
-          // const selectedFeatureLink = selectedFeature['assets']['mangrove']['href'].replace(
-          //   's3://csdr-public-dev',
-          //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com',
-          // )
-          console.log('selectedFeature', selectedFeature)
+  //         const cogLayer = new COGLayer({
+  //           id: cogLayerId,
+  //           geotiff: COG_URL,
+  //           // geotiff: selectedFeatureLink,
+  //           geoKeysParser,
+  //           onGeoTIFFLoad: (tiff, options) => {
+  //             // handleSetViewState(viewState, cogLayerId)
+  //             const { west, south, east, north } = options.geographicBounds
+  //             // debugger;
+  //             const centerLongitude = (west + east) / 2
+  //             const centerLatitude = (south + north) / 2
+  //             // const viewport = cogLayer.context.viewport as WebMercatorViewport;
+  //             // const bounds = cogLayer.getBounds();
+  //             // console.log('COG bounds:', bounds);
+  //             // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
+  //             // handleSetViewState({
+  //             //   ...viewState,
+  //             //   longitude: longitude,
+  //             //   latitude: latitude,
+  //             //   zoom: zoom,
+  //             // })
+  //             handleSetViewState(
+  //               {
+  //                 ...viewState,
+  //                 longitude: centerLongitude,
+  //                 latitude: centerLatitude,
+  //                 zoom: 7,
+  //               },
+  //               null,
+  //             )
+  //           },
+  //         })
+  //         newLayers.push(cogLayer)
+  //         handleSetLayers(newLayers)
+  //       }
+  //     } catch (e) {
+  //       const errorMessage = 'Failed to load GeoParquet data.'
+  //       console.error(errorMessage, e)
+  //       handleSetError(errorMessage)
+  //     }
+  //   }
+  //   fetchAndVisualise()
+  //   return () => {
+  //     // Cleanup
+  //     isMounted = false
+  //   }
+  // }, [dataType, dataUrl, selectedFeature])
 
-          console.log(layers)
+  // // This effect may be buggy. It just fitBounds the map to the last added layer.
+  // useEffect(() => {
+  //   if (layers.length > 0 && deckRef.current) {
+  //     // Fit to the dataset layer bounds
+  //     const layer = layers[0]
+  //     console.log(layer)
+  //     handleSetViewState(viewState, layer.id)
+  //   }
+  // }, [layers, deckRef])
 
-          const cogLayer = new COGLayer({
-            id: cogLayerId,
-            geotiff: COG_URL,
-            // geotiff: selectedFeatureLink,
-            geoKeysParser,
-            onGeoTIFFLoad: (tiff, options) => {
-              // handleSetViewState(viewState, cogLayerId)
-              const { west, south, east, north } = options.geographicBounds
-              // debugger;
-              const centerLongitude = (west + east) / 2
-              const centerLatitude = (south + north) / 2
-              // const viewport = cogLayer.context.viewport as WebMercatorViewport;
-              // const bounds = cogLayer.getBounds();
-              // console.log('COG bounds:', bounds);
-              // const {longitude, latitude, zoom} = viewport.fitBounds(bounds);
-              // handleSetViewState({
-              //   ...viewState,
-              //   longitude: longitude,
-              //   latitude: latitude,
-              //   zoom: zoom,
-              // })
-              handleSetViewState(
-                {
-                  ...viewState,
-                  longitude: centerLongitude,
-                  latitude: centerLatitude,
-                  zoom: 7,
-                },
-                null,
-              )
-            },
-          })
-          newLayers.push(cogLayer)
-          handleSetLayers(newLayers)
-        }
-      } catch (e) {
-        const errorMessage = 'Failed to load GeoParquet data.'
-        console.error(errorMessage, e)
-        handleSetError(errorMessage)
-      }
-    }
-    fetchAndVisualise()
-    return () => {
-      // Cleanup
-      isMounted = false
-    }
-  }, [dataType, dataUrl, selectedFeature])
-
-  // This effect may be buggy. It just fitBounds the map to the last added layer.
-  useEffect(() => {
-    if (layers.length > 0 && deckRef.current) {
-      // Fit to the dataset layer bounds
-      const layer = layers[0]
-      console.log(layer)
-      handleSetViewState(viewState, layer.id)
-    }
-  }, [layers, deckRef])
-
-  if (error) {
-    return <p className="text-red-500">Error: {error}</p>
+  if (pmtilesHeaderError || parquetArrowTableError) {
+    return (
+      <p className="text-red-500">
+        Error:{' '}
+        {pmtilesHeaderError?.message || pmtilesHeaderError?.toString() || ''}
+        {parquetArrowTableError && pmtilesHeaderError ? ' | ' : ''}
+        {parquetArrowTableError?.message ||
+          parquetArrowTableError?.toString() ||
+          ''}
+      </p>
+    )
   }
+
+  const { linePaint, fillPaint } = useMemo(
+    () => {
+      // if (!indicator)
+      return {
+        linePaint: {
+          'line-color': 'black',
+          'line-width': 2,
+        },
+        fillPaint: {
+          'fill-color': 'black',
+          'fill-opacity': 0.2,
+        },
+      }
+
+      // const indicatorSummary = productRun?.outputSummary?.indicators.find(
+      //   (v) => v.indicator?.id === indicator.id,
+      // )
+
+      // const colorFn = (value: number | null) => {
+      //   if (!value) return NO_DATA_COLOR
+      //   const normalizedValue =
+      //     (value - (indicatorSummary?.minValue ?? 0)) /
+      //     ((indicatorSummary?.maxValue ?? 1) - (indicatorSummary?.minValue ?? 0))
+
+      //   return interpolateYlOrRd(normalizedValue)
+      // }
+
+      // const fillColourEntries: [
+      //   ExpressionSpecification,
+      //   ExpressionInputType,
+      //   ...(ExpressionInputType | ExpressionSpecification)[],
+      // ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
+
+      // const lineColourEntries: [
+      //   ExpressionSpecification,
+      //   ExpressionInputType,
+      //   ...(ExpressionInputType | ExpressionSpecification)[],
+      // ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
+
+      // productOutputs?.forEach((output) => {
+      //   if (output.geometryOutputId) {
+      //     if (zoomToGeometryOutputIds?.includes(output.geometryOutputId)) {
+      //       lineColourEntries.push(
+      //         ['==', ['get', ID_PROPERTY], output.geometryOutputId],
+      //         '#000000',
+      //       )
+      //     } else {
+      //       lineColourEntries.push(
+      //         ['==', ['get', ID_PROPERTY], output.geometryOutputId],
+      //         colorFn(output.value),
+      //       )
+      //     }
+      //     fillColourEntries.push(
+      //       ['==', ['get', ID_PROPERTY], output.geometryOutputId],
+      //       colorFn(output.value),
+      //     )
+      //   }
+      // })
+
+      // const selectedGeometriesLineWidth: [
+      //   ExpressionSpecification,
+      //   ExpressionInputType,
+      //   ...(ExpressionInputType | ExpressionSpecification)[],
+      // ] = [['!', ['has', ID_PROPERTY]], 1]
+
+      // const selectedGeometriesLineOpacity: [
+      //   ExpressionSpecification,
+      //   ExpressionInputType,
+      //   ...(ExpressionInputType | ExpressionSpecification)[],
+      // ] = [['!', ['has', ID_PROPERTY]], 0.1]
+
+      // geometryOutputsToZoomTo?.data?.forEach((output) => {
+      //   selectedGeometriesLineWidth.push(
+      //     ['==', ['get', ID_PROPERTY], output.id],
+      //     zoomToGeometryOutputIds?.includes(output.id) ? 2 : 1,
+      //   )
+      //   selectedGeometriesLineOpacity.push(
+      //     ['==', ['get', ID_PROPERTY], output.id],
+      //     zoomToGeometryOutputIds?.includes(output.id) ? 1 : 0.1,
+      //   )
+      // })
+
+      // const paint = {
+      //   linePaint: {
+      //     'line-color': ['case', ...lineColourEntries, NO_DATA_COLOR],
+      //     'line-width': ['case', ...selectedGeometriesLineWidth, 1],
+      //     'line-offset': 1,
+      //   } satisfies LineLayerSpecification['paint'],
+      //   fillPaint: {
+      //     'fill-color': ['case', ...fillColourEntries, NO_DATA_COLOR],
+      //     'fill-opacity': 0.7,
+      //   } satisfies FillLayerSpecification['paint'],
+      // }
+      // return paint
+    },
+    [
+      // indicator,
+      // productRun?.outputSummary?.indicators,
+      // productOutputs,
+      // geometryOutputsToZoomTo?.data,
+      // zoomToGeometryOutputIds,
+    ],
+  )
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
@@ -477,22 +687,58 @@ export const DatasetRunMap = ({
           // onLoad={handleLoad}
           // onAfterRender={onAfterRender}
         >
-          <Map
+          {/* <Map
             style={{ width: '100%', height: '100%' }}
             mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
-          />
+          /> */}
+          <MapViewer
+            ref={mapRef}
+            // interactiveLayerIds={['geometries-fill']}
+            // initialViewState={
+            //   mapBounds
+            //     ? { bounds: mapBounds, fitBoundsOptions: { padding: 20 } }
+            //     : undefined
+            // }
+            // onClick={onMouseClick}
+            // transformRequest={transformRequest}
+          >
+            <Source
+              id="dataset-pmtiles-source"
+              type="vector"
+              minzoom={0}
+              maxzoom={22}
+              tiles={[
+                // `${config.apiBaseUrl}/api/v0/geometries-run/${geometriesRun?.id}/outputs/mvt/{z}/{x}/{y}`,
+                datasetRunPMTilesUrl,
+              ]}
+            />
+            <Layer
+              id="geometries-fill"
+              source="geometries"
+              source-layer="data"
+              type="fill"
+              paint={fillPaint}
+            />
+            <Layer
+              id="geometries-line"
+              source="geometries"
+              source-layer="data"
+              type="line"
+              paint={linePaint}
+            />
+          </MapViewer>
         </DeckGL>
-        {!jsTable && (
+        {!parquetArrowTable && !pmtilesHeader && (
           <div className="absolute top-14 left-2 bg-white p-2 rounded shadow">
             Loading {dataType}...
           </div>
         )}
-        {jsTable && dataType === 'stac-geoparquet' && (
+        {parquetArrowTable && dataType === 'stac-geoparquet' && (
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
             Click a STAC-Geoparquet Item to view its details and COGs.
           </div>
         )}
-        {jsTable && dataType === 'geoparquet' && (
+        {parquetArrowTable && dataType === 'geoparquet' && (
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
             Click a feature to view its details.
           </div>
