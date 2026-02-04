@@ -23,7 +23,7 @@ export function getReactSelectClassNames<
   return {
     control: ({ isFocused, isDisabled }) =>
       [
-        'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+        'flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
         isFocused && 'outline-none ring-2 ring-ring ring-offset-2',
         isDisabled && 'cursor-not-allowed opacity-50',
       ]
