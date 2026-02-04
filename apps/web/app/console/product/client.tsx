@@ -107,7 +107,7 @@ const ProductFeature = () => {
   const productLink = useProductLink()
   const createProduct = useCreateProduct()
   const baseColumns = useMemo(() => {
-    return ['createdAt', 'updatedAt'] as const
+    return ['createdAt'] as const
   }, [])
 
   const form = useForm({
