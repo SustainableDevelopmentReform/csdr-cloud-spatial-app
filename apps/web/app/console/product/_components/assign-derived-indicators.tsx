@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from '@repo/ui/components/ui/tooltip'
 import { BadgeLink } from '../../../../components/badge-link'
+import { Value } from '../../../../components/value'
 
 type DerivedIndicatorItem =
   ProductRunAssignedDerivedIndicator['derivedIndicator']
@@ -152,10 +153,11 @@ const DependencyMappingRow = ({
       )}
       {indicatorSummary && (
         <StatusMessage variant="primary">
-          {indicatorSummary.count} outputs (min:{' '}
-          {indicatorSummary.minValue?.toFixed(2) ?? 'N/A'}, max:{' '}
-          {indicatorSummary.maxValue?.toFixed(2) ?? 'N/A'}, avg:{' '}
-          {indicatorSummary.avgValue?.toFixed(2) ?? 'N/A'})
+          {indicatorSummary.count} outputs - Data range:
+          {<Value value={indicatorSummary.minValue} indicator={indicator} />} to
+          {<Value value={indicatorSummary.maxValue} indicator={indicator} />} -
+          Mean:
+          {<Value value={indicatorSummary.avgValue} indicator={indicator} />}
         </StatusMessage>
       )}
     </div>
