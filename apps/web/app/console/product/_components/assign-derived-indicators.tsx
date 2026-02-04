@@ -19,12 +19,21 @@ import {
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
   useComputeDerivedIndicatorsForProductRun,
+  useDeleteAssignedDerivedIndicator,
   useProductRun,
   useProductRunDerivedIndicators,
 } from '../_hooks'
 import { FieldGroup } from '../../../../components/form/action'
 import { ProductSelect } from './product-select'
 import { ProductRunSelect } from './product-run-select'
+import { RefreshProductSummary } from './refresh-product-summary'
+
+import { Trash2 } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@repo/ui/components/ui/tooltip'
 
 type DerivedIndicatorItem =
   ProductRunAssignedDerivedIndicator['derivedIndicator']
@@ -191,6 +200,9 @@ export const AssignDerivedIndicatorsDialog = ({
   }, [selectedDerivedIndicator, defaultProductId, defaultProductRunId])
 
   const assignDerivedIndicator = useAssignDerivedIndicatorToProductRun(run?.id)
+  const deleteAssignedDerivedIndicator = useDeleteAssignedDerivedIndicator(
+    run?.id,
+  )
 
   const computeDerivedIndicatorsForProductRun =
     useComputeDerivedIndicatorsForProductRun(run)
@@ -214,6 +226,28 @@ export const AssignDerivedIndicatorsDialog = ({
       ),
     [assignedIndicators],
   )
+
+  // Get the set of derived indicator IDs that are in the output summary
+  const derivedIndicatorIdsInSummary = useMemo(() => {
+    const ids = new Set<string>()
+    run?.outputSummary?.indicators?.forEach((indicator) => {
+      if (indicator.indicator?.id) {
+        ids.add(indicator.indicator.id)
+      }
+    })
+    return ids
+  }, [run?.outputSummary?.indicators])
+
+  const handleDeleteAssignedIndicator = (assignmentId: string) => {
+    deleteAssignedDerivedIndicator.mutate(assignmentId, {
+      onSuccess: () => {
+        toast.success('Derived indicator removed')
+      },
+      onError: (error) => {
+        toast.error(getErrorMessage(error))
+      },
+    })
+  }
 
   // Check if all dependencies have been mapped
   const allDependenciesMapped = useMemo(() => {
@@ -288,11 +322,34 @@ export const AssignDerivedIndicatorsDialog = ({
           <DialogTitle>Assign Derived Indicators</DialogTitle>
         </DialogHeader>
 
+        <div className="flex items-center justify-between py-2 px-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
+              1
+            </span>
+            <span className="text-primary">Assign derived indicator</span>
+          </div>
+          <div className="h-px w-8 bg-border" />
+          <div className="flex items-center gap-2">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
+              2
+            </span>
+            <span className="text-primary">Compute derived indicators</span>
+          </div>
+          <div className="h-px w-8 bg-border" />
+          <div className="flex items-center gap-2">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
+              3
+            </span>
+            <span className="text-primary">Refresh run summary</span>
+          </div>
+        </div>
+
         <div className="grid gap-6">
           <div className="grid gap-3">
             <IndicatorsSelect
               title="Select Derived Indicator"
-              description="Select the derived indicator to assign to the product run. This cannot be removed after assignment."
+              description="Select the derived indicator to assign to the product run."
               value={selectedIndicatorId}
               onChange={(indicator) => {
                 setSelectedIndicatorId(indicator?.id ?? null)
@@ -344,21 +401,63 @@ export const AssignDerivedIndicatorsDialog = ({
               </Button>
             </div>
           </div>
-
-          <div className="grid gap-3">
-            <div className="text-sm font-medium">Assigned indicators</div>
-            {assignedIndicatorItems.length ? (
-              <div className="flex flex-wrap gap-2">
-                {assignedIndicatorItems.map((indicator) => (
-                  <IndicatorButton indicator={indicator} key={indicator.id} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No derived indicators assigned.
-              </p>
-            )}
-          </div>
+        </div>
+        <div className="grid gap-3">
+          <div className="text-sm font-medium">Assigned indicators</div>
+          {assignedIndicators?.length ? (
+            <div className="border rounded-md divide-y">
+              {assignedIndicators.map((assigned) => {
+                const isInSummary = derivedIndicatorIdsInSummary.has(
+                  assigned.derivedIndicator.id,
+                )
+                return (
+                  <div
+                    key={assigned.id}
+                    className="flex items-center justify-between p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <IndicatorButton indicator={assigned.derivedIndicator} />
+                      {isInSummary && (
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                          In run output summary
+                        </span>
+                      )}
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={
+                            isInSummary ||
+                            deleteAssignedDerivedIndicator.isPending
+                          }
+                          onClick={() =>
+                            handleDeleteAssignedIndicator(assigned.id)
+                          }
+                          title={
+                            isInSummary
+                              ? 'Cannot delete - indicator exists in output summary'
+                              : 'Delete assigned indicator'
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" hidden={!isInSummary}>
+                        Cannot delete - indicator exists in output summary
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No derived indicators assigned.
+            </p>
+          )}
         </div>
         <div>
           <FieldGroup
@@ -415,6 +514,26 @@ export const AssignDerivedIndicatorsDialog = ({
             </ul>
           </div>
         )}
+        <div>
+          <FieldGroup
+            title="Refresh Run Summary"
+            description={
+              <span>
+                After computing derived indicators, refresh the product run
+                summary to update the indicators and outputs.
+                <br />
+                <b>
+                  Note, a derived indicator cannot be removed after it has been
+                  added to the run output summary.
+                </b>
+              </span>
+            }
+          >
+            <div className="flex justify-end">
+              <RefreshProductSummary run={run} />
+            </div>
+          </FieldGroup>
+        </div>
       </DialogContent>
     </Dialog>
   )

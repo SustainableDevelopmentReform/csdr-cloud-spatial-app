@@ -3,7 +3,7 @@ import { cn } from '@repo/ui/lib/utils'
 
 export type FieldGroupProps = {
   title: string
-  description?: string
+  description?: React.ReactNode
   disabled?: boolean
   className?: string
   children: React.ReactNode
