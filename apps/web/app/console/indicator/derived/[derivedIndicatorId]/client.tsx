@@ -10,16 +10,19 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import { IndicatorButton } from '../../_components/indicator-button'
 import { IndicatorCategorySelect } from '../../_components/indicator-category-select'
 import {
   useDeleteDerivedIndicator,
   useDerivedIndicator,
   useUpdateDerivedIndicator,
 } from '../../_hooks'
+import { ExpressionFieldDescription } from '../../client'
 
 const IndicatorDetails = () => {
   const { data: derivedIndicator } = useDerivedIndicator()
@@ -80,6 +83,28 @@ const IndicatorDetails = () => {
             )
           }}
         />
+
+        <FormItem>
+          <FormLabel>Indicators</FormLabel>
+          {derivedIndicator?.indicators.map((indicator) => (
+            <IndicatorButton key={indicator.id} indicator={indicator} />
+          ))}
+          <FormMessage />
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>Expression</FormLabel>
+          <ExpressionFieldDescription
+            indicators={derivedIndicator?.indicators ?? []}
+          />
+          <FormControl>
+            <Textarea
+              className={'font-mono'}
+              disabled={true}
+              value={derivedIndicator?.expression}
+            />
+          </FormControl>
+        </FormItem>
       </CrudForm>
     </div>
   )

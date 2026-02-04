@@ -53,13 +53,59 @@ function validateExpression(expression: string | undefined): string | null {
 
 type DerivedIndicatorFormValues = z.infer<typeof createDerivedIndicatorSchema>
 
-function ExpressionField({
+export const ExpressionFieldDescription = ({
+  indicatorIds,
+  indicators,
+}: {
+  indicatorIds?: string[]
+  indicators: IndicatorListItem[]
+}) => {
+  const selectedIndicatorIds =
+    indicatorIds ?? indicators.map((indicator) => indicator.id)
+  return (
+    <FormDescription>
+      See{' '}
+      <a
+        href="https://mathjs.org/docs/expressions/syntax.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:text-blue-600"
+      >
+        the Math.js syntax
+      </a>{' '}
+      for more information. The expression cannot be changed after creation.
+      {selectedIndicatorIds.length > 0 && (
+        <>
+          <div className="mt-2">
+            You can reference the indicators using the following variables:
+          </div>
+          <div className="my-2 flex flex-wrap gap-2">
+            {selectedIndicatorIds.map((indicatorId: string, index: number) => {
+              const indicator = indicators.find(
+                (indicator) => indicator.id === indicatorId,
+              )
+              return (
+                <Badge key={indicatorId} variant="secondary">
+                  ${index + 1}={indicator?.name}
+                </Badge>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </FormDescription>
+  )
+}
+
+export const ExpressionField = ({
   form,
   indicators,
+  disabled,
 }: {
   form: UseFormReturn<DerivedIndicatorFormValues>
   indicators: IndicatorListItem[]
-}) {
+  disabled?: boolean
+}) => {
   const expression = form.watch('expression')
   const indicatorIds = form.watch('indicatorIds') ?? []
 
@@ -72,41 +118,12 @@ function ExpressionField({
       render={({ field }) => (
         <FormItem>
           <FormLabel>Expression</FormLabel>
-          <FormDescription>
-            See{' '}
-            <a
-              href="https://mathjs.org/docs/expressions/syntax.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-600"
-            >
-              the Math.js syntax
-            </a>{' '}
-            for more information. The expression cannot be changed after
-            creation.
-            {indicatorIds.length > 0 && (
-              <>
-                <div className="mt-2">
-                  You can reference the indicators using the following
-                  variables:
-                </div>
-                <div className="my-2 flex flex-wrap gap-2">
-                  {indicatorIds.map((indicatorId: string, index: number) => {
-                    const indicator = indicators.find(
-                      (indicator) => indicator.id === indicatorId,
-                    )
-                    return (
-                      <Badge key={indicatorId} variant="secondary">
-                        ${index + 1}={indicator?.name}
-                      </Badge>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-          </FormDescription>
+          <ExpressionFieldDescription
+            indicatorIds={indicatorIds}
+            indicators={indicators}
+          />
           <FormControl>
-            <Textarea {...field} className={'font-mono'} />
+            <Textarea {...field} className={'font-mono'} disabled={disabled} />
           </FormControl>
           <FormMessage />
           {error && (
