@@ -134,6 +134,48 @@
       "when": 1765343655386,
       "tag": "0018_silky_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1765346278928,
+      "tag": "0019_chemical_thena",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1765349826621,
+      "tag": "0020_dazzling_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1768537508806,
+      "tag": "0021_kind_roulette",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1768546518659,
+      "tag": "0022_mute_runaways",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1769143236418,
+      "tag": "0023_amusing_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1769844740715,
+      "tag": "0024_overjoyed_annihilus",
+      "breakpoints": true
     }
   ]
 }

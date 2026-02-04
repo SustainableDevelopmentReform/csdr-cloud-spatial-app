@@ -8,12 +8,15 @@ import {
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
 import Link from '../../../../components/link'
-import { VARIABLES_BASE_PATH } from '../../../../lib/paths'
-import { useVariable } from '../_hooks'
-import { VariableButton } from './variable-button'
+import { INDICATORS_BASE_PATH } from '../../../../lib/paths'
+import { useDerivedIndicator, useIndicator } from '../_hooks'
+import { IndicatorButton } from './indicator-button'
 
-export const VariablesBreadcrumbs = () => {
-  const { data: variable } = useVariable()
+export const IndicatorsBreadcrumbs = () => {
+  const { data: indicator } = useIndicator()
+  const { data: derivedIndicator } = useDerivedIndicator()
+
+  const indicatorForBreadcrumb = indicator ?? derivedIndicator
 
   return (
     <Breadcrumb>
@@ -26,16 +29,16 @@ export const VariablesBreadcrumbs = () => {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href={VARIABLES_BASE_PATH}>Variables</Link>
+            <Link href={INDICATORS_BASE_PATH}>Indicators</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
 
-        {variable && (
+        {indicatorForBreadcrumb && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <VariableButton variable={variable} />
+                <IndicatorButton indicator={indicatorForBreadcrumb} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>

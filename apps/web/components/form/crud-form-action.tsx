@@ -8,18 +8,29 @@ import { DeleteAlertDialog } from './delete-alert-dialog'
 export type CrudFormAction = {
   title: string
   description: string
-  buttonVariant: ComponentProps<typeof Button>['variant']
-  mutation: UseMutationResult<unknown, Error, void>
-  buttonTitle: string
-  confirmDialog?: {
-    title?: string
-    description: string
-    buttonCancelTitle?: string
-  }
-  disabled?: boolean
-}
+} & (
+  | {
+      buttonVariant: ComponentProps<typeof Button>['variant']
+      mutation: UseMutationResult<unknown, Error, void>
+      buttonTitle: string
+      confirmDialog?: {
+        title?: string
+        description: string
+        buttonCancelTitle?: string
+      }
+      disabled?: boolean
+    }
+  | { component: React.ReactNode }
+)
 
 export const FormAction = (props: CrudFormAction) => {
+  if ('component' in props) {
+    return (
+      <FieldGroup title={props.title} description={props.description}>
+        {props.component}
+      </FieldGroup>
+    )
+  }
   return (
     <FieldGroup {...props}>
       {props.confirmDialog ? (

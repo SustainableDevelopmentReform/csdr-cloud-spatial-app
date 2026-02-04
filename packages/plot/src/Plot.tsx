@@ -25,7 +25,7 @@ export const DEFAULT_CHART_DATA_PROPS: PlotProps<{
 }> = {
   x: 'timePoint',
   y: 'value',
-  groupBy: 'variableName',
+  groupBy: 'indicatorName',
   type: 'line',
   data: [
     {

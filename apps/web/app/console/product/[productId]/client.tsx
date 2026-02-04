@@ -13,11 +13,11 @@ import { DetailCard } from '../../_components/detail-cards'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
+import { RefreshProductSummary } from '../_components/refresh-product-summary'
 import {
   useDeleteProduct,
   useProduct,
   useProductRunsLink,
-  useRefreshProductRunSummary,
   useUpdateProduct,
 } from '../_hooks'
 
@@ -27,18 +27,15 @@ const ProductDetails = () => {
   const deleteProduct = useDeleteProduct(undefined, PRODUCTS_BASE_PATH)
   const productRunsLink = useProductRunsLink()
 
-  const refreshProductRunSummary = useRefreshProductRunSummary(product?.mainRun)
   const formActions: CrudFormAction[] = useMemo(
     () => [
       {
         title: 'Refresh',
         description: 'Refresh the product main run summary',
-        buttonVariant: 'outline',
-        buttonTitle: 'Refresh',
-        mutation: refreshProductRunSummary,
+        component: <RefreshProductSummary run={product?.mainRun} />,
       },
     ],
-    [refreshProductRunSummary],
+    [product?.mainRun],
   )
 
   const form = useForm({

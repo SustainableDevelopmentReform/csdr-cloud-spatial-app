@@ -1,14 +1,30 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
+  assignedDerivedIndicatorWithDependenciesSchema,
   baseProductOutputSchema,
   createProductRunSchema,
   fullProductRunSchema,
   productOutputExportQuerySchema,
   productOutputExportSchema,
   productOutputQuerySchema,
+  productRunAssignDerivedIndicatorSchema,
   updateProductRunSchema,
 } from '@repo/schemas/crud'
-import { and, avg, count, desc, eq, inArray, max, min, SQL } from 'drizzle-orm'
+import {
+  and,
+  avg,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  max,
+  min,
+  or,
+  SQL,
+} from 'drizzle-orm'
+import { evaluate } from 'mathjs'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -22,25 +38,34 @@ import { generateJsonResponse } from '../lib/response'
 import {
   product,
   productOutput,
+  productOutputDependency,
   productOutputSummary,
-  productOutputSummaryVariable,
+  productOutputSummaryIndicator,
   productRun,
+  productRunAssignedDerivedIndicator,
+  productRunAssignedDerivedIndicatorDependency,
 } from '../schemas/db'
 import {
   baseRunColumns,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 import { baseDatasetRunQuery } from './datasetRun'
 import { baseGeometriesRunQuery } from './geometriesRun'
+import {
+  baseDerivedIndicatorQuery,
+  fullMeasuredIndicatorQuery,
+  parseBaseDerivedIndicator,
+  parseFullMeasuredIndicator,
+} from './indicator'
 import { baseProductOutputQuery } from './productOutput'
-import { baseVariableQuery } from './variable'
 
-export const baseProductRunOutputSummaryQuery = {
+const baseProductRunOutputSummaryQuery = {
   columns: {
     lastUpdated: true,
     startTime: true,
@@ -49,18 +74,19 @@ export const baseProductRunOutputSummaryQuery = {
     timePoints: true,
   },
   with: {
-    variables: {
+    indicators: {
       with: {
-        variable: baseVariableQuery,
+        indicator: fullMeasuredIndicatorQuery,
+        derivedIndicator: baseDerivedIndicatorQuery,
       },
     },
   },
 } satisfies QueryForTable<'productOutputSummary'>
 
-export const fullProductRunOutputSummaryQuery = {
+const fullProductRunOutputSummaryQuery = {
   columns: baseProductRunOutputSummaryQuery.columns,
   with: {
-    variables: {
+    indicators: {
       columns: {
         minValue: true,
         maxValue: true,
@@ -69,7 +95,8 @@ export const fullProductRunOutputSummaryQuery = {
         lastUpdated: true,
       },
       with: {
-        variable: baseVariableQuery,
+        indicator: fullMeasuredIndicatorQuery,
+        derivedIndicator: baseDerivedIndicatorQuery,
       },
     },
   },
@@ -103,6 +130,116 @@ export const fullProductRunQuery = {
   },
 } satisfies QueryForTable<'productRun'>
 
+// Separate query for assigned derived indicators (to avoid deeply nested query issues)
+export const assignedDerivedIndicatorsQuery = {
+  columns: {
+    id: true,
+  },
+  with: {
+    derivedIndicator: baseDerivedIndicatorQuery,
+    dependencies: {
+      with: {
+        indicator: fullMeasuredIndicatorQuery,
+        sourceProductRun: {
+          columns: idColumns,
+        },
+      },
+    },
+  },
+} satisfies QueryForTable<'productRunAssignedDerivedIndicator'>
+
+export const parseFullProductRunOutputSummary = <
+  T extends InferQueryModel<
+    'productOutputSummary',
+    typeof fullProductRunOutputSummaryQuery
+  >,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    indicators:
+      record.indicators?.map((indicator) => ({
+        ...indicator,
+        indicator: indicator.indicator
+          ? parseFullMeasuredIndicator(indicator.indicator)
+          : indicator.derivedIndicator
+            ? parseBaseDerivedIndicator(indicator.derivedIndicator)
+            : null,
+      })) ?? [],
+  }
+}
+
+export const parseBaseProductRunOutputSummary = <
+  T extends InferQueryModel<
+    'productOutputSummary',
+    typeof baseProductRunOutputSummaryQuery
+  >,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    indicators:
+      record.indicators
+        ?.map((indicator) =>
+          indicator.indicator
+            ? parseFullMeasuredIndicator(indicator.indicator)
+            : indicator.derivedIndicator
+              ? parseBaseDerivedIndicator(indicator.derivedIndicator)
+              : undefined,
+        )
+        .filter(
+          (indicator): indicator is NonNullable<typeof indicator> =>
+            indicator !== undefined,
+        ) ?? [],
+  }
+}
+
+export const parseBaseProductRun = <
+  T extends InferQueryModel<'productRun', typeof baseProductRunQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
+    outputSummary: record.outputSummary
+      ? parseBaseProductRunOutputSummary(record.outputSummary)
+      : null,
+  }
+}
+
+export const parseFullProductRun = <
+  T extends InferQueryModel<'productRun', typeof fullProductRunQuery>,
+>(
+  record: T,
+) => {
+  return {
+    ...record,
+    // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
+    outputSummary: record.outputSummary
+      ? parseFullProductRunOutputSummary(record.outputSummary)
+      : null,
+  }
+}
+
+export const parseAssignedDerivedIndicator = <
+  T extends InferQueryModel<
+    'productRunAssignedDerivedIndicator',
+    typeof assignedDerivedIndicatorsQuery
+  >,
+>(
+  record: T,
+) => ({
+  id: record.id,
+  derivedIndicator: parseBaseDerivedIndicator(record.derivedIndicator),
+  dependencies: record.dependencies.map((dep) => ({
+    indicator: parseFullMeasuredIndicator(dep.indicator),
+    sourceProductRun: dep.sourceProductRun,
+  })),
+})
+
 const productRunNotFoundError = () =>
   new ServerError({
     statusCode: 404,
@@ -116,7 +253,7 @@ const fetchFullProductRun = async (id: string) => {
     ...fullProductRunQuery,
   })
 
-  return record ?? null
+  return record ? parseFullProductRun(record) : null
 }
 
 const fetchFullProductRunOrThrow = async (id: string) => {
@@ -194,7 +331,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { variableId, geometryOutputId, timePoint } = c.req.valid('query')
+      const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
 
       const { pageCount, totalCount, ...query } = await parseQuery(
         productOutput,
@@ -204,10 +341,15 @@ const app = createOpenAPIApp()
           searchableColumns: [productOutput.name],
         },
       )
-      const filters: SQL[] = [eq(productOutput.productRunId, id)]
+      const filters: (SQL | undefined)[] = [eq(productOutput.productRunId, id)]
 
-      if (variableId) {
-        filters.push(eq(productOutput.variableId, variableId))
+      if (indicatorId) {
+        filters.push(
+          or(
+            eq(productOutput.indicatorId, indicatorId),
+            eq(productOutput.derivedIndicatorId, indicatorId),
+          ),
+        )
       }
       if (geometryOutputId) {
         filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
@@ -222,11 +364,20 @@ const app = createOpenAPIApp()
         where: and(query.where, ...filters),
       })
 
+      const parsedData = data.map((output) => ({
+        ...output,
+        indicator: output.indicator
+          ? parseFullMeasuredIndicator(output.indicator)
+          : output.derivedIndicator
+            ? parseBaseDerivedIndicator(output.derivedIndicator)
+            : null,
+      }))
+
       return generateJsonResponse(
         c,
         {
           pageCount,
-          data,
+          data: parsedData,
           totalCount,
         },
         200,
@@ -263,15 +414,28 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { variableId, geometryOutputId, timePoint } = c.req.valid('query')
+      const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
 
-      const filters: SQL[] = [eq(productOutput.productRunId, id)]
+      const filters: (SQL | undefined)[] = [eq(productOutput.productRunId, id)]
 
-      if (variableId) {
-        const variableIds = Array.isArray(variableId)
-          ? variableId
-          : [variableId]
-        filters.push(inArray(productOutput.variableId, variableIds))
+      if (indicatorId) {
+        const indicatorIds = Array.isArray(indicatorId)
+          ? indicatorId
+          : [indicatorId]
+
+        // Filter for indicators or derived indicators
+        filters.push(
+          or(
+            and(
+              isNull(productOutput.derivedIndicatorId),
+              inArray(productOutput.indicatorId, indicatorIds),
+            ),
+            and(
+              isNull(productOutput.indicatorId),
+              inArray(productOutput.derivedIndicatorId, indicatorIds),
+            ),
+          ),
+        )
       }
       if (geometryOutputId) {
         const geometryOutputIds = Array.isArray(geometryOutputId)
@@ -293,13 +457,19 @@ const app = createOpenAPIApp()
       const data = await db.query.productOutput.findMany({
         columns: {
           id: true,
-          variableId: true,
+          indicatorId: true,
+          derivedIndicatorId: true,
           timePoint: true,
           geometryOutputId: true,
           value: true,
         },
         with: {
-          variable: {
+          indicator: {
+            columns: {
+              name: true,
+            },
+          },
+          derivedIndicator: {
             columns: {
               name: true,
             },
@@ -312,15 +482,20 @@ const app = createOpenAPIApp()
         },
         where: and(...filters),
         orderBy: () => [
-          desc(productOutput.variableId),
+          desc(productOutput.indicatorId),
           desc(productOutput.timePoint),
           desc(productOutput.geometryOutputId),
         ],
       })
 
-      const dataWithVariableName = data.map((output) => ({
+      const dataWithIndicatorName = data.map((output) => ({
         ...output,
-        variableName: output.variable.name,
+        indicatorId: output.indicatorId ?? output.derivedIndicatorId ?? null,
+        indicatorName:
+          output.indicator?.name ?? output.derivedIndicator?.name ?? null,
+        indicatorType: output.derivedIndicator
+          ? ('derived' as const)
+          : ('measured' as const),
         geometryOutputName: output.geometryOutput?.name ?? undefined,
         geometryOutputId: output.geometryOutputId ?? undefined,
       }))
@@ -328,7 +503,7 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          data: dataWithVariableName,
+          data: dataWithIndicatorName,
         },
         200,
       )
@@ -435,6 +610,230 @@ const app = createOpenAPIApp()
       const fullRecord = await fetchFullProductRunOrThrow(record.id)
 
       return generateJsonResponse(c, fullRecord, 200, 'Product run updated')
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Get assigned derived indicators for a product run.',
+      method: 'get',
+      path: '/:id/derived-indicators',
+      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description:
+            'Successfully retrieved assigned derived indicators for a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.array(assignedDerivedIndicatorWithDependenciesSchema),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch assigned derived indicators'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+
+      // Verify product run exists
+      await fetchFullProductRunOrThrow(id)
+
+      const assignedIndicators =
+        await db.query.productRunAssignedDerivedIndicator.findMany({
+          where: (table, { eq }) => eq(table.productRunId, id),
+          ...assignedDerivedIndicatorsQuery,
+        })
+
+      const parsed = assignedIndicators.map(parseAssignedDerivedIndicator)
+
+      return generateJsonResponse(c, parsed, 200)
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Assign a derived indicator to a product run.',
+      method: 'post',
+      path: '/:id/derived-indicators',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: productRunAssignDerivedIndicatorSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Successfully assigned a derived indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductRunSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to assign derived indicator'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { derivedIndicatorId, dependencies } = c.req.valid('json')
+
+      await fetchFullProductRunOrThrow(id)
+
+      // Generate a unique ID for the assigned derived indicator
+      const assignedId = crypto.randomUUID()
+
+      await db.transaction(async (tx) => {
+        // Insert the assigned derived indicator
+        await tx
+          .insert(productRunAssignedDerivedIndicator)
+          .values({
+            id: assignedId,
+            productRunId: id,
+            derivedIndicatorId,
+          })
+          .onConflictDoNothing()
+
+        // Insert the dependency mappings
+        if (dependencies.length > 0) {
+          await tx
+            .insert(productRunAssignedDerivedIndicatorDependency)
+            .values(
+              dependencies.map((dep) => ({
+                assignedDerivedIndicatorId: assignedId,
+                indicatorId: dep.indicatorId,
+                sourceProductRunId: dep.sourceProductRunId,
+              })),
+            )
+            .onConflictDoNothing()
+        }
+      })
+
+      const record = await fetchFullProductRunOrThrow(id)
+
+      return generateJsonResponse(c, record, 201, 'Derived indicator assigned')
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Delete an assigned derived indicator from a product run.',
+      method: 'delete',
+      path: '/:id/derived-indicators/:assignedDerivedIndicatorId',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({
+          id: z.string().min(1),
+          assignedDerivedIndicatorId: z.string().min(1),
+        }),
+      },
+      responses: {
+        200: {
+          description: 'Successfully deleted assigned derived indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductRunSchema),
+            },
+          },
+        },
+        400: jsonErrorResponse(
+          'Cannot delete derived indicator that exists in output summary',
+        ),
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse(
+          'Product run or assigned derived indicator not found',
+        ),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to delete assigned derived indicator'),
+      },
+    }),
+    async (c) => {
+      const { id, assignedDerivedIndicatorId } = c.req.valid('param')
+
+      // Verify product run exists
+      const run = await fetchFullProductRunOrThrow(id)
+
+      // Find the assigned derived indicator
+      const assignedIndicator =
+        await db.query.productRunAssignedDerivedIndicator.findFirst({
+          where: (table, { and, eq }) =>
+            and(
+              eq(table.id, assignedDerivedIndicatorId),
+              eq(table.productRunId, id),
+            ),
+          with: {
+            derivedIndicator: {
+              columns: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        })
+
+      if (!assignedIndicator) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Assigned derived indicator not found',
+          description: `Assigned derived indicator with ID ${assignedDerivedIndicatorId} does not exist for this product run`,
+        })
+      }
+
+      // Check if the derived indicator exists in the output summary
+      const derivedIndicatorId = assignedIndicator.derivedIndicator.id
+      const isInOutputSummary = run.outputSummary?.indicators?.some(
+        (indicator) => indicator.indicator?.id === derivedIndicatorId,
+      )
+
+      if (isInOutputSummary) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Cannot delete derived indicator',
+          description: `The derived indicator "${assignedIndicator.derivedIndicator.name}" exists in the run output summary and cannot be removed.`,
+        })
+      }
+
+      // Delete the assigned derived indicator (dependencies will cascade)
+      await db
+        .delete(productRunAssignedDerivedIndicator)
+        .where(
+          eq(productRunAssignedDerivedIndicator.id, assignedDerivedIndicatorId),
+        )
+
+      // Delete product outputs for the derived indicator
+      await db
+        .delete(productOutput)
+        .where(
+          and(
+            eq(productOutput.productRunId, id),
+            eq(productOutput.derivedIndicatorId, derivedIndicatorId),
+          ),
+        )
+
+      const record = await fetchFullProductRunOrThrow(id)
+
+      return generateJsonResponse(
+        c,
+        record,
+        200,
+        'Assigned derived indicator deleted',
+      )
     },
   )
 
@@ -614,30 +1013,55 @@ const app = createOpenAPIApp()
               },
             })
 
-          // 3. Calculate per-variable statistics
-          const variableStats = await tx
+          // 3.1. Calculate per-indicator statistics
+          const indicatorStats = await tx
             .select({
-              variableId: productOutput.variableId,
+              indicatorId: productOutput.indicatorId,
               minValue: min(productOutput.value),
               maxValue: max(productOutput.value),
               avgValue: avg(productOutput.value),
               count: count(),
             })
             .from(productOutput)
-            .where(eq(productOutput.productRunId, id))
-            .groupBy(productOutput.variableId)
+            .where(
+              and(
+                eq(productOutput.productRunId, id),
+                isNotNull(productOutput.indicatorId),
+              ),
+            )
+            .groupBy(productOutput.indicatorId)
 
-          // 4. Delete existing variable summaries for this run
+          // 3.2. Calculate per-derived-indicator statistics
+          const derivedIndicatorStats = await tx
+            .select({
+              derivedIndicatorId: productOutput.derivedIndicatorId,
+              minValue: min(productOutput.value),
+              maxValue: max(productOutput.value),
+              avgValue: avg(productOutput.value),
+              count: count(),
+            })
+            .from(productOutput)
+            .where(
+              and(
+                eq(productOutput.productRunId, id),
+                isNotNull(productOutput.derivedIndicatorId),
+              ),
+            )
+            .groupBy(productOutput.derivedIndicatorId)
+
+          // 4. Delete existing summaries for this run
           await tx
-            .delete(productOutputSummaryVariable)
-            .where(eq(productOutputSummaryVariable.productRunId, id))
+            .delete(productOutputSummaryIndicator)
+            .where(eq(productOutputSummaryIndicator.productRunId, id))
 
-          // 5. Insert new variable summaries
-          if (variableStats.length > 0) {
-            await tx.insert(productOutputSummaryVariable).values(
-              variableStats.map((stat) => ({
+          // 5. Insert new indicator summaries
+          if (indicatorStats.length > 0) {
+            await tx.insert(productOutputSummaryIndicator).values(
+              [...indicatorStats, ...derivedIndicatorStats].map((stat) => ({
                 productRunId: id,
-                variableId: stat.variableId,
+                indicatorId: 'indicatorId' in stat ? stat.indicatorId : null,
+                derivedIndicatorId:
+                  'derivedIndicatorId' in stat ? stat.derivedIndicatorId : null,
                 minValue: stat.minValue,
                 maxValue: stat.maxValue,
                 avgValue: stat.avgValue ? parseFloat(stat.avgValue) : null,
@@ -661,6 +1085,337 @@ const app = createOpenAPIApp()
         record,
         200,
         'Product run summary refreshed',
+      )
+    },
+  )
+
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/:id/compute-derived-indicators',
+      middleware: [authMiddleware({ permission: 'write:productRun' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Compute derived indicators for a product run.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  productRun: fullProductRunSchema,
+                  insertedCount: z.number().int(),
+                  warnings: z.array(
+                    z.object({
+                      message: z.string(),
+                      description: z.string().optional(),
+                    }),
+                  ),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product run not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to compute derived indicators'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+
+      // Verify product run exists
+      await fetchFullProductRunOrThrow(id)
+
+      const warnings: { message: string; description?: string }[] = []
+      const pendingOutputPayloads: (typeof productOutput.$inferInsert)[] = []
+      const pendingDependencyRows: (typeof productOutputDependency.$inferInsert)[] =
+        []
+
+      // Fetch assigned derived indicators separately
+      const assignedDerivedIndicatorsRaw =
+        await db.query.productRunAssignedDerivedIndicator.findMany({
+          where: (table, { eq }) => eq(table.productRunId, id),
+          ...assignedDerivedIndicatorsQuery,
+        })
+      const assignedDerivedIndicators = assignedDerivedIndicatorsRaw.map(
+        parseAssignedDerivedIndicator,
+      )
+
+      for (const assignedDerivedIndicator of assignedDerivedIndicators) {
+        const derivedIndicatorId = assignedDerivedIndicator.derivedIndicator.id
+        const derivedIndicator = await db.query.derivedIndicator.findFirst({
+          where: (derivedIndicator, { eq }) =>
+            eq(derivedIndicator.id, derivedIndicatorId),
+          columns: {
+            id: true,
+            name: true,
+            expression: true,
+          },
+          with: {
+            indicators: {
+              columns: {
+                indicatorId: true,
+              },
+              with: {
+                indicator: {
+                  columns: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        if (!derivedIndicator) {
+          throw new ServerError({
+            statusCode: 404,
+            message: 'Derived indicator not found',
+            description: `Derived indicator with ID ${derivedIndicatorId} does not exist`,
+          })
+        }
+
+        const indicatorIds = derivedIndicator.indicators.map(
+          (indicator) => indicator.indicatorId,
+        )
+        const indicatorNames = new Map(
+          derivedIndicator.indicators.map((indicator) => [
+            indicator.indicatorId,
+            indicator.indicator.name,
+          ]),
+        )
+        const indicatorSymbols = new Map(
+          indicatorIds.map((indicatorId, index) => [
+            indicatorId,
+            `$${index + 1}`,
+          ]),
+        )
+
+        const hasDerivedIndicatorBeenComputed = await db
+          .select({ count: count() })
+          .from(productOutput)
+          .where(
+            and(
+              eq(productOutput.productRunId, id),
+              eq(productOutput.derivedIndicatorId, derivedIndicatorId),
+            ),
+          )
+          .then((result) => (result[0]?.count ?? 0) > 0)
+
+        if (hasDerivedIndicatorBeenComputed) {
+          warnings.push({
+            message: `${derivedIndicator.name}: Has already been computed - skipping.`,
+          })
+          continue
+        }
+
+        if (!indicatorIds.length) {
+          warnings.push({
+            message: `${derivedIndicator.name}: Has no dependency indicators.`,
+          })
+          continue
+        }
+
+        // Build a map of indicatorId -> sourceProductRunId from dependencies
+        const indicatorToSourceProductRunId = new Map<string, string>()
+        for (const dep of assignedDerivedIndicator.dependencies) {
+          indicatorToSourceProductRunId.set(
+            dep.indicator.id,
+            dep.sourceProductRun.id,
+          )
+        }
+
+        // Fetch all dependent indicator product outputs from their respective source product runs
+        // Group queries by source product run for efficiency
+        const productRunIndicatorGroups = new Map<string, string[]>()
+        for (const indicatorId of indicatorIds) {
+          const sourceProductRunId =
+            indicatorToSourceProductRunId.get(indicatorId) ?? id
+          const group = productRunIndicatorGroups.get(sourceProductRunId) ?? []
+          group.push(indicatorId)
+          productRunIndicatorGroups.set(sourceProductRunId, group)
+        }
+
+        // Fetch outputs from each source product run
+        const dependentIndicatorProductOutputs: {
+          id: string
+          indicatorId: string | null
+          geometryOutputId: string | null
+          timePoint: Date
+          value: number
+        }[] = []
+
+        for (const [
+          sourceProductRunId,
+          sourceIndicatorIds,
+        ] of productRunIndicatorGroups) {
+          const outputs = await db
+            .select({
+              id: productOutput.id,
+              indicatorId: productOutput.indicatorId,
+              geometryOutputId: productOutput.geometryOutputId,
+              timePoint: productOutput.timePoint,
+              value: productOutput.value,
+            })
+            .from(productOutput)
+            .where(
+              and(
+                eq(productOutput.productRunId, sourceProductRunId),
+                inArray(productOutput.indicatorId, sourceIndicatorIds),
+              ),
+            )
+          dependentIndicatorProductOutputs.push(...outputs)
+
+          if (outputs.length === 0) {
+            warnings.push({
+              message: `${derivedIndicator.name}: No dependent indicator product outputs found for source product run "${sourceProductRunId}".`,
+            })
+          }
+        }
+
+        const groupedOutputs = new Map<
+          string,
+          {
+            geometryOutputId: string | null
+            timePoint: Date
+            values: Map<string, number>
+            dependencyOutputIds: string[]
+          }
+        >()
+
+        if (dependentIndicatorProductOutputs.length === 0) {
+          warnings.push({
+            message: `${derivedIndicator.name}: No dependent indicator product outputs found.`,
+          })
+          continue
+        }
+
+        for (const output of dependentIndicatorProductOutputs) {
+          if (!output.indicatorId) continue
+          const key = `${output.geometryOutputId ?? 'null'}|${output.timePoint.toISOString()}`
+          const group = groupedOutputs.get(key) ?? {
+            geometryOutputId: output.geometryOutputId ?? null,
+            timePoint: output.timePoint,
+            values: new Map<string, number>(),
+            dependencyOutputIds: [],
+          }
+          if (group.values.has(output.indicatorId)) {
+            warnings.push({
+              message: `${derivedIndicator.name}: Duplicate indicator output found for "${indicatorNames.get(output.indicatorId) ?? output.indicatorId}" at geometry output "${output.geometryOutputId ?? 'null'}" and time point "${output.timePoint.toISOString()}".`,
+            })
+            continue
+          }
+          group.values.set(output.indicatorId, output.value)
+          group.dependencyOutputIds.push(output.id)
+          groupedOutputs.set(key, group)
+        }
+
+        for (const group of groupedOutputs.values()) {
+          const missingIndicatorIds = indicatorIds.filter(
+            (indicatorId) => !group.values.has(indicatorId),
+          )
+
+          if (missingIndicatorIds.length) {
+            warnings.push({
+              message: `${derivedIndicator.name}: Missing dependency indicators at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
+              description: `Missing indicators: ${missingIndicatorIds
+                .map(
+                  (indicatorId) =>
+                    indicatorNames.get(indicatorId) ?? indicatorId,
+                )
+                .join(', ')}`,
+            })
+            continue
+          }
+
+          const scope = indicatorIds.reduce<Record<string, number>>(
+            (acc, indicatorId) => {
+              const symbol = indicatorSymbols.get(indicatorId)
+              const value = group.values.get(indicatorId)
+              if (symbol && value !== undefined) {
+                acc[symbol] = value
+              }
+              return acc
+            },
+            {},
+          )
+
+          let computedValue: number
+          try {
+            const result = evaluate(derivedIndicator.expression, scope)
+            computedValue = typeof result === 'number' ? result : Number(result)
+          } catch (error) {
+            warnings.push({
+              message: `${derivedIndicator.name}: Failed to compute at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
+              description:
+                error instanceof Error ? error.message : 'Unknown error',
+            })
+            continue
+          }
+
+          if (!Number.isFinite(computedValue)) {
+            warnings.push({
+              message: `${derivedIndicator.name}: Produced a non-numeric result at geometry output "${group.geometryOutputId ?? 'null'}" and time point "${group.timePoint.toISOString()}".`,
+            })
+            continue
+          }
+
+          const outputId = crypto.randomUUID()
+          pendingOutputPayloads.push(
+            createPayload({
+              id: outputId,
+              productRunId: id,
+              geometryOutputId: group.geometryOutputId,
+              derivedIndicatorId,
+              value: computedValue,
+              timePoint: group.timePoint,
+            }),
+          )
+          for (const dependencyProductOutputId of group.dependencyOutputIds) {
+            pendingDependencyRows.push({
+              derivedProductOutputId: outputId,
+              dependencyProductOutputId,
+            })
+          }
+        }
+      }
+
+      let insertedCount = 0
+
+      if (pendingOutputPayloads.length > 0) {
+        await db.transaction(async (tx) => {
+          const insertedOutputs = await tx
+            .insert(productOutput)
+            .values(pendingOutputPayloads)
+            .onConflictDoNothing()
+            .returning({ id: productOutput.id })
+
+          insertedCount = insertedOutputs.length
+
+          if (pendingDependencyRows.length > 0) {
+            await tx
+              .insert(productOutputDependency)
+              .values(pendingDependencyRows)
+              .onConflictDoNothing()
+          }
+        })
+      }
+
+      const record = await fetchFullProductRunOrThrow(id)
+
+      return generateJsonResponse(
+        c,
+        {
+          productRun: record,
+          insertedCount,
+          warnings,
+        },
+        200,
+        'Derived indicators computed',
       )
     },
   )

@@ -20,12 +20,17 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometryOutput, productOutput, productRun } from '../schemas/db'
+import {
+  geometryOutput,
+  productOutput,
+  productOutputDependency,
+} from '../schemas/db'
 import {
   baseColumns,
   createPayload,
   idColumns,
   idColumnsWithMainRunId,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -33,7 +38,12 @@ import {
   baseGeometryOutputQuery,
   fetchFullGeometryOutputOrThrow,
 } from './geometryOutput'
-import { baseVariableQuery } from './variable'
+import {
+  baseDerivedIndicatorQuery,
+  fullMeasuredIndicatorQuery,
+  parseBaseDerivedIndicator,
+  parseFullMeasuredIndicator,
+} from './indicator'
 
 export const baseProductOutputQuery = {
   columns: {
@@ -67,7 +77,8 @@ export const baseProductOutputQuery = {
       },
     },
 
-    variable: baseVariableQuery,
+    indicator: fullMeasuredIndicatorQuery,
+    derivedIndicator: baseDerivedIndicatorQuery,
     geometryOutput: baseGeometryOutputQuery,
   },
 } satisfies QueryForTable<'productOutput'>
@@ -79,13 +90,49 @@ const productOutputNotFoundError = () =>
     description: "productOutput you're looking for is not found",
   })
 
+type BaseProductOutputRecord = InferQueryModel<
+  'productOutput',
+  typeof baseProductOutputQuery
+>
+type ParsedMeasuredIndicator = ReturnType<
+  typeof parseFullMeasuredIndicator<
+    InferQueryModel<'indicator', typeof fullMeasuredIndicatorQuery>
+  >
+>
+type ParsedDerivedIndicator = ReturnType<
+  typeof parseBaseDerivedIndicator<
+    InferQueryModel<'derivedIndicator', typeof baseDerivedIndicatorQuery>
+  >
+>
+type ParsedBaseProductOutput = Omit<
+  BaseProductOutputRecord,
+  'indicator' | 'derivedIndicator'
+> & {
+  indicator: ParsedMeasuredIndicator | ParsedDerivedIndicator | null
+  derivedIndicator?: undefined
+}
+
+const parseBaseProductOutput = (
+  record: BaseProductOutputRecord,
+): ParsedBaseProductOutput => {
+  return {
+    ...record,
+    derivedIndicator: undefined,
+    indicator: record.indicator
+      ? parseFullMeasuredIndicator(record.indicator)
+      : record.derivedIndicator
+        ? parseBaseDerivedIndicator(record.derivedIndicator)
+        : null,
+  }
+}
+
 const fetchBaseProductOutput = async (id: string) => {
   const record = await db.query.productOutput.findFirst({
     where: (productOutput, { eq }) => eq(productOutput.id, id),
     ...baseProductOutputQuery,
   })
 
-  return record ?? null
+  return record ? parseBaseProductOutput(record) : null
 }
 
 const fetchBaseProductOutputOrThrow = async (id: string) => {
@@ -98,18 +145,55 @@ const fetchBaseProductOutputOrThrow = async (id: string) => {
   return record
 }
 
-type PendingProductOutput = {
-  payload: {
-    productRunId: string
-    geometryOutputId: string
-    variableId: string
-    value: number
-    timePoint: Date
+const fetchFullProductOutput = async (id: string) => {
+  const record = await fetchBaseProductOutput(id)
+
+  if (!record) {
+    return null
   }
-  context: {
-    rowNumber: number
-    column: string
+
+  // If this output has a derived indicator, fetch its dependencies
+  if (record.indicator?.type === 'derived') {
+    const dependencyLinks = await db
+      .select({
+        dependencyProductOutputId:
+          productOutputDependency.dependencyProductOutputId,
+      })
+      .from(productOutputDependency)
+      .where(eq(productOutputDependency.derivedProductOutputId, id))
+
+    const dependencyIds = dependencyLinks.map(
+      (d) => d.dependencyProductOutputId,
+    )
+
+    if (dependencyIds.length > 0) {
+      const dependencies = await db.query.productOutput.findMany({
+        where: (productOutput, { inArray }) =>
+          inArray(productOutput.id, dependencyIds),
+        ...baseProductOutputQuery,
+      })
+
+      return {
+        ...record,
+        dependencyProductOutputs: dependencies.map(parseBaseProductOutput),
+      }
+    }
   }
+
+  return {
+    ...record,
+    dependencyProductOutputs: [],
+  }
+}
+
+const fetchFullProductOutputOrThrow = async (id: string) => {
+  const record = await fetchFullProductOutput(id)
+
+  if (!record) {
+    throw productOutputNotFoundError()
+  }
+
+  return record
 }
 
 const parseCsvFile = async (file: File) => {
@@ -202,7 +286,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchBaseProductOutputOrThrow(id)
+      const record = await fetchFullProductOutputOrThrow(id)
 
       const geometryOutput = record.geometryOutput
         ? await fetchFullGeometryOutputOrThrow(record.geometryOutput.id)
@@ -275,7 +359,7 @@ const app = createOpenAPIApp()
   .openapi(
     createRoute({
       description:
-        'Create multiple product outputs, for a given product run, variable, and time point.',
+        'Create multiple product outputs, for a given product run, indicator, and time point.',
       method: 'post',
       path: '/bulk',
       middleware: [authMiddleware({ permission: 'write:productOutput' })],
@@ -292,7 +376,7 @@ const app = createOpenAPIApp()
       responses: {
         201: {
           description:
-            'Create multiple product outputs. This allows creating multiple outputs for the same time, variable, and product run.',
+            'Create multiple product outputs. This allows creating multiple outputs for the same time, indicator, and product run.',
           content: {
             'application/json': {
               schema: createResponseSchema(z.array(baseProductOutputSchema)),
@@ -351,7 +435,14 @@ const app = createOpenAPIApp()
           })
         }
 
-        return record
+        return {
+          ...record,
+          indicator: record.indicator
+            ? parseFullMeasuredIndicator(record.indicator)
+            : record.derivedIndicator
+              ? parseBaseDerivedIndicator(record.derivedIndicator)
+              : null,
+        }
       })
 
       return generateJsonResponse(
@@ -407,7 +498,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { productRunId, geometryColumn, variableMappings, csvFile } =
+      const { productRunId, geometryColumn, indicatorMappings, csvFile } =
         c.req.valid('form')
 
       const productRunRecord = await db.query.productRun.findFirst({
@@ -447,7 +538,7 @@ const app = createOpenAPIApp()
         })
       }
 
-      for (const mapping of variableMappings) {
+      for (const mapping of indicatorMappings) {
         if (!columns.includes(mapping.column)) {
           throw new ServerError({
             statusCode: 400,
@@ -483,7 +574,19 @@ const app = createOpenAPIApp()
         knownGeometryOutputs.map((output) => output.id),
       )
 
-      const pendingOutputs: PendingProductOutput[] = []
+      const pendingOutputs: {
+        payload: {
+          productRunId: string
+          geometryOutputId: string
+          indicatorId: string
+          value: number
+          timePoint: Date
+        }
+        context: {
+          rowNumber: number
+          column: string
+        }
+      }[] = []
       const warnings: { message: string; description?: string }[] = []
 
       rows.forEach((row, rowIndex) => {
@@ -507,7 +610,7 @@ const app = createOpenAPIApp()
           return
         }
 
-        variableMappings.forEach((mapping) => {
+        indicatorMappings.forEach((mapping) => {
           const rawValue = row[mapping.column]
           const timePointDate = new Date(mapping.timePoint)
           const normalizedValue = normalizeCsvValue(rawValue)
@@ -524,7 +627,7 @@ const app = createOpenAPIApp()
             payload: {
               productRunId,
               geometryOutputId,
-              variableId: mapping.variableId,
+              indicatorId: mapping.indicatorId,
               value: numericValue,
               timePoint: timePointDate,
             },

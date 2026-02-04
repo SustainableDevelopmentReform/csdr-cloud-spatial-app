@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { ProductOutputLinkParams, useProductOutputLink } from '../_hooks'
 
@@ -30,10 +29,9 @@ export const ProductOutputButton = ({
     <BadgeLink
       href={productOutputLink(productOutput)}
       variant="outline"
-      className="border-productRun"
+      className="border-product"
     >
       {productOutput.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }

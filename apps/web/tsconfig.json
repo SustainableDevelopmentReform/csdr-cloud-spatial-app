@@ -28,7 +28,9 @@
     "pages/**/*",
     "utils/**/*",
     "hooks/**/*",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../../packages/ui/src/components/ui/select-with-search-with-create.tsx",
+    "../../packages/ui/src/components/ui/select-with-search.tsx"
   ],
   "exclude": [
     "node_modules",

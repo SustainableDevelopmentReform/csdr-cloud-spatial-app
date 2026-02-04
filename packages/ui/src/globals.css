@@ -47,8 +47,8 @@
     --product-foreground: 0 0% 98%;
     --product-run: 280 31% 77%;
     --product-run-foreground: 240 5.9% 10%;
-    --variable: 60 100% 80%;
-    --variable-foreground: 240 5.9% 10%;
+    --indicator: 60 100% 80%;
+    --indicator-foreground: 240 5.9% 10%;
   }
 
   .dark {
@@ -83,7 +83,7 @@
     --geometries-run: #fb9a99;
     --product: #6a3d9a;
     --product-run: #cab2d6;
-    --variable: #33a02c;
+    --indicator: #33a02c;
   }
 }
 

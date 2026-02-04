@@ -1,67 +1,70 @@
 import { useMemo } from 'react'
-import { MultiValue, SingleValue } from 'react-select'
+import {
+  MultiValue,
+  SingleValue,
+  SelectWithSearch,
+} from '@repo/ui/components/ui/select-with-search'
 import { FieldGroup } from '../../../../components/form/action'
-import { SelectWithSearch } from '../../../../components/form/select-with-search'
-import { VariableListItem } from '../../variable/_hooks'
+import { IndicatorListItem } from '../../indicator/_hooks'
 import { useProductRun } from '../_hooks'
 
-type ProductRunVariablesSelectProps = {
+type ProductRunIndicatorsSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
 } & (
   | {
       value: string[]
-      onChange: (value: MultiValue<VariableListItem>) => void
+      onChange: (value: MultiValue<IndicatorListItem>) => void
       isMulti: true
     }
   | {
       value: string | null
-      onChange: (value: SingleValue<VariableListItem>) => void
+      onChange: (value: SingleValue<IndicatorListItem>) => void
       isMulti?: false
     }
 )
 
-export const ProductRunVariablesSelect = ({
+export const ProductRunIndicatorsSelect = ({
   productRunId,
   disabled,
   value,
   onChange,
   isMulti,
   ...props
-}: ProductRunVariablesSelectProps) => {
+}: ProductRunIndicatorsSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
 
   const options = useMemo(() => {
-    return productRun?.outputSummary?.variables.map(
-      (variable) => variable.variable,
-    )
+    return productRun?.outputSummary?.indicators
+      .map((indicator) => indicator.indicator)
+      .filter((indicator): indicator is IndicatorListItem => !!indicator)
   }, [productRun])
 
   const discriminatedProps = useMemo(() => {
     if (isMulti === true) {
       const selectedValues =
-        options?.filter((variable) => value.includes(variable.id)) ?? []
+        options?.filter((indicator) => value.includes(indicator.id)) ?? []
       return {
         isMulti: true,
         value: selectedValues,
-        onChange: (nextValue: MultiValue<VariableListItem>) =>
+        onChange: (nextValue: MultiValue<IndicatorListItem>) =>
           onChange(nextValue),
       } as const
     }
     const selectedValue =
-      options?.find((variable) => variable.id === value) ?? null
+      options?.find((indicator) => indicator.id === value) ?? null
     return {
       isMulti: false,
       value: selectedValue,
-      onChange: (nextValue: SingleValue<VariableListItem>) =>
+      onChange: (nextValue: SingleValue<IndicatorListItem>) =>
         onChange(nextValue),
     } as const
   }, [isMulti, options, value, onChange])
 
   return (
     <FieldGroup
-      title={`Select Variable${discriminatedProps.isMulti ? '(s)' : ''}`}
+      title={`Select Indicator${discriminatedProps.isMulti ? '(s)' : ''}`}
       disabled={disabled}
     >
       {discriminatedProps.isMulti ? (

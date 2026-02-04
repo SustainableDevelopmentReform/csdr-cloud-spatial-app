@@ -24,8 +24,8 @@ import geometryOutput from './routes/geometryOutput'
 import product from './routes/product'
 import productOutput from './routes/productOutput'
 import productRun from './routes/productRun'
-import variable from './routes/variable'
-import variableCategory from './routes/variableCategory'
+import indicator from './routes/indicator'
+import indicatorCategory from './routes/indicatorCategory'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
 
@@ -78,8 +78,8 @@ const v0ApiRoutes = app
   .route('/product', product)
   .route('/product-run', productRun)
   .route('/product-output', productOutput)
-  .route('/variable', variable)
-  .route('/variable-category', variableCategory)
+  .route('/indicator', indicator)
+  .route('/indicator-category', indicatorCategory)
   .route('/report', report)
   .route('/dashboard', dashboard)
 

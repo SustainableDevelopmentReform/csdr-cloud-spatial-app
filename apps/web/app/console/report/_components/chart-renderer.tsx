@@ -19,7 +19,7 @@ import {
   useProductOutputsExport,
   useProductRun,
 } from '../../product/_hooks'
-import { useVariable } from '../../variable/_hooks'
+import { useDerivedIndicator, useIndicator } from '../../indicator/_hooks'
 
 const ChartPlaceholder = () => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
@@ -45,7 +45,7 @@ const PlotContainer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
-    variableId: chart.variableIds,
+    indicatorId: chart.indicatorIds,
     geometryOutputId: chart.geometryOutputIds,
     timePoint: chart.timePoints,
   })
@@ -73,7 +73,7 @@ const PlotContainer = ({
           x={'timePoint'}
           y={'value'}
           groupBy={
-            multipleGeometryOutputs ? 'geometryOutputName' : 'variableName'
+            multipleGeometryOutputs ? 'geometryOutputName' : 'indicatorName'
           }
           type={chart.subType}
           onSelect={onSelect}
@@ -107,9 +107,15 @@ const MapContainer = ({
   const { data: geometriesRun } = useGeometriesRun(
     productRun?.geometriesRun?.id,
   )
-  const { data: variable } = useVariable(chart.variableId)
+
+  // TODO: discriminate between measured and derived indicators
+  const { data: measuredIndicator } = useIndicator(chart.indicatorId)
+  const { data: derivedIndicator } = useDerivedIndicator(chart.indicatorId)
+
+  const indicator = measuredIndicator ?? derivedIndicator
+
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
-    variableId: chart.variableId,
+    indicatorId: chart.indicatorId,
     timePoint: chart.timePoint,
   })
 
@@ -117,7 +123,7 @@ const MapContainer = ({
     <div className={cn('flex flex-col gap-2 h-full', className)}>
       <GeometriesMapViewer
         geometriesRun={geometriesRun}
-        variable={variable}
+        indicator={indicator}
         productRun={productRun}
         productOutputs={productOutputs?.data}
         zoomToGeometryOutputIds={chart.geometryOutputIds}
@@ -139,7 +145,7 @@ const TablePlotContainer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
-    variableId: chart.variableIds,
+    indicatorId: chart.indicatorIds,
     geometryOutputId: chart.geometryOutputIds,
     timePoint: chart.timePoints,
   })

@@ -9,7 +9,9 @@ import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { useGeometryOutputLink } from '../../../geometries/_hooks'
+import { DerivedIndicatorSummaryCard } from '../../_components/derived-indicator-summary-card'
 import { ProductOutputDependenciesCard } from '../../_components/product-output-dependencies-card'
+import { ProductOutputDerivedDependenciesCard } from '../../_components/product-output-derived-dependencies-card'
 import { ProductOutputSummaryCard } from '../../_components/product-output-summary-card'
 import { useProductOutput, useUpdateProductOutput } from '../../_hooks'
 
@@ -78,9 +80,22 @@ const ProductRunDetails = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 grid-rows-1 gap-4">
-        <ProductOutputSummaryCard productOutput={productOutput} />
-        <ProductOutputDependenciesCard productOutput={productOutput} />
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 grid-rows-1 gap-4">
+          <ProductOutputSummaryCard productOutput={productOutput} />
+          <ProductOutputDependenciesCard productOutput={productOutput} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <DerivedIndicatorSummaryCard productOutput={productOutput} />
+          {productOutput?.dependencyProductOutputs.map(
+            (dependencyProductOutput) => (
+              <ProductOutputDerivedDependenciesCard
+                productOutput={dependencyProductOutput}
+                parentProductOutput={productOutput}
+              />
+            ),
+          )}
+        </div>
       </div>
 
       <CrudForm

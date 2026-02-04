@@ -1,9 +1,12 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { useGeometryOutputs } from '../../geometries/_hooks'
 import { useProductRun } from '../_hooks'
-import { SelectWithSearch } from '../../../../components/form/select-with-search'
+import {
+  SelectWithSearch,
+  MultiValue,
+  SingleValue,
+} from '@repo/ui/components/ui/select-with-search'
 import { GeometryOutputListItem } from '../../geometries/_hooks'
-import { MultiValue, SingleValue } from 'react-select'
 import { useMemo } from 'react'
 
 type ProductGeometryOutputSelectProps = {

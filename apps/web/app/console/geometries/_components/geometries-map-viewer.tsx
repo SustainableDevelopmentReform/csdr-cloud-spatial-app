@@ -30,7 +30,7 @@ import {
   ProductOutputExportListItem,
   ProductRunDetail,
 } from '../../product/_hooks'
-import { VariableListItem } from '../../variable/_hooks'
+import { IndicatorListItem } from '../../indicator/_hooks'
 import { MapViewer } from './map-viewer'
 import { EmptyCard } from '../../_components/empty-card'
 
@@ -39,7 +39,7 @@ const ID_PROPERTY = 'id'
 
 const GeometriesMapViewer = ({
   geometriesRun: geometriesRunProp,
-  variable,
+  indicator,
   productRun,
   productOutputs,
   zoomToGeometryOutputIds,
@@ -47,7 +47,7 @@ const GeometriesMapViewer = ({
   className,
 }: {
   geometriesRun?: GeometriesRunListItem | null
-  variable?: VariableListItem | null
+  indicator?: IndicatorListItem | null
   productRun?: ProductRunDetail | null
   productOutputs?: ProductOutputExportListItem[] | null
   zoomToGeometryOutputIds?: string[] | null
@@ -163,7 +163,7 @@ const GeometriesMapViewer = ({
   ])
 
   const { linePaint, fillPaint } = useMemo(() => {
-    if (!variable)
+    if (!indicator)
       return {
         linePaint: {
           'line-color': 'black',
@@ -175,15 +175,15 @@ const GeometriesMapViewer = ({
         },
       }
 
-    const variableSummary = productRun?.outputSummary?.variables.find(
-      (v) => v.variable.id === variable.id,
+    const indicatorSummary = productRun?.outputSummary?.indicators.find(
+      (v) => v.indicator?.id === indicator.id,
     )
 
     const colorFn = (value: number | null) => {
       if (!value) return NO_DATA_COLOR
       const normalizedValue =
-        (value - (variableSummary?.minValue ?? 0)) /
-        ((variableSummary?.maxValue ?? 1) - (variableSummary?.minValue ?? 0))
+        (value - (indicatorSummary?.minValue ?? 0)) /
+        ((indicatorSummary?.maxValue ?? 1) - (indicatorSummary?.minValue ?? 0))
 
       return interpolateYlOrRd(normalizedValue)
     }
@@ -257,8 +257,8 @@ const GeometriesMapViewer = ({
 
     return paint
   }, [
-    variable,
-    productRun?.outputSummary?.variables,
+    indicator,
+    productRun?.outputSummary?.indicators,
     productOutputs,
     geometryOutputsToZoomTo?.data,
     zoomToGeometryOutputIds,

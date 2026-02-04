@@ -18,10 +18,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/apiClient'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { getSearchParams } from '~/utils/browser'
+import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
+import { useApiClient } from '../../../hooks/useApiClient'
+import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import {
   PRODUCTS_BASE_PATH,
   PRODUCTS_RUNS_BASE_PATH,
@@ -43,6 +43,8 @@ import {
   useGeometries,
   useGeometriesRun,
 } from '../geometries/_hooks'
+import { IndicatorButton } from '../indicator/_components/indicator-button'
+import { useDerivedIndicator, useIndicator } from '../indicator/_hooks'
 
 export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -107,6 +109,19 @@ export type CreateProductRunOutputPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product-output']['$post']>['json']
 >
 
+export type AssignDerivedIndicatorPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['product-run'][':id']['derived-indicators']['$post']
+  >['json']
+>
+
+export type ProductRunAssignedDerivedIndicator = NonNullable<
+  InferResponseType<
+    Client['api']['v0']['product-run'][':id']['derived-indicators']['$get'],
+    200
+  >['data']
+>[number]
+
 export type ImportProductOutputsPayload = z.infer<
   typeof importProductOutputsSchema
 >
@@ -117,14 +132,14 @@ const productParamsSchema = z.object({
   productOutputId: z.string().optional(),
 })
 
-const productQueryKeys = {
+export const productQueryKeys = {
   all: ['product'] as const,
   list: (query: z.infer<typeof productQuerySchema> | undefined) =>
     [...productQueryKeys.all, 'list', { query }] as const,
   detail: (productId: string | undefined) =>
     [...productQueryKeys.all, 'detail', productId] as const,
 }
-const productRunQueryKeys = {
+export const productRunQueryKeys = {
   all: ['productRun'] as const,
   scopeByProduct: (productId: string | undefined) =>
     [...productRunQueryKeys.all, productId] as const,
@@ -141,6 +156,8 @@ const productRunQueryKeys = {
   // This means we need to invalidate the productRun.all query key when we create/delete a new product run
   detail: (productRunId: string | undefined) =>
     [...productRunQueryKeys.all, 'detail', productRunId] as const,
+  derivedIndicators: (productRunId: string | undefined) =>
+    [...productRunQueryKeys.all, 'derivedIndicators', productRunId] as const,
 }
 const productOutputQueryKeys = {
   all: ['productOutput'] as const,
@@ -353,6 +370,13 @@ export const useProductOutputs = (
     useSearchParams,
   )
 
+  const { data: filteredMeasuredIndicator } = useIndicator(query?.indicatorId)
+  const { data: filteredDerivedIndicator } = useDerivedIndicator(
+    query?.indicatorId,
+  )
+  const filteredIndicator =
+    filteredMeasuredIndicator ?? filteredDerivedIndicator
+
   const queryResult = useInfiniteQuery<ProductOutputListResponse>({
     queryKey: productOutputQueryKeys.list(
       productRun?.product?.id,
@@ -395,7 +419,14 @@ export const useProductOutputs = (
     ...queryResult,
     data: aggregatedData,
     query,
-
+    filters: [
+      filteredIndicator && (
+        <IndicatorButton
+          indicator={filteredIndicator}
+          key={filteredIndicator.id}
+        />
+      ),
+    ].filter((d) => !!d) as React.ReactNode[],
     setSearchParams,
   }
 }
@@ -502,6 +533,33 @@ export const useProductRun = (
     },
 
     enabled: enabled ?? !!productRunId,
+  })
+}
+
+export const useProductRunDerivedIndicators = (
+  _productRunId?: string,
+  enabled: boolean = true,
+) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const client = useApiClient()
+  return useQuery({
+    queryKey: productRunQueryKeys.derivedIndicators(productRunId),
+    queryFn: async () => {
+      if (!productRunId) return null
+      const res = client.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$get({
+        param: {
+          id: productRunId,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+
+      return json.data
+    },
+
+    enabled: enabled && !!productRunId,
   })
 }
 
@@ -627,14 +685,14 @@ export const useImportProductOutputs = () => {
       const res = client.api.v0['product-output'].import.$post({
         form: {
           ...payload,
-          variableMappings: JSON.stringify(payload.variableMappings),
+          indicatorMappings: JSON.stringify(payload.indicatorMappings),
         },
       })
       return await unwrapResponse(res, 201)
     },
-    onSuccess: (response, variables) => {
+    onSuccess: (response, indicators) => {
       const productRunId =
-        response?.data?.productRunId ?? variables.productRunId
+        response?.data?.productRunId ?? indicators.productRunId
       const productId = response?.data?.productId
 
       queryClient.invalidateQueries({
@@ -791,6 +849,117 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
   })
 }
 
+export const useComputeDerivedIndicatorsForProductRun = (
+  run?: ProductRunLinkParams | null,
+) => {
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async () => {
+      if (!run) return
+      const res = client.api.v0['product-run'][':id'][
+        'compute-derived-indicators'
+      ].$post({
+        param: { id: run.id },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: productOutputQueryKeys.scopeByProductRun(
+          response?.data?.productRun.product?.id,
+          response?.data?.productRun.id,
+        ),
+      })
+    },
+  })
+}
+
+export const useAssignDerivedIndicatorToProductRun = (
+  _productRunId?: string,
+) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: AssignDerivedIndicatorPayload) => {
+      if (!productRunId) return
+      const res = client.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$post({
+        param: { id: productRunId },
+        json: payload,
+      })
+      return await unwrapResponse(res, 201)
+    },
+    onSuccess: (response) => {
+      const resolvedProductRunId = response?.data?.id ?? productRunId
+      const resolvedProductId = response?.data?.product?.id
+
+      if (resolvedProductRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(resolvedProductRunId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.derivedIndicators(resolvedProductRunId),
+        })
+      }
+      if (resolvedProductId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(resolvedProductId),
+        })
+      }
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useDeleteAssignedDerivedIndicator = (_productRunId?: string) => {
+  const { productRunId } = useProductParams(undefined, _productRunId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (assignedDerivedIndicatorId: string) => {
+      if (!productRunId) return
+      const res = client.api.v0['product-run'][':id']['derived-indicators'][
+        ':assignedDerivedIndicatorId'
+      ].$delete({
+        param: { id: productRunId, assignedDerivedIndicatorId },
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: (response) => {
+      const resolvedProductRunId = response?.data?.id ?? productRunId
+      const resolvedProductId = response?.data?.product?.id
+
+      if (resolvedProductRunId) {
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.detail(resolvedProductRunId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: productRunQueryKeys.derivedIndicators(resolvedProductRunId),
+        })
+      }
+      if (resolvedProductId) {
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.detail(resolvedProductId),
+        })
+      }
+      queryClient.invalidateQueries({
+        queryKey: productRunQueryKeys.all,
+      })
+    },
+  })
+}
+
 export const useDeleteProduct = (
   _productId?: string,
   redirect: string | null = null,
@@ -921,8 +1090,11 @@ export const useProductRunLink = () =>
 
 export const useProductRunOutputsLink = () =>
   useCallback(
-    (productRun: ProductRunLinkParams) =>
-      `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}/outputs`,
+    (
+      productRun: ProductRunLinkParams,
+      query?: z.infer<typeof productOutputQuerySchema>,
+    ) =>
+      `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}/outputs?${getSearchParams(query ?? {})}`,
     [],
   )
 

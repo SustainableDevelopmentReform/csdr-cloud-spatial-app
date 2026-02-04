@@ -46,8 +46,8 @@ import {
 import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { ImportProductOutputsPayload, useImportProductOutputs } from '../_hooks'
-import type { VariableListItem } from '../../variable/_hooks'
-import { VariablesSelect } from '../../variable/_components/variables-select'
+import type { IndicatorListItem } from '../../indicator/_hooks'
+import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 type CsvSummary = {
   columns: string[]
   rowCount: number
@@ -88,15 +88,15 @@ const normalizeValue = (value: unknown) => {
   return String(value).trim()
 }
 
-// Note we need to override the variableMappings schema (as the server-side schema is a union of the string - to handle JSON parsing - and the array)
+// Note we need to override the indicatorMappings schema (as the server-side schema is a union of the string - to handle JSON parsing - and the array)
 const importProductOutputsFormSchema = importProductOutputsSchema.extend({
-  variableMappings: importProductOutputColumnMappingSchema,
+  indicatorMappings: importProductOutputColumnMappingSchema,
 })
 
 type ImportProductOutputsFormValues = z.infer<
   typeof importProductOutputsFormSchema
 >
-type ColumnMapping = ImportProductOutputsFormValues['variableMappings'][number]
+type ColumnMapping = ImportProductOutputsFormValues['indicatorMappings'][number]
 
 const ProductOutputsImportForm = ({
   productRunId,
@@ -111,7 +111,7 @@ const ProductOutputsImportForm = ({
     () => ({
       productRunId: productRunId ?? '',
       geometryColumn: '',
-      variableMappings: [],
+      indicatorMappings: [],
     }),
     [productRunId],
   )
@@ -122,10 +122,10 @@ const ProductOutputsImportForm = ({
   })
   const { append, remove, update, replace } = useFieldArray<
     ImportProductOutputsFormValues,
-    'variableMappings'
+    'indicatorMappings'
   >({
     control: form.control,
-    name: 'variableMappings',
+    name: 'indicatorMappings',
   })
 
   useEffect(() => {
@@ -143,7 +143,7 @@ const ProductOutputsImportForm = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const geometryColumn = form.watch('geometryColumn')
-  const variableMappings = form.watch('variableMappings')
+  const indicatorMappings = form.watch('indicatorMappings')
 
   const resetCsvState = useCallback(() => {
     setCsvSummary(null)
@@ -261,16 +261,16 @@ const ProductOutputsImportForm = ({
     [processFile],
   )
 
-  const handleVariableSelect = useCallback(
-    (column: string, variable: VariableListItem | null) => {
-      const currentMappings = form.getValues('variableMappings')
+  const handleIndicatorSelect = useCallback(
+    (column: string, indicator: IndicatorListItem | null) => {
+      const currentMappings = form.getValues('indicatorMappings')
       const index = currentMappings.findIndex((m) => m.column === column)
 
-      if (variable) {
+      if (indicator) {
         const existingMapping = index >= 0 ? currentMappings[index] : undefined
         const nextMapping: ColumnMapping = {
           column,
-          variableId: variable.id,
+          indicatorId: indicator.id,
           timePoint: existingMapping?.timePoint ?? new Date().toISOString(),
         }
 
@@ -289,7 +289,7 @@ const ProductOutputsImportForm = ({
   const handleTimePointChange = useCallback(
     (column: string, date: Date | null) => {
       if (!date) return
-      const currentMappings = form.getValues('variableMappings')
+      const currentMappings = form.getValues('indicatorMappings')
       const index = currentMappings.findIndex((m) => m.column === column)
       if (index === -1) return
       const mapping = currentMappings[index]
@@ -304,7 +304,7 @@ const ProductOutputsImportForm = ({
 
   useEffect(() => {
     if (!geometryColumn) return
-    const currentMappings = form.getValues('variableMappings')
+    const currentMappings = form.getValues('indicatorMappings')
     const index = currentMappings.findIndex((m) => m.column === geometryColumn)
     if (index >= 0) {
       remove(index)
@@ -329,7 +329,7 @@ const ProductOutputsImportForm = ({
       }
     }
 
-    variableMappings.forEach((mapping) => {
+    indicatorMappings.forEach((mapping) => {
       const invalidValues = rows.filter((row) => {
         const raw = row[mapping.column]
         if (!raw || !raw.length) {
@@ -347,7 +347,7 @@ const ProductOutputsImportForm = ({
     })
 
     return nextWarnings
-  }, [geometryColumn, rows, variableMappings])
+  }, [geometryColumn, rows, indicatorMappings])
 
   const onSubmit = form.handleSubmit((values) => {
     if (!values.csvFile || !csvSummary) {
@@ -394,15 +394,15 @@ const ProductOutputsImportForm = ({
     })
   })
 
-  const variableMappingsError =
+  const indicatorMappingsError =
     (
-      form.formState.errors.variableMappings as {
+      form.formState.errors.indicatorMappings as {
         message?: string
         root?: { message?: string }
       }
     )?.message ??
     (
-      form.formState.errors.variableMappings as {
+      form.formState.errors.indicatorMappings as {
         message?: string
         root?: { message?: string }
       }
@@ -443,7 +443,7 @@ const ProductOutputsImportForm = ({
                     </p>
                     <p>
                       Include one row per geometry with columns for each
-                      variable.
+                      indicator.
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -549,12 +549,12 @@ const ProductOutputsImportForm = ({
             <div className="flex items-center justify-between">
               <FormLabel>Column mappings</FormLabel>
               <span className="text-sm text-muted-foreground">
-                Map columns to variables to create product outputs.
+                Map columns to indicators to create product outputs.
               </span>
             </div>
             <div className="grid gap-3">
               {csvSummary.columns.map((column) => {
-                const variableMapping = variableMappings.find(
+                const indicatorMapping = indicatorMappings.find(
                   (mapping) => mapping.column === column,
                 )
 
@@ -577,31 +577,31 @@ const ProductOutputsImportForm = ({
                             .join(', ')
                         : '—'}
                     </div>
-                    <VariablesSelect
-                      value={variableMapping?.variableId ?? null}
+                    <IndicatorsSelect
+                      value={indicatorMapping?.indicatorId ?? null}
                       onChange={(option) =>
-                        handleVariableSelect(column, option ?? null)
+                        handleIndicatorSelect(column, option ?? null)
                       }
                       isDisabled={column === geometryColumn || isImporting}
                       isClearable
                       placeholder={
                         column === geometryColumn
                           ? 'Geometry column selected above'
-                          : 'Map to a variable (optional)'
+                          : 'Map to a indicator (optional)'
                       }
                       creatable
                     />
 
                     <div
                       className={cn({
-                        'opacity-50 pointer-events-none': !variableMapping,
+                        'opacity-50 pointer-events-none': !indicatorMapping,
                       })}
                     >
                       <CalendarSelect
                         label="Time Point"
                         value={
-                          variableMapping?.timePoint
-                            ? new Date(variableMapping.timePoint)
+                          indicatorMapping?.timePoint
+                            ? new Date(indicatorMapping.timePoint)
                             : undefined
                         }
                         onChange={(event) => {
@@ -615,9 +615,9 @@ const ProductOutputsImportForm = ({
                 )
               })}
             </div>
-            {variableMappingsError ? (
+            {indicatorMappingsError ? (
               <p className="text-sm text-destructive">
-                {variableMappingsError}
+                {indicatorMappingsError}
               </p>
             ) : null}
           </div>
@@ -678,7 +678,7 @@ const ProductOutputsImportForm = ({
               isImporting ||
               !selectedFile ||
               !geometryColumn ||
-              !variableMappings.length
+              !indicatorMappings.length
             }
           >
             {isImporting ? 'Importing...' : 'Import CSV'}
