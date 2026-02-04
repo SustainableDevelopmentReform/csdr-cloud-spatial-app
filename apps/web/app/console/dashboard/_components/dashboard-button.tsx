@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { DashboardLinkParams, useDashboardLink } from '../_hooks'
 
@@ -26,7 +25,6 @@ export const DashboardButton = ({
   return (
     <BadgeLink href={dashboardLink(dashboard)} variant="outline">
       {dashboard.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }

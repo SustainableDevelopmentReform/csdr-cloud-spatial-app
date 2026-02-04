@@ -65,7 +65,7 @@ export const ExpressionFieldDescription = ({
   const selectedIndicatorIds =
     indicatorIds ?? indicators.map((indicator) => indicator.id)
   return (
-    <FormDescription>
+    <div className="text-sm text-muted-foreground">
       See{' '}
       <a
         href="https://mathjs.org/docs/expressions/syntax.html"
@@ -94,7 +94,7 @@ export const ExpressionFieldDescription = ({
           </div>
         </>
       )}
-    </FormDescription>
+    </div>
   )
 }
 

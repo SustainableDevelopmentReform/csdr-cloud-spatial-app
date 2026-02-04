@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createProductRunSchema } from '@repo/schemas/crud'
 import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
@@ -71,7 +70,6 @@ const ProductRunFeature = () => {
               variant="outline"
             >
               {row.original.outputSummary?.outputCount}
-              <ArrowUpRightIcon className="size-4" />
             </BadgeLink>
           )
         },

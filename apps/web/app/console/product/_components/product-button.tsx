@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { ProductLinkParams, useProductLink } from '../_hooks'
 
@@ -22,7 +21,6 @@ export const ProductButton = ({ product }: { product: ProductLinkParams }) => {
   return (
     <BadgeLink href={productLink(product)} variant="product">
       {product.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }

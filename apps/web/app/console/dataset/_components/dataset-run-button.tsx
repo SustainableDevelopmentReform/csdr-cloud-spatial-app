@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
 import { DatasetRunLinkParams, useDatasetRunLink } from '../_hooks'
@@ -26,11 +25,10 @@ export const DatasetRunButton = ({
 
   return (
     <BadgeLink href={datasetRunLink(datasetRun)} variant="datasetRun">
-      {datasetRun.name}
       {datasetRun.dataset.mainRunId === datasetRun.id && (
         <MainRunBadge size="xs" variant="dataset" />
       )}
-      <ArrowUpRightIcon className="size-4" />
+      {datasetRun.name}
     </BadgeLink>
   )
 }

@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon, AudioLinesIcon, CalculatorIcon } from 'lucide-react'
+import { AudioLinesIcon } from 'lucide-react'
 import { BadgeLink } from '../../../../components/badge-link'
 import { IndicatorLinkParams, useIndicatorLink } from '../_hooks'
 
@@ -26,7 +26,6 @@ export const IndicatorButton = ({
     <BadgeLink href={indicatorLink(indicator)} variant="indicator">
       {indicator.type === 'derived' && <AudioLinesIcon className="size-4" />}
       {indicator.name}
-      <ArrowUpRightIcon className="size-4" />
     </BadgeLink>
   )
 }
