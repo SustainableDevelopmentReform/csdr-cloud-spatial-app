@@ -29,7 +29,7 @@ export const ProductOutputButton = ({
     <BadgeLink
       href={productOutputLink(productOutput)}
       variant="outline"
-      className="border-productRun"
+      className="border-product"
     >
       {productOutput.name}
     </BadgeLink>

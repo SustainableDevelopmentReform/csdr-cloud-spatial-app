@@ -1130,15 +1130,9 @@ const app = createOpenAPIApp()
       await fetchFullProductRunOrThrow(id)
 
       const warnings: { message: string; description?: string }[] = []
-      const pendingOutputs: {
-        productRunId: string
-        geometryOutputId: string | null
-        derivedIndicatorId: string
-        value: number
-        timePoint: Date
-        name?: string
-        dependencyOutputIds: string[]
-      }[] = []
+      const pendingOutputPayloads: (typeof productOutput.$inferInsert)[] = []
+      const pendingDependencyRows: (typeof productOutputDependency.$inferInsert)[] =
+        []
 
       // Fetch assigned derived indicators separately
       const assignedDerivedIndicatorsRaw =
@@ -1370,40 +1364,45 @@ const app = createOpenAPIApp()
             continue
           }
 
-          pendingOutputs.push({
-            productRunId: id,
-            geometryOutputId: group.geometryOutputId,
-            derivedIndicatorId,
-            value: computedValue,
-            timePoint: group.timePoint,
-            dependencyOutputIds: group.dependencyOutputIds,
-          })
+          const outputId = crypto.randomUUID()
+          pendingOutputPayloads.push(
+            createPayload({
+              id: outputId,
+              productRunId: id,
+              geometryOutputId: group.geometryOutputId,
+              derivedIndicatorId,
+              value: computedValue,
+              timePoint: group.timePoint,
+            }),
+          )
+          for (const dependencyProductOutputId of group.dependencyOutputIds) {
+            pendingDependencyRows.push({
+              derivedProductOutputId: outputId,
+              dependencyProductOutputId,
+            })
+          }
         }
       }
 
       let insertedCount = 0
-      for (const output of pendingOutputs) {
-        const { dependencyOutputIds, ...outputData } = output
-        const [inserted] = await db
-          .insert(productOutput)
-          .values(createPayload(outputData))
-          .onConflictDoNothing()
-          .returning({ id: productOutput.id })
-        if (inserted?.id) {
-          insertedCount++
-          // Insert dependency links
-          if (dependencyOutputIds.length > 0) {
-            await db
+
+      if (pendingOutputPayloads.length > 0) {
+        await db.transaction(async (tx) => {
+          const insertedOutputs = await tx
+            .insert(productOutput)
+            .values(pendingOutputPayloads)
+            .onConflictDoNothing()
+            .returning({ id: productOutput.id })
+
+          insertedCount = insertedOutputs.length
+
+          if (pendingDependencyRows.length > 0) {
+            await tx
               .insert(productOutputDependency)
-              .values(
-                dependencyOutputIds.map((dependencyProductOutputId) => ({
-                  derivedProductOutputId: inserted.id,
-                  dependencyProductOutputId,
-                })),
-              )
+              .values(pendingDependencyRows)
               .onConflictDoNothing()
           }
-        }
+        })
       }
 
       const record = await fetchFullProductRunOrThrow(id)

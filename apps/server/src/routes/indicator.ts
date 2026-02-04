@@ -348,7 +348,7 @@ const app = createOpenAPIApp()
     createRoute({
       description: 'Retrieve a derived indicator.',
       method: 'get',
-      path: 'derived/:id',
+      path: '/derived/:id',
       middleware: [authMiddleware({ permission: 'read:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -435,7 +435,7 @@ const app = createOpenAPIApp()
     createRoute({
       description: 'Create a derived indicator.',
       method: 'post',
-      path: 'derived',
+      path: '/derived',
       middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         body: {
@@ -570,7 +570,7 @@ const app = createOpenAPIApp()
     createRoute({
       description: 'Update a derived indicator.',
       method: 'patch',
-      path: 'derived/:id',
+      path: '/derived/:id',
       middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -613,10 +613,6 @@ const app = createOpenAPIApp()
         .set(updatePayload(data))
         .where(eq(derivedIndicator.id, id))
         .returning()
-
-      await db
-        .delete(derivedIndicatorToIndicator)
-        .where(eq(derivedIndicatorToIndicator.derivedIndicatorId, id))
 
       if (!record) {
         throw derivedIndicatorNotFoundError()
@@ -671,7 +667,7 @@ const app = createOpenAPIApp()
     createRoute({
       description: 'Delete a derived indicator.',
       method: 'delete',
-      path: 'derived/:id',
+      path: '/derived/:id',
       middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
