@@ -44,6 +44,7 @@ import {
   useGeometriesRun,
 } from '../geometries/_hooks'
 import { IndicatorButton } from '../indicator/_components/indicator-button'
+import { useDerivedIndicator, useIndicator } from '../indicator/_hooks'
 
 export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -369,6 +370,13 @@ export const useProductOutputs = (
     useSearchParams,
   )
 
+  const { data: filteredMeasuredIndicator } = useIndicator(query?.indicatorId)
+  const { data: filteredDerivedIndicator } = useDerivedIndicator(
+    query?.indicatorId,
+  )
+  const filteredIndicator =
+    filteredMeasuredIndicator ?? filteredDerivedIndicator
+
   const queryResult = useInfiniteQuery<ProductOutputListResponse>({
     queryKey: productOutputQueryKeys.list(
       productRun?.product?.id,
@@ -407,21 +415,15 @@ export const useProductOutputs = (
     [queryResult.data],
   )
 
-  const filteredIndicator = query?.indicatorId
-    ? productRun?.outputSummary?.indicators?.find(
-        (indicator) => indicator.indicator?.id === query?.indicatorId,
-      )
-    : null
-
   return {
     ...queryResult,
     data: aggregatedData,
     query,
     filters: [
-      filteredIndicator?.indicator && (
+      filteredIndicator && (
         <IndicatorButton
-          indicator={filteredIndicator.indicator}
-          key={filteredIndicator.indicator.id}
+          indicator={filteredIndicator}
+          key={filteredIndicator.id}
         />
       ),
     ].filter((d) => !!d) as React.ReactNode[],
