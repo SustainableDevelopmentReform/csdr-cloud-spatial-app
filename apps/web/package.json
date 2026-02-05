@@ -20,6 +20,7 @@
     "@geoarrow/deck.gl-layers": "^0.3.1",
     "@hookform/resolvers": "catalog:",
     "@icons-pack/react-simple-icons": "catalog:",
+    "@loaders.gl/pmtiles": "^4.3.4",
     "@repo/plot": "workspace:*",
     "@repo/schemas": "workspace:*",
     "@repo/server": "workspace:*",
