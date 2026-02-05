@@ -1,12 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import {
-  Map,
-  MapRef,
-  Source,
-  Layer,
-  LineLayerSpecification,
-  FillLayerSpecification,
-} from '@vis.gl/react-maplibre' // Use Source for PMTiles, like geometries-map-viewer.tsx
+import { Map, MapRef } from '@vis.gl/react-maplibre'
 import DeckGL from '@deck.gl/react'
 import {
   MapViewState,
@@ -27,6 +20,8 @@ import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
 import { DatasetRunListItem } from '../_hooks'
 import { MapViewer } from '../../geometries/_components/map-viewer' // TODO: If this is generalised for datasets, move it out of geometries folder.
+import { TileSourceLayer } from '@deck.gl-community/geo-layers'
+import { PMTilesSource } from '@loaders.gl/pmtiles'
 
 type colorArray = [number, number, number, number]
 const fillColor: colorArray = [0, 0, 0, 0] // Transparent.
@@ -89,7 +84,7 @@ export const DatasetRunMap = ({
   // Just for developing:
   let datasetRunPMTilesUrl =
     's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
-  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
 
   // Test files:
   // Must use the "_native" version where the geometry column is GeoArrow:
@@ -110,12 +105,12 @@ export const DatasetRunMap = ({
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
   const ace_written_by_pipeline_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
-  dataUrl = ace_written_by_pipeline_s3 as Exclude<
-    DatasetRunListItem['dataUrl'],
-    null
-  >
+  // dataUrl = gmw_v4_written_by_pipeline_s3 as Exclude<
+  //   DatasetRunListItem['dataUrl'],
+  //   null
+  // >
   // Just for dev. Dataurl will come from props.
-  dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
+  // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
 
   // Reef. 500MB - breaks browser.
   // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
@@ -179,7 +174,6 @@ export const DatasetRunMap = ({
       const p = new PMTiles(pmtilesUrl)
       return p.getHeader()
     },
-    // enabled: !!datasetRunPMTilesUrl, // TODO: Use the datasetRunPMTilesUrl prop instead
     enabled: dataType === 'geoparquet' && !!datasetRunPMTilesUrl,
   })
 
@@ -266,12 +260,8 @@ export const DatasetRunMap = ({
     cogBounds,
     isLoadingPmtilesHeader,
     isLoadingParquetArrowTable,
-    // isLoadingGeometryOutputsToZoomTo,
-    // isLoadingGeometriesRun,
-    // geometryOutputsToZoomTo,
     pmtilesHeader,
     parquetArrowTable,
-    // geometriesRun,
   ])
 
   // TODO: Refactor this useEffect because we want to avoid useEffects.
@@ -279,6 +269,7 @@ export const DatasetRunMap = ({
     // Compute DeckGL viewState from mapBounds
     if (mapBounds) {
       const viewport = new WebMercatorViewport({
+        // TODO: Make these dynamic based on the actual size of the map container. For now we just hardcode them to match the size of the Map component in the JSX below.
         width: 800, // match your container width
         height: 384, // match your container height (h-96 = 24*16)
       })
@@ -306,6 +297,7 @@ export const DatasetRunMap = ({
   // TODO: Can we just use handleSetSelectedFeature directly as the onClick handler? Do we need to do anything special to handle multiple layers or different feature schemas?
   const onFeatureClick = useCallback(
     (info: PickingInfo, event: any) => {
+      console.log('onFeatureClick called with info:', info)
       if (!info.object) {
         handleSetSelectedFeature(null)
         return
@@ -414,11 +406,20 @@ export const DatasetRunMap = ({
       }
     }
 
-    console.log('Need to render PMTiles', !!pmtilesHeader)
+    // console.log('Need to render PMTiles', !!pmtilesHeader)
     // This PMTileLayer works but it renders the tile boundaries on the map.
-    // const PMTileLayer = new TileSourceLayer({
-    //   tileSource: new PMTilesSource({url: testPMTilesUrl}),
-    // });
+    // TODO: Style the PMTiles layer. Not possible with TileSourceLayer. Can do it with https://github.com/Matico-Platform/deck.gl-pmtiles.
+    layerList.push(
+      new TileSourceLayer({
+        tileSource: PMTilesSource.createDataSource(datasetRunPMTilesUrl, {}),
+        pickable: true,
+        onClick: onFeatureClick,
+        showTileBorders: false, // This is important to avoid showing tile boundaries!
+        // TODO: Style TileSourceLayer color,
+        // getFillColor: fillColor,
+        // getLineColor: outlineColor,
+      }),
+    )
 
     console.log('Selected feature:', selectedFeature)
     // Add COG layer if selectedFeature is set
@@ -503,30 +504,6 @@ export const DatasetRunMap = ({
             style={{ width: '100%', height: '100%' }}
             mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
           />
-          {/* <Source
-            id="dataset-pmtiles-source"
-            type="vector"
-            minzoom={0}
-            maxzoom={22}
-            tiles={[
-              // `${config.apiBaseUrl}/api/v0/geometries-run/${geometriesRun?.id}/outputs/mvt/{z}/{x}/{y}`,
-              datasetRunPMTilesUrl,
-            ]}
-          />
-          <Layer
-            id="dataset-pmtiles-fill"
-            source="dataset-pmtiles-source"
-            source-layer="data"
-            type="fill"
-            paint={fillPaint}
-          />
-          <Layer
-            id="dataset-pmtiles-line"
-            source="dataset-pmtiles-source"
-            source-layer="data"
-            type="line"
-            paint={linePaint}
-          /> */}
         </DeckGL>
         {!parquetArrowTable && !pmtilesHeader && (
           <div className="absolute top-14 left-2 bg-white p-2 rounded shadow">
