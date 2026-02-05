@@ -1,32 +1,124 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Map, MapRef } from '@vis.gl/react-maplibre'
+import { Map } from '@vis.gl/react-maplibre'
 import DeckGL from '@deck.gl/react'
 import {
   MapViewState,
   LayersList,
   PickingInfo,
   WebMercatorViewport,
+  CompositeLayer,
 } from '@deck.gl/core'
+import { TileLayer } from '@deck.gl/geo-layers'
+import { GeoJsonLayer } from '@deck.gl/layers'
 import {
   GeoArrowScatterplotLayer,
   GeoArrowPolygonLayer,
-} from '@geoarrow/deck.gl-layers'
+} from '@geoarrow/deck.gl-layers' // These error when using my custom PMTilesLayer for an unknown reason. Uncaught TypeError: Cannot read properties of undefined (reading 'BLEND_EQUATION_MINMAX')
+import { MVTLoader } from '@loaders.gl/mvt'
+import { load } from '@loaders.gl/core'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
 import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
+// import { PMTLayer } from "@maticoapp/deck.gl-pmtiles"; // 3 years old and only Deck.gl v8 support, not v9.
 import { useQuery } from '@tanstack/react-query'
 
 import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
 import { DatasetRunListItem } from '../_hooks'
 import { MapViewer } from '../../geometries/_components/map-viewer' // TODO: If this is generalised for datasets, move it out of geometries folder.
-import { TileSourceLayer } from '@deck.gl-community/geo-layers'
-import { PMTilesSource } from '@loaders.gl/pmtiles'
+
+// I think this is the way to do it! Use pmtiles package.
+// https://github.com/protomaps/PMTiles/issues/188 // This example is for raster PMTiles so I adapted it to vector.
+import * as pmtiles from 'pmtiles'
 
 type colorArray = [number, number, number, number]
 const fillColor: colorArray = [0, 0, 0, 0] // Transparent.
 // const outlineColor: colorArray = getComputedStyle(document.documentElement).getPropertyValue('--dataset'); // This seems hacky so don't use it.
 const outlineColor: colorArray = [30, 119, 179, 255] // This color is also defined in CSS as --dataset
+const outlineWidth = 2
+const highlightFillColor: colorArray = [0, 255, 255, 128] // Semi-transparent cyan.
+
+// TODO: move PMTilesLayer to a seperate file or package.
+class PMTilesLayer extends CompositeLayer {
+  constructor(props) {
+    super(props)
+    this.pmtiles = new pmtiles.PMTiles(props.data)
+  }
+
+  renderLayers() {
+    return new TileLayer({
+      showTileBorders: false,
+      id: `${this.props.id}-tiles`,
+      getTileData: async (tile) => {
+        const { x, y, z } = tile.index
+
+        try {
+          const response = await this.pmtiles.getZxy(z, x, y)
+
+          if (response && response.data) {
+            // Parse MVT to GeoJSON
+            const geojson = await load(response.data, MVTLoader, {
+              mvt: {
+                coordinates: 'wgs84',
+                tileIndex: { x, y, z },
+                shape: 'geojson',
+              },
+            })
+            // console.log(geojson)
+            // TODO: geojson shows tile edges.
+            return geojson
+          }
+
+          return null
+        } catch (error) {
+          console.error(`Error loading tile ${z}/${x}/${y}:`, error)
+          return null
+        }
+      },
+
+      renderSubLayers: (props) => {
+        return new GeoJsonLayer(props, {
+          data: props.data,
+
+          // Interaction props
+          pickable: this.props.pickable,
+          autoHighlight: this.props.autoHighlight,
+          highlightColor: this.props.highlightColor,
+
+          // Event handlers - pass through from parent
+          onClick: this.props.onClick,
+          onHover: this.props.onHover,
+          onDragStart: this.props.onDragStart,
+          onDrag: this.props.onDrag,
+          onDragEnd: this.props.onDragEnd,
+
+          stroked: true,
+          filled: true,
+          getFillColor: this.props.getFillColor || fillColor,
+          getLineColor: this.props.getLineColor || outlineColor,
+          getLineWidth: this.props.getLineWidth || outlineWidth,
+          lineWidthMinPixels: 1,
+        })
+      },
+
+      minZoom: 0,
+      maxZoom: 14,
+      tileSize: 512,
+    })
+  }
+}
+
+PMTilesLayer.layerName = 'PMTilesLayer'
+PMTilesLayer.defaultProps = {
+  showTileBorders: false, // This doesn't work but does exist on TileSourceLayerProps https://github.com/visgl/loaders.gl/blob/35205e786cbbcf4bd91b74abe210f6c8e378b4cf/examples/website/tiles/components/tile-source-layer.ts#L81
+  data: undefined,
+  getFillColor: fillColor,
+  getLineColor: outlineColor,
+  getLineWidth: outlineWidth,
+  pickable: false,
+  autoHighlight: false, // Highlighting is also not working.
+  highlightColor: highlightFillColor,
+}
 
 async function geoKeysParser(
   geoKeys: Record<string, any>,
@@ -52,7 +144,6 @@ export const DatasetRunMap = ({
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
   // datasetRunPMTilesUrl: Exclude<DatasetRunListItem['dataPmtilesUrl'], null> // TODO: This doesn't exist yet.
 }) => {
-  const mapRef = useRef<MapRef | null>(null)
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
   const handleSetSelectedFeature = useCallback((feature: Feature | null) => {
     setSelectedFeature(feature)
@@ -60,7 +151,6 @@ export const DatasetRunMap = ({
   const [cogBounds, setCogBounds] = useState<
     [number, number, number, number] | null
   >(null)
-
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
@@ -81,23 +171,17 @@ export const DatasetRunMap = ({
     )
   }, [])
 
-  // Just for developing:
-  let datasetRunPMTilesUrl =
-    's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
-  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
-
-  // Test files:
-  // Must use the "_native" version where the geometry column is GeoArrow:
-  // const GEOPARQUET_URL_POINTS =
-  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
-  // const GEOPARQUET_URL_POLYGONS =
-  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
-
-  // For testing STAC-Geoparquet polygons:
+  // For testing STAC-Geoparquet and PMTiles:
+  // 1. STAC-Geoparquet datasets:
   // const stac_parquet_arrow_s3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
   // const stac_parquet_arrow_s3 =
   //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
 
+  // 2. PMTiles datasets:
+  let datasetRunPMTilesUrl =
+    // 's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
+    's3://csdr-public-dev/geometries/cwa/0-0-1/runs/4d3ee1b8-285b-5c78-b62c-bb08f0abe637/CW_1970_1980_Areas.pmtiles'
+  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // These are all being written with arrow by the pipeline now and all work here :)
   const gmw_v4_written_by_pipeline_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
@@ -105,17 +189,20 @@ export const DatasetRunMap = ({
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
   const ace_written_by_pipeline_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
-  // dataUrl = gmw_v4_written_by_pipeline_s3 as Exclude<
-  //   DatasetRunListItem['dataUrl'],
-  //   null
-  // >
+  dataUrl = gmw_v4_written_by_pipeline_s3
   // Just for dev. Dataurl will come from props.
   // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
+  // Other test files:
+  // Must use the "_native" version where the geometry column is GeoArrow:
+  // const GEOPARQUET_URL_POINTS =
+  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
+  // const GEOPARQUET_URL_POLYGONS =
+  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
 
+  // 3. Parquet files that shouldn't be loaded in the browser. We are using PMTiles for these instead.
   // Reef. 500MB - breaks browser.
   // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
   // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
-
   // Buildings. Massive PMTiles file on Source Coop.
   // datasetRunPMTilesUrl =
   //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
@@ -160,6 +247,8 @@ export const DatasetRunMap = ({
 
   datasetRunPMTilesUrl = s3UrlToHttps(datasetRunPMTilesUrl)
 
+  const renderPMTiles = dataType === 'geoparquet' && !!datasetRunPMTilesUrl
+
   const {
     data: pmtilesHeader,
     isLoading: isLoadingPmtilesHeader,
@@ -167,14 +256,12 @@ export const DatasetRunMap = ({
   } = useQuery<PMTilesHeader | null>({
     queryKey: ['pmtiles-header', datasetRunPMTilesUrl],
     queryFn: async () => {
-      let pmtilesUrl = datasetRunPMTilesUrl
+      if (!datasetRunPMTilesUrl) return null
 
-      if (!pmtilesUrl) return null
-
-      const p = new PMTiles(pmtilesUrl)
+      const p = new PMTiles(datasetRunPMTilesUrl)
       return p.getHeader()
     },
-    enabled: dataType === 'geoparquet' && !!datasetRunPMTilesUrl,
+    enabled: renderPMTiles,
   })
 
   const {
@@ -305,6 +392,8 @@ export const DatasetRunMap = ({
         const feature = info.object.toJSON()
         handleSetSelectedFeature(feature)
       }
+
+      // TODO: Handle overlapping features e.g. ACE STAC-Geoparquet has many years with the same geom. Need to allow user to select which they want to view COGs for.
       // console.log('Clicked:', info, event);
       // // const clickedFeatures = deckRef.current.pickMultipleObjects(info.x, info.y, 0, [datasetLayerId])
       // const clickedFeatures = deckRef.current.pickMultipleObjects({
@@ -344,9 +433,9 @@ export const DatasetRunMap = ({
 
   const layers = useMemo<LayersList>(() => {
     const layerList: LayersList = []
+    const datasetLayerId = 'dataset'
 
     if (parquetArrowTable) {
-      const datasetLayerId = 'dataset'
       const geometryVector =
         parquetArrowTable?.getChild('geometry') ||
         parquetArrowTable?.getChild('proj:geometry')
@@ -360,6 +449,8 @@ export const DatasetRunMap = ({
         pickable: true,
         pickMultipleObjects: true,
         onClick: onFeatureClick,
+        autoHighlight: true,
+        highlightColor: highlightFillColor,
       }
       if (geometryVector?.type?.typeId === 13) {
         // Point layer
@@ -374,7 +465,7 @@ export const DatasetRunMap = ({
                 ?.get(d.index)
               const selectedFeatureId = selectedFeature?.['name']
               if (featureId == selectedFeatureId) return 3
-              return 1
+              return outlineWidth
             },
             radiusUnits: 'pixels',
             getRadius: (d: Feature) => {
@@ -397,7 +488,7 @@ export const DatasetRunMap = ({
               const featureId = parquetArrowTable?.getChild('id')?.get(d.index)
               const selectedFeatureId = selectedFeature?.['id']
               if (featureId == selectedFeatureId) return 5
-              return 1
+              return outlineWidth
             },
           }),
         )
@@ -406,20 +497,29 @@ export const DatasetRunMap = ({
       }
     }
 
-    // console.log('Need to render PMTiles', !!pmtilesHeader)
-    // This PMTileLayer works but it renders the tile boundaries on the map.
-    // TODO: Style the PMTiles layer. Not possible with TileSourceLayer. Can do it with https://github.com/Matico-Platform/deck.gl-pmtiles.
-    layerList.push(
-      new TileSourceLayer({
-        tileSource: PMTilesSource.createDataSource(datasetRunPMTilesUrl, {}),
+    if (renderPMTiles) {
+      const PMT = new PMTilesLayer({
+        id: datasetLayerId,
+        data: datasetRunPMTilesUrl,
+        showTileBorders: false,
         pickable: true,
-        onClick: onFeatureClick,
-        showTileBorders: false, // This is important to avoid showing tile boundaries!
-        // TODO: Style TileSourceLayer color,
-        // getFillColor: fillColor,
-        // getLineColor: outlineColor,
-      }),
-    )
+        autoHighlight: true,
+        highlightColor: highlightFillColor,
+        onClick: (info: any) => {
+          console.log('Clicked feature:', info.object)
+          // onFeatureClick(info.object); // TODO
+        },
+
+        getFillColor: fillColor,
+        getLineColor: outlineColor,
+        getLineWidth: outlineWidth,
+      })
+
+      // console.log('Need to render PMTiles', !!pmtilesHeader)
+      // This PMTileLayer works but it renders the tile boundaries on the map.
+      // TODO: Style the PMTiles layer. Not possible with TileSourceLayer. Can do it with https://github.com/Matico-Platform/deck.gl-pmtiles.
+      layerList.push(PMT)
+    }
 
     console.log('Selected feature:', selectedFeature)
     // Add COG layer if selectedFeature is set
@@ -442,7 +542,13 @@ export const DatasetRunMap = ({
     }
 
     return layerList
-  }, [parquetArrowTable, pmtilesHeader, selectedFeature, onFeatureClick])
+  }, [
+    parquetArrowTable,
+    selectedFeature,
+    onFeatureClick,
+    renderPMTiles,
+    datasetRunPMTilesUrl,
+  ])
 
   if (pmtilesHeaderError || parquetArrowTableError) {
     return (
@@ -457,26 +563,6 @@ export const DatasetRunMap = ({
     )
   }
 
-  // // For styling the PMTiles layers.
-  // const { linePaint, fillPaint } = useMemo(
-  //   () => {
-  //     if (!selectedFeature) return XYZ
-  //     return {
-  //       linePaint: {
-  //         'line-color': 'black',
-  //         'line-width': 2,
-  //       },
-  //       fillPaint: {
-  //         'fill-color': 'black',
-  //         'fill-opacity': 0.2,
-  //       },
-  //     }
-  //   },
-  //   [
-  //     selectedFeature,
-  //   ],
-  // )
-
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="rounded-lg overflow-hidden h-96 relative">
@@ -489,10 +575,7 @@ export const DatasetRunMap = ({
           controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
-          // getTooltip={getTooltip}
-          // getTooltip={onFeatureClick}
-          // onLoad={handleLoad}
-          // onAfterRender={onAfterRender}
+          getTooltip={getTooltip}
           initialViewState={{
             longitude: 0.45,
             latitude: 51.47,
