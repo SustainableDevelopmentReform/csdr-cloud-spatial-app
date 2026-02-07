@@ -5,6 +5,7 @@ import {
   ChartConfiguration,
   MapChartConfiguration,
   PlotChartConfiguration,
+  PlotSubType,
   TableChartConfiguration,
   TableChartDimension,
 } from '@repo/plot/types'
@@ -67,7 +68,15 @@ const multiSeriesSelectionSchema = baseChartSchema.extend({
 const plotSchema = multiSeriesSelectionSchema
   .extend({
     type: z.literal('plot'),
-    subType: z.enum(['line', 'stacked-bar', 'grouped-bar', 'dot']),
+    subType: z.enum([
+      'line',
+      'area',
+      'stacked-area',
+      'stacked-bar',
+      'grouped-bar',
+      'dot',
+      'donut',
+    ] satisfies PlotSubType[]),
   })
   .superRefine((data, context) => {
     const multipleIndicatorsSelected =
@@ -75,22 +84,64 @@ const plotSchema = multiSeriesSelectionSchema
     const multipleGeometryOutputsSelected =
       (data.geometryOutputIds?.length ?? 0) > 1 ||
       !data.geometryOutputIds?.length
+    const multipleTimePointsSelected =
+      (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
 
-    if (multipleIndicatorsSelected && multipleGeometryOutputsSelected) {
-      context.addIssue({
-        code: 'custom',
-        message:
-          'Can only have multiple indicators or multiple geometry outputs - not both',
-        path: ['indicatorIds'],
-        input: data.indicatorIds,
-      })
-      context.addIssue({
-        code: 'custom',
-        message:
-          'Can only have multiple indicators or multiple geometry outputs - not both',
-        path: ['geometryOutputIds'],
-        input: data.geometryOutputIds,
-      })
+    if (data.subType === 'donut') {
+      // Donut charts can only vary ONE dimension — the other two must be
+      // narrowed to a single selection so each slice maps 1:1 to a record.
+      const multipleCount =
+        (multipleIndicatorsSelected ? 1 : 0) +
+        (multipleGeometryOutputsSelected ? 1 : 0) +
+        (multipleTimePointsSelected ? 1 : 0)
+
+      if (multipleCount > 1) {
+        if (multipleIndicatorsSelected) {
+          context.addIssue({
+            code: 'custom',
+            message:
+              'Donut chart can only vary one dimension — select a single indicator',
+            path: ['indicatorIds'],
+            input: data.indicatorIds,
+          })
+        }
+        if (multipleGeometryOutputsSelected) {
+          context.addIssue({
+            code: 'custom',
+            message:
+              'Donut chart can only vary one dimension — select a single geometry',
+            path: ['geometryOutputIds'],
+            input: data.geometryOutputIds,
+          })
+        }
+        if (multipleTimePointsSelected) {
+          context.addIssue({
+            code: 'custom',
+            message:
+              'Donut chart can only vary one dimension — select a single time point',
+            path: ['timePoints'],
+            input: data.timePoints,
+          })
+        }
+      }
+    } else {
+      // Non-donut plot types: can't have both indicators and geometry multiple
+      if (multipleIndicatorsSelected && multipleGeometryOutputsSelected) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Can only have multiple indicators or multiple geometry outputs - not both',
+          path: ['indicatorIds'],
+          input: data.indicatorIds,
+        })
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Can only have multiple indicators or multiple geometry outputs - not both',
+          path: ['geometryOutputIds'],
+          input: data.geometryOutputIds,
+        })
+      }
     }
   }) satisfies z.ZodType<PlotChartConfiguration>
 
@@ -350,9 +401,14 @@ export const ChartFormDialog = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="line">Line</SelectItem>
+                        <SelectItem value="area">Area</SelectItem>
+                        <SelectItem value="stacked-area">
+                          Stacked Area
+                        </SelectItem>
                         <SelectItem value="stacked-bar">Stacked Bar</SelectItem>
                         <SelectItem value="grouped-bar">Grouped Bar</SelectItem>
-                        <SelectItem value="dot">Dot</SelectItem>
+                        <SelectItem value="dot">Scatter</SelectItem>
+                        <SelectItem value="donut">Donut</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>

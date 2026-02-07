@@ -1,6 +1,6 @@
 'use client'
 
-import { getPlotCodeSnippet, Plot } from '@repo/plot/Plot'
+import { getPlotCodeSnippet } from '@repo/plot/Plot'
 import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import {
   ChartConfiguration,
@@ -10,6 +10,7 @@ import {
   TableChartConfiguration,
 } from '@repo/plot/types'
 import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
+import { PlotChart } from '@repo/ui/components/ui/plot-chart'
 import { cn } from '@repo/ui/lib/utils'
 import { useMemo } from 'react'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
@@ -33,6 +34,7 @@ const UnsupportedChart = ({ type }: { type: string }) => (
     supported yet.
   </div>
 )
+
 const PlotContainer = ({
   chart,
   config,
@@ -52,7 +54,7 @@ const PlotContainer = ({
 
   const multipleGeometryOutputs = useMemo(() => {
     let firstGeometryOutputId: string | undefined
-    return productOutputs?.data?.some((output) => {
+    return productOutputs?.data?.some((output: ProductOutputExportListItem) => {
       if (!firstGeometryOutputId) {
         firstGeometryOutputId = output.geometryOutputId
       }
@@ -61,14 +63,15 @@ const PlotContainer = ({
   }, [productOutputs?.data])
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <div
         className={cn(
+          'flex-1 min-h-0',
           config?.showSelectedPointDetails &&
             'grid grid-cols-2 grid-rows-1 gap-4',
         )}
       >
-        <Plot
+        <PlotChart
           data={productOutputs?.data ?? []}
           x={'timePoint'}
           y={'value'}
@@ -210,7 +213,7 @@ const ChartDiscriminator = ({
       )
     }
     default:
-      return <UnsupportedChart type={(chart as any).type} />
+      return <UnsupportedChart type={(chart as { type: string }).type} />
   }
 }
 
@@ -230,13 +233,22 @@ export const ChartRenderer = ({
   }
 
   return (
-    <div className={cn('flex flex-col gap-1 h-full relative')}>
-      {config?.showTitleAndDescription && chart.title && (
-        <h3 className="text-lg font-semibold m-0">{chart.title}</h3>
-      )}
-      {config?.showTitleAndDescription && chart.description && (
-        <p className="text-sm text-muted-foreground">{chart.description}</p>
-      )}
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2 relative p-3')}>
+      {config?.showTitleAndDescription &&
+        (chart.title || chart.description) && (
+          <div className="flex flex-col items-center gap-0.5 pb-1">
+            {chart.title && (
+              <h3 className="text-base font-semibold leading-tight m-0 text-center">
+                {chart.title}
+              </h3>
+            )}
+            {chart.description && (
+              <p className="text-xs text-muted-foreground text-center m-0">
+                {chart.description}
+              </p>
+            )}
+          </div>
+        )}
       <ChartDiscriminator
         chart={chart}
         config={config}
