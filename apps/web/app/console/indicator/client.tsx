@@ -8,7 +8,6 @@ import {
 import { Badge } from '@repo/ui/components/ui/badge'
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -17,13 +16,13 @@ import {
 import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { ColumnDef } from '@tanstack/react-table'
-import { StatusMessage } from '../../../components/status-message'
 import { parse } from 'mathjs'
 import { useMemo } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
+import { StatusMessage } from '../../../components/status-message'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
 import { IndicatorButton } from './_components/indicator-button'
@@ -33,7 +32,7 @@ import { IndicatorsSelect } from './_components/indicators-select'
 import {
   IndicatorListItem,
   useCreateDerivedIndicator,
-  useCreateIndicator,
+  useCreateMeasuredIndicator,
   useIndicatorLink,
   useIndicators,
 } from './_hooks'
@@ -152,7 +151,7 @@ const IndicatorFeature = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useIndicators(undefined, true)
-  const createIndicator = useCreateIndicator()
+  const createIndicator = useCreateMeasuredIndicator()
   const createDerivedIndicator = useCreateDerivedIndicator()
   const indicatorLink = useIndicatorLink()
 

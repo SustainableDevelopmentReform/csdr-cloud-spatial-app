@@ -14,12 +14,12 @@ import { cn } from '@repo/ui/lib/utils'
 import { useMemo } from 'react'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { useGeometriesRun } from '../../geometries/_hooks'
+import { useIndicator } from '../../indicator/_hooks'
 import {
   ProductOutputExportListItem,
   useProductOutputsExport,
   useProductRun,
 } from '../../product/_hooks'
-import { useDerivedIndicator, useIndicator } from '../../indicator/_hooks'
 
 const ChartPlaceholder = () => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
@@ -108,11 +108,7 @@ const MapContainer = ({
     productRun?.geometriesRun?.id,
   )
 
-  // TODO: discriminate between measured and derived indicators
-  const { data: measuredIndicator } = useIndicator(chart.indicatorId)
-  const { data: derivedIndicator } = useDerivedIndicator(chart.indicatorId)
-
-  const indicator = measuredIndicator ?? derivedIndicator
+  const { data: indicator } = useIndicator(chart.indicatorId)
 
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     indicatorId: chart.indicatorId,

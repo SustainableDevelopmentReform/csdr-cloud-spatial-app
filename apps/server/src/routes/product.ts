@@ -8,7 +8,7 @@ import {
   productRunQuerySchema,
   updateProductSchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, SQL } from 'drizzle-orm'
+import { and, desc, eq, exists, or, sql, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -19,7 +19,11 @@ import {
 } from '~/lib/openapi'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { product, productRun } from '../schemas/db'
+import {
+  product,
+  productOutputSummaryIndicator,
+  productRun,
+} from '../schemas/db'
 import {
   baseColumns,
   createPayload,
@@ -145,7 +149,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { datasetId, geometriesId } = c.req.valid('query')
+      const { datasetId, geometriesId, indicatorId } = c.req.valid('query')
       const { pageCount, totalCount, ...query } = await parseQuery(
         product,
         c.req.valid('query'),
@@ -161,6 +165,31 @@ const app = createOpenAPIApp()
       }
       if (geometriesId) {
         filters.push(eq(product.geometriesId, geometriesId))
+      }
+      if (indicatorId) {
+        // Find products whose main run has an output summary with the given indicator ID or derived indicator ID
+        filters.push(
+          exists(
+            db
+              .select({ _: sql`1` })
+              .from(productOutputSummaryIndicator)
+              .where(
+                and(
+                  eq(
+                    productOutputSummaryIndicator.productRunId,
+                    product.mainRunId,
+                  ),
+                  or(
+                    eq(productOutputSummaryIndicator.indicatorId, indicatorId),
+                    eq(
+                      productOutputSummaryIndicator.derivedIndicatorId,
+                      indicatorId,
+                    ),
+                  ),
+                ),
+              ),
+          ),
+        )
       }
 
       const data = await db.query.product.findMany({
