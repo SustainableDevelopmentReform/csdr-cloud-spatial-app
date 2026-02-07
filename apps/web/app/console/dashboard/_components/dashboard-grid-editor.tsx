@@ -231,7 +231,7 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
                 </div>
               </div>
               <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
-                <div className="flex-1 overflow-auto p-2 h-full">
+                <div className="flex flex-1 flex-col overflow-hidden p-2">
                   <ChartRenderer
                     chart={chart}
                     onSelect={setSelectedDataPoint}

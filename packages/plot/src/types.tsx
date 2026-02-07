@@ -5,9 +5,18 @@ export type BaseChartConfiguration = {
   description?: string
 }
 
+export type PlotSubType =
+  | 'line'
+  | 'area'
+  | 'stacked-area'
+  | 'stacked-bar'
+  | 'grouped-bar'
+  | 'dot'
+  | 'donut'
+
 export type PlotChartConfiguration = {
   type: 'plot'
-  subType: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
+  subType: PlotSubType
   productRunId: string
   indicatorIds?: string[]
   geometryOutputIds?: string[]
