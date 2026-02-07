@@ -17,6 +17,7 @@ import { CrudForm } from '../../../../../components/form/crud-form'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
 import { IndicatorButton } from '../../_components/indicator-button'
 import { IndicatorCategorySelect } from '../../_components/indicator-category-select'
+import { IndicatorProductUsageCard } from '../../_components/indicator-product-usage-card'
 import {
   useDeleteDerivedIndicator,
   useDerivedIndicator,
@@ -44,6 +45,11 @@ const IndicatorDetails = () => {
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <IndicatorProductUsageCard indicator={derivedIndicator} />
+        </div>
+      </div>
       <CrudForm
         form={form}
         mutation={updateIndicator}

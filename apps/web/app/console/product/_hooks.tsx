@@ -44,7 +44,7 @@ import {
   useGeometriesRun,
 } from '../geometries/_hooks'
 import { IndicatorButton } from '../indicator/_components/indicator-button'
-import { useDerivedIndicator, useIndicator } from '../indicator/_hooks'
+import { useIndicator } from '../indicator/_hooks'
 
 export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -229,6 +229,7 @@ export const useProducts = (
 
   const { data: dataset } = useDataset(query?.datasetId)
   const { data: geometries } = useGeometries(query?.geometriesId)
+  const { data: indicator } = useIndicator(query?.indicatorId)
 
   const queryResult = useInfiniteQuery<ProductListResponse>({
     queryKey: productQueryKeys.list(query),
@@ -269,6 +270,7 @@ export const useProducts = (
       geometries && (
         <GeometriesButton geometries={geometries} key={geometries.id} />
       ),
+      indicator && <IndicatorButton indicator={indicator} key={indicator.id} />,
     ].filter((d) => !!d) as React.ReactNode[],
   }
 }
@@ -370,12 +372,7 @@ export const useProductOutputs = (
     useSearchParams,
   )
 
-  const { data: filteredMeasuredIndicator } = useIndicator(query?.indicatorId)
-  const { data: filteredDerivedIndicator } = useDerivedIndicator(
-    query?.indicatorId,
-  )
-  const filteredIndicator =
-    filteredMeasuredIndicator ?? filteredDerivedIndicator
+  const { data: filteredIndicator } = useIndicator(query?.indicatorId)
 
   const queryResult = useInfiniteQuery<ProductOutputListResponse>({
     queryKey: productOutputQueryKeys.list(

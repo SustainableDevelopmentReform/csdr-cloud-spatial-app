@@ -81,7 +81,13 @@ export const baseMeasuredIndicatorSchema = baseResourceSchema
     categoryId: z.string().nullable(),
     type: z.literal('measured'),
   })
-  .openapi('MeasuredIndicatorSchema')
+  .openapi('MeasuredIndicatorSchemaBase')
+
+export const fullMeasuredIndicatorSchema = baseMeasuredIndicatorSchema
+  .extend({
+    productCount: z.number().int(),
+  })
+  .openapi('MeasuredIndicatorSchemaFull')
 
 export const indicatorQuerySchema = baseQuerySchema.extend({
   indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
@@ -111,12 +117,18 @@ export const baseDerivedIndicatorSchema = baseMeasuredIndicatorSchema
 export const fullDerivedIndicatorSchema = baseDerivedIndicatorSchema
   .extend({
     indicators: z.array(baseMeasuredIndicatorSchema),
+    productCount: z.number().int(),
   })
   .openapi('DerivedIndicatorSchemaFull')
 
 export const anyBaseIndicatorSchema = z.union([
   baseMeasuredIndicatorSchema,
   baseDerivedIndicatorSchema,
+])
+
+export const anyFullIndicatorSchema = z.union([
+  fullMeasuredIndicatorSchema,
+  fullDerivedIndicatorSchema,
 ])
 
 export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
@@ -431,6 +443,7 @@ export const fullProductSchema = baseProductSchema
 export const productQuerySchema = baseQuerySchema.extend({
   datasetId: z.string().optional(),
   geometriesId: z.string().optional(),
+  indicatorId: z.string().optional(),
 })
 
 export const createProductSchema = baseCreateResourceSchema.extend({

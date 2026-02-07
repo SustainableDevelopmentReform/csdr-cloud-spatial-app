@@ -9,14 +9,11 @@ import {
 } from '@repo/ui/components/ui/breadcrumb'
 import Link from '../../../../components/link'
 import { INDICATORS_BASE_PATH } from '../../../../lib/paths'
-import { useDerivedIndicator, useIndicator } from '../_hooks'
+import { useIndicator } from '../_hooks'
 import { IndicatorButton } from './indicator-button'
 
 export const IndicatorsBreadcrumbs = () => {
   const { data: indicator } = useIndicator()
-  const { data: derivedIndicator } = useDerivedIndicator()
-
-  const indicatorForBreadcrumb = indicator ?? derivedIndicator
 
   return (
     <Breadcrumb>
@@ -33,12 +30,12 @@ export const IndicatorsBreadcrumbs = () => {
           </BreadcrumbLink>
         </BreadcrumbItem>
 
-        {indicatorForBreadcrumb && (
+        {indicator && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <IndicatorButton indicator={indicatorForBreadcrumb} />
+                <IndicatorButton indicator={indicator} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
