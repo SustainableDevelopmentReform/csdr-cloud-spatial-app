@@ -37,6 +37,7 @@ import Papa from 'papaparse'
 import {
   ChangeEvent,
   DragEvent,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -97,6 +98,85 @@ type ImportProductOutputsFormValues = z.infer<
   typeof importProductOutputsFormSchema
 >
 type ColumnMapping = ImportProductOutputsFormValues['indicatorMappings'][number]
+
+const ColumnMappingRow = memo(function ColumnMappingRow({
+  column,
+  geometryColumn,
+  isImporting,
+  samples,
+  indicatorId,
+  timePoint,
+  onIndicatorSelect,
+  onTimePointChange,
+}: {
+  column: string
+  geometryColumn: string
+  isImporting: boolean
+  samples: string[] | undefined
+  indicatorId: string | null
+  timePoint: string | null
+  onIndicatorSelect: (
+    column: string,
+    indicator: IndicatorListItem | null,
+  ) => void
+  onTimePointChange: (column: string, date: Date | null) => void
+}) {
+  const handleIndicatorChange = useCallback(
+    (option: IndicatorListItem | null | undefined) => {
+      onIndicatorSelect(column, option ?? null)
+    },
+    [column, onIndicatorSelect],
+  )
+
+  const handleDateChange = useCallback(
+    (event: Date | undefined) => {
+      if (event) {
+        onTimePointChange(column, event)
+      }
+    },
+    [column, onTimePointChange],
+  )
+
+  return (
+    <div className="rounded-md border p-3 space-y-2 bg-card">
+      <div className="flex items-center justify-between">
+        <div className="font-medium">{column}</div>
+        {column === geometryColumn ? (
+          <Badge variant="outline">Geometry column</Badge>
+        ) : null}
+      </div>
+      <div className="text-xs text-muted-foreground">
+        Samples:{' '}
+        {samples?.length
+          ? samples.map((sample) => sample || '""').join(', ')
+          : '—'}
+      </div>
+      <IndicatorsSelect
+        value={indicatorId}
+        onChange={handleIndicatorChange}
+        isDisabled={column === geometryColumn || isImporting}
+        isClearable
+        placeholder={
+          column === geometryColumn
+            ? 'Geometry column selected above'
+            : 'Map to a indicator (optional)'
+        }
+        creatable
+      />
+      <div
+        className={cn({
+          'opacity-50 pointer-events-none': indicatorId === null,
+        })}
+      >
+        <CalendarSelect
+          label="Time Point"
+          value={timePoint ? new Date(timePoint) : undefined}
+          onChange={handleDateChange}
+        />
+      </div>
+    </div>
+  )
+})
 
 const ProductOutputsImportForm = ({
   productRunId,
@@ -311,6 +391,10 @@ const ProductOutputsImportForm = ({
     }
   }, [geometryColumn, form, remove])
 
+  // Derive a stable primitive key from the mapped column names only.
+  // This avoids recomputing warnings when only timePoints change (which warnings don't use).
+  const mappedColumnsKey = indicatorMappings.map((m) => m.column).join('\0')
+
   const warnings = useMemo(() => {
     if (!rows.length) {
       return []
@@ -329,9 +413,10 @@ const ProductOutputsImportForm = ({
       }
     }
 
-    indicatorMappings.forEach((mapping) => {
+    const mappedColumns = mappedColumnsKey ? mappedColumnsKey.split('\0') : []
+    mappedColumns.forEach((column) => {
       const invalidValues = rows.filter((row) => {
-        const raw = row[mapping.column]
+        const raw = row[column]
         if (!raw || !raw.length) {
           return true
         }
@@ -341,13 +426,13 @@ const ProductOutputsImportForm = ({
 
       if (invalidValues) {
         nextWarnings.push(
-          `${invalidValues} row${invalidValues === 1 ? '' : 's'} in column "${mapping.column}" are missing values or contain non-numeric data.`,
+          `${invalidValues} row${invalidValues === 1 ? '' : 's'} in column "${column}" are missing values or contain non-numeric data.`,
         )
       }
     })
 
     return nextWarnings
-  }, [geometryColumn, rows, indicatorMappings])
+  }, [geometryColumn, rows, mappedColumnsKey])
 
   const onSubmit = form.handleSubmit((values) => {
     if (!values.csvFile || !csvSummary) {
@@ -559,59 +644,17 @@ const ProductOutputsImportForm = ({
                 )
 
                 return (
-                  <div
+                  <ColumnMappingRow
                     key={column}
-                    className="rounded-md border p-3 space-y-2 bg-card"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">{column}</div>
-                      {column === geometryColumn ? (
-                        <Badge variant="outline">Geometry column</Badge>
-                      ) : null}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Samples:{' '}
-                      {csvSummary.samplesByColumn[column]?.length
-                        ? csvSummary.samplesByColumn[column]
-                            .map((sample) => sample || '""')
-                            .join(', ')
-                        : '—'}
-                    </div>
-                    <IndicatorsSelect
-                      value={indicatorMapping?.indicatorId ?? null}
-                      onChange={(option) =>
-                        handleIndicatorSelect(column, option ?? null)
-                      }
-                      isDisabled={column === geometryColumn || isImporting}
-                      isClearable
-                      placeholder={
-                        column === geometryColumn
-                          ? 'Geometry column selected above'
-                          : 'Map to a indicator (optional)'
-                      }
-                      creatable
-                    />
-
-                    <div
-                      className={cn({
-                        'opacity-50 pointer-events-none': !indicatorMapping,
-                      })}
-                    >
-                      <CalendarSelect
-                        label="Time Point"
-                        value={
-                          indicatorMapping?.timePoint
-                            ? new Date(indicatorMapping.timePoint)
-                            : undefined
-                        }
-                        onChange={(event) => {
-                          if (event) {
-                            handleTimePointChange(column, event)
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
+                    column={column}
+                    geometryColumn={geometryColumn}
+                    isImporting={isImporting}
+                    samples={csvSummary.samplesByColumn[column]}
+                    indicatorId={indicatorMapping?.indicatorId ?? null}
+                    timePoint={indicatorMapping?.timePoint ?? null}
+                    onIndicatorSelect={handleIndicatorSelect}
+                    onTimePointChange={handleTimePointChange}
+                  />
                 )
               })}
             </div>
