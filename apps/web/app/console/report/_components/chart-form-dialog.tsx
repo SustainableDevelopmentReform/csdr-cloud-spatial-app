@@ -2,10 +2,16 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  type AppearanceConfig,
+  type CategoricalColorScheme,
+  type CurveType,
   ChartConfiguration,
+  type DivergingColorScheme,
+  type LegendPosition,
   MapChartConfiguration,
   PlotChartConfiguration,
   PlotSubType,
+  type SequentialColorScheme,
   TableChartConfiguration,
   TableChartDimension,
 } from '@repo/plot/types'
@@ -35,6 +41,7 @@ import {
   SelectValue,
 } from '@repo/ui/components/ui/select'
 import { cn } from '@repo/ui/lib/utils'
+import { Switch } from '@repo/ui/components/ui/switch'
 import {
   AlertTriangle,
   AreaChart as AreaChartIcon,
@@ -69,12 +76,20 @@ import { ChartRenderer } from './chart-renderer'
 // ---------------------------------------------------------------------------
 
 const MAX_RECOMMENDED_SERIES = 8
+const MAX_CLASSES = 100
+const DEFAULT_MULTI_COUNT = 10
 
-const STEP_LABELS = ['Data Source', 'Chart Type', 'Configure'] as const
+const STEP_LABELS = [
+  'Data Source',
+  'Chart Type',
+  'Configure',
+  'Appearance',
+] as const
 const STEP_DESCRIPTIONS = [
   'Select a product and run to source data from',
   'Choose how to visualize your data',
   'Fine-tune data selections and add details',
+  'Customise colours, axes and formatting',
 ] as const
 
 type SeriesDimension = 'indicators' | 'geometries' | 'time'
@@ -168,19 +183,148 @@ const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
 ]
 
 // ---------------------------------------------------------------------------
-// Schemas (unchanged)
+// Appearance option lists
 // ---------------------------------------------------------------------------
+
+const CATEGORICAL_SCHEME_OPTIONS: {
+  value: CategoricalColorScheme
+  label: string
+}[] = [
+  { value: 'tableau10', label: 'Tableau 10' },
+  { value: 'category10', label: 'Category 10' },
+  { value: 'paired', label: 'Paired' },
+  { value: 'set1', label: 'Set 1' },
+  { value: 'set2', label: 'Set 2' },
+  { value: 'set3', label: 'Set 3' },
+  { value: 'dark2', label: 'Dark 2' },
+  { value: 'accent', label: 'Accent' },
+  { value: 'observable10', label: 'Observable 10' },
+]
+
+const COLOR_SCALE_OPTIONS: {
+  value: string
+  label: string
+  type: 'sequential' | 'diverging'
+}[] = [
+  { value: 'ylOrRd', label: 'Yellow → Red (Sequential)', type: 'sequential' },
+  { value: 'viridis', label: 'Viridis (Sequential)', type: 'sequential' },
+  { value: 'plasma', label: 'Plasma (Sequential)', type: 'sequential' },
+  { value: 'inferno', label: 'Inferno (Sequential)', type: 'sequential' },
+  { value: 'blues', label: 'Blues (Sequential)', type: 'sequential' },
+  { value: 'greens', label: 'Greens (Sequential)', type: 'sequential' },
+  { value: 'oranges', label: 'Oranges (Sequential)', type: 'sequential' },
+  {
+    value: 'ylGnBu',
+    label: 'Yellow → Green → Blue (Sequential)',
+    type: 'sequential',
+  },
+  { value: 'buPu', label: 'Blue → Purple (Sequential)', type: 'sequential' },
+  { value: 'rdBu', label: 'Red ↔ Blue (Diverging)', type: 'diverging' },
+  { value: 'brBG', label: 'Brown ↔ Teal (Diverging)', type: 'diverging' },
+  { value: 'piYG', label: 'Pink ↔ Green (Diverging)', type: 'diverging' },
+  { value: 'prGn', label: 'Purple ↔ Green (Diverging)', type: 'diverging' },
+  {
+    value: 'rdYlGn',
+    label: 'Red ↔ Yellow ↔ Green (Diverging)',
+    type: 'diverging',
+  },
+]
+
+const LEGEND_POSITION_OPTIONS: { value: LegendPosition; label: string }[] = [
+  { value: 'top', label: 'Top' },
+  { value: 'bottom', label: 'Bottom' },
+  { value: 'none', label: 'Hidden' },
+]
+
+const CURVE_TYPE_OPTIONS: { value: CurveType; label: string }[] = [
+  { value: 'monotone', label: 'Smooth' },
+  { value: 'linear', label: 'Linear' },
+  { value: 'step', label: 'Step' },
+]
+
+const DATE_PRECISION_OPTIONS: {
+  value: NonNullable<AppearanceConfig['datePrecision']>
+  label: string
+}[] = [
+  { value: 'year', label: 'Year' },
+  { value: 'year-month', label: 'Year + Month' },
+  { value: 'year-month-day', label: 'Year + Month + Day' },
+  { value: 'full', label: 'Full (with time)' },
+]
+
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
+
+const appearanceSchema = z
+  .object({
+    categoricalScheme: z
+      .enum([
+        'tableau10',
+        'category10',
+        'paired',
+        'set1',
+        'set2',
+        'set3',
+        'dark2',
+        'accent',
+        'observable10',
+      ])
+      .optional(),
+    colorOverrides: z.record(z.string(), z.string()).optional(),
+    sequentialScheme: z
+      .enum([
+        'ylOrRd',
+        'viridis',
+        'plasma',
+        'inferno',
+        'blues',
+        'greens',
+        'oranges',
+        'ylGnBu',
+        'buPu',
+      ])
+      .optional(),
+    divergingScheme: z
+      .enum(['rdBu', 'brBG', 'piYG', 'prGn', 'rdYlGn'])
+      .optional(),
+    colorScaleType: z.enum(['sequential', 'diverging']).optional(),
+    divergingMidpoint: z.number().optional(),
+    includeZero: z.boolean().optional(),
+    yMin: z.number().optional(),
+    yMax: z.number().optional(),
+    legendPosition: z.enum(['top', 'bottom', 'none']).optional(),
+    showGrid: z.boolean().optional(),
+    curveType: z.enum(['monotone', 'linear', 'step']).optional(),
+    showDots: z.boolean().optional(),
+    areaOpacity: z.number().min(0).max(1).optional(),
+    barRadius: z.number().min(0).max(20).optional(),
+    donutInnerRadius: z.number().min(0).max(100).optional(),
+    decimalPlaces: z.number().int().min(0).max(6).optional(),
+    compactNumbers: z.boolean().optional(),
+    datePrecision: z
+      .enum(['year', 'year-month', 'year-month-day', 'full'])
+      .optional(),
+  })
+  .optional()
 
 const baseChartSchema = z.object({
   productId: z.string(),
   productRunId: z.string(),
   title: z.string().optional(),
   description: z.string().optional(),
+  appearance: appearanceSchema,
 })
 
 const multiSeriesSelectionSchema = baseChartSchema.extend({
-  indicatorIds: z.array(z.string()).optional(),
-  geometryOutputIds: z.array(z.string()).optional(),
+  indicatorIds: z
+    .array(z.string())
+    .max(MAX_CLASSES, `At most ${MAX_CLASSES} indicators can be selected`)
+    .optional(),
+  geometryOutputIds: z
+    .array(z.string())
+    .max(MAX_CLASSES, `At most ${MAX_CLASSES} geometry outputs can be selected`)
+    .optional(),
   timePoints: z.array(z.string()).optional(),
 })
 
@@ -549,6 +693,8 @@ function buildPreviewConfig(
   const strict = chartSchema.safeParse(formValues)
   if (strict.success) return strict.data
 
+  const appearance = formValues.appearance ?? undefined
+
   // Lenient fallback: construct directly, skip cross-field validation
   if (formValues.type === 'plot') {
     if (!formValues.subType) return null
@@ -561,6 +707,7 @@ function buildPreviewConfig(
       timePoints: formValues.timePoints,
       title: formValues.title,
       description: formValues.description,
+      appearance,
     }
   }
   if (formValues.type === 'map') {
@@ -573,6 +720,7 @@ function buildPreviewConfig(
       geometryOutputIds: formValues.geometryOutputIds,
       title: formValues.title,
       description: formValues.description,
+      appearance,
     }
   }
   if (formValues.type === 'table') {
@@ -587,6 +735,7 @@ function buildPreviewConfig(
       timePoints: formValues.timePoints,
       title: formValues.title,
       description: formValues.description,
+      appearance,
     }
   }
   return null
@@ -606,14 +755,14 @@ const ChartPreview = ({
 
   if (!chartConfig) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 text-center text-xs text-muted-foreground">
+      <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 text-center text-xs text-muted-foreground lg:h-full">
         Complete the configuration to see a preview
       </div>
     )
   }
 
   return (
-    <div className="flex h-[300px] flex-col overflow-hidden rounded-lg border bg-card">
+    <div className="flex h-[300px] flex-col overflow-hidden rounded-lg border bg-card lg:h-full">
       <ChartRenderer
         chart={chartConfig}
         config={{ showTitleAndDescription: true }}
@@ -681,11 +830,25 @@ export const ChartFormDialog = ({
   )
   const { data: geometryOutputsData } = useGeometryOutputs(
     productRunDetail?.geometriesRun?.id,
-    { size: 1 },
+    { size: DEFAULT_MULTI_COUNT },
     false,
     !!productRunDetail?.geometriesRun?.id,
   )
   const firstGeometryId = geometryOutputsData?.data?.[0]?.id ?? null
+
+  // First N indicator / geometry IDs used as defaults when a multi dimension is enabled
+  const defaultMultiIndicatorIds = useMemo(() => {
+    return (productRunDetail?.outputSummary?.indicators ?? [])
+      .slice(0, DEFAULT_MULTI_COUNT)
+      .map((i) => i.indicator?.id)
+      .filter((id): id is string => !!id)
+  }, [productRunDetail])
+
+  const defaultMultiGeometryIds = useMemo(() => {
+    return (geometryOutputsData?.data ?? [])
+      .slice(0, DEFAULT_MULTI_COUNT)
+      .map((g) => g.id)
+  }, [geometryOutputsData])
 
   // Derive defaults from fetched product run detail (works for both create and edit flows)
   const hookDefaults = useMemo(() => {
@@ -716,6 +879,7 @@ export const ChartFormDialog = ({
       if (targetStep === 0) return true
       if (targetStep === 1) return sourceComplete
       if (targetStep === 2) return sourceComplete && typeComplete
+      if (targetStep === 3) return sourceComplete && typeComplete
       return false
     },
     [sourceComplete, typeComplete],
@@ -780,31 +944,45 @@ export const ChartFormDialog = ({
 
   const setDefaultsForProduct = useCallback(
     (product: ProductListItem) => {
-      form.setValue('productId', product.id)
-      if (product.mainRunId) form.setValue('productRunId', product.mainRunId)
+      const sv = { shouldValidate: false }
 
-      const firstIndicator = product.mainRun?.outputSummary?.indicators?.[0]
-      if (firstIndicator) {
-        form.setValue('indicatorId', firstIndicator.id)
-        form.setValue('indicatorIds', [firstIndicator.id])
-      } else {
-        form.resetField('indicatorId')
-        form.resetField('indicatorIds')
+      form.setValue('productId', product.id, sv)
+
+      // Always clear all data-dependent fields first so nothing from the
+      // previous product lingers — then apply new defaults below.
+      form.setValue('productRunId', undefined as unknown as string, sv)
+      form.setValue('indicatorId', undefined as unknown as string, sv)
+      form.setValue('indicatorIds', undefined, sv)
+      form.setValue('geometryOutputIds', undefined, sv)
+      form.setValue('timePoint', undefined as unknown as string, sv)
+      form.setValue('timePoints', undefined, sv)
+      setProductSummary(null)
+
+      // Apply defaults from the new product's main run (if available)
+      if (product.mainRunId) {
+        form.setValue('productRunId', product.mainRunId, sv)
       }
-      form.resetField('geometryOutputIds')
+
+      const indicators = product.mainRun?.outputSummary?.indicators ?? []
+      const firstNIndicatorIds = indicators
+        .slice(0, DEFAULT_MULTI_COUNT)
+        .map((i) => i.id)
+      if (firstNIndicatorIds.length > 0) {
+        form.setValue('indicatorId', firstNIndicatorIds[0]!, sv)
+        form.setValue('indicatorIds', firstNIndicatorIds, sv)
+      }
 
       if (product.mainRun?.outputSummary?.timePoints?.length === 1) {
         form.setValue(
           'timePoint',
           product.mainRun?.outputSummary?.timePoints?.[0] ?? '',
+          sv,
         )
         form.setValue(
           'timePoints',
           product.mainRun?.outputSummary?.timePoints ?? [],
+          sv,
         )
-      } else {
-        form.resetField('timePoint')
-        form.resetField('timePoints')
       }
 
       // Capture summary for series count warnings + defaults for auto-fill
@@ -822,7 +1000,7 @@ export const ChartFormDialog = ({
   )
 
   // Helper: given a chart type's constraints, set each dimension to either
-  // "all" (undefined) if it's multi, or a single default if it's single.
+  // the first N defaults if it's multi, or a single default if it's single.
   // This is the single source of truth for dimension defaults.
   const applyDimensionDefaults = useCallback(
     (opts: {
@@ -849,7 +1027,11 @@ export const ChartFormDialog = ({
 
       // Indicators
       if (opts.indicatorsMulti) {
-        form.setValue('indicatorIds', undefined, sv)
+        const defaults =
+          defaultMultiIndicatorIds.length > 0
+            ? defaultMultiIndicatorIds
+            : undefined
+        form.setValue('indicatorIds', defaults, sv)
       } else {
         const single = curIndicators?.[0] ?? defaultIndicator
         form.setValue('indicatorIds', single ? [single] : undefined, sv)
@@ -857,7 +1039,11 @@ export const ChartFormDialog = ({
 
       // Geometries
       if (opts.geometriesMulti) {
-        form.setValue('geometryOutputIds', undefined, sv)
+        const defaults =
+          defaultMultiGeometryIds.length > 0
+            ? defaultMultiGeometryIds
+            : undefined
+        form.setValue('geometryOutputIds', defaults, sv)
       } else {
         const single = curGeometries?.[0] ?? defaultGeometry
         form.setValue('geometryOutputIds', single ? [single] : undefined, sv)
@@ -873,7 +1059,14 @@ export const ChartFormDialog = ({
 
       form.trigger()
     },
-    [form, productSummary, firstGeometryId, hookDefaults],
+    [
+      form,
+      productSummary,
+      firstGeometryId,
+      hookDefaults,
+      defaultMultiIndicatorIds,
+      defaultMultiGeometryIds,
+    ],
   )
 
   const handleSeriesDimensionChange = useCallback(
@@ -1025,10 +1218,10 @@ export const ChartFormDialog = ({
           {buttonText}
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:w-2xl lg:w-[900px] max-w-full">
         <Form {...form}>
           <form
-            className="flex flex-1 flex-col gap-4 overflow-hidden"
+            className="flex flex-1 min-h-0 flex-col gap-4"
             onSubmit={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -1050,183 +1243,238 @@ export const ChartFormDialog = ({
               <DialogDescription>{STEP_DESCRIPTIONS[step]}</DialogDescription>
             </DialogHeader>
 
-            {/* Scrollable content */}
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-0.5 pb-1">
-              {/* ---- Step 0: Data Source ---- */}
-              {step === 0 && (
-                <div className="flex flex-col gap-3">
-                  <FormField
-                    control={form.control}
-                    name="productId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <ProductSelect
-                          {...field}
-                          onChange={(product) => {
-                            field.onChange(product?.id ?? null)
-                            if (product) setDefaultsForProduct(product)
-                          }}
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="productRunId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <ProductRunSelect
-                          productId={productId}
-                          {...field}
-                          onChange={(productRun) => {
-                            field.onChange(productRun?.id ?? null)
-                            form.resetField('indicatorId')
-                            form.resetField('indicatorIds')
-                            form.resetField('geometryOutputIds')
-                            form.resetField('timePoint')
-                            form.resetField('timePoints')
-                          }}
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-
-              {/* ---- Step 1: Chart Type ---- */}
-              {step === 1 && (
-                <TypeGrid
-                  selected={visualTypeKey}
-                  onSelect={handleTypeSelect}
-                />
-              )}
-
-              {/* ---- Step 2: Configure ---- */}
-              {step === 2 && (
-                <div className="flex flex-col gap-4">
-                  {/* Series dimension toggle for plot types */}
-                  {chartType === 'plot' && (
-                    <SeriesDimensionToggle
-                      value={seriesDimension}
-                      onChange={handleSeriesDimensionChange}
-                      isDonut={isDonut}
+            {/* Content — vertical on small screens, horizontal split on lg */}
+            <div className="space-y-4 overflow-y-auto px-0.5 pb-1 lg:flex lg:min-h-0 lg:gap-4 lg:space-y-0 lg:overflow-hidden">
+              {/* Form fields — scrolls independently on lg */}
+              <div className="lg:w-[40%] lg:shrink-0 lg:space-y-4 lg:overflow-y-auto">
+                {/* ---- Step 0: Data Source ---- */}
+                {step === 0 && (
+                  <div className="flex flex-col gap-3">
+                    <FormField
+                      control={form.control}
+                      name="productId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <ProductSelect
+                            {...field}
+                            onChange={(product) => {
+                              field.onChange(product?.id ?? null)
+                              if (product) setDefaultsForProduct(product)
+                            }}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  )}
 
-                  {/* Table axis selectors */}
-                  {chartType === 'table' && (
-                    <FieldGroup title="Table Axes">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="xDimension"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>X (Columns)</FormLabel>
-                              <Select
-                                value={field.value}
-                                onValueChange={(value) =>
-                                  field.onChange(value as TableChartDimension)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select column dimension" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {tableDimensionOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="yDimension"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Y (Rows)</FormLabel>
-                              <Select
-                                value={field.value}
-                                onValueChange={(value) =>
-                                  field.onChange(value as TableChartDimension)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select row dimension" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {tableDimensionOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </FieldGroup>
-                  )}
+                    <FormField
+                      control={form.control}
+                      name="productRunId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <ProductRunSelect
+                            productId={productId}
+                            {...field}
+                            onChange={(productRun) => {
+                              const sv = { shouldValidate: false }
+                              field.onChange(productRun?.id ?? null)
+                              form.setValue(
+                                'indicatorId',
+                                undefined as unknown as string,
+                                sv,
+                              )
+                              form.setValue('indicatorIds', undefined, sv)
+                              form.setValue('geometryOutputIds', undefined, sv)
+                              form.setValue(
+                                'timePoint',
+                                undefined as unknown as string,
+                                sv,
+                              )
+                              form.setValue('timePoints', undefined, sv)
+                              setProductSummary(null)
+                              form.trigger()
+                            }}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
 
-                  {/* Data selectors */}
-                  <FieldGroup title="Data">
-                    {/* Indicators */}
-                    {chartType === 'map' ? (
-                      <FormField
-                        control={form.control}
-                        name="indicatorId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <ProductRunIndicatorsSelect
-                              productRunId={productRunId}
-                              value={field.value ?? null}
-                              onChange={(value) =>
-                                field.onChange(value?.id ?? null)
-                              }
-                            />
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                {/* ---- Step 1: Chart Type ---- */}
+                {step === 1 && (
+                  <TypeGrid
+                    selected={visualTypeKey}
+                    onSelect={handleTypeSelect}
+                  />
+                )}
+
+                {/* ---- Step 2: Configure ---- */}
+                {step === 2 && (
+                  <div className="flex flex-col gap-4">
+                    {/* Series dimension toggle for plot types */}
+                    {chartType === 'plot' && (
+                      <SeriesDimensionToggle
+                        value={seriesDimension}
+                        onChange={handleSeriesDimensionChange}
+                        isDonut={isDonut}
                       />
-                    ) : (
-                      <FormField
-                        control={form.control}
-                        name="indicatorIds"
-                        render={({ field }) =>
-                          isIndicatorsMulti ? (
-                            <FormItem key="indicators-multi">
+                    )}
+
+                    {/* Table axis selectors */}
+                    {chartType === 'table' && (
+                      <FieldGroup title="Table Axes">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name="xDimension"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>X (Columns)</FormLabel>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={(value) =>
+                                    field.onChange(value as TableChartDimension)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select column dimension" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {tableDimensionOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="yDimension"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Y (Rows)</FormLabel>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={(value) =>
+                                    field.onChange(value as TableChartDimension)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select row dimension" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {tableDimensionOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </FieldGroup>
+                    )}
+
+                    {/* Data selectors */}
+                    <FieldGroup title="Data">
+                      {/* Indicators */}
+                      {chartType === 'map' ? (
+                        <FormField
+                          control={form.control}
+                          name="indicatorId"
+                          render={({ field }) => (
+                            <FormItem>
                               <ProductRunIndicatorsSelect
                                 productRunId={productRunId}
-                                value={field.value ?? []}
-                                placeholder="All Indicators"
-                                isMulti
+                                value={field.value ?? null}
                                 onChange={(value) =>
-                                  field.onChange(value.map((v) => v.id))
+                                  field.onChange(value?.id ?? null)
                                 }
                               />
                               <FormMessage />
                             </FormItem>
-                          ) : (
-                            <FormItem key="indicators-single">
-                              <ProductRunIndicatorsSelect
+                          )}
+                        />
+                      ) : (
+                        <FormField
+                          control={form.control}
+                          name="indicatorIds"
+                          render={({ field }) =>
+                            isIndicatorsMulti ? (
+                              <FormItem key="indicators-multi">
+                                <ProductRunIndicatorsSelect
+                                  productRunId={productRunId}
+                                  value={field.value ?? []}
+                                  placeholder="Select indicators…"
+                                  isMulti
+                                  onChange={(value) =>
+                                    field.onChange(value.map((v) => v.id))
+                                  }
+                                />
+                                <FormMessage />
+                              </FormItem>
+                            ) : (
+                              <FormItem key="indicators-single">
+                                <ProductRunIndicatorsSelect
+                                  productRunId={productRunId}
+                                  value={field.value?.[0] ?? null}
+                                  onChange={(value) =>
+                                    field.onChange(
+                                      value ? [value.id] : undefined,
+                                    )
+                                  }
+                                />
+                                <FormMessage />
+                              </FormItem>
+                            )
+                          }
+                        />
+                      )}
+
+                      {/* Geometries */}
+                      <FormField
+                        control={form.control}
+                        name="geometryOutputIds"
+                        render={({ field }) =>
+                          isGeometriesMulti ? (
+                            <FormItem key="geo-multi">
+                              <ProductGeometryOutputSelect
+                                title={
+                                  chartType === 'map'
+                                    ? 'Zoom to selected geometry'
+                                    : undefined
+                                }
                                 productRunId={productRunId}
-                                value={field.value?.[0] ?? null}
+                                value={field.value ?? []}
+                                placeholder="Select geometry outputs…"
+                                isMulti
+                                onChange={(value) => {
+                                  field.onChange(value.map((v) => v.id))
+                                }}
+                              />
+                              <FormMessage />
+                            </FormItem>
+                          ) : (
+                            <FormItem key="geo-single">
+                              <ProductGeometryOutputSelect
+                                productRunId={productRunId}
+                                placeholder="Select a geometry output"
+                                value={field.value?.find((id) => id) ?? null}
                                 onChange={(value) =>
                                   field.onChange(value ? [value.id] : undefined)
                                 }
@@ -1236,142 +1484,607 @@ export const ChartFormDialog = ({
                           )
                         }
                       />
-                    )}
 
-                    {/* Geometries */}
-                    <FormField
-                      control={form.control}
-                      name="geometryOutputIds"
-                      render={({ field }) =>
-                        isGeometriesMulti ? (
-                          <FormItem key="geo-multi">
-                            <ProductGeometryOutputSelect
-                              title={
-                                chartType === 'map'
-                                  ? 'Zoom to selected geometry'
-                                  : undefined
-                              }
-                              productRunId={productRunId}
-                              value={field.value ?? []}
-                              placeholder="All Geometry Outputs"
-                              isMulti
-                              onChange={(value) => {
-                                field.onChange(value.map((v) => v.id))
-                              }}
-                            />
-                            <FormMessage />
-                          </FormItem>
-                        ) : (
-                          <FormItem key="geo-single">
-                            <ProductGeometryOutputSelect
-                              productRunId={productRunId}
-                              placeholder="Select a geometry output"
-                              value={field.value?.find((id) => id) ?? null}
-                              onChange={(value) =>
-                                field.onChange(value ? [value.id] : undefined)
-                              }
-                            />
-                            <FormMessage />
-                          </FormItem>
-                        )
-                      }
-                    />
+                      {/* Time */}
+                      {chartType === 'map' ? (
+                        <FormField
+                          control={form.control}
+                          name="timePoint"
+                          render={({ field }) => (
+                            <FormItem>
+                              <ProductOutputTimeSelect
+                                productRunId={productRunId}
+                                value={field.value ?? null}
+                                onChange={(value) => field.onChange(value)}
+                              />
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ) : (
+                        <FormField
+                          control={form.control}
+                          name="timePoints"
+                          rules={{
+                            deps: [
+                              'geometryOutputIds',
+                              'indicatorIds',
+                              'xDimension',
+                              'yDimension',
+                            ],
+                          }}
+                          render={({ field }) =>
+                            isTimeMulti ? (
+                              <FormItem key="time-multi">
+                                <ProductOutputTimeSelect
+                                  productRunId={productRunId}
+                                  value={field.value ?? []}
+                                  placeholder="All Time Points"
+                                  isMulti
+                                  onChange={(value) => field.onChange(value)}
+                                />
+                                <FormMessage />
+                              </FormItem>
+                            ) : (
+                              <FormItem key="time-single">
+                                <ProductOutputTimeSelect
+                                  productRunId={productRunId}
+                                  value={field.value?.[0] ?? null}
+                                  onChange={(value) =>
+                                    field.onChange(value ? [value] : undefined)
+                                  }
+                                />
+                                <FormMessage />
+                              </FormItem>
+                            )
+                          }
+                        />
+                      )}
 
-                    {/* Time */}
-                    {chartType === 'map' ? (
+                      <SeriesWarning count={estimatedSeriesCount} />
+                    </FieldGroup>
+
+                    {/* Title & Description */}
+                    <FieldGroup title="Details">
                       <FormField
                         control={form.control}
-                        name="timePoint"
+                        name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <ProductOutputTimeSelect
-                              productRunId={productRunId}
-                              value={field.value ?? null}
-                              onChange={(value) => field.onChange(value)}
+                            <FormLabel>Title</FormLabel>
+                            <Input
+                              placeholder="Optional chart title"
+                              {...field}
                             />
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    ) : (
                       <FormField
                         control={form.control}
-                        name="timePoints"
-                        rules={{
-                          deps: [
-                            'geometryOutputIds',
-                            'indicatorIds',
-                            'xDimension',
-                            'yDimension',
-                          ],
-                        }}
-                        render={({ field }) =>
-                          isTimeMulti ? (
-                            <FormItem key="time-multi">
-                              <ProductOutputTimeSelect
-                                productRunId={productRunId}
-                                value={field.value ?? []}
-                                placeholder="All Time Points"
-                                isMulti
-                                onChange={(value) => field.onChange(value)}
-                              />
-                              <FormMessage />
-                            </FormItem>
-                          ) : (
-                            <FormItem key="time-single">
-                              <ProductOutputTimeSelect
-                                productRunId={productRunId}
-                                value={field.value?.[0] ?? null}
-                                onChange={(value) =>
-                                  field.onChange(value ? [value] : undefined)
-                                }
-                              />
-                              <FormMessage />
-                            </FormItem>
-                          )
-                        }
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <Input
+                              placeholder="Optional description"
+                              {...field}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
+                    </FieldGroup>
+                  </div>
+                )}
+
+                {/* ---- Step 3: Appearance ---- */}
+                {step === 3 && (
+                  <div className="flex flex-col gap-4">
+                    {/* Colour scheme — plot types use categorical */}
+                    {(chartType === 'plot' || chartType === undefined) && (
+                      <FieldGroup title="Colour Palette">
+                        <FormField
+                          control={form.control}
+                          name="appearance.categoricalScheme"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Colour Scheme</FormLabel>
+                              <Select
+                                value={field.value ?? 'tableau10'}
+                                onValueChange={(v) =>
+                                  field.onChange(v as CategoricalColorScheme)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {CATEGORICAL_SCHEME_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+                      </FieldGroup>
                     )}
 
-                    <SeriesWarning count={estimatedSeriesCount} />
-                  </FieldGroup>
-
-                  {/* Title & Description */}
-                  <FieldGroup title="Details">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
+                    {/* Colour scheme — table/map use sequential/diverging */}
+                    {(chartType === 'table' || chartType === 'map') && (
+                      <FieldGroup title="Colour Scale">
                         <FormItem>
-                          <FormLabel>Title</FormLabel>
-                          <Input
-                            placeholder="Optional chart title"
-                            {...field}
-                          />
-                          <FormMessage />
+                          <FormLabel>Colour Scale</FormLabel>
+                          <Select
+                            value={
+                              form.watch('appearance.colorScaleType') ===
+                              'diverging'
+                                ? (form.watch('appearance.divergingScheme') ??
+                                  'rdBu')
+                                : (form.watch('appearance.sequentialScheme') ??
+                                  'ylOrRd')
+                            }
+                            onValueChange={(v) => {
+                              const opt = COLOR_SCALE_OPTIONS.find(
+                                (o) => o.value === v,
+                              )
+                              if (!opt) return
+                              const sv = { shouldValidate: false }
+                              if (opt.type === 'sequential') {
+                                form.setValue(
+                                  'appearance.sequentialScheme',
+                                  v as SequentialColorScheme,
+                                  sv,
+                                )
+                                form.setValue(
+                                  'appearance.divergingScheme',
+                                  undefined,
+                                  sv,
+                                )
+                                form.setValue(
+                                  'appearance.colorScaleType',
+                                  'sequential',
+                                  sv,
+                                )
+                              } else {
+                                form.setValue(
+                                  'appearance.divergingScheme',
+                                  v as DivergingColorScheme,
+                                  sv,
+                                )
+                                form.setValue(
+                                  'appearance.sequentialScheme',
+                                  undefined,
+                                  sv,
+                                )
+                                form.setValue(
+                                  'appearance.colorScaleType',
+                                  'diverging',
+                                  sv,
+                                )
+                                if (
+                                  form.getValues(
+                                    'appearance.divergingMidpoint',
+                                  ) === undefined
+                                ) {
+                                  form.setValue(
+                                    'appearance.divergingMidpoint',
+                                    0,
+                                    sv,
+                                  )
+                                }
+                              }
+                              form.trigger()
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COLOR_SCALE_OPTIONS.map((o) => (
+                                <SelectItem key={o.value} value={o.value}>
+                                  {o.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <Input
-                            placeholder="Optional description"
-                            {...field}
-                          />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </FieldGroup>
-                </div>
-              )}
 
-              {/* Preview — visible whenever form is valid */}
-              <ChartPreview form={form} />
+                        {form.watch('appearance.colorScaleType') ===
+                          'diverging' && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.divergingMidpoint"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Midpoint Value</FormLabel>
+                                <Input
+                                  type="number"
+                                  value={field.value ?? 0}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value === ''
+                                        ? undefined
+                                        : Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </FieldGroup>
+                    )}
+
+                    {/* Chart-specific options — Plot types */}
+                    {chartType === 'plot' && (
+                      <FieldGroup title="Chart Options">
+                        {/* Legend position */}
+                        <FormField
+                          control={form.control}
+                          name="appearance.legendPosition"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Legend</FormLabel>
+                              <Select
+                                value={field.value ?? 'bottom'}
+                                onValueChange={(v) =>
+                                  field.onChange(v as LegendPosition)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {LEGEND_POSITION_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Show grid */}
+                        <FormField
+                          control={form.control}
+                          name="appearance.showGrid"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                              <FormLabel className="m-0">Grid lines</FormLabel>
+                              <Switch
+                                checked={field.value ?? true}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Include zero */}
+                        {subType !== 'donut' && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.includeZero"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                                <FormLabel className="m-0">
+                                  Y-axis includes zero
+                                </FormLabel>
+                                <Switch
+                                  checked={field.value ?? false}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {/* Curve type — line & area only */}
+                        {(subType === 'line' ||
+                          subType === 'area' ||
+                          subType === 'stacked-area') && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.curveType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Curve</FormLabel>
+                                <Select
+                                  value={field.value ?? 'monotone'}
+                                  onValueChange={(v) =>
+                                    field.onChange(v as CurveType)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CURVE_TYPE_OPTIONS.map((o) => (
+                                      <SelectItem key={o.value} value={o.value}>
+                                        {o.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {/* Show dots — line & area only */}
+                        {(subType === 'line' ||
+                          subType === 'area' ||
+                          subType === 'stacked-area') && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.showDots"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                                <FormLabel className="m-0">
+                                  Show data points
+                                </FormLabel>
+                                <Switch
+                                  checked={field.value ?? true}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {/* Area opacity */}
+                        {(subType === 'area' || subType === 'stacked-area') && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.areaOpacity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Fill Opacity (0–1)</FormLabel>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={1}
+                                  step={0.1}
+                                  value={field.value ?? 0.3}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value === ''
+                                        ? undefined
+                                        : Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {/* Bar radius — grouped bar only */}
+                        {subType === 'grouped-bar' && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.barRadius"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Corner Radius (px)</FormLabel>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={20}
+                                  value={field.value ?? 4}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value === ''
+                                        ? undefined
+                                        : Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {/* Donut inner radius */}
+                        {subType === 'donut' && (
+                          <FormField
+                            control={form.control}
+                            name="appearance.donutInnerRadius"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Inner Radius (%)</FormLabel>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={90}
+                                  value={field.value ?? 50}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value === ''
+                                        ? undefined
+                                        : Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </FieldGroup>
+                    )}
+
+                    {/* Formatting */}
+                    <FieldGroup title="Formatting">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="appearance.decimalPlaces"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Decimal Places</FormLabel>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={6}
+                                value={field.value ?? 3}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value === ''
+                                      ? undefined
+                                      : Number(e.target.value),
+                                  )
+                                }
+                              />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="appearance.datePrecision"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Date Format</FormLabel>
+                              <Select
+                                value={field.value ?? 'year-month'}
+                                onValueChange={(v) =>
+                                  field.onChange(
+                                    v as AppearanceConfig['datePrecision'],
+                                  )
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DATE_PRECISION_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="appearance.compactNumbers"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                            <FormLabel className="m-0">
+                              Compact numbers (1.2k, 3.4M)
+                            </FormLabel>
+                            <Switch
+                              checked={field.value ?? false}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormItem>
+                        )}
+                      />
+                    </FieldGroup>
+
+                    {/* Colour overrides */}
+                    <FieldGroup title="Colour Overrides">
+                      <p className="text-xs text-muted-foreground">
+                        Enter hex colours (e.g. #3b82f6) to override specific
+                        series. Leave blank to use the scheme default.
+                      </p>
+                      <FormField
+                        control={form.control}
+                        name="appearance.colorOverrides"
+                        render={({ field }) => {
+                          const overrides = field.value ?? {}
+                          return (
+                            <FormItem className="flex flex-col gap-2">
+                              {Object.entries(overrides).map(([key, hex]) => (
+                                <div
+                                  key={key}
+                                  className="flex items-center gap-2"
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                                    {key}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <div
+                                      className="h-5 w-5 rounded border"
+                                      style={{ backgroundColor: hex }}
+                                    />
+                                    <Input
+                                      className="h-7 w-24 font-mono text-xs"
+                                      value={hex}
+                                      placeholder="#000000"
+                                      onChange={(e) => {
+                                        const next = { ...overrides }
+                                        if (e.target.value) {
+                                          next[key] = e.target.value
+                                        } else {
+                                          delete next[key]
+                                        }
+                                        field.onChange(
+                                          Object.keys(next).length
+                                            ? next
+                                            : undefined,
+                                        )
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  className="h-7 flex-1 text-xs"
+                                  placeholder="Series name"
+                                  id="__override_key"
+                                />
+                                <Input
+                                  className="h-7 w-24 font-mono text-xs"
+                                  placeholder="#hex"
+                                  id="__override_hex"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => {
+                                    const keyEl = document.getElementById(
+                                      '__override_key',
+                                    ) as HTMLInputElement | null
+                                    const hexEl = document.getElementById(
+                                      '__override_hex',
+                                    ) as HTMLInputElement | null
+                                    if (!keyEl?.value || !hexEl?.value) return
+                                    const next = {
+                                      ...overrides,
+                                      [keyEl.value]: hexEl.value,
+                                    }
+                                    field.onChange(next)
+                                    keyEl.value = ''
+                                    hexEl.value = ''
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    </FieldGroup>
+                  </div>
+                )}
+              </div>
+
+              {/* Preview — right side on lg, below on small */}
+              <div className="lg:flex lg:flex-1 lg:min-w-0 lg:flex-col">
+                <ChartPreview form={form} />
+              </div>
             </div>
 
             {/* Footer with navigation */}
@@ -1395,7 +2108,7 @@ export const ChartFormDialog = ({
                     Back
                   </Button>
                 )}
-                {step < 2 && (
+                {step < 3 && (
                   <Button
                     type="button"
                     size="sm"
@@ -1406,7 +2119,7 @@ export const ChartFormDialog = ({
                     <ChevronRight className="ml-1 h-3.5 w-3.5" />
                   </Button>
                 )}
-                {step === 2 && (
+                {step >= 2 && (
                   <Button
                     type="submit"
                     size="sm"

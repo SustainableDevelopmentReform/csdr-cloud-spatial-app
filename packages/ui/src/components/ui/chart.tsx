@@ -8,6 +8,11 @@ import { cn } from '@repo/ui/lib/utils'
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: '', dark: '.dark' } as const
 
+/** Sanitise a string for use in a CSS custom property name. */
+function cssVarKey(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '-')
+}
+
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode
@@ -88,7 +93,7 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    return color ? `  --color-${cssVarKey(key)}: ${color};` : null
   })
   .join('\n')}
 }

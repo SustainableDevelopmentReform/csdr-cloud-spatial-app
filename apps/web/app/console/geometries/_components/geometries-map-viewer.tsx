@@ -1,6 +1,11 @@
 'use client'
 
-import { OnSelectCallback } from '@repo/plot/types'
+import {
+  type AppearanceConfig,
+  type DivergingColorScheme,
+  type OnSelectCallback,
+  type SequentialColorScheme,
+} from '@repo/plot/types'
 import { cn } from '@repo/ui/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { bbox as turfBbox } from '@turf/turf'
@@ -11,7 +16,23 @@ import {
   MapRef,
   Source,
 } from '@vis.gl/react-maplibre'
-import { interpolateYlOrRd } from 'd3-scale-chromatic'
+import {
+  interpolateBrBG,
+  interpolateBlues,
+  interpolateBuPu,
+  interpolateGreens,
+  interpolateInferno,
+  interpolateOranges,
+  interpolatePiYG,
+  interpolatePlasma,
+  interpolatePRGn,
+  interpolateRdBu,
+  interpolateRdYlGn,
+  interpolateViridis,
+  interpolateYlGnBu,
+  interpolateYlOrRd,
+} from 'd3-scale-chromatic'
+import { scaleDiverging, scaleSequential } from 'd3-scale'
 import {
   ExpressionInputType,
   ExpressionSpecification,
@@ -37,12 +58,70 @@ import { EmptyCard } from '../../_components/empty-card'
 const NO_DATA_COLOR = '#eef'
 const ID_PROPERTY = 'id'
 
+const SEQUENTIAL_INTERPOLATORS: Record<
+  SequentialColorScheme,
+  (t: number) => string
+> = {
+  ylOrRd: interpolateYlOrRd,
+  viridis: interpolateViridis,
+  plasma: interpolatePlasma,
+  inferno: interpolateInferno,
+  blues: interpolateBlues,
+  greens: interpolateGreens,
+  oranges: interpolateOranges,
+  ylGnBu: interpolateYlGnBu,
+  buPu: interpolateBuPu,
+}
+
+const DIVERGING_INTERPOLATORS: Record<
+  DivergingColorScheme,
+  (t: number) => string
+> = {
+  rdBu: interpolateRdBu,
+  brBG: interpolateBrBG,
+  piYG: interpolatePiYG,
+  prGn: interpolatePRGn,
+  rdYlGn: interpolateRdYlGn,
+}
+
+function buildColorScale(
+  min: number,
+  max: number,
+  appearance?: AppearanceConfig,
+): (value: number) => string {
+  const isDiverging = appearance?.colorScaleType === 'diverging'
+
+  if (isDiverging) {
+    const interpolator =
+      DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
+      interpolateRdBu
+    const mid = appearance?.divergingMidpoint ?? (min + max) / 2
+    if (min === max) {
+      const c = interpolator(0.5)
+      return () => c
+    }
+    const scale = scaleDiverging(interpolator).domain([min, mid, max])
+    return (v: number) => scale(v)
+  }
+
+  const interpolator =
+    SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
+    interpolateYlOrRd
+  if (min === max) {
+    const c = interpolator(0.5)
+    return () => c
+  }
+  const scale = scaleSequential(interpolator).domain([min, max])
+  return (v: number) => scale(v)
+}
+
 const GeometriesMapViewer = ({
   geometriesRun: geometriesRunProp,
   indicator,
   productRun,
   productOutputs,
   zoomToGeometryOutputIds,
+  appearance,
   onSelect,
   className,
 }: {
@@ -51,6 +130,7 @@ const GeometriesMapViewer = ({
   productRun?: ProductRunDetail | null
   productOutputs?: ProductOutputExportListItem[] | null
   zoomToGeometryOutputIds?: string[] | null
+  appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
   className?: string
 }) => {
@@ -179,13 +259,13 @@ const GeometriesMapViewer = ({
       (v) => v.indicator?.id === indicator.id,
     )
 
-    const colorFn = (value: number | null) => {
-      if (!value) return NO_DATA_COLOR
-      const normalizedValue =
-        (value - (indicatorSummary?.minValue ?? 0)) /
-        ((indicatorSummary?.maxValue ?? 1) - (indicatorSummary?.minValue ?? 0))
+    const minVal = indicatorSummary?.minValue ?? 0
+    const maxVal = indicatorSummary?.maxValue ?? 1
+    const scale = buildColorScale(minVal, maxVal, appearance)
 
-      return interpolateYlOrRd(normalizedValue)
+    const colorFn = (value: number | null) => {
+      if (value === null || value === undefined) return NO_DATA_COLOR
+      return scale(value)
     }
 
     const fillColourEntries: [
@@ -262,6 +342,7 @@ const GeometriesMapViewer = ({
     productOutputs,
     geometryOutputsToZoomTo?.data,
     zoomToGeometryOutputIds,
+    appearance,
   ])
 
   const mapRef = useRef<MapRef | null>(null)

@@ -1,7 +1,23 @@
 'use client'
 
-import { type OnSelectCallback, type PlotSubType } from '@repo/plot/types'
-import { schemeTableau10 } from 'd3-scale-chromatic'
+import {
+  type AppearanceConfig,
+  type CategoricalColorScheme,
+  type CurveType,
+  type OnSelectCallback,
+  type PlotSubType,
+} from '@repo/plot/types'
+import {
+  schemeAccent,
+  schemeCategory10,
+  schemeDark2,
+  schemeObservable10,
+  schemePaired,
+  schemeSet1,
+  schemeSet2,
+  schemeSet3,
+  schemeTableau10,
+} from 'd3-scale-chromatic'
 import { type MouseEvent as ReactMouseEvent, useCallback, useMemo } from 'react'
 import {
   Area,
@@ -27,45 +43,97 @@ import {
 } from './chart'
 
 // ---------------------------------------------------------------------------
-// Colour palette — uses d3 Tableau 10, a perceptually balanced categorical
-// scheme designed for data visualisation.
+// Categorical colour palettes
 // ---------------------------------------------------------------------------
 
-function getColor(index: number) {
-  return schemeTableau10[index % schemeTableau10.length]!
+const CATEGORICAL_SCHEMES: Record<CategoricalColorScheme, readonly string[]> = {
+  tableau10: schemeTableau10,
+  category10: schemeCategory10,
+  paired: schemePaired,
+  set1: schemeSet1,
+  set2: schemeSet2,
+  set3: schemeSet3,
+  dark2: schemeDark2,
+  accent: schemeAccent,
+  observable10: schemeObservable10,
+}
+
+function getScheme(name?: CategoricalColorScheme): readonly string[] {
+  return CATEGORICAL_SCHEMES[name ?? 'tableau10'] ?? schemeTableau10
+}
+
+function getColor(
+  index: number,
+  scheme?: CategoricalColorScheme,
+  overrides?: Record<string, string>,
+  seriesKey?: string,
+) {
+  if (seriesKey && overrides?.[seriesKey]) return overrides[seriesKey]
+  const palette = getScheme(scheme)
+  return palette[index % palette.length]!
 }
 
 // ---------------------------------------------------------------------------
 // Formatters
 // ---------------------------------------------------------------------------
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'short',
-})
-
-const numberFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 3,
-})
-
-function formatXAxis(value: unknown): string {
-  if (value instanceof Date) {
-    return dateFormatter.format(value)
+function makeDateFormatter(
+  precision?: AppearanceConfig['datePrecision'],
+): Intl.DateTimeFormat {
+  switch (precision) {
+    case 'year':
+      return new Intl.DateTimeFormat(undefined, { year: 'numeric' })
+    case 'year-month-day':
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    case 'full':
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    default:
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+      })
   }
-  if (typeof value === 'string') {
-    const date = new Date(value)
-    if (!isNaN(date.getTime())) {
-      return dateFormatter.format(date)
-    }
-  }
-  return String(value ?? '')
 }
 
-function formatValue(value: unknown): string {
-  if (typeof value === 'number') {
-    return numberFormatter.format(value)
+function makeNumberFormatter(
+  decimalPlaces?: number,
+  compact?: boolean,
+): Intl.NumberFormat {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: decimalPlaces ?? 3,
+    notation: compact ? 'compact' : undefined,
+  })
+}
+
+function makeFormatXAxis(dateFmt: Intl.DateTimeFormat) {
+  return function formatXAxis(value: unknown): string {
+    if (value instanceof Date) {
+      return dateFmt.format(value)
+    }
+    if (typeof value === 'string') {
+      const date = new Date(value)
+      if (!isNaN(date.getTime())) {
+        return dateFmt.format(date)
+      }
+    }
+    return String(value ?? '')
   }
-  return String(value ?? '')
+}
+
+function makeFormatValue(numFmt: Intl.NumberFormat) {
+  return function formatValue(value: unknown): string {
+    if (typeof value === 'number') {
+      return numFmt.format(value)
+    }
+    return String(value ?? '')
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -145,18 +213,29 @@ interface DonutSlice {
   originalIndex: number
 }
 
+interface FormatFn {
+  // eslint-disable-next-line no-unused-vars
+  (input: unknown): string
+}
+
 function prepareDonutSlices(
   data: Record<string, unknown>[],
   x: string,
   y: string,
   groupBy: string,
+  fmtX: FormatFn,
+  scheme?: CategoricalColorScheme,
+  overrides?: Record<string, string>,
 ): DonutSlice[] {
-  return data.map((item, index) => ({
-    name: `${String(field(item, groupBy) ?? 'Value')} — ${formatXAxis(field(item, x))}`,
-    value: numericField(item, y),
-    fill: getColor(index),
-    originalIndex: index,
-  }))
+  return data.map((item, index) => {
+    const name = `${String(field(item, groupBy) ?? 'Value')} — ${fmtX(field(item, x))}`
+    return {
+      name,
+      value: numericField(item, y),
+      fill: getColor(index, scheme, overrides, name),
+      originalIndex: index,
+    }
+  })
 }
 
 /**
@@ -194,12 +273,16 @@ function groupBySeries<T extends BasePlotRecord>(
 // Dynamic ChartConfig builders
 // ---------------------------------------------------------------------------
 
-function buildChartConfig(seriesKeys: string[]): ChartConfig {
+function buildChartConfig(
+  seriesKeys: string[],
+  scheme?: CategoricalColorScheme,
+  overrides?: Record<string, string>,
+): ChartConfig {
   const config: ChartConfig = {}
   seriesKeys.forEach((key, index) => {
     config[key] = {
       label: key,
-      color: getColor(index),
+      color: getColor(index, scheme, overrides, key),
     }
   })
   return config
@@ -246,6 +329,7 @@ export interface PlotChartProps<T extends BasePlotRecord> {
   y: string
   groupBy: string
   type: PlotSubType
+  appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<T>
   className?: string
 }
@@ -256,9 +340,50 @@ export function PlotChart<T extends BasePlotRecord>({
   y,
   groupBy,
   type,
+  appearance,
   onSelect,
   className,
 }: PlotChartProps<T>) {
+  const scheme = appearance?.categoricalScheme
+  const overrides = appearance?.colorOverrides
+  const curveType: CurveType = appearance?.curveType ?? 'monotone'
+  const showDots = appearance?.showDots ?? true
+  const showGrid = appearance?.showGrid ?? true
+  const legendPos = appearance?.legendPosition ?? 'bottom'
+  const areaOpacity = appearance?.areaOpacity ?? 0.3
+  const barRadius = appearance?.barRadius ?? 4
+  const donutInner = appearance?.donutInnerRadius ?? 50
+  const includeZero = appearance?.includeZero
+  const yMin = appearance?.yMin
+  const yMax = appearance?.yMax
+
+  // Formatters (memoised on appearance)
+  const formatXAxis = useMemo(
+    () => makeFormatXAxis(makeDateFormatter(appearance?.datePrecision)),
+    [appearance?.datePrecision],
+  )
+  const formatValue = useMemo(
+    () =>
+      makeFormatValue(
+        makeNumberFormatter(
+          appearance?.decimalPlaces,
+          appearance?.compactNumbers,
+        ),
+      ),
+    [appearance?.decimalPlaces, appearance?.compactNumbers],
+  )
+
+  // Y-axis domain
+  const yDomain = useMemo<
+    [number | string, number | string] | undefined
+  >(() => {
+    if (yMin !== undefined || yMax !== undefined) {
+      return [yMin ?? 'auto', yMax ?? 'auto']
+    }
+    if (includeZero) return [0, 'auto']
+    return undefined
+  }, [yMin, yMax, includeZero])
+
   // Pivoted data for cartesian charts (line, area, bar)
   const { pivoted, seriesKeys } = useMemo(
     () => pivotData(data, x, y, groupBy),
@@ -267,8 +392,19 @@ export function PlotChart<T extends BasePlotRecord>({
 
   // Donut: 1:1 slices — no aggregation
   const donutSlices = useMemo(
-    () => (type === 'donut' ? prepareDonutSlices(data, x, y, groupBy) : []),
-    [data, x, y, groupBy, type],
+    () =>
+      type === 'donut'
+        ? prepareDonutSlices(
+            data,
+            x,
+            y,
+            groupBy,
+            formatXAxis,
+            scheme,
+            overrides,
+          )
+        : [],
+    [data, x, y, groupBy, type, formatXAxis, scheme, overrides],
   )
 
   // Grouped data for scatter
@@ -280,8 +416,27 @@ export function PlotChart<T extends BasePlotRecord>({
   // Build dynamic ChartConfig
   const chartConfig = useMemo(() => {
     if (type === 'donut') return buildDonutConfig(donutSlices)
-    return buildChartConfig(seriesKeys)
-  }, [seriesKeys, donutSlices, type])
+    return buildChartConfig(seriesKeys, scheme, overrides)
+  }, [seriesKeys, donutSlices, type, scheme, overrides])
+
+  // Direct color lookup — avoids CSS custom-property indirection entirely
+  const colorOf = useCallback(
+    (key: string): string => {
+      return chartConfig[key]?.color ?? '#000'
+    },
+    [chartConfig],
+  )
+
+  // Legend element (shared across chart types)
+  const legendElement =
+    legendPos === 'none' ? null : (
+      <ChartLegend
+        content={
+          <ChartLegendContent nameKey={type === 'donut' ? 'name' : undefined} />
+        }
+        verticalAlign={legendPos}
+      />
+    )
 
   // ---------------------------------------------------------------------------
   // Lookup helpers
@@ -332,21 +487,22 @@ export function PlotChart<T extends BasePlotRecord>({
    * Each rendered circle includes an onClick so every data point is clickable.
    */
   const makeDotRenderer = useCallback(
-    (seriesKey: string, radius: number) => (props: DotRenderProps) => (
-      <circle
-        cx={props.cx}
-        cy={props.cy}
-        r={radius}
-        fill={`var(--color-${seriesKey})`}
-        style={{ cursor: onSelect ? 'pointer' : undefined }}
-        onClick={(event) => {
-          if (!onSelect || !props.payload) return
-          const xValue = field(props.payload, x)
-          const match = findByXAndGroup(xValue, seriesKey)
-          onSelect({ dataPoint: match, event })
-        }}
-      />
-    ),
+    (seriesKey: string, radius: number, color: string) =>
+      (props: DotRenderProps) => (
+        <circle
+          cx={props.cx}
+          cy={props.cy}
+          r={radius}
+          fill={color}
+          style={{ cursor: onSelect ? 'pointer' : undefined }}
+          onClick={(event) => {
+            if (!onSelect || !props.payload) return
+            const xValue = field(props.payload, x)
+            const match = findByXAndGroup(xValue, seriesKey)
+            onSelect({ dataPoint: match, event })
+          }}
+        />
+      ),
     [onSelect, findByXAndGroup, x],
   )
 
@@ -355,14 +511,14 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'h-full w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <PieChart>
           <Pie
             data={donutSlices}
             dataKey="value"
             nameKey="name"
-            innerRadius="50%"
+            innerRadius={`${donutInner}%`}
             outerRadius="80%"
             paddingAngle={2}
             strokeWidth={2}
@@ -385,7 +541,7 @@ export function PlotChart<T extends BasePlotRecord>({
               <Cell key={i} fill={slice.fill} className="outline-none" />
             ))}
           </Pie>
-          <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+          {legendElement}
         </PieChart>
       </ChartContainer>
     )
@@ -396,10 +552,10 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'h-full w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <ScatterChart accessibilityLayer>
-          <CartesianGrid strokeDasharray="3 3" />
+          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
           <XAxis
             dataKey={x}
             name={x}
@@ -414,18 +570,19 @@ export function PlotChart<T extends BasePlotRecord>({
             dataKey={y}
             name={y}
             type="number"
+            domain={yDomain}
             tickFormatter={formatValue}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          {legendElement}
           {scatterGroups.map(({ seriesKey, seriesData }, index) => (
             <Scatter
               key={seriesKey}
               name={seriesKey}
               data={seriesData}
-              fill={getColor(index)}
+              fill={getColor(index, scheme, overrides, seriesKey)}
               isAnimationActive={false}
               onClick={(
                 _point: Record<string, unknown>,
@@ -451,10 +608,10 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'h-full w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <AreaChart accessibilityLayer data={pivoted}>
-          <CartesianGrid vertical={false} />
+          {showGrid && <CartesianGrid vertical={false} />}
           <XAxis
             dataKey={x}
             tickFormatter={formatXAxis}
@@ -463,24 +620,27 @@ export function PlotChart<T extends BasePlotRecord>({
             tickMargin={8}
           />
           <YAxis
+            domain={yDomain}
             tickFormatter={formatValue}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          {legendElement}
           {seriesKeys.map((key) => (
             <Area
               key={key}
-              type="monotone"
+              type={curveType}
               dataKey={key}
               stackId={stackId}
-              stroke={`var(--color-${key})`}
-              fill={`var(--color-${key})`}
-              fillOpacity={0.3}
+              stroke={colorOf(key)}
+              fill={colorOf(key)}
+              fillOpacity={areaOpacity}
               isAnimationActive={false}
-              dot={makeDotRenderer(key, 3)}
-              activeDot={makeDotRenderer(key, 5)}
+              dot={showDots ? makeDotRenderer(key, 3, colorOf(key)) : false}
+              activeDot={
+                showDots ? makeDotRenderer(key, 5, colorOf(key)) : false
+              }
             />
           ))}
         </AreaChart>
@@ -493,10 +653,10 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'h-full w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <BarChart accessibilityLayer data={pivoted}>
-          <CartesianGrid vertical={false} />
+          {showGrid && <CartesianGrid vertical={false} />}
           <XAxis
             dataKey={x}
             tickFormatter={formatXAxis}
@@ -505,18 +665,19 @@ export function PlotChart<T extends BasePlotRecord>({
             tickMargin={8}
           />
           <YAxis
+            domain={yDomain}
             tickFormatter={formatValue}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          {legendElement}
           {seriesKeys.map((key) => (
             <Bar
               key={key}
               dataKey={key}
               stackId="stack"
-              fill={`var(--color-${key})`}
+              fill={colorOf(key)}
               radius={[0, 0, 0, 0]}
               isAnimationActive={false}
               onClick={makeBarClick(key)}
@@ -533,10 +694,10 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'h-full w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <BarChart accessibilityLayer data={pivoted}>
-          <CartesianGrid vertical={false} />
+          {showGrid && <CartesianGrid vertical={false} />}
           <XAxis
             dataKey={x}
             tickFormatter={formatXAxis}
@@ -545,18 +706,19 @@ export function PlotChart<T extends BasePlotRecord>({
             tickMargin={8}
           />
           <YAxis
+            domain={yDomain}
             tickFormatter={formatValue}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          {legendElement}
           {seriesKeys.map((key) => (
             <Bar
               key={key}
               dataKey={key}
-              fill={`var(--color-${key})`}
-              radius={4}
+              fill={colorOf(key)}
+              radius={barRadius}
               isAnimationActive={false}
               onClick={makeBarClick(key)}
               style={{ cursor: onSelect ? 'pointer' : undefined }}
@@ -571,10 +733,10 @@ export function PlotChart<T extends BasePlotRecord>({
   return (
     <ChartContainer
       config={chartConfig}
-      className={className ?? 'h-full w-full min-h-[240px]'}
+      className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
     >
       <LineChart accessibilityLayer data={pivoted}>
-        <CartesianGrid vertical={false} />
+        {showGrid && <CartesianGrid vertical={false} />}
         <XAxis
           dataKey={x}
           tickFormatter={formatXAxis}
@@ -583,22 +745,23 @@ export function PlotChart<T extends BasePlotRecord>({
           tickMargin={8}
         />
         <YAxis
+          domain={yDomain}
           tickFormatter={formatValue}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
         />
-        <ChartLegend content={<ChartLegendContent />} />
+        {legendElement}
         {seriesKeys.map((key) => (
           <Line
             key={key}
-            type="monotone"
+            type={curveType}
             dataKey={key}
-            stroke={`var(--color-${key})`}
+            stroke={colorOf(key)}
             strokeWidth={2}
             isAnimationActive={false}
-            dot={makeDotRenderer(key, 3)}
-            activeDot={makeDotRenderer(key, 5)}
+            dot={showDots ? makeDotRenderer(key, 3, colorOf(key)) : false}
+            activeDot={showDots ? makeDotRenderer(key, 5, colorOf(key)) : false}
           />
         ))}
       </LineChart>
