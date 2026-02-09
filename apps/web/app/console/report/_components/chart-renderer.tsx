@@ -149,7 +149,7 @@ const TablePlotContainer = ({
     timePoint: chart.timePoints,
   })
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <TablePlot
         data={productOutputs?.data ?? []}
         xDimension={chart.xDimension}
@@ -233,7 +233,7 @@ export const ChartRenderer = ({
   }
 
   return (
-    <div className={cn('flex flex-1 min-h-0 flex-col gap-2 relative p-3')}>
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2 relative p-1')}>
       {config?.showTitleAndDescription &&
         (chart.title || chart.description) && (
           <div className="flex flex-col items-center gap-0.5 pb-1">

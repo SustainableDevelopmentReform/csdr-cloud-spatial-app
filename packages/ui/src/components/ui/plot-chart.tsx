@@ -166,6 +166,7 @@ function prepareDonutSlices(
 function groupBySeries<T extends BasePlotRecord>(
   data: T[],
   groupBy: string,
+  sortBy?: string,
 ): { seriesKey: string; seriesData: T[] }[] {
   const groups = new Map<string, T[]>()
 
@@ -179,7 +180,13 @@ function groupBySeries<T extends BasePlotRecord>(
 
   return Array.from(groups.entries()).map(([seriesKey, seriesData]) => ({
     seriesKey,
-    seriesData,
+    seriesData: sortBy
+      ? seriesData.sort((a, b) =>
+          toStringKey(field(a, sortBy)).localeCompare(
+            toStringKey(field(b, sortBy)),
+          ),
+        )
+      : seriesData,
   }))
 }
 
@@ -266,8 +273,8 @@ export function PlotChart<T extends BasePlotRecord>({
 
   // Grouped data for scatter
   const scatterGroups = useMemo(
-    () => (type === 'dot' ? groupBySeries(data, groupBy) : []),
-    [data, groupBy, type],
+    () => (type === 'dot' ? groupBySeries(data, groupBy, x) : []),
+    [data, groupBy, type, x],
   )
 
   // Build dynamic ChartConfig
