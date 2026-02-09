@@ -251,7 +251,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   }, [valueExtent])
 
   return (
-    <div className="w-full overflow-auto rounded-md border border-border shadow-sm">
+    <div className="w-full flex-1 min-h-0 overflow-auto rounded-md border border-border shadow-sm">
       <table className="w-full min-w-[480px] table-fixed border-collapse text-sm">
         <thead className="bg-muted/40">
           <tr>
