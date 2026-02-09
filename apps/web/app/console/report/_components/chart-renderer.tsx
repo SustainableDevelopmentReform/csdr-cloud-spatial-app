@@ -66,7 +66,7 @@ const PlotContainer = ({
     <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <div
         className={cn(
-          'flex-1 min-h-0',
+          'flex flex-col flex-1 min-h-0',
           config?.showSelectedPointDetails &&
             'grid grid-cols-2 grid-rows-1 gap-4',
         )}
@@ -79,6 +79,7 @@ const PlotContainer = ({
             multipleGeometryOutputs ? 'geometryOutputName' : 'indicatorName'
           }
           type={chart.subType}
+          appearance={chart.appearance}
           onSelect={onSelect}
         />
       </div>
@@ -126,6 +127,7 @@ const MapContainer = ({
         productRun={productRun}
         productOutputs={productOutputs?.data}
         zoomToGeometryOutputIds={chart.geometryOutputIds}
+        appearance={chart.appearance}
         onSelect={onSelect}
       />
     </div>
@@ -154,6 +156,7 @@ const TablePlotContainer = ({
         data={productOutputs?.data ?? []}
         xDimension={chart.xDimension}
         yDimension={chart.yDimension}
+        appearance={chart.appearance}
         onSelect={onSelect}
       />
 

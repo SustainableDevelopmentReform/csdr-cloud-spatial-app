@@ -1,10 +1,30 @@
 import clsx from 'clsx'
 import { extent } from 'd3-array'
 import { rgb } from 'd3-color'
-import { scaleSequential } from 'd3-scale'
-import { interpolateYlOrRd } from 'd3-scale-chromatic'
+import { scaleDiverging, scaleSequential } from 'd3-scale'
+import {
+  interpolateBlues,
+  interpolateBrBG,
+  interpolateBuPu,
+  interpolateGreens,
+  interpolateInferno,
+  interpolateOranges,
+  interpolatePiYG,
+  interpolatePlasma,
+  interpolatePRGn,
+  interpolateRdBu,
+  interpolateRdYlGn,
+  interpolateViridis,
+  interpolateYlGnBu,
+  interpolateYlOrRd,
+} from 'd3-scale-chromatic'
 import { useMemo } from 'react'
-import { OnSelectCallback } from './types'
+import {
+  type AppearanceConfig,
+  type DivergingColorScheme,
+  type OnSelectCallback,
+  type SequentialColorScheme,
+} from './types'
 
 type BaseTableRecord = {
   id: string
@@ -64,6 +84,36 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,
 })
+
+// ---------------------------------------------------------------------------
+// Colour scale helpers
+// ---------------------------------------------------------------------------
+
+const SEQUENTIAL_INTERPOLATORS: Record<
+  SequentialColorScheme,
+  (t: number) => string
+> = {
+  ylOrRd: interpolateYlOrRd,
+  viridis: interpolateViridis,
+  plasma: interpolatePlasma,
+  inferno: interpolateInferno,
+  blues: interpolateBlues,
+  greens: interpolateGreens,
+  oranges: interpolateOranges,
+  ylGnBu: interpolateYlGnBu,
+  buPu: interpolateBuPu,
+}
+
+const DIVERGING_INTERPOLATORS: Record<
+  DivergingColorScheme,
+  (t: number) => string
+> = {
+  rdBu: interpolateRdBu,
+  brBG: interpolateBrBG,
+  piYG: interpolatePiYG,
+  prGn: interpolatePRGn,
+  rdYlGn: interpolateRdYlGn,
+}
 
 const LIGHT_TEXT_COLOR = '#F9FAFB'
 const DARK_TEXT_COLOR = '#111827'
@@ -165,13 +215,24 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   data,
   xDimension,
   yDimension,
+  appearance,
   onSelect,
 }: {
   data: T[]
   xDimension: TablePlotDimension
   yDimension: TablePlotDimension
+  appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<T>
 }) {
+  const numFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        maximumFractionDigits: appearance?.decimalPlaces ?? 3,
+        notation: appearance?.compactNumbers ? 'compact' : undefined,
+      }),
+    [appearance?.decimalPlaces, appearance?.compactNumbers],
+  )
+
   const normalizedData = useMemo<NormalizedTableRecord[]>(() => {
     return data.map((record) => {
       const time =
@@ -243,12 +304,36 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     if (min === null || max === null) {
       return null
     }
-    if (min === max) {
-      const constantColor = interpolateYlOrRd(0.5)
-      return () => constantColor
+
+    const isDiverging = appearance?.colorScaleType === 'diverging'
+
+    if (isDiverging) {
+      const interpolator =
+        DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
+        interpolateRdBu
+      if (min === max) {
+        const c = interpolator(0.5)
+        return () => c
+      }
+      const mid = appearance?.divergingMidpoint ?? (min + max) / 2
+      return scaleDiverging(interpolator).domain([min, mid, max])
     }
-    return scaleSequential(interpolateYlOrRd).domain([min, max])
-  }, [valueExtent])
+
+    const interpolator =
+      SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
+      interpolateYlOrRd
+    if (min === max) {
+      const c = interpolator(0.5)
+      return () => c
+    }
+    return scaleSequential(interpolator).domain([min, max])
+  }, [
+    valueExtent,
+    appearance?.colorScaleType,
+    appearance?.sequentialScheme,
+    appearance?.divergingScheme,
+    appearance?.divergingMidpoint,
+  ])
 
   return (
     <div className="w-full flex-1 min-h-0 overflow-auto rounded-md border border-border shadow-sm">
@@ -308,7 +393,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
                       onSelect?.({ dataPoint: cell ?? null, event })
                     }}
                   >
-                    {hasValue ? numberFormatter.format(value) : '—'}
+                    {hasValue ? numFmt.format(value) : '—'}
                   </td>
                 )
               })}
