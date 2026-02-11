@@ -1,3 +1,5 @@
+// Try to load all COGs for a dataset e.g. GMW. Don't show the grid if possible. See if Deck handles 1000s of small COGs. If this doesn't work then we can show the grid at lower zoom levels, and just load the COGs when zoomed in more.
+// TODO: Define how the user styles dataset layers.
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Map } from '@vis.gl/react-maplibre'
 import DeckGL from '@deck.gl/react'
@@ -178,10 +180,10 @@ export const DatasetRunMap = ({
   //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
 
   // 2. PMTiles datasets:
-  let datasetRunPMTilesUrl =
-    // 's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
-    's3://csdr-public-dev/geometries/cwa/0-0-1/runs/4d3ee1b8-285b-5c78-b62c-bb08f0abe637/CW_1970_1980_Areas.pmtiles'
-  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+  // let datasetRunPMTilesUrl =
+  //   // 's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
+  //   's3://csdr-public-dev/geometries/cwa/0-0-1/runs/4d3ee1b8-285b-5c78-b62c-bb08f0abe637/CW_1970_1980_Areas.pmtiles'
+  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // These are all being written with arrow by the pipeline now and all work here :)
   const gmw_v4_written_by_pipeline_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
@@ -189,7 +191,7 @@ export const DatasetRunMap = ({
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
   const ace_written_by_pipeline_s3 =
     'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
-  dataUrl = gmw_v4_written_by_pipeline_s3
+  dataUrl = seagrass_written_by_pipeline_s3
   // Just for dev. Dataurl will come from props.
   // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
   // Other test files:
@@ -204,12 +206,13 @@ export const DatasetRunMap = ({
   // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
   // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // Buildings. Massive PMTiles file on Source Coop.
-  // datasetRunPMTilesUrl =
-  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
-  //     DatasetRunListItem['dataUrl'],
-  //     null
-  //   >
-  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+  // This loads (slowly) despite being 236.41 GB!
+  let datasetRunPMTilesUrl =
+    'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
+      DatasetRunListItem['dataUrl'],
+      null
+    >
+  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // Could use this to display PMTiles https://github.com/visgl/deck.gl/issues/8615#issuecomment-1992673335
 
   // For testing parquet points:
@@ -226,13 +229,13 @@ export const DatasetRunMap = ({
   // - reef: No id or name.
   // - buildings: we only index the bboxes of the sa2 building parquets. Maybe the user can click a bbox and load/vizualise that data from Source Coop? Has s2_code id column.
 
-  if (dataType == 'stac-geoparquet') {
-    console.log('Data is STAC-Geoparquet. Load parquet arrow table.')
-  } else if (dataType == 'geoparquet') {
-    console.log('Data is Geoparquet. Load PMTiles.')
-  } else {
-    throw new Error(`Unsupported dataType: ${dataType}`) // TODO: Handle this better.
-  }
+  // if (dataType == 'stac-geoparquet') {
+  //   console.log('Data is STAC-Geoparquet. Load parquet arrow table.')
+  // } else if (dataType == 'geoparquet') {
+  //   console.log('Data is Geoparquet. Load PMTiles.')
+  // } else {
+  //   throw new Error(`Unsupported dataType: ${dataType}`) // TODO: Handle this better.
+  // }
 
   function s3UrlToHttps(s3Url: string): string {
     if (s3Url.startsWith('s3://')) {
