@@ -43,6 +43,11 @@ import {
 import { cn } from '@repo/ui/lib/utils'
 import { Switch } from '@repo/ui/components/ui/switch'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@repo/ui/components/ui/tooltip'
+import {
   schemeTableau10,
   schemeCategory10,
   schemePaired,
@@ -115,6 +120,24 @@ function resolveSeriesColor(
   return palette[index % palette.length]!
 }
 
+/** Map a product's timePrecision to the chart's datePrecision default. */
+function timePrecisionToDatePrecision(
+  tp: ProductListItem['timePrecision'] | null | undefined,
+): AppearanceConfig['datePrecision'] {
+  switch (tp) {
+    case 'hour':
+      return 'full'
+    case 'day':
+      return 'year-month-day'
+    case 'month':
+      return 'year-month'
+    case 'year':
+      return 'year'
+    default:
+      return 'year-month'
+  }
+}
+
 const STEP_LABELS = [
   'Data Source',
   'Chart Type',
@@ -137,6 +160,8 @@ interface VisualTypeOption {
   label: string
   icon: LucideIcon
   description: string
+  /** True if the chart type needs more than one time point to be useful. */
+  requiresMultiTime?: boolean
 }
 
 const VISUAL_TYPES: VisualTypeOption[] = [
@@ -147,6 +172,7 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Line',
     icon: TrendingUp,
     description: 'Trends over time',
+    requiresMultiTime: true,
   },
   {
     key: 'area',
@@ -155,6 +181,7 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Area',
     icon: AreaChartIcon,
     description: 'Filled trends',
+    requiresMultiTime: true,
   },
   {
     key: 'stacked-area',
@@ -163,6 +190,7 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Stacked Area',
     icon: Layers,
     description: 'Part-to-whole over time',
+    requiresMultiTime: true,
   },
   {
     key: 'stacked-bar',
@@ -171,6 +199,7 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Stacked Bar',
     icon: BarChart3,
     description: 'Totals by category',
+    requiresMultiTime: true,
   },
   {
     key: 'grouped-bar',
@@ -187,6 +216,7 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Scatter',
     icon: CircleDot,
     description: 'Value distribution',
+    requiresMultiTime: true,
   },
   {
     key: 'donut',
@@ -326,6 +356,9 @@ const appearanceSchema = z
       .optional(),
     colorScaleType: z.enum(['sequential', 'diverging']).optional(),
     divergingMidpoint: z.number().optional(),
+    colorScaleMin: z.number().optional(),
+    colorScaleMax: z.number().optional(),
+    reverseColorScale: z.boolean().optional(),
     includeZero: z.boolean().optional(),
     yMin: z.number().optional(),
     yMax: z.number().optional(),
@@ -616,48 +649,74 @@ const WizardSteps = ({
 const TypeGrid = ({
   selected,
   onSelect,
+  timePointCount,
 }: {
   selected: string | undefined
   onSelect: (vt: VisualTypeOption) => void
-}) => (
-  <div className="grid grid-cols-3 gap-2">
-    {VISUAL_TYPES.map((vt) => {
-      const Icon = vt.icon
-      const isSelected = selected === vt.key
-      return (
-        <button
-          key={vt.key}
-          type="button"
-          onClick={() => onSelect(vt)}
-          className={cn(
-            'flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 text-center transition-colors',
-            isSelected
-              ? 'border-primary bg-primary/5'
-              : 'border-transparent bg-muted/40 hover:border-border hover:bg-muted/60',
-          )}
-        >
-          <Icon
+  timePointCount: number | null
+}) => {
+  const hasMultiTime = timePointCount !== null && timePointCount > 1
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {VISUAL_TYPES.map((vt) => {
+        const Icon = vt.icon
+        const isSelected = selected === vt.key
+        const isLimited = vt.requiresMultiTime && !hasMultiTime
+
+        const btn = (
+          <button
+            key={vt.key}
+            type="button"
+            onClick={() => onSelect(vt)}
             className={cn(
-              'h-6 w-6',
-              isSelected ? 'text-primary' : 'text-muted-foreground',
-            )}
-          />
-          <span
-            className={cn(
-              'text-xs font-medium leading-none',
-              isSelected ? 'text-primary' : 'text-foreground',
+              'flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 text-center transition-colors',
+              isSelected
+                ? 'border-primary bg-primary/5'
+                : 'border-transparent bg-muted/40 hover:border-border hover:bg-muted/60',
+              isLimited && !isSelected && 'opacity-40',
             )}
           >
-            {vt.label}
-          </span>
-          <span className="text-[10px] leading-tight text-muted-foreground">
-            {vt.description}
-          </span>
-        </button>
-      )
-    })}
-  </div>
-)
+            <Icon
+              className={cn(
+                'h-6 w-6',
+                isSelected ? 'text-primary' : 'text-muted-foreground',
+              )}
+            />
+            <span
+              className={cn(
+                'text-xs font-medium leading-none',
+                isSelected ? 'text-primary' : 'text-foreground',
+              )}
+            >
+              {vt.label}
+            </span>
+            <span className="text-[10px] leading-tight text-muted-foreground">
+              {vt.description}
+            </span>
+          </button>
+        )
+
+        if (isLimited) {
+          return (
+            <Tooltip key={vt.key}>
+              <TooltipTrigger asChild>{btn}</TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                className="max-w-[200px] text-center"
+              >
+                {timePointCount === null
+                  ? 'Select a product first'
+                  : 'This product only has one time point — this chart type works best with multiple'}
+              </TooltipContent>
+            </Tooltip>
+          )
+        }
+
+        return btn
+      })}
+    </div>
+  )
+}
 
 const SeriesDimensionToggle = ({
   value,
@@ -855,6 +914,7 @@ export const ChartFormDialog = ({
   const [productSummary, setProductSummary] = useState<{
     indicatorCount: number
     timePointCount: number
+    timePrecision: ProductListItem['timePrecision'] | null
     firstIndicatorId: string | null
     firstTimePoint: string | null
   } | null>(null)
@@ -1076,12 +1136,27 @@ export const ChartFormDialog = ({
 
       // Capture summary for series count warnings + defaults for auto-fill
       const summary = product.mainRun?.outputSummary
+      const tp = product.timePrecision ?? null
       setProductSummary({
         indicatorCount: summary?.indicators?.length ?? 0,
         timePointCount: summary?.timePoints?.length ?? 0,
+        timePrecision: tp,
         firstIndicatorId: summary?.indicators?.[0]?.id ?? null,
         firstTimePoint: summary?.timePoints?.[0] ?? null,
       })
+
+      // Set appearance defaults so they're persisted on submit even if the
+      // user never visits the Appearance step.
+      if (!form.getValues('appearance.compactNumbers')) {
+        form.setValue('appearance.compactNumbers', true, sv)
+      }
+      if (!form.getValues('appearance.datePrecision')) {
+        form.setValue(
+          'appearance.datePrecision',
+          timePrecisionToDatePrecision(tp),
+          sv,
+        )
+      }
 
       form.trigger()
     },
@@ -1220,6 +1295,9 @@ export const ChartFormDialog = ({
         const tps = form.getValues('timePoints')
         form.setValue('indicatorId', ids?.[0] ?? defaultIndicator ?? '', sv)
         form.setValue('timePoint', tps?.[0] ?? defaultTime ?? '', sv)
+        // Clear geometry filter so the map shows all geometries rather than
+        // zooming into whichever single geometry a previous chart type had set.
+        form.setValue('geometryOutputIds', undefined, sv)
       }
 
       // Set default table dimensions
@@ -1333,9 +1411,9 @@ export const ChartFormDialog = ({
             </DialogHeader>
 
             {/* Content — vertical on small screens, horizontal split on lg */}
-            <div className="space-y-4 overflow-y-auto px-0.5 pb-1 lg:flex lg:min-h-0 lg:gap-4 lg:space-y-0 lg:overflow-hidden">
+            <div className="space-y-4 overflow-y-auto px-1 pb-1 lg:flex lg:min-h-0 lg:gap-4 lg:space-y-0 lg:overflow-hidden">
               {/* Form fields — scrolls independently on lg */}
-              <div className="lg:w-[40%] lg:shrink-0 lg:space-y-4 lg:overflow-y-auto">
+              <div className="lg:w-[40%] lg:shrink-0 lg:space-y-4 lg:overflow-y-auto lg:px-1">
                 {/* ---- Step 0: Data Source ---- */}
                 {step === 0 && (
                   <div className="flex flex-col gap-3">
@@ -1396,6 +1474,7 @@ export const ChartFormDialog = ({
                   <TypeGrid
                     selected={visualTypeKey}
                     onSelect={handleTypeSelect}
+                    timePointCount={productSummary?.timePointCount ?? null}
                   />
                 )}
 
@@ -2044,7 +2123,12 @@ export const ChartFormDialog = ({
                             <FormItem>
                               <FormLabel>Date Format</FormLabel>
                               <Select
-                                value={field.value ?? 'year-month'}
+                                value={
+                                  field.value ??
+                                  timePrecisionToDatePrecision(
+                                    productSummary?.timePrecision,
+                                  )
+                                }
                                 onValueChange={(v) =>
                                   field.onChange(
                                     v as AppearanceConfig['datePrecision'],
@@ -2075,7 +2159,7 @@ export const ChartFormDialog = ({
                               Compact numbers (1.2k, 3.4M)
                             </FormLabel>
                             <Switch
-                              checked={field.value ?? false}
+                              checked={field.value ?? true}
                               onCheckedChange={field.onChange}
                             />
                           </FormItem>
