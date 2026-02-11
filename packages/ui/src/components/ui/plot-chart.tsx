@@ -4,6 +4,7 @@ import {
   type AppearanceConfig,
   type CategoricalColorScheme,
   type CurveType,
+  makeDateFormatter,
   type OnSelectCallback,
   type PlotSubType,
 } from '@repo/plot/types'
@@ -76,31 +77,6 @@ function getColor(
 // ---------------------------------------------------------------------------
 // Formatters
 // ---------------------------------------------------------------------------
-
-function makeDateFormatter(
-  precision?: AppearanceConfig['datePrecision'],
-): Intl.DateTimeFormat {
-  switch (precision) {
-    case 'year':
-      return new Intl.DateTimeFormat(undefined, { year: 'numeric' })
-    case 'year-month-day':
-      return new Intl.DateTimeFormat(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    case 'full':
-      return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
-    default:
-      return new Intl.DateTimeFormat(undefined, {
-        year: 'numeric',
-        month: 'short',
-      })
-  }
-}
 
 function makeNumberFormatter(
   decimalPlaces?: number,

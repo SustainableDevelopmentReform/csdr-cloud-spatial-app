@@ -22,6 +22,7 @@ import { useMemo } from 'react'
 import {
   type AppearanceConfig,
   type DivergingColorScheme,
+  makeDateFormatter,
   type OnSelectCallback,
   type SequentialColorScheme,
 } from './types'
@@ -75,15 +76,6 @@ export function getTablePlotCodeSnippet() {
     '// This will output an HTML table matching the rendered view.',
   ]
 }
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-const numberFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 3,
-})
 
 // ---------------------------------------------------------------------------
 // Colour scale helpers
@@ -166,6 +158,7 @@ type NormalizedTableRecord = BaseTableRecord & { timePoint: Date }
 function getDimensionMeta(
   record: NormalizedTableRecord,
   dimension: TablePlotDimension,
+  dateFmt: Intl.DateTimeFormat,
 ): DimensionMeta | null {
   switch (dimension) {
     case 'timePoint': {
@@ -173,7 +166,7 @@ function getDimensionMeta(
       const key = time.toISOString()
       return {
         key,
-        label: dateFormatter.format(time),
+        label: dateFmt.format(time),
         sortValue: time.getTime(),
       }
     }
@@ -233,6 +226,11 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     [appearance?.decimalPlaces, appearance?.compactNumbers],
   )
 
+  const dateFmt = useMemo(
+    () => makeDateFormatter(appearance?.datePrecision),
+    [appearance?.datePrecision],
+  )
+
   const normalizedData = useMemo<NormalizedTableRecord[]>(() => {
     return data.map((record) => {
       const time =
@@ -252,8 +250,8 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     const rowMap = new Map<string, TablePlotRow<T>>()
 
     for (const record of normalizedData) {
-      const columnMeta = getDimensionMeta(record, xDimension)
-      const rowMeta = getDimensionMeta(record, yDimension)
+      const columnMeta = getDimensionMeta(record, xDimension, dateFmt)
+      const rowMeta = getDimensionMeta(record, yDimension, dateFmt)
 
       if (!columnMeta || !rowMeta) continue
 
@@ -283,7 +281,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
       columns: sortedColumns,
       rows: sortedRows,
     }
-  }, [normalizedData, xDimension, yDimension])
+  }, [normalizedData, xDimension, yDimension, dateFmt])
 
   const valueExtent = useMemo(() => {
     const values = normalizedData
@@ -300,17 +298,25 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   }, [normalizedData])
 
   const colorScale = useMemo(() => {
-    const { min, max } = valueExtent
-    if (min === null || max === null) {
+    const autoMin = valueExtent.min
+    const autoMax = valueExtent.max
+    if (autoMin === null || autoMax === null) {
       return null
     }
+
+    const min = appearance?.colorScaleMin ?? autoMin
+    const max = appearance?.colorScaleMax ?? autoMax
+    const reverse = appearance?.reverseColorScale ?? false
 
     const isDiverging = appearance?.colorScaleType === 'diverging'
 
     if (isDiverging) {
-      const interpolator =
+      const baseInterpolator =
         DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
         interpolateRdBu
+      const interpolator = reverse
+        ? (t: number) => baseInterpolator(1 - t)
+        : baseInterpolator
       if (min === max) {
         const c = interpolator(0.5)
         return () => c
@@ -319,9 +325,12 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
       return scaleDiverging(interpolator).domain([min, mid, max])
     }
 
-    const interpolator =
+    const baseInterpolator =
       SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
       interpolateYlOrRd
+    const interpolator = reverse
+      ? (t: number) => baseInterpolator(1 - t)
+      : baseInterpolator
     if (min === max) {
       const c = interpolator(0.5)
       return () => c
@@ -333,10 +342,13 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     appearance?.sequentialScheme,
     appearance?.divergingScheme,
     appearance?.divergingMidpoint,
+    appearance?.colorScaleMin,
+    appearance?.colorScaleMax,
+    appearance?.reverseColorScale,
   ])
 
   return (
-    <div className="w-full flex-1 min-h-0 overflow-auto rounded-md border border-border shadow-sm">
+    <div className="flex w-full flex-1 min-h-0 flex-col overflow-auto rounded-md border border-border shadow-sm">
       <table className="w-full min-w-[480px] table-fixed border-collapse text-sm">
         <thead className="bg-muted/40">
           <tr>

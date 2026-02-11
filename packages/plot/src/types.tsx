@@ -46,6 +46,9 @@ export type AppearanceConfig = {
   divergingScheme?: DivergingColorScheme
   colorScaleType?: 'sequential' | 'diverging'
   divergingMidpoint?: number
+  colorScaleMin?: number
+  colorScaleMax?: number
+  reverseColorScale?: boolean
 
   // Y-axis
   includeZero?: boolean
@@ -139,3 +142,37 @@ export type SelectedDataPoint<T> = {
 export type OnSelectCallback<T> = (
   selectedDataPoint: SelectedDataPoint<T>,
 ) => void
+
+// ---------------------------------------------------------------------------
+// Shared formatters
+// ---------------------------------------------------------------------------
+
+export function makeDateFormatter(
+  precision?: AppearanceConfig['datePrecision'],
+): Intl.DateTimeFormat {
+  switch (precision) {
+    case 'year':
+      return new Intl.DateTimeFormat(undefined, { year: 'numeric' })
+    case 'year-month':
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+      })
+    case 'year-month-day':
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    case 'full':
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    default:
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+      })
+  }
+}

@@ -74,7 +74,7 @@ import {
   Table2,
   TrendingUp,
 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, type UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { FieldGroup } from '../../../../components/form/action'
@@ -900,6 +900,7 @@ export const ChartFormDialog = ({
   const subType = form.watch('subType')
   const productId = form.watch('productId')
   const productRunId = form.watch('productRunId')
+  const indicatorId = form.watch('indicatorId')
   const indicatorIds = form.watch('indicatorIds')
   const geometryOutputIds = form.watch('geometryOutputIds')
   const timePoints = form.watch('timePoints')
@@ -912,6 +913,7 @@ export const ChartFormDialog = ({
 
   // Product summary for series count warnings + default values for auto-fill
   const [productSummary, setProductSummary] = useState<{
+    productName: string
     indicatorCount: number
     timePointCount: number
     timePrecision: ProductListItem['timePrecision'] | null
@@ -1089,25 +1091,97 @@ export const ChartFormDialog = ({
     geometryOutputsData,
   ])
 
+  // Build a sensible default title from the current configuration.
+  // Shows the product name plus the names of any single-selected dimensions.
+  const suggestedTitle = useMemo(() => {
+    const productName = productSummary?.productName
+    if (!productName) return ''
+
+    const allIndicators = productRunDetail?.outputSummary?.indicators ?? []
+    const allGeometries = geometryOutputsData?.data ?? []
+
+    const resolveIndicatorName = (ids: string[] | undefined): string | null => {
+      if (!ids || ids.length !== 1) return null
+      const id = ids[0]
+      const match = allIndicators.find((si) => si.indicator?.id === id)
+      return match?.indicator?.name ?? null
+    }
+
+    const resolveGeometryName = (ids: string[] | undefined): string | null => {
+      if (!ids || ids.length !== 1) return null
+      const id = ids[0]
+      const match = allGeometries.find((g) => g.id === id)
+      return match?.name ?? null
+    }
+
+    if (chartType === 'map') {
+      // Map: single indicator (indicatorId, not indicatorIds), single time
+      const match = allIndicators.find((si) => si.indicator?.id === indicatorId)
+      const indName = match?.indicator?.name ?? null
+      return indName ? `${indName} — ${productName}` : productName
+    }
+
+    if (chartType === 'table') {
+      return productName
+    }
+
+    // Plot types: title depends on which dimension is the series (multi)
+    switch (seriesDimension) {
+      case 'indicators': {
+        // Slicing by indicators -> geometry & time are single
+        const geoName = resolveGeometryName(geometryOutputIds)
+        return geoName ? `${productName} — ${geoName}` : productName
+      }
+      case 'geometries': {
+        // Slicing by geometries -> indicator & time are single
+        const indName = resolveIndicatorName(indicatorIds)
+        return indName ? `${indName} — ${productName}` : productName
+      }
+      case 'time': {
+        // Slicing by time -> indicator & geometry are single
+        const indName = resolveIndicatorName(indicatorIds)
+        const geoName = resolveGeometryName(geometryOutputIds)
+        if (indName && geoName) return `${indName} — ${geoName}`
+        if (indName) return `${indName} — ${productName}`
+        if (geoName) return `${productName} — ${geoName}`
+        return productName
+      }
+      default:
+        return productName
+    }
+  }, [
+    productSummary?.productName,
+    chartType,
+    seriesDimension,
+    indicatorId,
+    indicatorIds,
+    geometryOutputIds,
+    productRunDetail,
+    geometryOutputsData,
+  ])
+
+  // Track whether the title was auto-generated (true) or manually typed by the
+  // user (false).  When auto, we keep it in sync with `suggestedTitle`.
+  const titleAutoRef = useRef(!chart?.title)
+
+  useEffect(() => {
+    if (!titleAutoRef.current) return
+    if (!suggestedTitle) return
+    form.setValue('title', suggestedTitle, { shouldValidate: false })
+  }, [suggestedTitle, form])
+
   // --- Callbacks ---
 
   const setDefaultsForProduct = useCallback(
     (product: ProductListItem) => {
       const sv = { shouldValidate: false }
 
+      // Nuke the entire form so nothing from the previous product lingers,
+      // then re-populate only product-level fields.
+      form.reset(undefined, { keepDefaultValues: true })
+
       form.setValue('productId', product.id, sv)
 
-      // Always clear all data-dependent fields first so nothing from the
-      // previous product lingers — then apply new defaults below.
-      form.setValue('productRunId', undefined as unknown as string, sv)
-      form.setValue('indicatorId', undefined as unknown as string, sv)
-      form.setValue('indicatorIds', undefined, sv)
-      form.setValue('geometryOutputIds', undefined, sv)
-      form.setValue('timePoint', undefined as unknown as string, sv)
-      form.setValue('timePoints', undefined, sv)
-      setProductSummary(null)
-
-      // Apply defaults from the new product's main run (if available)
       if (product.mainRunId) {
         form.setValue('productRunId', product.mainRunId, sv)
       }
@@ -1138,6 +1212,7 @@ export const ChartFormDialog = ({
       const summary = product.mainRun?.outputSummary
       const tp = product.timePrecision ?? null
       setProductSummary({
+        productName: product.name,
         indicatorCount: summary?.indicators?.length ?? 0,
         timePointCount: summary?.timePoints?.length ?? 0,
         timePrecision: tp,
@@ -1145,20 +1220,18 @@ export const ChartFormDialog = ({
         firstTimePoint: summary?.timePoints?.[0] ?? null,
       })
 
-      // Set appearance defaults so they're persisted on submit even if the
-      // user never visits the Appearance step.
-      if (!form.getValues('appearance.compactNumbers')) {
-        form.setValue('appearance.compactNumbers', true, sv)
-      }
-      if (!form.getValues('appearance.datePrecision')) {
-        form.setValue(
-          'appearance.datePrecision',
-          timePrecisionToDatePrecision(tp),
-          sv,
-        )
-      }
+      // Set appearance defaults
+      form.setValue('appearance.compactNumbers', true, sv)
+      form.setValue(
+        'appearance.datePrecision',
+        timePrecisionToDatePrecision(tp),
+        sv,
+      )
 
-      form.trigger()
+      // Reset wizard state back to the type selection step
+      setStep(1)
+      setSeriesDimension('indicators')
+      titleAutoRef.current = true
     },
     [form],
   )
@@ -1368,11 +1441,14 @@ export const ChartFormDialog = ({
             form.trigger()
             setStep(2)
             setSeriesDimension(inferSeriesDimension(chart))
+            // Preserve manually-set title in edit mode
+            titleAutoRef.current = !chart.title
           } else {
             form.reset()
             setStep(0)
             setSeriesDimension('indicators')
             setProductSummary(null)
+            titleAutoRef.current = true
           }
           onOpen?.()
         } else {
@@ -1591,9 +1667,13 @@ export const ChartFormDialog = ({
                                   value={field.value ?? []}
                                   placeholder="Select indicators…"
                                   isMulti
-                                  onChange={(value) =>
-                                    field.onChange(value.map((v) => v.id))
-                                  }
+                                  onChange={(value) => {
+                                    const ids = value.map((v) => v.id)
+                                    // Prevent clearing to empty — keep at least
+                                    // one item so we don't fetch all indicators.
+                                    if (ids.length === 0) return
+                                    field.onChange(ids)
+                                  }}
                                 />
                                 <FormMessage />
                               </FormItem>
@@ -1634,7 +1714,15 @@ export const ChartFormDialog = ({
                                 placeholder="Select geometry outputs…"
                                 isMulti
                                 onChange={(value) => {
-                                  field.onChange(value.map((v) => v.id))
+                                  const ids = value.map((v) => v.id)
+                                  // For map, clearing means "show all" which is
+                                  // fine.  For other chart types prevent clearing
+                                  // to empty so we don't fetch unlimited items.
+                                  if (ids.length === 0 && chartType !== 'map')
+                                    return
+                                  field.onChange(
+                                    ids.length > 0 ? ids : undefined,
+                                  )
                                 }}
                               />
                               <FormMessage />
@@ -1693,7 +1781,17 @@ export const ChartFormDialog = ({
                                   value={field.value ?? []}
                                   placeholder="All Time Points"
                                   isMulti
-                                  onChange={(value) => field.onChange(value)}
+                                  onChange={(value) => {
+                                    // Prevent clearing to empty when time is the
+                                    // series dimension — keeps at least one value.
+                                    if (
+                                      Array.isArray(value) &&
+                                      value.length === 0 &&
+                                      seriesDimension === 'time'
+                                    )
+                                      return
+                                    field.onChange(value)
+                                  }}
                                 />
                                 <FormMessage />
                               </FormItem>
@@ -1726,8 +1824,16 @@ export const ChartFormDialog = ({
                           <FormItem>
                             <FormLabel>Title</FormLabel>
                             <Input
-                              placeholder="Optional chart title"
+                              placeholder={
+                                suggestedTitle || 'Optional chart title'
+                              }
                               {...field}
+                              onChange={(e) => {
+                                field.onChange(e)
+                                // Once the user manually edits the title, stop
+                                // auto-updating it from suggestedTitle.
+                                titleAutoRef.current = false
+                              }}
                             />
                             <FormMessage />
                           </FormItem>
@@ -1889,6 +1995,67 @@ export const ChartFormDialog = ({
                             )}
                           />
                         )}
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name="appearance.colorScaleMin"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Min Value</FormLabel>
+                                <Input
+                                  type="number"
+                                  placeholder="Auto"
+                                  value={field.value ?? ''}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value === ''
+                                        ? undefined
+                                        : Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="appearance.colorScaleMax"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Max Value</FormLabel>
+                                <Input
+                                  type="number"
+                                  placeholder="Auto"
+                                  value={field.value ?? ''}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value === ''
+                                        ? undefined
+                                        : Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="appearance.reverseColorScale"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                              <FormLabel className="m-0">
+                                Reverse colour scale
+                              </FormLabel>
+                              <Switch
+                                checked={field.value ?? false}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormItem>
+                          )}
+                        />
                       </FieldGroup>
                     )}
 

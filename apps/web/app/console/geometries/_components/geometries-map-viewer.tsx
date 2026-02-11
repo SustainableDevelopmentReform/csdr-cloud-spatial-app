@@ -85,16 +85,22 @@ const DIVERGING_INTERPOLATORS: Record<
 }
 
 function buildColorScale(
-  min: number,
-  max: number,
+  autoMin: number,
+  autoMax: number,
   appearance?: AppearanceConfig,
 ): (value: number) => string {
+  const min = appearance?.colorScaleMin ?? autoMin
+  const max = appearance?.colorScaleMax ?? autoMax
+  const reverse = appearance?.reverseColorScale ?? false
   const isDiverging = appearance?.colorScaleType === 'diverging'
 
   if (isDiverging) {
-    const interpolator =
+    const baseInterpolator =
       DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
       interpolateRdBu
+    const interpolator = reverse
+      ? (t: number) => baseInterpolator(1 - t)
+      : baseInterpolator
     const mid = appearance?.divergingMidpoint ?? (min + max) / 2
     if (min === max) {
       const c = interpolator(0.5)
@@ -104,9 +110,12 @@ function buildColorScale(
     return (v: number) => scale(v)
   }
 
-  const interpolator =
+  const baseInterpolator =
     SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
     interpolateYlOrRd
+  const interpolator = reverse
+    ? (t: number) => baseInterpolator(1 - t)
+    : baseInterpolator
   if (min === max) {
     const c = interpolator(0.5)
     return () => c
