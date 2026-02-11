@@ -12,6 +12,7 @@ type ProductRunIndicatorsSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
+  isClearable?: boolean
 } & (
   | {
       value: string[]
@@ -31,6 +32,7 @@ export const ProductRunIndicatorsSelect = ({
   value,
   onChange,
   isMulti,
+  isClearable = true,
   ...props
 }: ProductRunIndicatorsSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
@@ -83,7 +85,7 @@ export const ProductRunIndicatorsSelect = ({
           value={discriminatedProps.value}
           onChange={discriminatedProps.onChange}
           isDisabled={!productRun}
-          isClearable
+          isClearable={isClearable}
         />
       )}
     </FieldGroup>
