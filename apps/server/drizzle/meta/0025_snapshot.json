@@ -1,5 +1,5 @@
 {
-  "id": "1840126a-72fc-4a1f-939c-fc6bfc5425f3",
+  "id": "fe4fae5c-78c2-49a5-9cd5-5e08404d6984",
   "prevId": "387ea224-9088-4411-987c-981ed5b0e430",
   "version": "7",
   "dialect": "postgresql",
@@ -53,31 +53,7 @@
           "notNull": true
         }
       },
-      "indexes": {
-        "dashboard_search_trgm_idx": {
-          "name": "dashboard_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -147,29 +123,6 @@
         }
       },
       "indexes": {
-        "dataset_search_trgm_idx": {
-          "name": "dataset_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "dataset_name_idx": {
           "name": "dataset_name_idx",
           "columns": [
@@ -336,29 +289,6 @@
         }
       },
       "indexes": {
-        "dataset_run_search_trgm_idx": {
-          "name": "dataset_run_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "dataset_run_dataset_idx": {
           "name": "dataset_run_dataset_idx",
           "columns": [
@@ -480,36 +410,6 @@
         }
       },
       "indexes": {
-        "derived_indicator_search_trgm_idx": {
-          "name": "derived_indicator_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "derived_indicator_category_idx": {
           "name": "derived_indicator_category_idx",
           "columns": [
@@ -705,29 +605,6 @@
         }
       },
       "indexes": {
-        "geometries_search_trgm_idx": {
-          "name": "geometries_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "geometries_name_idx": {
           "name": "geometries_name_idx",
           "columns": [
@@ -900,29 +777,6 @@
         }
       },
       "indexes": {
-        "geometries_run_search_trgm_idx": {
-          "name": "geometries_run_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "geometries_run_geometries_idx": {
           "name": "geometries_run_geometries_idx",
           "columns": [
@@ -1146,36 +1000,6 @@
         }
       },
       "indexes": {
-        "indicator_search_trgm_idx": {
-          "name": "indicator_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "indicator_category_idx": {
           "name": "indicator_category_idx",
           "columns": [
@@ -1448,36 +1272,6 @@
         }
       },
       "indexes": {
-        "product_search_trgm_idx": {
-          "name": "product_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "product_name_idx": {
           "name": "product_name_idx",
           "columns": [
@@ -1681,27 +1475,6 @@
         }
       },
       "indexes": {
-        "product_output_run_created_at_idx": {
-          "name": "product_output_run_created_at_idx",
-          "columns": [
-            {
-              "expression": "product_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "product_output_product_run_idx": {
           "name": "product_output_product_run_idx",
           "columns": [
@@ -2328,50 +2101,6 @@
         }
       },
       "indexes": {
-        "product_run_search_trgm_idx": {
-          "name": "product_run_search_trgm_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "product_run_product_created_at_idx": {
-          "name": "product_run_product_created_at_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "product_run_dataset_idx": {
           "name": "product_run_dataset_idx",
           "columns": [
@@ -2737,32 +2466,116 @@
           "notNull": false
         }
       },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.workflows": {
+      "name": "workflows",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "workflow_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_parameters": {
+          "name": "input_parameters",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
       "indexes": {
-        "report_search_trgm_idx": {
-          "name": "report_search_trgm_idx",
+        "idx_workflows_user_id": {
+          "name": "idx_workflows_user_id",
           "columns": [
             {
-              "expression": "name",
+              "expression": "user_id",
               "isExpression": false,
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            },
-            {
-              "expression": "description",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "nulls": "last"
             }
           ],
           "isUnique": false,
           "concurrently": false,
-          "method": "gin",
+          "method": "btree",
+          "with": {}
+        },
+        "idx_workflows_id_user_id": {
+          "name": "idx_workflows_id_user_id",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "workflows_user_id_user_id_fk": {
+          "name": "workflows_user_id_user_id_fk",
+          "tableFrom": "workflows",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -3760,6 +3573,16 @@
         "day",
         "month",
         "year"
+      ]
+    },
+    "public.workflow_status": {
+      "name": "workflow_status",
+      "schema": "public",
+      "values": [
+        "Started",
+        "Succeeded",
+        "Failed",
+        "Error"
       ]
     }
   },
