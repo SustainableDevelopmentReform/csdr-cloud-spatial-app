@@ -13,6 +13,7 @@ type ProductOutputTimeSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
+  isClearable?: boolean
 } & (
   | {
       value: string[]
@@ -32,6 +33,7 @@ export const ProductOutputTimeSelect = ({
   value,
   onChange,
   isMulti,
+  isClearable = true,
   ...props
 }: ProductOutputTimeSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
@@ -86,7 +88,7 @@ export const ProductOutputTimeSelect = ({
           value={discriminatedProps.value ?? null}
           onChange={discriminatedProps.onChange}
           isDisabled={!productRun || disabled}
-          isClearable
+          isClearable={isClearable}
         />
       )}
     </FieldGroup>

@@ -43,6 +43,17 @@ import {
 import { cn } from '@repo/ui/lib/utils'
 import { Switch } from '@repo/ui/components/ui/switch'
 import {
+  schemeTableau10,
+  schemeCategory10,
+  schemePaired,
+  schemeSet1,
+  schemeSet2,
+  schemeSet3,
+  schemeDark2,
+  schemeAccent,
+  schemeObservable10,
+} from 'd3-scale-chromatic'
+import {
   AlertTriangle,
   AreaChart as AreaChartIcon,
   BarChart as BarChartIcon,
@@ -78,6 +89,31 @@ import { ChartRenderer } from './chart-renderer'
 const MAX_RECOMMENDED_SERIES = 8
 const MAX_CLASSES = 100
 const DEFAULT_MULTI_COUNT = 10
+
+const CATEGORICAL_PALETTES: Record<CategoricalColorScheme, readonly string[]> =
+  {
+    tableau10: schemeTableau10,
+    category10: schemeCategory10,
+    paired: schemePaired,
+    set1: schemeSet1,
+    set2: schemeSet2,
+    set3: schemeSet3,
+    dark2: schemeDark2,
+    accent: schemeAccent,
+    observable10: schemeObservable10,
+  }
+
+/** Return the scheme colour for `index`, respecting per-key overrides. */
+function resolveSeriesColor(
+  index: number,
+  scheme: CategoricalColorScheme | undefined,
+  overrides: Record<string, string> | undefined,
+  key: string,
+): string {
+  if (overrides?.[key]) return overrides[key]
+  const palette = CATEGORICAL_PALETTES[scheme ?? 'tableau10'] ?? schemeTableau10
+  return palette[index % palette.length]!
+}
 
 const STEP_LABELS = [
   'Data Source',
@@ -940,6 +976,59 @@ export const ChartFormDialog = ({
     productSummary,
   ])
 
+  // Series labels used for the colour-override list in Step 3.
+  // These mirror the keys that pivotData / groupBySeries produce at render time.
+  const currentSeriesKeys: string[] = useMemo(() => {
+    if (chartType !== 'plot') return []
+    const allIndicators = productRunDetail?.outputSummary?.indicators ?? []
+    const allGeometries = geometryOutputsData?.data ?? []
+    const allTimePoints = productRunDetail?.outputSummary?.timePoints ?? []
+
+    switch (seriesDimension) {
+      case 'indicators': {
+        // Each summary indicator has a nested `.indicator` (measured or derived)
+        const ids = indicatorIds
+        if (ids && ids.length > 0) {
+          const idSet = new Set(ids)
+          return allIndicators
+            .filter((si) => {
+              const indId = si.indicator?.id
+              return indId !== undefined && idSet.has(indId)
+            })
+            .map((si) => si.indicator?.name ?? si.indicator?.id ?? 'Unknown')
+        }
+        return allIndicators.map(
+          (si) => si.indicator?.name ?? si.indicator?.id ?? 'Unknown',
+        )
+      }
+      case 'geometries': {
+        const ids = geometryOutputIds
+        if (ids && ids.length > 0) {
+          const idSet = new Set(ids)
+          return allGeometries
+            .filter((g) => idSet.has(g.id))
+            .map((g) => g.name ?? g.id)
+        }
+        return allGeometries.map((g) => g.name ?? g.id)
+      }
+      case 'time': {
+        const selected = timePoints
+        if (selected && selected.length > 0) return selected
+        return (allTimePoints as string[]) ?? []
+      }
+      default:
+        return []
+    }
+  }, [
+    chartType,
+    seriesDimension,
+    indicatorIds,
+    geometryOutputIds,
+    timePoints,
+    productRunDetail,
+    geometryOutputsData,
+  ])
+
   // --- Callbacks ---
 
   const setDefaultsForProduct = useCallback(
@@ -1402,6 +1491,7 @@ export const ChartFormDialog = ({
                               <ProductRunIndicatorsSelect
                                 productRunId={productRunId}
                                 value={field.value ?? null}
+                                isClearable={false}
                                 onChange={(value) =>
                                   field.onChange(value?.id ?? null)
                                 }
@@ -1433,6 +1523,7 @@ export const ChartFormDialog = ({
                                 <ProductRunIndicatorsSelect
                                   productRunId={productRunId}
                                   value={field.value?.[0] ?? null}
+                                  isClearable={false}
                                   onChange={(value) =>
                                     field.onChange(
                                       value ? [value.id] : undefined,
@@ -1475,6 +1566,7 @@ export const ChartFormDialog = ({
                                 productRunId={productRunId}
                                 placeholder="Select a geometry output"
                                 value={field.value?.find((id) => id) ?? null}
+                                isClearable={false}
                                 onChange={(value) =>
                                   field.onChange(value ? [value.id] : undefined)
                                 }
@@ -1495,6 +1587,7 @@ export const ChartFormDialog = ({
                               <ProductOutputTimeSelect
                                 productRunId={productRunId}
                                 value={field.value ?? null}
+                                isClearable={false}
                                 onChange={(value) => field.onChange(value)}
                               />
                               <FormMessage />
@@ -1530,6 +1623,7 @@ export const ChartFormDialog = ({
                                 <ProductOutputTimeSelect
                                   productRunId={productRunId}
                                   value={field.value?.[0] ?? null}
+                                  isClearable={false}
                                   onChange={(value) =>
                                     field.onChange(value ? [value] : undefined)
                                   }
@@ -1795,7 +1889,7 @@ export const ChartFormDialog = ({
                               <FormItem>
                                 <FormLabel>Curve</FormLabel>
                                 <Select
-                                  value={field.value ?? 'monotone'}
+                                  value={field.value ?? 'linear'}
                                   onValueChange={(v) =>
                                     field.onChange(v as CurveType)
                                   }
@@ -1989,94 +2083,89 @@ export const ChartFormDialog = ({
                       />
                     </FieldGroup>
 
-                    {/* Colour overrides */}
-                    <FieldGroup title="Colour Overrides">
-                      <p className="text-xs text-muted-foreground">
-                        Enter hex colours (e.g. #3b82f6) to override specific
-                        series. Leave blank to use the scheme default.
-                      </p>
-                      <FormField
-                        control={form.control}
-                        name="appearance.colorOverrides"
-                        render={({ field }) => {
-                          const overrides = field.value ?? {}
-                          return (
-                            <FormItem className="flex flex-col gap-2">
-                              {Object.entries(overrides).map(([key, hex]) => (
-                                <div
-                                  key={key}
-                                  className="flex items-center gap-2"
-                                >
-                                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                                    {key}
-                                  </span>
-                                  <div className="flex items-center gap-1.5">
+                    {/* Colour overrides — list all series with their current colour */}
+                    {currentSeriesKeys.length > 0 && (
+                      <FieldGroup title="Colour Overrides">
+                        <p className="text-xs text-muted-foreground">
+                          Enter a hex colour (e.g. #3b82f6) to override the
+                          scheme default for a series.
+                        </p>
+                        <FormField
+                          control={form.control}
+                          name="appearance.colorOverrides"
+                          render={({ field }) => {
+                            const overrides = field.value ?? {}
+                            const scheme = form.getValues(
+                              'appearance.categoricalScheme',
+                            ) as CategoricalColorScheme | undefined
+                            return (
+                              <FormItem className="flex flex-col gap-2">
+                                {currentSeriesKeys.map((key, index) => {
+                                  const currentColor = resolveSeriesColor(
+                                    index,
+                                    scheme,
+                                    overrides,
+                                    key,
+                                  )
+                                  const hasOverride = key in overrides
+                                  return (
                                     <div
-                                      className="h-5 w-5 rounded border"
-                                      style={{ backgroundColor: hex }}
-                                    />
-                                    <Input
-                                      className="h-7 w-24 font-mono text-xs"
-                                      value={hex}
-                                      placeholder="#000000"
-                                      onChange={(e) => {
-                                        const next = { ...overrides }
-                                        if (e.target.value) {
-                                          next[key] = e.target.value
-                                        } else {
-                                          delete next[key]
-                                        }
-                                        field.onChange(
-                                          Object.keys(next).length
-                                            ? next
-                                            : undefined,
-                                        )
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  className="h-7 flex-1 text-xs"
-                                  placeholder="Series name"
-                                  id="__override_key"
-                                />
-                                <Input
-                                  className="h-7 w-24 font-mono text-xs"
-                                  placeholder="#hex"
-                                  id="__override_hex"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => {
-                                    const keyEl = document.getElementById(
-                                      '__override_key',
-                                    ) as HTMLInputElement | null
-                                    const hexEl = document.getElementById(
-                                      '__override_hex',
-                                    ) as HTMLInputElement | null
-                                    if (!keyEl?.value || !hexEl?.value) return
-                                    const next = {
-                                      ...overrides,
-                                      [keyEl.value]: hexEl.value,
-                                    }
-                                    field.onChange(next)
-                                    keyEl.value = ''
-                                    hexEl.value = ''
-                                  }}
-                                >
-                                  Add
-                                </Button>
-                              </div>
-                            </FormItem>
-                          )
-                        }}
-                      />
-                    </FieldGroup>
+                                      key={key}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <div
+                                        className="h-5 w-5 shrink-0 rounded border"
+                                        style={{
+                                          backgroundColor: currentColor,
+                                        }}
+                                      />
+                                      <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                                        {key}
+                                      </span>
+                                      <Input
+                                        className="h-7 w-24 font-mono text-xs"
+                                        value={overrides[key] ?? ''}
+                                        placeholder={resolveSeriesColor(
+                                          index,
+                                          scheme,
+                                          undefined,
+                                          key,
+                                        )}
+                                        onChange={(e) => {
+                                          const next = { ...overrides }
+                                          if (e.target.value) {
+                                            next[key] = e.target.value
+                                          } else {
+                                            delete next[key]
+                                          }
+                                          field.onChange(next)
+                                        }}
+                                      />
+                                      {hasOverride && (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-xs text-muted-foreground"
+                                          title="Reset to default"
+                                          onClick={() => {
+                                            const next = { ...overrides }
+                                            delete next[key]
+                                            field.onChange(next)
+                                          }}
+                                        >
+                                          ×
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      </FieldGroup>
+                    )}
                   </div>
                 )}
               </div>

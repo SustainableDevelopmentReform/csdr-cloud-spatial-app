@@ -227,12 +227,25 @@ function prepareDonutSlices(
   scheme?: CategoricalColorScheme,
   overrides?: Record<string, string>,
 ): DonutSlice[] {
+  // Build a stable colour index per unique group value so all slices in the
+  // same group share a colour (e.g. all "Carbon" slices are the same hue).
+  const groupIndex = new Map<string, number>()
+  for (const item of data) {
+    const grp = String(field(item, groupBy) ?? 'Value')
+    if (!groupIndex.has(grp)) {
+      groupIndex.set(grp, groupIndex.size)
+    }
+  }
+
   return data.map((item, index) => {
-    const name = `${String(field(item, groupBy) ?? 'Value')} — ${fmtX(field(item, x))}`
+    const grp = String(field(item, groupBy) ?? 'Value')
+    const name = `${grp} — ${fmtX(field(item, x))}`
     return {
       name,
       value: numericField(item, y),
-      fill: getColor(index, scheme, overrides, name),
+      // Use the group value for override lookup so that a single override
+      // key (e.g. "Carbon") colours every slice belonging to that group.
+      fill: getColor(groupIndex.get(grp) ?? index, scheme, overrides, grp),
       originalIndex: index,
     }
   })
@@ -346,7 +359,7 @@ export function PlotChart<T extends BasePlotRecord>({
 }: PlotChartProps<T>) {
   const scheme = appearance?.categoricalScheme
   const overrides = appearance?.colorOverrides
-  const curveType: CurveType = appearance?.curveType ?? 'monotone'
+  const curveType: CurveType = appearance?.curveType ?? 'linear'
   const showDots = appearance?.showDots ?? true
   const showGrid = appearance?.showGrid ?? true
   const legendPos = appearance?.legendPosition ?? 'bottom'
@@ -511,7 +524,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+        className={className ?? 'w-full min-h-[240px]'}
       >
         <PieChart>
           <Pie
@@ -521,7 +534,7 @@ export function PlotChart<T extends BasePlotRecord>({
             innerRadius={`${donutInner}%`}
             outerRadius="80%"
             paddingAngle={2}
-            strokeWidth={2}
+            strokeWidth={0}
             isAnimationActive={false}
             onClick={(
               _entry: Record<string, unknown>,
@@ -552,7 +565,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+        className={className ?? 'w-full min-h-[240px]'}
       >
         <ScatterChart accessibilityLayer>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -608,7 +621,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+        className={className ?? 'w-full min-h-[240px]'}
       >
         <AreaChart accessibilityLayer data={pivoted}>
           {showGrid && <CartesianGrid vertical={false} />}
@@ -653,7 +666,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+        className={className ?? 'w-full min-h-[240px]'}
       >
         <BarChart accessibilityLayer data={pivoted}>
           {showGrid && <CartesianGrid vertical={false} />}
@@ -694,7 +707,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+        className={className ?? 'w-full min-h-[240px]'}
       >
         <BarChart accessibilityLayer data={pivoted}>
           {showGrid && <CartesianGrid vertical={false} />}
@@ -733,7 +746,7 @@ export function PlotChart<T extends BasePlotRecord>({
   return (
     <ChartContainer
       config={chartConfig}
-      className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+      className={className ?? 'w-full min-h-[240px]'}
     >
       <LineChart accessibilityLayer data={pivoted}>
         {showGrid && <CartesianGrid vertical={false} />}
