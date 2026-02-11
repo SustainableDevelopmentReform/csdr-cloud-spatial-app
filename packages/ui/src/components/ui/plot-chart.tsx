@@ -524,7 +524,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <PieChart>
           <Pie
@@ -565,7 +565,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <ScatterChart accessibilityLayer>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -621,7 +621,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <AreaChart accessibilityLayer data={pivoted}>
           {showGrid && <CartesianGrid vertical={false} />}
@@ -666,7 +666,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <BarChart accessibilityLayer data={pivoted}>
           {showGrid && <CartesianGrid vertical={false} />}
@@ -707,7 +707,7 @@ export function PlotChart<T extends BasePlotRecord>({
     return (
       <ChartContainer
         config={chartConfig}
-        className={className ?? 'w-full min-h-[240px]'}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
       >
         <BarChart accessibilityLayer data={pivoted}>
           {showGrid && <CartesianGrid vertical={false} />}
@@ -746,7 +746,7 @@ export function PlotChart<T extends BasePlotRecord>({
   return (
     <ChartContainer
       config={chartConfig}
-      className={className ?? 'w-full min-h-[240px]'}
+      className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
     >
       <LineChart accessibilityLayer data={pivoted}>
         {showGrid && <CartesianGrid vertical={false} />}

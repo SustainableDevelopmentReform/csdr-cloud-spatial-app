@@ -1,6 +1,5 @@
 'use client'
 
-import * as React from 'react'
 import {
   Content,
   EditorContent,
@@ -8,17 +7,18 @@ import {
   Extensions,
   useEditor,
 } from '@tiptap/react'
+import * as React from 'react'
 
 // --- Tiptap Core Extensions ---
-import { StarterKit } from '@tiptap/starter-kit'
-import { Image } from '@tiptap/extension-image'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { TextAlign } from '@tiptap/extension-text-align'
-import { Typography } from '@tiptap/extension-typography'
+import DragHandle from '@tiptap/extension-drag-handle-react'
 import { Highlight } from '@tiptap/extension-highlight'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
+import { TextAlign } from '@tiptap/extension-text-align'
+import { Typography } from '@tiptap/extension-typography'
 import { Selection } from '@tiptap/extensions'
+import { StarterKit } from '@tiptap/starter-kit'
 
 // --- UI Primitives ---
 import { Button } from '@repo/ui/components/tip-tap/ui-primitive/button'
@@ -30,36 +30,34 @@ import {
 } from '@repo/ui/components/tip-tap/ui-primitive/toolbar'
 
 // --- Tiptap Node ---
-import { ImageUploadNode } from '@repo/ui/components/tip-tap/node/image-upload-node/image-upload-node-extension'
+import '@repo/ui/components/tip-tap/node/blockquote-node/blockquote-node.scss'
 import { ChartNode } from '@repo/ui/components/tip-tap/node/chart-node/chart-node-extension'
 import type { ChartFormBuilder } from '@repo/ui/components/tip-tap/node/chart-node/chart-node-shared'
-import { HorizontalRule } from '@repo/ui/components/tip-tap/node/horizontal-rule-node/horizontal-rule-node-extension'
-import '@repo/ui/components/tip-tap/node/blockquote-node/blockquote-node.scss'
-import '@repo/ui/components/tip-tap/node/code-block-node/code-block-node.scss'
-import '@repo/ui/components/tip-tap/node/horizontal-rule-node/horizontal-rule-node.scss'
-import '@repo/ui/components/tip-tap/node/list-node/list-node.scss'
-import '@repo/ui/components/tip-tap/node/image-node/image-node.scss'
-import '@repo/ui/components/tip-tap/node/heading-node/heading-node.scss'
-import '@repo/ui/components/tip-tap/node/paragraph-node/paragraph-node.scss'
 import '@repo/ui/components/tip-tap/node/chart-node/chart-node.scss'
+import '@repo/ui/components/tip-tap/node/code-block-node/code-block-node.scss'
+import '@repo/ui/components/tip-tap/node/heading-node/heading-node.scss'
+import { HorizontalRule } from '@repo/ui/components/tip-tap/node/horizontal-rule-node/horizontal-rule-node-extension'
+import '@repo/ui/components/tip-tap/node/horizontal-rule-node/horizontal-rule-node.scss'
+import '@repo/ui/components/tip-tap/node/image-node/image-node.scss'
+import '@repo/ui/components/tip-tap/node/list-node/list-node.scss'
+import '@repo/ui/components/tip-tap/node/paragraph-node/paragraph-node.scss'
 
 // --- Tiptap UI ---
-import { HeadingDropdownMenu } from '@repo/ui/components/tip-tap/ui/heading-dropdown-menu'
-import { ImageUploadButton } from '@repo/ui/components/tip-tap/ui/image-upload-button'
-import { ChartButton } from '@repo/ui/components/tip-tap/ui/chart-button'
-import { ListDropdownMenu } from '@repo/ui/components/tip-tap/ui/list-dropdown-menu'
 import { BlockquoteButton } from '@repo/ui/components/tip-tap/ui/blockquote-button'
+import { ChartButton } from '@repo/ui/components/tip-tap/ui/chart-button'
 import { CodeBlockButton } from '@repo/ui/components/tip-tap/ui/code-block-button'
 import {
   ColorHighlightPopover,
-  ColorHighlightPopoverContent,
   ColorHighlightPopoverButton,
+  ColorHighlightPopoverContent,
 } from '@repo/ui/components/tip-tap/ui/color-highlight-popover'
+import { HeadingDropdownMenu } from '@repo/ui/components/tip-tap/ui/heading-dropdown-menu'
 import {
-  LinkPopover,
-  LinkContent,
   LinkButton,
+  LinkContent,
+  LinkPopover,
 } from '@repo/ui/components/tip-tap/ui/link-popover'
+import { ListDropdownMenu } from '@repo/ui/components/tip-tap/ui/list-dropdown-menu'
 import { MarkButton } from '@repo/ui/components/tip-tap/ui/mark-button'
 import { TextAlignButton } from '@repo/ui/components/tip-tap/ui/text-align-button'
 import { UndoRedoButton } from '@repo/ui/components/tip-tap/ui/undo-redo-button'
@@ -70,12 +68,11 @@ import { HighlighterIcon } from '@repo/ui/components/tip-tap/icons/highlighter-i
 import { LinkIcon } from '@repo/ui/components/tip-tap/icons/link-icon'
 
 // --- Hooks ---
+import { useCursorVisibility } from '@repo/ui/hooks/use-cursor-visibility'
 import { useIsMobile } from '@repo/ui/hooks/use-mobile'
 import { useWindowSize } from '@repo/ui/hooks/use-window-size'
-import { useCursorVisibility } from '@repo/ui/hooks/use-cursor-visibility'
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from '@repo/ui/lib/tiptap-utils'
 
 // --- Styles ---
 import '@repo/ui/components/tip-tap/templates/simple/simple-editor.scss'
@@ -259,6 +256,17 @@ export function SimpleEditor({
         'aria-label': 'Main content area, start typing to enter text.',
         class: 'simple-editor',
       },
+      handleDrop: (view) => {
+        // HACK: to fix disappearing caret after drag-drop
+        // After a drag-drop, the browser keeps focus on the contenteditable
+        // but stops rendering the caret. Blur + refocus forces the browser
+        // to recalculate and redraw the caret.
+        setTimeout(() => {
+          view.dom.blur()
+          view.dom.focus()
+        }, 50)
+        return false
+      },
     },
     extensions,
     content,
@@ -302,6 +310,26 @@ export function SimpleEditor({
             />
           )}
         </Toolbar>
+
+        {editor && (
+          <DragHandle editor={editor}>
+            <div className="tiptap-drag-handle">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <circle cx="5" cy="3" r="1.5" />
+                <circle cx="11" cy="3" r="1.5" />
+                <circle cx="5" cy="8" r="1.5" />
+                <circle cx="11" cy="8" r="1.5" />
+                <circle cx="5" cy="13" r="1.5" />
+                <circle cx="11" cy="13" r="1.5" />
+              </svg>
+            </div>
+          </DragHandle>
+        )}
 
         <EditorContent
           editor={editor}
