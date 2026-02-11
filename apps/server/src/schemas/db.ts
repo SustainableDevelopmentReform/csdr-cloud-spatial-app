@@ -16,6 +16,7 @@ import {
 import { multiPolygon } from './customTypes'
 
 export * from './auth'
+import { user } from './auth'
 
 const baseColumns = {
   id: text('id').primaryKey(),
@@ -553,6 +554,34 @@ export const dashboard = pgTable(
       table.name.op('gin_trgm_ops'),
       table.description.op('gin_trgm_ops'),
     ),
+  ],
+)
+
+export const workflowStatus = pgEnum('workflow_status', [
+  'Started',
+  'Succeeded',
+  'Failed',
+  'Error',
+])
+
+export const workflows = pgTable(
+  'workflows',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: workflowStatus('status').notNull(),
+    inputParameters: jsonb('input_parameters').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: false })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: false }),
+  },
+  (table) => [
+    index('idx_workflows_user_id').on(table.userId),
+    index('idx_workflows_id_user_id').on(table.id, table.userId),
   ],
 )
 
