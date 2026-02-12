@@ -101,6 +101,15 @@ export type AppearanceConfig = {
   // Donut
   donutInnerRadius?: number // percentage 0-100, default 50
 
+  // Map-specific
+  showOutlines?: boolean
+  mapBbox?: {
+    minLon: number
+    minLat: number
+    maxLon: number
+    maxLat: number
+  }
+
   // Formatting
   decimalPlaces?: number
   compactNumbers?: boolean
