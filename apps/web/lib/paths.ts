@@ -1,6 +1,7 @@
 export const DASHBOARDS_BASE_PATH = '/console/dashboard'
 export const DATASETS_BASE_PATH = '/console/dataset'
 export const DATASETS_RUNS_BASE_PATH = '/console/dataset/run'
+export const WORKFLOWS_BASE_PATH = '/console/workflows'
 export const GEOMETRIES_BASE_PATH = '/console/geometries'
 export const GEOMETRIES_RUNS_BASE_PATH = '/console/geometries/run'
 export const GEOMETRIES_RUNS_OUTPUTS_BASE_PATH = '/console/geometries/output'
