@@ -1,6 +1,6 @@
 'use client'
 
-import { getPlotCodeSnippet, Plot } from '@repo/plot/Plot'
+import { getPlotCodeSnippet } from '@repo/plot/Plot'
 import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import {
   ChartConfiguration,
@@ -10,16 +10,17 @@ import {
   TableChartConfiguration,
 } from '@repo/plot/types'
 import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
+import { PlotChart } from '@repo/ui/components/ui/plot-chart'
 import { cn } from '@repo/ui/lib/utils'
 import { useMemo } from 'react'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { useGeometriesRun } from '../../geometries/_hooks'
+import { useIndicator } from '../../indicator/_hooks'
 import {
   ProductOutputExportListItem,
   useProductOutputsExport,
   useProductRun,
 } from '../../product/_hooks'
-import { useDerivedIndicator, useIndicator } from '../../indicator/_hooks'
 
 const ChartPlaceholder = () => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
@@ -33,6 +34,7 @@ const UnsupportedChart = ({ type }: { type: string }) => (
     supported yet.
   </div>
 )
+
 const PlotContainer = ({
   chart,
   config,
@@ -50,32 +52,41 @@ const PlotContainer = ({
     timePoint: chart.timePoints,
   })
 
-  const multipleGeometryOutputs = useMemo(() => {
-    let firstGeometryOutputId: string | undefined
-    return productOutputs?.data?.some((output) => {
-      if (!firstGeometryOutputId) {
-        firstGeometryOutputId = output.geometryOutputId
-      }
-      return output.geometryOutputId !== firstGeometryOutputId
-    })
-  }, [productOutputs?.data])
+  // Derive the groupBy dimension from the chart CONFIG — not by inspecting the
+  // data.  The dimension with multiple selections (or undefined = "all") is the
+  // series dimension; the other must be fixed to a single value so that every
+  // chart element maps 1:1 to a product output.
+  const groupBy = useMemo(() => {
+    const geoMulti =
+      !chart.geometryOutputIds || chart.geometryOutputIds.length > 1
+    const indMulti = !chart.indicatorIds || chart.indicatorIds.length > 1
+    const timeMulti = !chart.timePoints || chart.timePoints.length > 1
+
+    if (geoMulti) return 'geometryOutputName' as const
+    if (indMulti) return 'indicatorName' as const
+    // For donut/ranked-bar sliced by time: both ind & geo are single but time
+    // is multi → group by time so each slice/bar is a different time point.
+    if (timeMulti) return 'timePoint' as const
+    // All single — fall back to indicator (only one series, doesn't matter)
+    return 'indicatorName' as const
+  }, [chart.geometryOutputIds, chart.indicatorIds, chart.timePoints])
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <div
         className={cn(
+          'flex flex-col flex-1 min-h-0',
           config?.showSelectedPointDetails &&
             'grid grid-cols-2 grid-rows-1 gap-4',
         )}
       >
-        <Plot
+        <PlotChart
           data={productOutputs?.data ?? []}
           x={'timePoint'}
           y={'value'}
-          groupBy={
-            multipleGeometryOutputs ? 'geometryOutputName' : 'indicatorName'
-          }
+          groupBy={groupBy}
           type={chart.subType}
+          appearance={chart.appearance}
           onSelect={onSelect}
         />
       </div>
@@ -108,11 +119,7 @@ const MapContainer = ({
     productRun?.geometriesRun?.id,
   )
 
-  // TODO: discriminate between measured and derived indicators
-  const { data: measuredIndicator } = useIndicator(chart.indicatorId)
-  const { data: derivedIndicator } = useDerivedIndicator(chart.indicatorId)
-
-  const indicator = measuredIndicator ?? derivedIndicator
+  const { data: indicator } = useIndicator(chart.indicatorId)
 
   const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
     indicatorId: chart.indicatorId,
@@ -127,6 +134,7 @@ const MapContainer = ({
         productRun={productRun}
         productOutputs={productOutputs?.data}
         zoomToGeometryOutputIds={chart.geometryOutputIds}
+        appearance={chart.appearance}
         onSelect={onSelect}
       />
     </div>
@@ -150,11 +158,12 @@ const TablePlotContainer = ({
     timePoint: chart.timePoints,
   })
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <TablePlot
         data={productOutputs?.data ?? []}
         xDimension={chart.xDimension}
         yDimension={chart.yDimension}
+        appearance={chart.appearance}
         onSelect={onSelect}
       />
 
@@ -214,7 +223,7 @@ const ChartDiscriminator = ({
       )
     }
     default:
-      return <UnsupportedChart type={(chart as any).type} />
+      return <UnsupportedChart type={(chart as { type: string }).type} />
   }
 }
 
@@ -234,13 +243,22 @@ export const ChartRenderer = ({
   }
 
   return (
-    <div className={cn('flex flex-col gap-1 h-full relative')}>
-      {config?.showTitleAndDescription && chart.title && (
-        <h3 className="text-lg font-semibold m-0">{chart.title}</h3>
-      )}
-      {config?.showTitleAndDescription && chart.description && (
-        <p className="text-sm text-muted-foreground">{chart.description}</p>
-      )}
+    <div className={cn('flex flex-1 min-h-0 flex-col gap-2 relative p-1')}>
+      {config?.showTitleAndDescription &&
+        (chart.title || chart.description) && (
+          <div className="flex flex-col items-center gap-0.5 pb-1">
+            {chart.title && (
+              <h3 className="text-base font-semibold leading-tight m-0 text-center">
+                {chart.title}
+              </h3>
+            )}
+            {chart.description && (
+              <p className="text-xs text-muted-foreground text-center m-0">
+                {chart.description}
+              </p>
+            )}
+          </div>
+        )}
       <ChartDiscriminator
         chart={chart}
         config={config}

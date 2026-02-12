@@ -92,3 +92,10 @@ At some stage we should automate this process when a new version of the image is
 Please manually create a AWS RDS snapshot of the production database - include the name of the latest migration that is about to be run
 
 - For example `csdr-dev-eks-app-db-pre-migration-0016-tiny-black-tom`
+
+Shell into the container and run the migrations:
+
+```bash
+cd /app/backend/migrate/
+node index.js
+```

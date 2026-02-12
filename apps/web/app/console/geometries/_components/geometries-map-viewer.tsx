@@ -1,6 +1,12 @@
 'use client'
 
-import { OnSelectCallback } from '@repo/plot/types'
+import {
+  type AppearanceConfig,
+  type DivergingColorScheme,
+  type LegendPosition,
+  type OnSelectCallback,
+  type SequentialColorScheme,
+} from '@repo/plot/types'
 import { cn } from '@repo/ui/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { bbox as turfBbox } from '@turf/turf'
@@ -11,7 +17,23 @@ import {
   MapRef,
   Source,
 } from '@vis.gl/react-maplibre'
-import { interpolateYlOrRd } from 'd3-scale-chromatic'
+import {
+  interpolateBrBG,
+  interpolateBlues,
+  interpolateBuPu,
+  interpolateGreens,
+  interpolateInferno,
+  interpolateOranges,
+  interpolatePiYG,
+  interpolatePlasma,
+  interpolatePRGn,
+  interpolateRdBu,
+  interpolateRdYlGn,
+  interpolateViridis,
+  interpolateYlGnBu,
+  interpolateYlOrRd,
+} from 'd3-scale-chromatic'
+import { scaleDiverging, scaleSequential } from 'd3-scale'
 import {
   ExpressionInputType,
   ExpressionSpecification,
@@ -36,6 +58,155 @@ import { EmptyCard } from '../../_components/empty-card'
 
 const NO_DATA_COLOR = '#eef'
 const ID_PROPERTY = 'id'
+const LEGEND_STOPS = 10
+
+const SEQUENTIAL_INTERPOLATORS: Record<
+  SequentialColorScheme,
+  (t: number) => string
+> = {
+  ylOrRd: interpolateYlOrRd,
+  viridis: interpolateViridis,
+  plasma: interpolatePlasma,
+  inferno: interpolateInferno,
+  blues: interpolateBlues,
+  greens: interpolateGreens,
+  oranges: interpolateOranges,
+  ylGnBu: interpolateYlGnBu,
+  buPu: interpolateBuPu,
+}
+
+const DIVERGING_INTERPOLATORS: Record<
+  DivergingColorScheme,
+  (t: number) => string
+> = {
+  rdBu: interpolateRdBu,
+  brBG: interpolateBrBG,
+  piYG: interpolatePiYG,
+  prGn: interpolatePRGn,
+  rdYlGn: interpolateRdYlGn,
+}
+
+function buildColorScale(
+  autoMin: number,
+  autoMax: number,
+  appearance?: AppearanceConfig,
+): (value: number) => string {
+  const min = appearance?.colorScaleMin ?? autoMin
+  const max = appearance?.colorScaleMax ?? autoMax
+  const reverse = appearance?.reverseColorScale ?? false
+  const isDiverging = appearance?.colorScaleType === 'diverging'
+
+  if (isDiverging) {
+    const baseInterpolator =
+      DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
+      interpolateRdBu
+    const interpolator = reverse
+      ? (t: number) => baseInterpolator(1 - t)
+      : baseInterpolator
+    const mid = appearance?.divergingMidpoint ?? (min + max) / 2
+    if (min === max) {
+      const c = interpolator(0.5)
+      return () => c
+    }
+    const scale = scaleDiverging(interpolator).domain([min, mid, max])
+    return (v: number) => scale(v)
+  }
+
+  const baseInterpolator =
+    SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
+    interpolateYlOrRd
+  const interpolator = reverse
+    ? (t: number) => baseInterpolator(1 - t)
+    : baseInterpolator
+  if (min === max) {
+    const c = interpolator(0.5)
+    return () => c
+  }
+  const scale = scaleSequential(interpolator).domain([min, max])
+  return (v: number) => scale(v)
+}
+
+// ---------------------------------------------------------------------------
+// Continuous colour-scale legend
+// ---------------------------------------------------------------------------
+
+function MapLegend({
+  min,
+  max,
+  scale,
+  label,
+  unit,
+  position = 'bottom',
+  compactNumbers,
+  decimalPlaces,
+}: {
+  min: number
+  max: number
+  scale: (value: number) => string
+  label?: string
+  unit?: string
+  position?: LegendPosition
+  compactNumbers?: boolean
+  decimalPlaces?: number
+}) {
+  // Build a set of colour stops for the gradient bar
+  const stops = useMemo(() => {
+    const result: string[] = []
+    for (let i = 0; i <= LEGEND_STOPS; i++) {
+      const t = i / LEGEND_STOPS
+      const value = min + t * (max - min)
+      result.push(scale(value))
+    }
+    return result
+  }, [min, max, scale])
+
+  const fmt = useMemo(() => {
+    const opts: Intl.NumberFormatOptions = {
+      notation: compactNumbers ? 'compact' : 'standard',
+    }
+    // Only set maximumFractionDigits when explicitly configured — compact
+    // notation picks sensible defaults on its own.
+    if (decimalPlaces !== undefined) {
+      opts.maximumFractionDigits = decimalPlaces
+    } else if (!compactNumbers) {
+      opts.maximumFractionDigits = 2
+    }
+    const nf = new Intl.NumberFormat(undefined, opts)
+    return (v: number) => nf.format(v)
+  }, [compactNumbers, decimalPlaces])
+
+  if (position === 'none') return null
+
+  const positionClasses =
+    position === 'top' ? 'top-3 left-3' : 'bottom-3 left-3'
+
+  return (
+    <div
+      className={`pointer-events-auto absolute ${positionClasses} z-10 flex flex-col gap-1 rounded-md bg-background/90 px-3 py-2 text-xs shadow-md backdrop-blur-sm`}
+    >
+      {label && (
+        <span className="font-medium text-foreground">
+          {label}
+          {unit ? ` (${unit})` : ''}
+        </span>
+      )}
+      <div
+        className="h-3 w-48 rounded-sm"
+        style={{
+          background: `linear-gradient(to right, ${stops.join(', ')})`,
+        }}
+      />
+      <div className="flex justify-between text-muted-foreground">
+        <span>{fmt(min)}</span>
+        <span>{fmt(max)}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 const GeometriesMapViewer = ({
   geometriesRun: geometriesRunProp,
@@ -43,6 +214,7 @@ const GeometriesMapViewer = ({
   productRun,
   productOutputs,
   zoomToGeometryOutputIds,
+  appearance,
   onSelect,
   className,
 }: {
@@ -51,6 +223,7 @@ const GeometriesMapViewer = ({
   productRun?: ProductRunDetail | null
   productOutputs?: ProductOutputExportListItem[] | null
   zoomToGeometryOutputIds?: string[] | null
+  appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
   className?: string
 }) => {
@@ -162,8 +335,24 @@ const GeometriesMapViewer = ({
     geometriesRun,
   ])
 
+  // Derive colour-scale info so both the paint memo and the legend can use it.
+  const colorScaleInfo = useMemo(() => {
+    if (!indicator) return null
+    const indicatorSummary = productRun?.outputSummary?.indicators.find(
+      (v) => v.indicator?.id === indicator.id,
+    )
+    const minVal = appearance?.colorScaleMin ?? indicatorSummary?.minValue ?? 0
+    const maxVal = appearance?.colorScaleMax ?? indicatorSummary?.maxValue ?? 1
+    const scale = buildColorScale(
+      indicatorSummary?.minValue ?? 0,
+      indicatorSummary?.maxValue ?? 1,
+      appearance,
+    )
+    return { min: minVal, max: maxVal, scale }
+  }, [indicator, productRun?.outputSummary?.indicators, appearance])
+
   const { linePaint, fillPaint } = useMemo(() => {
-    if (!indicator)
+    if (!indicator || !colorScaleInfo)
       return {
         linePaint: {
           'line-color': 'black',
@@ -175,17 +364,11 @@ const GeometriesMapViewer = ({
         },
       }
 
-    const indicatorSummary = productRun?.outputSummary?.indicators.find(
-      (v) => v.indicator?.id === indicator.id,
-    )
+    const { scale } = colorScaleInfo
 
     const colorFn = (value: number | null) => {
-      if (!value) return NO_DATA_COLOR
-      const normalizedValue =
-        (value - (indicatorSummary?.minValue ?? 0)) /
-        ((indicatorSummary?.maxValue ?? 1) - (indicatorSummary?.minValue ?? 0))
-
-      return interpolateYlOrRd(normalizedValue)
+      if (value === null || value === undefined) return NO_DATA_COLOR
+      return scale(value)
     }
 
     const fillColourEntries: [
@@ -258,7 +441,7 @@ const GeometriesMapViewer = ({
     return paint
   }, [
     indicator,
-    productRun?.outputSummary?.indicators,
+    colorScaleInfo,
     productOutputs,
     geometryOutputsToZoomTo?.data,
     zoomToGeometryOutputIds,
@@ -311,7 +494,12 @@ const GeometriesMapViewer = ({
     )
 
   return (
-    <div className={cn('rounded-lg overflow-hidden w-full h-full', className)}>
+    <div
+      className={cn(
+        'relative rounded-lg overflow-hidden w-full h-full',
+        className,
+      )}
+    >
       <MapViewer
         ref={mapRef}
         interactiveLayerIds={['geometries-fill']}
@@ -347,6 +535,18 @@ const GeometriesMapViewer = ({
           paint={linePaint}
         />
       </MapViewer>
+      {colorScaleInfo && (
+        <MapLegend
+          min={colorScaleInfo.min}
+          max={colorScaleInfo.max}
+          scale={colorScaleInfo.scale}
+          label={indicator?.name}
+          unit={indicator?.unit}
+          position={appearance?.legendPosition ?? 'bottom'}
+          compactNumbers={appearance?.compactNumbers}
+          decimalPlaces={appearance?.decimalPlaces}
+        />
+      )}
     </div>
   )
 }

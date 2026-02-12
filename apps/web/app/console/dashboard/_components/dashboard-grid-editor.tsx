@@ -2,7 +2,7 @@
 
 import { ChartConfiguration, SelectedDataPoint } from '@repo/plot/types'
 import { Button } from '@repo/ui/components/ui/button'
-import { Hand, Trash } from 'lucide-react'
+import { Copy, Hand, Trash } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import ReactGridLayout, { Layout } from 'react-grid-layout'
 import { WidthProvider } from 'react-grid-layout'
@@ -134,6 +134,34 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
     [updateContent],
   )
 
+  const handleDuplicateChart = useCallback(
+    (id: string) => {
+      updateContent((prev) => {
+        const chart = prev.charts[id]
+        if (!chart) return prev
+        const newId = crypto.randomUUID()
+        const source = prev.layout.find((item) => item.i === id)
+        return {
+          charts: {
+            ...prev.charts,
+            [newId]: structuredClone(chart),
+          },
+          layout: [
+            ...prev.layout,
+            {
+              i: newId,
+              x: 0,
+              y: Infinity,
+              w: source?.w ?? DEFAULT_WIDTH,
+              h: source?.h ?? DEFAULT_HEIGHT,
+            },
+          ],
+        }
+      })
+    },
+    [updateContent],
+  )
+
   const handleUpdateChart = useCallback(
     (id: string, nextChart: ChartConfiguration) => {
       updateContent((prev) => {
@@ -217,6 +245,21 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
                       type="button"
                       size="icon"
                       variant="ghost"
+                      className="rounded-full"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        event.nativeEvent.stopImmediatePropagation()
+                        handleDuplicateChart(id)
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
                       className="text-destructive focus:text-destructive rounded-full"
                       onClick={(event) => {
                         event.preventDefault()
@@ -231,7 +274,7 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
                 </div>
               </div>
               <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
-                <div className="flex-1 overflow-auto p-2 h-full">
+                <div className="flex flex-1 flex-col overflow-hidden p-2">
                   <ChartRenderer
                     chart={chart}
                     onSelect={setSelectedDataPoint}

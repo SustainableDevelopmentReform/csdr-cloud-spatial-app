@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 
 export type ChartNodeAttributes = {
   chart: ChartConfiguration | null
+  /** Persisted height (in pixels) of the chart body. */
+  height: number | null
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars */

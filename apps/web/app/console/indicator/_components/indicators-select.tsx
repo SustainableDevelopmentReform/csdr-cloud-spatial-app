@@ -10,8 +10,7 @@ import z from 'zod'
 import { FieldGroup } from '../../../../components/form/action'
 import {
   IndicatorListItem,
-  useCreateIndicator,
-  useIndicator,
+  useCreateMeasuredIndicator,
   useIndicators,
 } from '../_hooks'
 
@@ -67,7 +66,7 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
       (props.value?.length ?? 0) > 0,
     )
 
-  const createIndicator = useCreateIndicator()
+  const createIndicator = useCreateMeasuredIndicator()
 
   const discriminatedProps = useMemo(() => {
     if (props.isMulti === true) {
