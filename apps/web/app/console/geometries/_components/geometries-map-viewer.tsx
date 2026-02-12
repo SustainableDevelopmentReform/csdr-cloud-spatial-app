@@ -3,6 +3,7 @@
 import {
   type AppearanceConfig,
   type DivergingColorScheme,
+  type LegendPosition,
   type OnSelectCallback,
   type SequentialColorScheme,
 } from '@repo/plot/types'
@@ -57,6 +58,7 @@ import { EmptyCard } from '../../_components/empty-card'
 
 const NO_DATA_COLOR = '#eef'
 const ID_PROPERTY = 'id'
+const LEGEND_STOPS = 10
 
 const SEQUENTIAL_INTERPOLATORS: Record<
   SequentialColorScheme,
@@ -123,6 +125,88 @@ function buildColorScale(
   const scale = scaleSequential(interpolator).domain([min, max])
   return (v: number) => scale(v)
 }
+
+// ---------------------------------------------------------------------------
+// Continuous colour-scale legend
+// ---------------------------------------------------------------------------
+
+function MapLegend({
+  min,
+  max,
+  scale,
+  label,
+  unit,
+  position = 'bottom',
+  compactNumbers,
+  decimalPlaces,
+}: {
+  min: number
+  max: number
+  scale: (value: number) => string
+  label?: string
+  unit?: string
+  position?: LegendPosition
+  compactNumbers?: boolean
+  decimalPlaces?: number
+}) {
+  // Build a set of colour stops for the gradient bar
+  const stops = useMemo(() => {
+    const result: string[] = []
+    for (let i = 0; i <= LEGEND_STOPS; i++) {
+      const t = i / LEGEND_STOPS
+      const value = min + t * (max - min)
+      result.push(scale(value))
+    }
+    return result
+  }, [min, max, scale])
+
+  const fmt = useMemo(() => {
+    const opts: Intl.NumberFormatOptions = {
+      notation: compactNumbers ? 'compact' : 'standard',
+    }
+    // Only set maximumFractionDigits when explicitly configured — compact
+    // notation picks sensible defaults on its own.
+    if (decimalPlaces !== undefined) {
+      opts.maximumFractionDigits = decimalPlaces
+    } else if (!compactNumbers) {
+      opts.maximumFractionDigits = 2
+    }
+    const nf = new Intl.NumberFormat(undefined, opts)
+    return (v: number) => nf.format(v)
+  }, [compactNumbers, decimalPlaces])
+
+  if (position === 'none') return null
+
+  const positionClasses =
+    position === 'top' ? 'top-3 left-3' : 'bottom-3 left-3'
+
+  return (
+    <div
+      className={`pointer-events-auto absolute ${positionClasses} z-10 flex flex-col gap-1 rounded-md bg-background/90 px-3 py-2 text-xs shadow-md backdrop-blur-sm`}
+    >
+      {label && (
+        <span className="font-medium text-foreground">
+          {label}
+          {unit ? ` (${unit})` : ''}
+        </span>
+      )}
+      <div
+        className="h-3 w-48 rounded-sm"
+        style={{
+          background: `linear-gradient(to right, ${stops.join(', ')})`,
+        }}
+      />
+      <div className="flex justify-between text-muted-foreground">
+        <span>{fmt(min)}</span>
+        <span>{fmt(max)}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 const GeometriesMapViewer = ({
   geometriesRun: geometriesRunProp,
@@ -251,8 +335,24 @@ const GeometriesMapViewer = ({
     geometriesRun,
   ])
 
+  // Derive colour-scale info so both the paint memo and the legend can use it.
+  const colorScaleInfo = useMemo(() => {
+    if (!indicator) return null
+    const indicatorSummary = productRun?.outputSummary?.indicators.find(
+      (v) => v.indicator?.id === indicator.id,
+    )
+    const minVal = appearance?.colorScaleMin ?? indicatorSummary?.minValue ?? 0
+    const maxVal = appearance?.colorScaleMax ?? indicatorSummary?.maxValue ?? 1
+    const scale = buildColorScale(
+      indicatorSummary?.minValue ?? 0,
+      indicatorSummary?.maxValue ?? 1,
+      appearance,
+    )
+    return { min: minVal, max: maxVal, scale }
+  }, [indicator, productRun?.outputSummary?.indicators, appearance])
+
   const { linePaint, fillPaint } = useMemo(() => {
-    if (!indicator)
+    if (!indicator || !colorScaleInfo)
       return {
         linePaint: {
           'line-color': 'black',
@@ -264,13 +364,7 @@ const GeometriesMapViewer = ({
         },
       }
 
-    const indicatorSummary = productRun?.outputSummary?.indicators.find(
-      (v) => v.indicator?.id === indicator.id,
-    )
-
-    const minVal = indicatorSummary?.minValue ?? 0
-    const maxVal = indicatorSummary?.maxValue ?? 1
-    const scale = buildColorScale(minVal, maxVal, appearance)
+    const { scale } = colorScaleInfo
 
     const colorFn = (value: number | null) => {
       if (value === null || value === undefined) return NO_DATA_COLOR
@@ -347,11 +441,10 @@ const GeometriesMapViewer = ({
     return paint
   }, [
     indicator,
-    productRun?.outputSummary?.indicators,
+    colorScaleInfo,
     productOutputs,
     geometryOutputsToZoomTo?.data,
     zoomToGeometryOutputIds,
-    appearance,
   ])
 
   const mapRef = useRef<MapRef | null>(null)
@@ -401,7 +494,12 @@ const GeometriesMapViewer = ({
     )
 
   return (
-    <div className={cn('rounded-lg overflow-hidden w-full h-full', className)}>
+    <div
+      className={cn(
+        'relative rounded-lg overflow-hidden w-full h-full',
+        className,
+      )}
+    >
       <MapViewer
         ref={mapRef}
         interactiveLayerIds={['geometries-fill']}
@@ -437,6 +535,18 @@ const GeometriesMapViewer = ({
           paint={linePaint}
         />
       </MapViewer>
+      {colorScaleInfo && (
+        <MapLegend
+          min={colorScaleInfo.min}
+          max={colorScaleInfo.max}
+          scale={colorScaleInfo.scale}
+          label={indicator?.name}
+          unit={indicator?.unit}
+          position={appearance?.legendPosition ?? 'bottom'}
+          compactNumbers={appearance?.compactNumbers}
+          decimalPlaces={appearance?.decimalPlaces}
+        />
+      )}
     </div>
   )
 }
