@@ -444,6 +444,7 @@ export const productQuerySchema = baseQuerySchema.extend({
   datasetId: z.string().optional(),
   geometriesId: z.string().optional(),
   indicatorId: z.string().optional(),
+  hasRun: z.enum(['true', 'false']).optional(),
 })
 
 export const createProductSchema = baseCreateResourceSchema.extend({

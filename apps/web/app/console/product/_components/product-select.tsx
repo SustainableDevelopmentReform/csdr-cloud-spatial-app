@@ -1,5 +1,7 @@
-import { FieldGroup } from '../../../../components/form/action'
+import { productQuerySchema } from '@repo/schemas/crud'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import { z } from 'zod'
+import { FieldGroup } from '../../../../components/form/action'
 import { ProductListItem, useProducts } from '../_hooks'
 
 export const ProductSelect = ({
@@ -7,11 +9,13 @@ export const ProductSelect = ({
   onChange,
   disabled,
   isClearable,
+  queryOptions,
 }: {
   value: string | null | undefined
   onChange: (product: ProductListItem | null) => void
   disabled?: boolean
   isClearable?: boolean
+  queryOptions?: z.infer<typeof productQuerySchema>
 }) => {
   const {
     data: products,
@@ -20,7 +24,7 @@ export const ProductSelect = ({
     hasNextPage,
     isLoading: isLoadingProducts,
     isFetchingNextPage,
-  } = useProducts()
+  } = useProducts(queryOptions)
 
   const selectedProduct =
     products?.data?.find((product) => product.id === value) ?? null
