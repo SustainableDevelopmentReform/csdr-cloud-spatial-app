@@ -13,10 +13,13 @@ import { generateJsonResponse } from '../lib/response'
 import { workflows } from '../schemas/db'
 import { QueryForTable } from '../schemas/util'
 import {
-  createWorkflowSchema,
-  updateWorkflowSchema,
-  workflowSchema,
+  baseWorkflowsSchema,
+  createWorkflowsSchema,
+  updateWorkflowsSchema,
+  workflowsSchema,
+  workflowsQuerySchema,
 } from '@repo/schemas/crud'
+import { parseQuery } from '~/utils/query'
 
 const workflowsQuery = (userId: string, id?: string) =>
   ({
@@ -62,7 +65,7 @@ const fetchFullworkflowsOrThrow = async (userId: string, id?: string) => {
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
-      description: 'List all workflows.',
+      description: 'List all workflows for a user with pagination metadata.',
       method: 'get',
       path: '/',
       middleware: [
@@ -71,50 +74,58 @@ const app = createOpenAPIApp()
         }),
       ],
       request: {
-        query: z.object({ userId: z.string().min(1) }),
+        query: workflowsQuerySchema.extend({
+          userId: z.string().min(1),
+        }),
       },
       responses: {
         200: {
-          description: 'Successfully listed all workflows.',
+          description: 'Successfully listed workflows.',
           content: {
             'application/json': {
               schema: createResponseSchema(
                 z.object({
-                  data: z.array(workflowSchema),
+                  pageCount: z.number().int(),
                   totalCount: z.number().int(),
+                  data: z.array(baseWorkflowsSchema),
                 }),
               ),
             },
           },
         },
         401: jsonErrorResponse('Unauthorized'),
+        422: validationErrorResponse,
         500: jsonErrorResponse('Failed to list workflows'),
       },
     }),
     async (c) => {
-      const { userId } = c.req.valid('query')
-      const totalCount = await db
-        .select({
-          count: count(),
-        })
-        .from(workflows)
+      console.log(c)
+      const { userId, ...restQuery } = c.req.valid('query')
+      const { pageCount, totalCount, ...query } = await parseQuery(
+        workflows,
+        restQuery,
+        {
+          defaultOrderBy: desc(workflows.createdAt),
+          searchableColumns: [workflows.name],
+        },
+      )
 
       const data = await db.query.workflows.findMany({
         ...workflowsQuery(userId),
-        orderBy: desc(workflows.createdAt),
+        ...query,
       })
 
       return generateJsonResponse(
         c,
         {
+          pageCount,
           data,
-          totalCount: totalCount[0]!.count,
+          totalCount,
         },
         200,
       )
     },
   )
-
   .openapi(
     createRoute({
       description: 'Get a single workflow.',
@@ -130,7 +141,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(workflowSchema),
+              schema: createResponseSchema(workflowsSchema),
             },
           },
         },
@@ -164,7 +175,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: createWorkflowSchema,
+              schema: createWorkflowsSchema,
             },
           },
         },
@@ -174,7 +185,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(workflowSchema),
+              schema: createResponseSchema(workflowsSchema),
             },
           },
         },
@@ -239,7 +250,7 @@ const app = createOpenAPIApp()
         throw new ServerError({
           statusCode: 500,
           message: 'Failed to create workflows',
-          description: 'workflow insert did not return a record',
+          description: 'Workflow insert did not return a record',
         })
       }
 
@@ -248,7 +259,7 @@ const app = createOpenAPIApp()
         newworkflows.id,
       )
 
-      return generateJsonResponse(c, record, 201, 'workflow created')
+      return generateJsonResponse(c, record, 201, 'Workflow created')
     },
   )
 
@@ -269,7 +280,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: updateWorkflowSchema,
+              schema: updateWorkflowsSchema,
             },
           },
         },
@@ -284,7 +295,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('workflow not found'),
+        404: jsonErrorResponse('Workflow not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to update workflow'),
       },
@@ -305,7 +316,7 @@ const app = createOpenAPIApp()
 
       const fullRecord = await fetchFullworkflowsOrThrow(userId, record.id)
 
-      return generateJsonResponse(c, fullRecord, 200, 'workflow updated')
+      return generateJsonResponse(c, fullRecord, 200, 'Workflow updated')
     },
   )
 
@@ -333,7 +344,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('workflow not found'),
+        404: jsonErrorResponse('Workflow not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to delete workflow'),
       },
@@ -345,7 +356,7 @@ const app = createOpenAPIApp()
 
       await db.delete(workflows).where(eq(workflows.id, id))
 
-      return generateJsonResponse(c, record, 200, 'workflow deleted')
+      return generateJsonResponse(c, record, 200, 'Workflow deleted')
     },
   )
 
