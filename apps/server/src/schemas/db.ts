@@ -505,6 +505,9 @@ export const workflows = pgTable(
     createdAt: timestamp('created_at', { withTimezone: false })
       .defaultNow()
       .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: false })
+      .defaultNow()
+      .notNull(),
     completedAt: timestamp('completed_at', { withTimezone: false }),
   },
   (table) => [

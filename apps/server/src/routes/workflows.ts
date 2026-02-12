@@ -40,6 +40,7 @@ const workflowsQuery = (userId: string, id?: string) =>
       status: true,
       inputParameters: true,
       createdAt: true,
+      updatedAt: true,
       completedAt: true,
     },
     where: (workflows, { eq, and }) =>
@@ -240,7 +241,7 @@ const app = createOpenAPIApp()
       // Submit workflow to Argo
       let argoWorkflow
       try {
-        argoWorkflow = await submitToArgoWorkflows(data.inputParameters)
+        argoWorkflow = await submitToArgoWorkflows(data)
       } catch (err) {
         throw err
       }
@@ -253,13 +254,12 @@ const app = createOpenAPIApp()
 
       // Insert workflow record using Argo response
       const workflowRecord = {
-        // ...data,
         // Override the values while developing
         id: argoWorkflow.id,
         name: argoWorkflow.name,
         userId,
         status: 'Started',
-        inputParameters: { test: 'value' },
+        inputParameters: data,
       }
       const [newworkflows] = await db
         .insert(workflows)

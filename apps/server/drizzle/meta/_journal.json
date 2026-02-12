@@ -183,6 +183,13 @@
       "when": 1770852904769,
       "tag": "0025_tranquil_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1770876017609,
+      "tag": "0026_mature_spirit",
+      "breakpoints": true
     }
   ]
 }
