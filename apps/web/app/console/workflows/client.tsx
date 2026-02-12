@@ -94,10 +94,23 @@ const WorkflowsFeature = () => {
         >
           <FormField
             control={form.control}
-            name={'inputParameters'}
+            name={'sourceUrl'}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Input Parameters</FormLabel>
+                <FormLabel>Source URL</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name={'sourceMetadataUrl'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Source Metadata URL</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
