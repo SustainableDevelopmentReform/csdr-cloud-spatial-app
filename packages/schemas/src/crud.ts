@@ -152,7 +152,7 @@ export const baseWorkflowsSchema = z
     name: z.string(),
     userId: z.string(),
     status: z.enum(['Started', 'Succeeded', 'Failed', 'Error']),
-    inputParameters: z.any(),
+    inputParameters: z.string().min(1),
   })
   .openapi('baseWorkflowsSchema')
 
@@ -163,9 +163,11 @@ export const workflowsSchema = baseWorkflowsSchema
   })
   .openapi('WorkflowsSchema')
 
-export const createWorkflowsSchema = baseWorkflowsSchema.openapi(
-  'CreateWorkflowsSchema',
-)
+export const createWorkflowsSchema = baseWorkflowsSchema
+  .extend({
+    id: z.string().optional(),
+  })
+  .openapi('CreateWorkflowsSchema')
 
 export const updateWorkflowsSchema = baseWorkflowsSchema
   .partial()

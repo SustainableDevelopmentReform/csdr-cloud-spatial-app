@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { count, desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -20,6 +20,16 @@ import {
   workflowsQuerySchema,
 } from '@repo/schemas/crud'
 import { parseQuery } from '~/utils/query'
+
+function throwIfNotAuthenticated(userId: string | undefined) {
+  if (!userId) {
+    throw new ServerError({
+      statusCode: 401,
+      message: 'Unauthorized',
+      description: 'User authentication required for this action.',
+    })
+  }
+}
 
 const workflowsQuery = (userId: string, id?: string) =>
   ({
@@ -74,9 +84,7 @@ const app = createOpenAPIApp()
         }),
       ],
       request: {
-        query: workflowsQuerySchema.extend({
-          userId: z.string().min(1),
-        }),
+        query: workflowsQuerySchema,
       },
       responses: {
         200: {
@@ -99,11 +107,11 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      console.log(c)
-      const { userId, ...restQuery } = c.req.valid('query')
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const userId = c.get('user')?.id
+      throwIfNotAuthenticated(userId)
+      const { pageCount, totalCount } = await parseQuery(
         workflows,
-        restQuery,
+        c.req.valid('query'),
         {
           defaultOrderBy: desc(workflows.createdAt),
           searchableColumns: [workflows.name],
@@ -112,7 +120,6 @@ const app = createOpenAPIApp()
 
       const data = await db.query.workflows.findMany({
         ...workflowsQuery(userId),
-        ...query,
       })
 
       return generateJsonResponse(
@@ -134,7 +141,6 @@ const app = createOpenAPIApp()
       middleware: [authMiddleware({ permission: 'read:workflows' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({ userId: z.string().min(1) }),
       },
       responses: {
         200: {
@@ -152,8 +158,9 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const userId = c.get('user')?.id
+      throwIfNotAuthenticated(userId)
       const { id } = c.req.valid('param')
-      const { userId } = c.req.valid('query')
       const record = await fetchFullworkflowsOrThrow(userId, id)
 
       return generateJsonResponse(c, record, 200)
@@ -195,8 +202,11 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const userId = c.get('user')?.id
+      throwIfNotAuthenticated(userId)
       const data = c.req.valid('json')
 
+      /*
       // TODO: Should this be included in this endpoint or a seperate endpoint? It needs to be called here to get the id before writing to the DB.
       // Function to POST to Argo Workflows API
       async function submitToArgoWorkflows(input: any) {
@@ -234,12 +244,19 @@ const app = createOpenAPIApp()
       } catch (err) {
         throw err
       }
+      */
+      // Just for testing without Argo, we will mock the response here. Remove this when Argo integration is ready.
+      const argoWorkflow = {
+        id: `argo-${Date.now()}`,
+        name: `workflow-${Date.now()}`,
+      }
 
       // Insert workflow record using Argo response
       const workflowRecord = {
         ...data,
         id: argoWorkflow.id,
         name: argoWorkflow.name,
+        userId,
       }
       const [newworkflows] = await db
         .insert(workflows)
@@ -275,7 +292,6 @@ const app = createOpenAPIApp()
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({ userId: z.string().min(1) }),
         body: {
           required: true,
           content: {
@@ -301,13 +317,14 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const userId = c.get('user')?.id
+      throwIfNotAuthenticated(userId)
       const { id } = c.req.valid('param')
-      const { userId } = c.req.valid('query')
       const data = c.req.valid('json')
       const [record] = await db
         .update(workflows)
         .set(data)
-        .where(eq(workflows.id, id))
+        .where(and(eq(workflows.id, id), eq(workflows.userId, userId)))
         .returning()
 
       if (!record) {
@@ -332,7 +349,6 @@ const app = createOpenAPIApp()
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
-        query: z.object({ userId: z.string().min(1) }),
       },
       responses: {
         200: {
@@ -350,11 +366,14 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const userId = c.get('user')?.id
+      throwIfNotAuthenticated(userId)
       const { id } = c.req.valid('param')
-      const { userId } = c.req.valid('query')
       const record = await fetchFullworkflowsOrThrow(userId, id)
 
-      await db.delete(workflows).where(eq(workflows.id, id))
+      await db
+        .delete(workflows)
+        .where(and(eq(workflows.id, id), eq(workflows.userId, userId)))
 
       return generateJsonResponse(c, record, 200, 'Workflow deleted')
     },
