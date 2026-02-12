@@ -159,6 +159,33 @@ export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
   displayOrder: z.number().optional(),
 })
 
+/* WORKFLOW RESOURCE SCHEMAS */
+export const workflowBase = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    userId: z.string(),
+    status: z.enum(['Started', 'Succeeded', 'Failed', 'Error']),
+    inputParameters: z.any(),
+  })
+  .openapi('WorkflowSchemaBase')
+
+export const workflowSchema = workflowBase
+  .extend({
+    createdAt: z.iso.datetime().nullable(),
+    completedAt: z.iso.datetime().nullable(),
+  })
+  .openapi('WorkflowSchema')
+
+export const createWorkflowSchema = workflowBase.openapi('CreateWorkflowSchema')
+
+export const updateWorkflowSchema = workflowBase
+  .partial()
+  .extend({
+    completedAt: z.iso.datetime().nullable().optional(),
+  })
+  .openapi('UpdateWorkflowSchema')
+
 /* DATASET RESOURCE SCHEMAS */
 export const baseDatasetRunSchema = baseRunResourceSchema
   .extend({
