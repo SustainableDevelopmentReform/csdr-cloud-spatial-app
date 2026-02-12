@@ -1,5 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import { MainRunBadge } from '../../_components/main-run-badge'
 import { ProductRunListItem, useProductRuns } from '../_hooks'
 
 export const ProductRunSelect = ({
@@ -38,6 +39,14 @@ export const ProductRunSelect = ({
         onChange={(nextValue) => {
           onChange(nextValue)
         }}
+        formatOptionLabel={(option) => (
+          <span className="flex items-center gap-1">
+            {option.product.mainRunId === option.id && (
+              <MainRunBadge size="xs" variant="product" />
+            )}
+            {option.name ?? option.id}
+          </span>
+        )}
         isDisabled={disabled}
         isLoading={isLoadingProductRuns || isFetchingNextPage}
         onMenuScrollToBottom={() => {

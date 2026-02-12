@@ -85,6 +85,7 @@ import { ProductRunSelect } from '../../product/_components/product-run-select'
 import { ProductOutputTimeSelect } from '../../product/_components/product-run-time-select'
 import { ProductRunIndicatorsSelect } from '../../product/_components/product-run-indicators-select'
 import { ProductSelect } from '../../product/_components/product-select'
+import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { useGeometryOutputs } from '../../geometries/_hooks'
 import { ProductListItem, useProductRun } from '../../product/_hooks'
 import { ChartRenderer } from './chart-renderer'
@@ -774,21 +775,28 @@ const SeriesDimensionToggle = ({
   value,
   onChange,
   isSingleXChart,
+  indicatorCount,
+  geometryCount,
+  timePointCount,
 }: {
   value: SeriesDimension
   onChange: (dim: SeriesDimension) => void
   isSingleXChart: boolean
+  indicatorCount: number
+  geometryCount: number
+  timePointCount: number
 }) => {
-  const options: { key: SeriesDimension; label: string }[] = isSingleXChart
-    ? [
-        { key: 'indicators', label: 'Indicators' },
-        { key: 'geometries', label: 'Geometries' },
-        { key: 'time', label: 'Time points' },
-      ]
-    : [
-        { key: 'indicators', label: 'Indicators' },
-        { key: 'geometries', label: 'Geometries' },
-      ]
+  const options: { key: SeriesDimension; label: string; count: number }[] =
+    isSingleXChart
+      ? [
+          { key: 'indicators', label: 'Indicators', count: indicatorCount },
+          { key: 'geometries', label: 'Geometries', count: geometryCount },
+          { key: 'time', label: 'Time points', count: timePointCount },
+        ]
+      : [
+          { key: 'indicators', label: 'Indicators', count: indicatorCount },
+          { key: 'geometries', label: 'Geometries', count: geometryCount },
+        ]
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -796,18 +804,22 @@ const SeriesDimensionToggle = ({
         {isSingleXChart ? 'Slice by' : 'Compare by'}
       </span>
       <div className="flex gap-1.5">
-        {options.map((opt) => (
-          <Button
-            key={opt.key}
-            type="button"
-            size="sm"
-            variant={value === opt.key ? 'default' : 'outline'}
-            className="h-7 text-xs"
-            onClick={() => onChange(opt.key)}
-          >
-            {opt.label}
-          </Button>
-        ))}
+        {options.map((opt) => {
+          const disabled = opt.count <= 1
+          return (
+            <Button
+              key={opt.key}
+              type="button"
+              size="sm"
+              variant={value === opt.key ? 'default' : 'outline'}
+              className="h-7 text-xs"
+              disabled={disabled}
+              onClick={() => onChange(opt.key)}
+            >
+              {opt.label}
+            </Button>
+          )
+        })}
       </div>
     </div>
   )
@@ -962,6 +974,11 @@ export const ChartFormDialog = ({
 
   const [seriesDimension, setSeriesDimension] = useState<SeriesDimension>(() =>
     inferSeriesDimension(chart),
+  )
+
+  // Indicator filter for the product selector (not part of the chart config)
+  const [indicatorFilter, setIndicatorFilter] = useState<string | undefined>(
+    undefined,
   )
 
   // Product summary for series count warnings + default values for auto-fill
@@ -1333,7 +1350,7 @@ export const ChartFormDialog = ({
       )
 
       // Reset wizard state back to the type selection step
-      setStep(1)
+      setStep(0)
       setSeriesDimension('indicators')
       titleAutoRef.current = true
     },
@@ -1492,7 +1509,24 @@ export const ChartFormDialog = ({
       // Apply dimension defaults based on the chart type's implicit rules.
       if (vt.type === 'plot') {
         const isSingleX = vt.subType === 'donut' || vt.subType === 'ranked-bar'
-        const dim = isSingleX ? 'indicators' : seriesDimension
+        const indCount = productSummary?.indicatorCount ?? 0
+        const geoCount = geometryOutputsData?.data?.length ?? 0
+        const timeCount = productSummary?.timePointCount ?? 0
+
+        // Keep the current dimension if it's viable; only override if not
+        let dim: SeriesDimension = seriesDimension
+        // Cartesian charts don't support 'time' as the series dimension
+        if (!isSingleX && dim === 'time') dim = 'indicators'
+        if (
+          (dim === 'indicators' && indCount <= 1) ||
+          (dim === 'geometries' && geoCount <= 1) ||
+          (dim === 'time' && timeCount <= 1)
+        ) {
+          if (indCount > 1) dim = 'indicators'
+          else if (geoCount > 1) dim = 'geometries'
+          else if (isSingleX && timeCount > 1) dim = 'time'
+          else dim = 'indicators' // fallback
+        }
         setSeriesDimension(dim)
 
         if (isSingleX) {
@@ -1529,6 +1563,7 @@ export const ChartFormDialog = ({
       seriesDimension,
       hookDefaults,
       productSummary,
+      geometryOutputsData,
       applyDimensionDefaults,
     ],
   )
@@ -1593,12 +1628,31 @@ export const ChartFormDialog = ({
             </DialogHeader>
 
             {/* Content — vertical on small screens, horizontal split on lg */}
-            <div className="space-y-4 overflow-y-auto px-1 pb-1 lg:flex lg:min-h-0 lg:gap-4 lg:space-y-0 lg:overflow-hidden">
+            <div className="space-y-4 overflow-y-auto px-1 pb-1 lg:flex lg:min-h-[400px] lg:gap-4 lg:space-y-0 lg:overflow-hidden">
               {/* Form fields — scrolls independently on lg */}
               <div className="lg:w-[40%] lg:shrink-0 lg:space-y-4 lg:overflow-y-auto lg:px-1">
                 {/* ---- Step 0: Data Source ---- */}
                 {step === 0 && (
                   <div className="flex flex-col gap-3">
+                    <IndicatorsSelect
+                      value={indicatorFilter ?? null}
+                      onChange={(ind) => {
+                        const next = ind?.id ?? undefined
+
+                        if (next !== indicatorFilter) {
+                          setIndicatorFilter(next)
+                          // Reset product and product run if the indicator changes
+                          if (next) {
+                            form.resetField('productId')
+                            form.resetField('productRunId')
+                          }
+                        }
+                      }}
+                      title="Filter by Indicator"
+                      placeholder="Any Indicator"
+                      isClearable
+                    />
+
                     <FormField
                       control={form.control}
                       name="productId"
@@ -1606,6 +1660,10 @@ export const ChartFormDialog = ({
                         <FormItem>
                           <ProductSelect
                             {...field}
+                            queryOptions={{
+                              hasRun: 'true',
+                              indicatorId: indicatorFilter,
+                            }}
                             onChange={(product) => {
                               field.onChange(product?.id ?? null)
                               if (product) setDefaultsForProduct(product)
@@ -1669,6 +1727,9 @@ export const ChartFormDialog = ({
                         value={seriesDimension}
                         onChange={handleSeriesDimensionChange}
                         isSingleXChart={isSingleXChart}
+                        indicatorCount={productSummary?.indicatorCount ?? 0}
+                        geometryCount={geometryOutputsData?.data?.length ?? 0}
+                        timePointCount={productSummary?.timePointCount ?? 0}
                       />
                     )}
 

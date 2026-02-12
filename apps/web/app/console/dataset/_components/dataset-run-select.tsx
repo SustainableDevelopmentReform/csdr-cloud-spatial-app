@@ -1,5 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import { MainRunBadge } from '../../_components/main-run-badge'
 import { DatasetRunListItem, useDatasetRun, useDatasetRuns } from '../_hooks'
 
 export const DatasetRunSelect = ({
@@ -37,6 +38,14 @@ export const DatasetRunSelect = ({
         onChange={(nextValue) => {
           onChange(nextValue)
         }}
+        formatOptionLabel={(option) => (
+          <span className="flex items-center gap-1">
+            {option.dataset.mainRunId === option.id && (
+              <MainRunBadge size="xs" variant="dataset" />
+            )}
+            {option.name ?? option.id}
+          </span>
+        )}
         isDisabled={disabled}
         isLoading={isLoadingDatasetRuns || isFetchingNextPage}
         onMenuScrollToBottom={() => {

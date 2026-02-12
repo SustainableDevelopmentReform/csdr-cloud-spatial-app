@@ -149,7 +149,8 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { datasetId, geometriesId, indicatorId } = c.req.valid('query')
+      const { datasetId, geometriesId, indicatorId, hasRun } =
+        c.req.valid('query')
       const { pageCount, totalCount, ...query } = await parseQuery(
         product,
         c.req.valid('query'),
@@ -188,6 +189,16 @@ const app = createOpenAPIApp()
                   ),
                 ),
               ),
+          ),
+        )
+      }
+      if (hasRun === 'true') {
+        filters.push(
+          exists(
+            db
+              .select({ _: sql`1` })
+              .from(productRun)
+              .where(eq(productRun.productId, product.id)),
           ),
         )
       }

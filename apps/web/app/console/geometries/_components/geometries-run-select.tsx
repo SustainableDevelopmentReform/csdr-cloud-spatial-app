@@ -1,5 +1,6 @@
 import { FieldGroup } from '../../../../components/form/action'
 import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import { MainRunBadge } from '../../_components/main-run-badge'
 import {
   GeometriesRunListItem,
   useGeometriesRun,
@@ -41,6 +42,14 @@ export const GeometriesRunSelect = ({
         onChange={(nextValue) => {
           onChange(nextValue)
         }}
+        formatOptionLabel={(option) => (
+          <span className="flex items-center gap-1">
+            {option.geometries.mainRunId === option.id && (
+              <MainRunBadge size="xs" variant="geometries" />
+            )}
+            {option.name ?? option.id}
+          </span>
+        )}
         isDisabled={disabled}
         onMenuScrollToBottom={() => {
           if (hasNextPage) {
