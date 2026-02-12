@@ -43,6 +43,7 @@ import {
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useConfig } from '../../../../components/providers'
+import { useMapPreview } from './map-preview-context'
 import {
   GeometriesRunListItem,
   useGeometriesRun,
@@ -280,6 +281,23 @@ const GeometriesMapViewer = ({
   })
 
   const mapBounds = useMemo(() => {
+    // If appearance has a complete explicit bounding box, use it as override
+    if (
+      appearance?.mapBbox &&
+      typeof appearance.mapBbox.minLon === 'number' &&
+      typeof appearance.mapBbox.minLat === 'number' &&
+      typeof appearance.mapBbox.maxLon === 'number' &&
+      typeof appearance.mapBbox.maxLat === 'number'
+    ) {
+      const { minLon, minLat, maxLon, maxLat } = appearance.mapBbox
+      return [minLon, minLat, maxLon, maxLat] as [
+        number,
+        number,
+        number,
+        number,
+      ]
+    }
+
     if (
       isLoadingPmtilesHeader ||
       isLoadingGeometryOutputsToZoomTo ||
@@ -327,6 +345,7 @@ const GeometriesMapViewer = ({
 
     return undefined
   }, [
+    appearance?.mapBbox,
     isLoadingPmtilesHeader,
     isLoadingGeometryOutputsToZoomTo,
     isLoadingGeometriesRun,
@@ -448,6 +467,16 @@ const GeometriesMapViewer = ({
   ])
 
   const mapRef = useRef<MapRef | null>(null)
+  const mapPreview = useMapPreview()
+
+  // Callback ref that sets the internal ref and registers with the context
+  const mapRefCallback = useCallback(
+    (instance: MapRef | null) => {
+      mapRef.current = instance
+      mapPreview?.setMapInstance(instance)
+    },
+    [mapPreview],
+  )
 
   const onMouseClick = useCallback(
     (layer: MapLayerMouseEvent) => {
@@ -480,9 +509,10 @@ const GeometriesMapViewer = ({
 
   useEffect(() => {
     if (mapRef.current && mapBounds) {
+      console.log('fitBounds', mapBounds)
       mapRef.current.fitBounds(mapBounds, { padding: 20 })
     }
-  }, [mapRef, mapBounds])
+  }, [mapBounds])
 
   if (isLoadingGeometriesRun || isLoadingGeometryOutputsToZoomTo)
     return <EmptyCard description="Loading" />
@@ -501,7 +531,7 @@ const GeometriesMapViewer = ({
       )}
     >
       <MapViewer
-        ref={mapRef}
+        ref={mapRefCallback}
         interactiveLayerIds={['geometries-fill']}
         initialViewState={
           mapBounds
@@ -527,13 +557,15 @@ const GeometriesMapViewer = ({
           type="fill"
           paint={fillPaint}
         />
-        <Layer
-          id="geometries-line"
-          source="geometries"
-          source-layer="data"
-          type="line"
-          paint={linePaint}
-        />
+        {(appearance?.showOutlines ?? true) && (
+          <Layer
+            id="geometries-line"
+            source="geometries"
+            source-layer="data"
+            type="line"
+            paint={linePaint}
+          />
+        )}
       </MapViewer>
       {colorScaleInfo && (
         <MapLegend

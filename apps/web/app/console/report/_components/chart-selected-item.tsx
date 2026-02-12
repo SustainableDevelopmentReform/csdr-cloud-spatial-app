@@ -6,7 +6,7 @@ import {
   ProductOutputExportListItem,
   useProductOutput,
 } from '../../product/_hooks'
-import { RefObject, useCallback, useEffect, useRef } from 'react'
+import { RefObject, useCallback, useRef } from 'react'
 import { useOnClickOutside } from 'usehooks-ts'
 
 const SelectedPointDetails = ({
@@ -16,7 +16,7 @@ const SelectedPointDetails = ({
 }) => {
   const { data: productOutput } = useProductOutput(productOutputId ?? undefined)
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-row gap-4 h-full">
       {productOutput ? (
         <>
           <ProductOutputSummaryCard productOutput={productOutput} showLink />
@@ -43,7 +43,6 @@ export const ChartSelectedItem = ({
   ) => void
 }) => {
   const divRef = useRef<HTMLDivElement>(null)
-  const positionedParentRef = useRef<HTMLElement | null>(null)
 
   const handleClickOutside = useCallback(() => {
     onSelect(null)
@@ -51,63 +50,35 @@ export const ChartSelectedItem = ({
 
   useOnClickOutside(divRef as RefObject<HTMLElement>, handleClickOutside)
 
-  useEffect(() => {
-    if (!divRef.current) {
-      return
-    }
-
-    // Find the nearest positioned parent element once on mount
-    let parent = divRef.current.parentElement
-    while (parent) {
-      const position = window.getComputedStyle(parent).position
-      if (
-        position === 'relative' ||
-        position === 'absolute' ||
-        position === 'fixed' ||
-        position === 'sticky'
-      ) {
-        // Found the positioned parent, store the reference
-        positionedParentRef.current = parent
-        return
-      }
-      parent = parent.parentElement
-    }
-
-    // No positioned parent found
-    positionedParentRef.current = null
-  }, [])
-
-  // Calculate relative position based on the current mouse event and parent position
+  // Use fixed positioning with viewport coordinates directly so the popup
+  // isn't clipped by any ancestor's overflow.
   let top = 0
   let left = 0
   let transformX = '0'
   let transformY = '0'
 
   if (selectedDataPoint?.event) {
-    top = selectedDataPoint.event.clientY ?? 0
-    left = selectedDataPoint.event.clientX ?? 0
+    const cx = selectedDataPoint.event.clientX ?? 0
+    const cy = selectedDataPoint.event.clientY ?? 0
 
-    if (positionedParentRef.current) {
-      const parentRect = positionedParentRef.current.getBoundingClientRect()
-      top = top - parentRect.top
-      left = left - parentRect.left
+    top = cy
+    left = cx
 
-      // If on the right side of the screen, move the tooltip to the left
-      if (selectedDataPoint.event.clientX > window.innerWidth / 2) {
-        transformX = '-100%'
-      }
+    // Show to the left of cursor if on the right half of the viewport
+    if (cx > window.innerWidth / 2) {
+      transformX = '-100%'
+    }
 
-      // If on the bottom side of the screen, move the tooltip to the top
-      if (selectedDataPoint.event.clientY > window.innerHeight / 2) {
-        transformY = '-100%'
-      }
+    // Show above cursor if on the bottom half of the viewport
+    if (cy > window.innerHeight / 2) {
+      transformY = '-100%'
     }
   }
 
   return (
     <div
       ref={divRef}
-      className="absolute z-10"
+      className="fixed z-50"
       style={{
         top,
         left,
