@@ -2,12 +2,21 @@ import * as ObservablePlot from '@observablehq/plot'
 import { useEffect, useRef } from 'react'
 import { OnSelectCallback } from './types'
 
+/**
+ * Observable Plot example component.
+ *
+ * This is a simplified Observable Plot integration kept as a reference for
+ * future custom Observable-based visualisations. For standard chart types
+ * (line, area, bar, scatter, donut) use the Recharts-based `PlotChart`
+ * component from `@repo/ui` instead.
+ */
+
 interface BasePlotRecord {
   id: string
   value: number
 }
 
-interface PlotProps<T extends BasePlotRecord> {
+interface ObservablePlotProps<T extends BasePlotRecord> {
   data: T[]
   x: string
   y: string
@@ -15,10 +24,9 @@ interface PlotProps<T extends BasePlotRecord> {
   yLabel?: string
   groupBy: string
   onSelect?: OnSelectCallback<T>
-  type: 'line' | 'stacked-bar' | 'grouped-bar' | 'dot'
 }
 
-export const DEFAULT_CHART_DATA_PROPS: PlotProps<{
+export const DEFAULT_CHART_DATA_PROPS: ObservablePlotProps<{
   id: string
   value: number
   timePoint: string
@@ -26,11 +34,9 @@ export const DEFAULT_CHART_DATA_PROPS: PlotProps<{
   x: 'timePoint',
   y: 'value',
   groupBy: 'indicatorName',
-  type: 'line',
   data: [
     {
       id: 'sample-1',
-
       timePoint: '2024-01-01T00:00:00Z',
       value: 24,
     },
@@ -90,6 +96,12 @@ export function getPlotCodeSnippet<T extends { id: string; value: number }>({
   ]
 }
 
+/**
+ * Renders data as a line chart using Observable Plot.
+ *
+ * This is an example / reference implementation. Use the Recharts-based
+ * `PlotChart` component for standard charting in reports and dashboards.
+ */
 export function Plot<T extends BasePlotRecord>({
   data,
   x,
@@ -98,73 +110,18 @@ export function Plot<T extends BasePlotRecord>({
   yLabel,
   groupBy,
   onSelect,
-  type,
-}: PlotProps<T>) {
+}: ObservablePlotProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const marks: ObservablePlot.Markish[] = [ObservablePlot.ruleY([0])]
-    if (type === 'line') {
-      marks.push(
-        ObservablePlot.line(data, { x, y, stroke: groupBy, strokeWidth: 2 }),
-      )
-    } else if (type === 'stacked-bar') {
-      marks.push(ObservablePlot.barY(data, { x, y, fill: groupBy }))
-    } else if (type === 'grouped-bar') {
-      marks.push(
-        ObservablePlot.barY(data, { x, y, fill: groupBy, fx: groupBy }),
-      )
-    } else if (type === 'dot') {
-      marks.push(ObservablePlot.dot(data, { x, y, fill: groupBy, r: 6 }))
-    }
-
-    if (type === 'line' || type === 'dot') {
-      marks.push(
-        ObservablePlot.dot(
-          data,
-          ObservablePlot.pointer({ x, y, fill: groupBy, r: 6 }),
-        ),
-      )
-    } else if (type === 'stacked-bar') {
-      marks.push(
-        ObservablePlot.barY(
-          data,
-          ObservablePlot.pointer({
-            x,
-            y,
-            fill: 'grey',
-            stack: groupBy,
-            maxRadius: 100,
-          }),
-        ),
-      )
-    } else if (type === 'grouped-bar') {
-      marks.push(
-        ObservablePlot.barY(
-          data,
-          ObservablePlot.pointer({
-            x,
-            y,
-            fill: 'grey',
-            fx: groupBy,
-            maxRadius: 100,
-          }),
-        ),
-      )
-    }
-
-    // marks.push(
-    //   Plot.text(
-    //     data,
-    //     Plot.selectLast({
-    //       x,
-    //       y,
-    //       text: groupBy,
-    //       textAnchor: 'start',
-    //       dx: 3,
-    //     }),
-    //   ),
-    // )
+    const marks: ObservablePlot.Markish[] = [
+      ObservablePlot.ruleY([0]),
+      ObservablePlot.line(data, { x, y, stroke: groupBy, strokeWidth: 2 }),
+      ObservablePlot.dot(
+        data,
+        ObservablePlot.pointer({ x, y, fill: groupBy, r: 6 }),
+      ),
+    ]
 
     const chart = ObservablePlot.plot({
       margin: 50,
@@ -184,10 +141,6 @@ export function Plot<T extends BasePlotRecord>({
     })
     containerRef.current?.append(chart)
 
-    // This is a built-in Plot event listener that updates when Plot.pointer is interacted with (which includes hover)
-    // chart.addEventListener('input', (evt) => {
-    // })
-
     chart.addEventListener('click', (event) => {
       if (event instanceof MouseEvent) {
         event.stopPropagation()
@@ -201,7 +154,7 @@ export function Plot<T extends BasePlotRecord>({
     })
 
     return () => chart.remove()
-  }, [data, groupBy, onSelect, type, x, xLabel, y, yLabel])
+  }, [data, groupBy, onSelect, x, xLabel, y, yLabel])
 
   return <div ref={containerRef} className="w-full h-full"></div>
 }

@@ -80,3 +80,36 @@ body,
     padding: 1rem 1.5rem 30vh;
   }
 }
+
+/* Drag handle */
+.tiptap-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: grab;
+  color: rgba(0, 0, 0, 0.25);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+
+  &:hover {
+    color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.dark .tiptap-drag-handle {
+  color: rgba(255, 255, 255, 0.25);
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}

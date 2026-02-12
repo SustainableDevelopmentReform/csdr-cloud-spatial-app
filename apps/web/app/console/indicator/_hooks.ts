@@ -17,6 +17,7 @@ import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import {
   INDICATORS_BASE_PATH,
   INDICATORS_DERIVED_BASE_PATH,
+  INDICATORS_MEASURED_BASE_PATH,
 } from '../../../lib/paths'
 import { productQueryKeys, productRunQueryKeys } from '../product/_hooks'
 
@@ -24,9 +25,16 @@ export type IndicatorListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['indicator']['$get'], 200>['data']
 >
 export type IndicatorListItem = IndicatorListResponse['data'][0]
-export type IndicatorDetail = NonNullable<
+export type AnyIndicatorDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['indicator'][':id']['$get'],
+    200
+  >['data']
+>
+
+export type MeasuredIndicatorDetail = NonNullable<
+  InferResponseType<
+    Client['api']['v0']['indicator']['measured'][':id']['$get'],
     200
   >['data']
 >
@@ -37,8 +45,10 @@ export type DerivedIndicatorDetail = NonNullable<
   >['data']
 >
 
-export type UpdateIndicatorPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['indicator'][':id']['$patch']>['json']
+export type UpdateMeasuredIndicatorPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['measured'][':id']['$patch']
+  >['json']
 >
 
 export type UpdateDerivedIndicatorPayload = NonNullable<
@@ -47,8 +57,10 @@ export type UpdateDerivedIndicatorPayload = NonNullable<
   >['json']
 >
 
-export type CreateIndicatorPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['indicator']['$post']>['json']
+export type CreateMeasuredIndicatorPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['measured']['$post']
+  >['json']
 >
 
 export type CreateDerivedIndicatorPayload = NonNullable<
@@ -79,7 +91,7 @@ export type CreateIndicatorCategoryPayload = NonNullable<
 >
 
 const indicatorParamsSchema = z.object({
-  indicatorId: z.string().optional(),
+  measuredIndicatorId: z.string().optional(),
   derivedIndicatorId: z.string().optional(),
   indicatorCategoryId: z.string().optional(),
 })
@@ -88,8 +100,13 @@ const indicatorQueryKeys = {
   all: ['indicator'] as const,
   list: (query: z.infer<typeof indicatorQuerySchema> | undefined) =>
     [...indicatorQueryKeys.all, 'list', { query }] as const,
-  detail: (indicatorId: string | undefined) =>
-    [...indicatorQueryKeys.all, 'detail', indicatorId] as const,
+  measuredDetail: (measuredIndicatorId: string | undefined) =>
+    [
+      ...indicatorQueryKeys.all,
+      'measured',
+      'detail',
+      measuredIndicatorId,
+    ] as const,
   derivedDetail: (derivedIndicatorId: string | undefined) =>
     [
       ...indicatorQueryKeys.all,
@@ -106,16 +123,16 @@ const indicatorCategoryQueryKeys = {
 }
 
 const useIndicatorParams = (
-  _indicatorId?: string,
+  _measuredIndicatorId?: string,
   _derivedIndicatorId?: string,
   _indicatorCategoryId?: string,
 ) => {
   const params = useParams()
-  const { indicatorId, indicatorCategoryId, derivedIndicatorId } =
+  const { measuredIndicatorId, indicatorCategoryId, derivedIndicatorId } =
     indicatorParamsSchema.parse(params)
 
   return {
-    indicatorId: _indicatorId ?? indicatorId,
+    measuredIndicatorId: _measuredIndicatorId ?? measuredIndicatorId,
     indicatorCategoryId: _indicatorCategoryId ?? indicatorCategoryId,
     derivedIndicatorId: _derivedIndicatorId ?? derivedIndicatorId,
   }
@@ -190,10 +207,11 @@ export const useIndicatorCategories = () => {
 }
 
 export const useIndicator = (id?: string) => {
-  const { indicatorId } = useIndicatorParams(id)
+  const { measuredIndicatorId, derivedIndicatorId } = useIndicatorParams()
+  const indicatorId = id ?? measuredIndicatorId ?? derivedIndicatorId
   const client = useApiClient()
   return useQuery({
-    queryKey: indicatorQueryKeys.detail(indicatorId),
+    queryKey: indicatorQueryKeys.measuredDetail(indicatorId),
     queryFn: async () => {
       if (!indicatorId) return null
       const res = client.api.v0.indicator[':id'].$get({
@@ -208,6 +226,28 @@ export const useIndicator = (id?: string) => {
     },
 
     enabled: !!indicatorId,
+  })
+}
+
+export const useMeasuredIndicator = (id?: string) => {
+  const { measuredIndicatorId } = useIndicatorParams(id)
+  const client = useApiClient()
+  return useQuery({
+    queryKey: indicatorQueryKeys.measuredDetail(measuredIndicatorId),
+    queryFn: async () => {
+      if (!measuredIndicatorId) return null
+      const res = client.api.v0.indicator.measured[':id'].$get({
+        param: {
+          id: measuredIndicatorId,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+
+      return json.data
+    },
+
+    enabled: !!measuredIndicatorId,
   })
 }
 
@@ -255,16 +295,16 @@ export const useIndicatorCategory = (id?: string) => {
   })
 }
 
-export const useCreateIndicator = () => {
+export const useCreateMeasuredIndicator = () => {
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
-    mutationFn: async (data: CreateIndicatorPayload) => {
-      const res = client.api.v0.indicator.$post({
+    mutationFn: async (data: CreateMeasuredIndicatorPayload) => {
+      const res = client.api.v0.indicator.measured.$post({
         json: data,
       })
-      const indicator = await unwrapResponse(res, 201)
-      return indicator.data
+      const measuredIndicator = await unwrapResponse(res, 201)
+      return measuredIndicator.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -312,15 +352,15 @@ export const useCreateIndicatorCategory = () => {
   })
 }
 
-export const useUpdateIndicator = (_indicatorId?: string) => {
-  const { indicatorId } = useIndicatorParams(_indicatorId)
+export const useUpdateMeasuredIndicator = (_indicatorId?: string) => {
+  const { measuredIndicatorId } = useIndicatorParams(_indicatorId)
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
-    mutationFn: async (payload: UpdateIndicatorPayload) => {
-      if (!indicatorId) return
-      const res = client.api.v0.indicator[':id'].$patch({
-        param: { id: indicatorId },
+    mutationFn: async (payload: UpdateMeasuredIndicatorPayload) => {
+      if (!measuredIndicatorId) return
+      const res = client.api.v0.indicator.measured[':id'].$patch({
+        param: { id: measuredIndicatorId },
         json: payload,
       })
       return await unwrapResponse(res)
@@ -379,29 +419,29 @@ export const useUpdateIndicatorCategory = (_indicatorCategoryId?: string) => {
   })
 }
 
-export const useDeleteIndicator = (
+export const useDeleteMeasuredIndicator = (
   _indicatorId?: string,
   redirect: string | null = null,
 ) => {
-  const { indicatorId } = useIndicatorParams(_indicatorId)
+  const { measuredIndicatorId } = useIndicatorParams(_indicatorId)
   const queryClient = useQueryClient()
   const router = useRouter()
   const client = useApiClient()
   return useMutation({
     mutationFn: async () => {
-      if (!indicatorId) return
-      const res = client.api.v0.indicator[':id'].$delete({
+      if (!measuredIndicatorId) return
+      const res = client.api.v0.indicator.measured[':id'].$delete({
         param: {
-          id: indicatorId,
+          id: measuredIndicatorId,
         },
       })
 
       return await unwrapResponse(res)
     },
     onSuccess: () => {
-      if (indicatorId) {
+      if (measuredIndicatorId) {
         queryClient.removeQueries({
-          queryKey: indicatorQueryKeys.detail(indicatorId),
+          queryKey: indicatorQueryKeys.measuredDetail(measuredIndicatorId),
         })
       }
       queryClient.invalidateQueries({
@@ -516,7 +556,7 @@ export const useIndicatorsLink = () =>
 export const useIndicatorLink = () =>
   useCallback(
     (indicator: IndicatorLinkParams) =>
-      `${indicator.type === 'derived' ? INDICATORS_DERIVED_BASE_PATH : INDICATORS_BASE_PATH}/${indicator.id}`,
+      `${indicator.type === 'derived' ? INDICATORS_DERIVED_BASE_PATH : INDICATORS_MEASURED_BASE_PATH}/${indicator.id}`,
     [],
   )
 

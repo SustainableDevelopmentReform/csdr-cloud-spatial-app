@@ -14,6 +14,7 @@ type ProductGeometryOutputSelectProps = {
   productRunId: string | null | undefined
   disabled?: boolean
   placeholder?: string
+  isClearable?: boolean
 } & (
   | {
       isMulti: true
@@ -34,6 +35,7 @@ export const ProductGeometryOutputSelect = ({
   value,
   onChange,
   isMulti,
+  isClearable = true,
   ...props
 }: ProductGeometryOutputSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
@@ -123,7 +125,7 @@ export const ProductGeometryOutputSelect = ({
             setSearchParams({ search })
           }}
           isDisabled={!productRun || disabled}
-          isClearable
+          isClearable={isClearable}
           isLoading={
             isLoadingGeometryOutputs ||
             isLoadingSelectedGeometryOutputs ||

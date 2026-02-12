@@ -1,10 +1,31 @@
 import clsx from 'clsx'
 import { extent } from 'd3-array'
-import { rgb } from 'd3-color'
-import { scaleSequential } from 'd3-scale'
-import { interpolateYlOrRd } from 'd3-scale-chromatic'
+import { scaleDiverging, scaleSequential } from 'd3-scale'
+import {
+  interpolateBlues,
+  interpolateBrBG,
+  interpolateBuPu,
+  interpolateGreens,
+  interpolateInferno,
+  interpolateOranges,
+  interpolatePiYG,
+  interpolatePlasma,
+  interpolatePRGn,
+  interpolateRdBu,
+  interpolateRdYlGn,
+  interpolateViridis,
+  interpolateYlGnBu,
+  interpolateYlOrRd,
+} from 'd3-scale-chromatic'
 import { useMemo } from 'react'
-import { OnSelectCallback } from './types'
+import {
+  type AppearanceConfig,
+  type DivergingColorScheme,
+  getContrastingTextColor,
+  makeDateFormatter,
+  type OnSelectCallback,
+  type SequentialColorScheme,
+} from './types'
 
 type BaseTableRecord = {
   id: string
@@ -56,44 +77,41 @@ export function getTablePlotCodeSnippet() {
   ]
 }
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
+// ---------------------------------------------------------------------------
+// Colour scale helpers
+// ---------------------------------------------------------------------------
 
-const numberFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 3,
-})
+const SEQUENTIAL_INTERPOLATORS: Record<
+  SequentialColorScheme,
+  (t: number) => string
+> = {
+  ylOrRd: interpolateYlOrRd,
+  viridis: interpolateViridis,
+  plasma: interpolatePlasma,
+  inferno: interpolateInferno,
+  blues: interpolateBlues,
+  greens: interpolateGreens,
+  oranges: interpolateOranges,
+  ylGnBu: interpolateYlGnBu,
+  buPu: interpolateBuPu,
+}
 
-const LIGHT_TEXT_COLOR = '#F9FAFB'
-const DARK_TEXT_COLOR = '#111827'
+const DIVERGING_INTERPOLATORS: Record<
+  DivergingColorScheme,
+  (t: number) => string
+> = {
+  rdBu: interpolateRdBu,
+  brBG: interpolateBrBG,
+  piYG: interpolatePiYG,
+  prGn: interpolatePRGn,
+  rdYlGn: interpolateRdYlGn,
+}
 
 const dimensionLabels = {
   timePoint: 'Time',
   indicatorName: 'Indicator',
   geometryOutputName: 'Geometry',
 } as const
-
-function getContrastingTextColor(color: string) {
-  const parsedColor = rgb(color)
-  if (!parsedColor.displayable()) {
-    return DARK_TEXT_COLOR
-  }
-  const { r, g, b } = parsedColor
-  const luminance = getRelativeLuminance(r / 255, g / 255, b / 255)
-  return luminance > 0.5 ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR
-}
-
-function getRelativeLuminance(r: number, g: number, b: number) {
-  const values: [number, number, number] = [r, g, b].map((channel) => {
-    if (channel <= 0.04045) {
-      return channel / 12.92
-    }
-    return Math.pow((channel + 0.055) / 1.055, 2.4)
-  }) as [number, number, number]
-  const [linearR, linearG, linearB] = values
-  return 0.2126 * linearR + 0.7152 * linearG + 0.0722 * linearB
-}
 
 export type TablePlotDimension =
   | 'timePoint'
@@ -116,6 +134,7 @@ type NormalizedTableRecord = BaseTableRecord & { timePoint: Date }
 function getDimensionMeta(
   record: NormalizedTableRecord,
   dimension: TablePlotDimension,
+  dateFmt: Intl.DateTimeFormat,
 ): DimensionMeta | null {
   switch (dimension) {
     case 'timePoint': {
@@ -123,7 +142,7 @@ function getDimensionMeta(
       const key = time.toISOString()
       return {
         key,
-        label: dateFormatter.format(time),
+        label: dateFmt.format(time),
         sortValue: time.getTime(),
       }
     }
@@ -165,13 +184,29 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   data,
   xDimension,
   yDimension,
+  appearance,
   onSelect,
 }: {
   data: T[]
   xDimension: TablePlotDimension
   yDimension: TablePlotDimension
+  appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<T>
 }) {
+  const numFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        maximumFractionDigits: appearance?.decimalPlaces ?? 3,
+        notation: appearance?.compactNumbers ? 'compact' : undefined,
+      }),
+    [appearance?.decimalPlaces, appearance?.compactNumbers],
+  )
+
+  const dateFmt = useMemo(
+    () => makeDateFormatter(appearance?.datePrecision),
+    [appearance?.datePrecision],
+  )
+
   const normalizedData = useMemo<NormalizedTableRecord[]>(() => {
     return data.map((record) => {
       const time =
@@ -191,8 +226,8 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     const rowMap = new Map<string, TablePlotRow<T>>()
 
     for (const record of normalizedData) {
-      const columnMeta = getDimensionMeta(record, xDimension)
-      const rowMeta = getDimensionMeta(record, yDimension)
+      const columnMeta = getDimensionMeta(record, xDimension, dateFmt)
+      const rowMeta = getDimensionMeta(record, yDimension, dateFmt)
 
       if (!columnMeta || !rowMeta) continue
 
@@ -222,7 +257,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
       columns: sortedColumns,
       rows: sortedRows,
     }
-  }, [normalizedData, xDimension, yDimension])
+  }, [normalizedData, xDimension, yDimension, dateFmt])
 
   const valueExtent = useMemo(() => {
     const values = normalizedData
@@ -239,20 +274,58 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   }, [normalizedData])
 
   const colorScale = useMemo(() => {
-    const { min, max } = valueExtent
-    if (min === null || max === null) {
+    const autoMin = valueExtent.min
+    const autoMax = valueExtent.max
+    if (autoMin === null || autoMax === null) {
       return null
     }
-    if (min === max) {
-      const constantColor = interpolateYlOrRd(0.5)
-      return () => constantColor
+
+    const min = appearance?.colorScaleMin ?? autoMin
+    const max = appearance?.colorScaleMax ?? autoMax
+    const reverse = appearance?.reverseColorScale ?? false
+
+    const isDiverging = appearance?.colorScaleType === 'diverging'
+
+    if (isDiverging) {
+      const baseInterpolator =
+        DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
+        interpolateRdBu
+      const interpolator = reverse
+        ? (t: number) => baseInterpolator(1 - t)
+        : baseInterpolator
+      if (min === max) {
+        const c = interpolator(0.5)
+        return () => c
+      }
+      const mid = appearance?.divergingMidpoint ?? (min + max) / 2
+      return scaleDiverging(interpolator).domain([min, mid, max])
     }
-    return scaleSequential(interpolateYlOrRd).domain([min, max])
-  }, [valueExtent])
+
+    const baseInterpolator =
+      SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
+      interpolateYlOrRd
+    const interpolator = reverse
+      ? (t: number) => baseInterpolator(1 - t)
+      : baseInterpolator
+    if (min === max) {
+      const c = interpolator(0.5)
+      return () => c
+    }
+    return scaleSequential(interpolator).domain([min, max])
+  }, [
+    valueExtent,
+    appearance?.colorScaleType,
+    appearance?.sequentialScheme,
+    appearance?.divergingScheme,
+    appearance?.divergingMidpoint,
+    appearance?.colorScaleMin,
+    appearance?.colorScaleMax,
+    appearance?.reverseColorScale,
+  ])
 
   return (
-    <div className="w-full overflow-auto rounded-md border border-border shadow-sm">
-      <table className="w-full min-w-[480px] table-fixed border-collapse text-sm">
+    <div className="flex w-full flex-1 min-h-0 flex-col overflow-auto rounded-md border border-border shadow-sm">
+      <table className="h-full w-full min-w-[480px] table-fixed border-collapse text-sm">
         <thead className="bg-muted/40">
           <tr>
             <th className="sticky left-0 z-1 border-b border-border bg-muted/40 px-4 py-2 text-left font-semibold">
@@ -308,7 +381,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
                       onSelect?.({ dataPoint: cell ?? null, event })
                     }}
                   >
-                    {hasValue ? numberFormatter.format(value) : '—'}
+                    {hasValue ? numFmt.format(value) : '—'}
                   </td>
                 )
               })}

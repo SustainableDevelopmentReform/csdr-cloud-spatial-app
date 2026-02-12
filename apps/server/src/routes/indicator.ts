@@ -1,15 +1,17 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import {
-  baseMeasuredIndicatorSchema,
-  createIndicatorSchema,
-  updateIndicatorSchema,
-  indicatorQuerySchema,
-  fullDerivedIndicatorSchema,
-  updateDerivedIndicatorSchema,
-  createDerivedIndicatorSchema,
   anyBaseIndicatorSchema,
+  anyFullIndicatorSchema,
+  baseMeasuredIndicatorSchema,
+  createDerivedIndicatorSchema,
+  createIndicatorSchema,
+  fullDerivedIndicatorSchema,
+  fullMeasuredIndicatorSchema,
+  indicatorQuerySchema,
+  updateDerivedIndicatorSchema,
+  updateIndicatorSchema,
 } from '@repo/schemas/crud'
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, exists, inArray, or } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -24,6 +26,8 @@ import {
   derivedIndicator,
   derivedIndicatorToIndicator,
   indicator,
+  product,
+  productOutputSummaryIndicator,
 } from '../schemas/db'
 import {
   baseColumns,
@@ -94,13 +98,18 @@ export const parseFullMeasuredIndicator = <
     type: 'measured' as const,
   }
 }
-const fetchFullIndicator = async (id: string) => {
-  const indicatorRecord = await db.query.indicator.findFirst({
-    where: (indicator, { eq }) => eq(indicator.id, id),
-    ...fullMeasuredIndicatorQuery,
-  })
+const fetchFullMeasuredIndicator = async (id: string) => {
+  const [indicatorRecord, productCount] = await Promise.all([
+    db.query.indicator.findFirst({
+      where: (indicator, { eq }) => eq(indicator.id, id),
+      ...fullMeasuredIndicatorQuery,
+    }),
+    fetchProductUsageCount(id),
+  ])
 
-  return indicatorRecord ? parseFullMeasuredIndicator(indicatorRecord) : null
+  return indicatorRecord
+    ? { ...parseFullMeasuredIndicator(indicatorRecord), productCount }
+    : null
 }
 
 export const parseBaseDerivedIndicator = <
@@ -132,13 +141,16 @@ export const parseFullDerivedIndicator = <
 }
 
 const fetchFullDerivedIndicator = async (id: string) => {
-  const derivedIndicatorRecord = await db.query.derivedIndicator.findFirst({
-    where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
-    ...fullDerivedIndicatorQuery,
-  })
+  const [derivedIndicatorRecord, productCount] = await Promise.all([
+    db.query.derivedIndicator.findFirst({
+      where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
+      ...fullDerivedIndicatorQuery,
+    }),
+    fetchProductUsageCount(id),
+  ])
 
   return derivedIndicatorRecord
-    ? parseFullDerivedIndicator(derivedIndicatorRecord)
+    ? { ...parseFullDerivedIndicator(derivedIndicatorRecord), productCount }
     : null
 }
 export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
@@ -151,14 +163,42 @@ export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
   return record
 }
 
-const fetchFullIndicatorOrThrow = async (id: string) => {
-  const record = await fetchFullIndicator(id)
+const fetchFullMeasuredIndicatorOrThrow = async (id: string) => {
+  const record = await fetchFullMeasuredIndicator(id)
 
   if (!record) {
     throw indicatorNotFoundError()
   }
 
   return record
+}
+
+const fetchProductUsageCount = async (indicatorId: string) => {
+  // Count products whose main run has an output summary with the given indicator or derived indicator
+  const result = await db
+    .select({ count: count() })
+    .from(product)
+    .where(
+      exists(
+        db
+          .select()
+          .from(productOutputSummaryIndicator)
+          .where(
+            and(
+              eq(productOutputSummaryIndicator.productRunId, product.mainRunId),
+              or(
+                eq(productOutputSummaryIndicator.indicatorId, indicatorId),
+                eq(
+                  productOutputSummaryIndicator.derivedIndicatorId,
+                  indicatorId,
+                ),
+              ),
+            ),
+          ),
+      ),
+    )
+
+  return result[0]?.count ?? 0
 }
 
 const app = createOpenAPIApp()
@@ -314,7 +354,7 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Retrieve a indicator.',
+      description: 'Retrieve an indicator (measured or derived).',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:indicator' })],
@@ -323,10 +363,10 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Successfully retrieved a indicator.',
+          description: 'Successfully retrieved an indicator.',
           content: {
             'application/json': {
-              schema: createResponseSchema(baseMeasuredIndicatorSchema),
+              schema: createResponseSchema(anyFullIndicatorSchema),
             },
           },
         },
@@ -338,7 +378,44 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullIndicatorOrThrow(id)
+      const record =
+        (await fetchFullMeasuredIndicator(id)) ??
+        (await fetchFullDerivedIndicator(id))
+      if (!record) {
+        throw indicatorNotFoundError()
+      }
+
+      return generateJsonResponse(c, record, 200, 'Indicator retrieved')
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Retrieve a measured indicator.',
+      method: 'get',
+      path: '/measured/:id',
+      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Successfully retrieved a measured indicator.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullMeasuredIndicatorSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Measured indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to fetch measured indicator'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const record = await fetchFullMeasuredIndicatorOrThrow(id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -378,9 +455,9 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Create a indicator.',
+      description: 'Create a measured indicator.',
       method: 'post',
-      path: '/',
+      path: '/measured',
       middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         body: {
@@ -394,7 +471,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         201: {
-          description: 'Successfully created a indicator.',
+          description: 'Successfully created a measured indicator.',
           content: {
             'application/json': {
               schema: createResponseSchema(baseMeasuredIndicatorSchema),
@@ -403,7 +480,7 @@ const app = createOpenAPIApp()
         },
         401: jsonErrorResponse('Unauthorized'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to create indicator'),
+        500: jsonErrorResponse('Failed to create measured indicator'),
       },
     }),
     async (c) => {
@@ -420,14 +497,14 @@ const app = createOpenAPIApp()
       if (!newIndicator) {
         throw new ServerError({
           statusCode: 500,
-          message: 'Failed to create indicator',
-          description: 'Indicator insert did not return a record',
+          message: 'Failed to create measured indicator',
+          description: 'Measured indicator insert did not return a record',
         })
       }
 
-      const record = await fetchFullIndicatorOrThrow(newIndicator.id)
+      const record = await fetchFullMeasuredIndicatorOrThrow(newIndicator.id)
 
-      return generateJsonResponse(c, record, 201, 'Indicator created')
+      return generateJsonResponse(c, record, 201, 'Measured indicator created')
     },
   )
 
@@ -510,9 +587,9 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Update a indicator.',
+      description: 'Update a measured indicator.',
       method: 'patch',
-      path: '/:id',
+      path: '/measured/:id',
       middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -527,7 +604,7 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Successfully updated a indicator.',
+          description: 'Successfully updated a measured indicator.',
           content: {
             'application/json': {
               schema: createResponseSchema(baseMeasuredIndicatorSchema),
@@ -535,9 +612,9 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Indicator not found'),
+        404: jsonErrorResponse('Measured indicator not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to update indicator'),
+        500: jsonErrorResponse('Failed to update measured indicator'),
       },
     }),
     async (c) => {
@@ -560,9 +637,14 @@ const app = createOpenAPIApp()
         throw indicatorNotFoundError()
       }
 
-      const fullRecord = await fetchFullIndicatorOrThrow(record.id)
+      const fullRecord = await fetchFullMeasuredIndicatorOrThrow(record.id)
 
-      return generateJsonResponse(c, fullRecord, 200, 'Indicator updated')
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Measured indicator updated',
+      )
     },
   )
 
@@ -593,9 +675,9 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Indicator not found'),
+        404: jsonErrorResponse('Derived indicator not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to update indicator'),
+        500: jsonErrorResponse('Failed to update derived indicator'),
       },
     }),
     async (c) => {
@@ -631,16 +713,16 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
-      description: 'Delete a indicator.',
+      description: 'Delete a measured indicator.',
       method: 'delete',
-      path: '/:id',
+      path: '/measured/:id',
       middleware: [authMiddleware({ permission: 'write:indicator' })],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
       responses: {
         200: {
-          description: 'Successfully deleted a indicator.',
+          description: 'Successfully deleted a measured indicator.',
           content: {
             'application/json': {
               schema: createResponseSchema(baseMeasuredIndicatorSchema),
@@ -648,18 +730,18 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
-        404: jsonErrorResponse('Indicator not found'),
+        404: jsonErrorResponse('Measured indicator not found'),
         422: validationErrorResponse,
-        500: jsonErrorResponse('Failed to delete indicator'),
+        500: jsonErrorResponse('Failed to delete measured indicator'),
       },
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullIndicatorOrThrow(id)
+      const record = await fetchFullMeasuredIndicatorOrThrow(id)
 
       await db.delete(indicator).where(eq(indicator.id, id))
 
-      return generateJsonResponse(c, record, 200, 'Indicator deleted')
+      return generateJsonResponse(c, record, 200, 'Measured indicator deleted')
     },
   )
 

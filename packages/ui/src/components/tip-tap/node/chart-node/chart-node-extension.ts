@@ -57,6 +57,7 @@ export const ChartNode = Node.create<ChartNodeOptions>({
       type: 'chart',
       getDefaultAttributes: () => ({
         chart: null,
+        height: null,
       }),
       HTMLAttributes: {},
       formBuilder: undefined,
@@ -67,6 +68,9 @@ export const ChartNode = Node.create<ChartNodeOptions>({
     return {
       chart: {
         default: this.options.getDefaultAttributes().chart,
+      },
+      height: {
+        default: this.options.getDefaultAttributes().height ?? null,
       },
     }
   },
@@ -107,6 +111,7 @@ export const ChartNode = Node.create<ChartNodeOptions>({
 
           const mergedAttrs: ChartNodeAttributes = {
             chart: dataSource,
+            height: partialAttrs.height ?? defaultAttrs.height ?? null,
           }
 
           return chain()
