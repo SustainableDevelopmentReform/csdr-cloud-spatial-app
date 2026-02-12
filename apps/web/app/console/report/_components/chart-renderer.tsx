@@ -52,15 +52,24 @@ const PlotContainer = ({
     timePoint: chart.timePoints,
   })
 
-  const multipleGeometryOutputs = useMemo(() => {
-    let firstGeometryOutputId: string | undefined
-    return productOutputs?.data?.some((output: ProductOutputExportListItem) => {
-      if (!firstGeometryOutputId) {
-        firstGeometryOutputId = output.geometryOutputId
-      }
-      return output.geometryOutputId !== firstGeometryOutputId
-    })
-  }, [productOutputs?.data])
+  // Derive the groupBy dimension from the chart CONFIG — not by inspecting the
+  // data.  The dimension with multiple selections (or undefined = "all") is the
+  // series dimension; the other must be fixed to a single value so that every
+  // chart element maps 1:1 to a product output.
+  const groupBy = useMemo(() => {
+    const geoMulti =
+      !chart.geometryOutputIds || chart.geometryOutputIds.length > 1
+    const indMulti = !chart.indicatorIds || chart.indicatorIds.length > 1
+    const timeMulti = !chart.timePoints || chart.timePoints.length > 1
+
+    if (geoMulti) return 'geometryOutputName' as const
+    if (indMulti) return 'indicatorName' as const
+    // For donut/ranked-bar sliced by time: both ind & geo are single but time
+    // is multi → group by time so each slice/bar is a different time point.
+    if (timeMulti) return 'timePoint' as const
+    // All single — fall back to indicator (only one series, doesn't matter)
+    return 'indicatorName' as const
+  }, [chart.geometryOutputIds, chart.indicatorIds, chart.timePoints])
 
   return (
     <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
@@ -75,9 +84,7 @@ const PlotContainer = ({
           data={productOutputs?.data ?? []}
           x={'timePoint'}
           y={'value'}
-          groupBy={
-            multipleGeometryOutputs ? 'geometryOutputName' : 'indicatorName'
-          }
+          groupBy={groupBy}
           type={chart.subType}
           appearance={chart.appearance}
           onSelect={onSelect}

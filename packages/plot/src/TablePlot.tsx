@@ -1,6 +1,5 @@
 import clsx from 'clsx'
 import { extent } from 'd3-array'
-import { rgb } from 'd3-color'
 import { scaleDiverging, scaleSequential } from 'd3-scale'
 import {
   interpolateBlues,
@@ -22,6 +21,7 @@ import { useMemo } from 'react'
 import {
   type AppearanceConfig,
   type DivergingColorScheme,
+  getContrastingTextColor,
   makeDateFormatter,
   type OnSelectCallback,
   type SequentialColorScheme,
@@ -107,35 +107,11 @@ const DIVERGING_INTERPOLATORS: Record<
   rdYlGn: interpolateRdYlGn,
 }
 
-const LIGHT_TEXT_COLOR = '#F9FAFB'
-const DARK_TEXT_COLOR = '#111827'
-
 const dimensionLabels = {
   timePoint: 'Time',
   indicatorName: 'Indicator',
   geometryOutputName: 'Geometry',
 } as const
-
-function getContrastingTextColor(color: string) {
-  const parsedColor = rgb(color)
-  if (!parsedColor.displayable()) {
-    return DARK_TEXT_COLOR
-  }
-  const { r, g, b } = parsedColor
-  const luminance = getRelativeLuminance(r / 255, g / 255, b / 255)
-  return luminance > 0.5 ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR
-}
-
-function getRelativeLuminance(r: number, g: number, b: number) {
-  const values: [number, number, number] = [r, g, b].map((channel) => {
-    if (channel <= 0.04045) {
-      return channel / 12.92
-    }
-    return Math.pow((channel + 0.055) / 1.055, 2.4)
-  }) as [number, number, number]
-  const [linearR, linearG, linearB] = values
-  return 0.2126 * linearR + 0.7152 * linearG + 0.0722 * linearB
-}
 
 export type TablePlotDimension =
   | 'timePoint'
@@ -349,7 +325,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
 
   return (
     <div className="flex w-full flex-1 min-h-0 flex-col overflow-auto rounded-md border border-border shadow-sm">
-      <table className="w-full min-w-[480px] table-fixed border-collapse text-sm">
+      <table className="h-full w-full min-w-[480px] table-fixed border-collapse text-sm">
         <thead className="bg-muted/40">
           <tr>
             <th className="sticky left-0 z-1 border-b border-border bg-muted/40 px-4 py-2 text-left font-semibold">

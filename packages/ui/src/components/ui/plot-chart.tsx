@@ -4,6 +4,7 @@ import {
   type AppearanceConfig,
   type CategoricalColorScheme,
   type CurveType,
+  getContrastingTextColor,
   makeDateFormatter,
   type OnSelectCallback,
   type PlotSubType,
@@ -27,6 +28,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Line,
   LineChart,
   Pie,
@@ -82,10 +84,17 @@ function makeNumberFormatter(
   decimalPlaces?: number,
   compact?: boolean,
 ): Intl.NumberFormat {
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: decimalPlaces ?? 3,
+  const opts: Intl.NumberFormatOptions = {
     notation: compact ? 'compact' : undefined,
-  })
+  }
+  // Only override maximumFractionDigits when explicitly configured — compact
+  // notation picks sensible defaults on its own.
+  if (decimalPlaces !== undefined) {
+    opts.maximumFractionDigits = decimalPlaces
+  } else if (!compact) {
+    opts.maximumFractionDigits = 3
+  }
+  return new Intl.NumberFormat(undefined, opts)
 }
 
 function makeFormatXAxis(dateFmt: Intl.DateTimeFormat) {
@@ -143,6 +152,12 @@ function toStringKey(value: unknown): string {
  * Pivots flat records into the wide-format Recharts expects for cartesian
  * charts (line, area, bar).
  *
+ * **INVARIANT**: Every (x, groupBy) combination must appear at most once in the
+ * input data.  Each cell in the pivoted table maps 1:1 to a single product
+ * output — no aggregation, summarisation, or silent overwriting is ever
+ * performed.  If a collision is detected the function returns an error string
+ * instead of data.
+ *
  * x-values are normalised to strings so Recharts payloads and original-record
  * lookups always compare consistently.
  */
@@ -151,7 +166,9 @@ function pivotData(
   x: string,
   y: string,
   groupBy: string,
-): { pivoted: Record<string, unknown>[]; seriesKeys: string[] } {
+):
+  | { pivoted: Record<string, unknown>[]; seriesKeys: string[]; error?: never }
+  | { error: string; pivoted?: never; seriesKeys?: never } {
   const seriesSet = new Set<string>()
   const grouped = new Map<string, Record<string, unknown>>()
 
@@ -167,6 +184,17 @@ function pivotData(
     }
 
     const row = grouped.get(xKey)!
+
+    // 1:1 invariant — never overwrite an existing value.
+    if (groupValue in row) {
+      return {
+        error:
+          `Data has multiple values for (${x}=${xKey}, ${groupBy}=${groupValue}). ` +
+          'Each chart element must map to exactly one product output — ' +
+          'narrow your selection so only one dimension varies per axis.',
+      }
+    }
+
     row[groupValue] = yValue
   }
 
@@ -215,13 +243,19 @@ function prepareDonutSlices(
 
   return data.map((item, index) => {
     const grp = String(field(item, groupBy) ?? 'Value')
-    const name = `${grp} — ${fmtX(field(item, x))}`
+    // When x === groupBy (e.g. both 'timePoint') just use the formatted value;
+    // otherwise combine group + x for a unique label.
+    const name =
+      x === groupBy ? fmtX(field(item, x)) : `${grp} — ${fmtX(field(item, x))}`
+    // Use the formatted label as the override key when x === groupBy so the
+    // colour-override UI (which shows formatted names) matches.
+    const colorKey = x === groupBy ? fmtX(field(item, groupBy)) : grp
     return {
       name,
       value: numericField(item, y),
       // Use the group value for override lookup so that a single override
       // key (e.g. "Carbon") colours every slice belonging to that group.
-      fill: getColor(groupIndex.get(grp) ?? index, scheme, overrides, grp),
+      fill: getColor(groupIndex.get(grp) ?? index, scheme, overrides, colorKey),
       originalIndex: index,
     }
   })
@@ -374,10 +408,12 @@ export function PlotChart<T extends BasePlotRecord>({
   }, [yMin, yMax, includeZero])
 
   // Pivoted data for cartesian charts (line, area, bar)
-  const { pivoted, seriesKeys } = useMemo(
+  const pivotResult = useMemo(
     () => pivotData(data, x, y, groupBy),
     [data, x, y, groupBy],
   )
+  const pivoted = pivotResult.pivoted ?? []
+  const seriesKeys = pivotResult.seriesKeys ?? []
 
   // Donut: 1:1 slices — no aggregation
   const donutSlices = useMemo(
@@ -494,6 +530,15 @@ export function PlotChart<T extends BasePlotRecord>({
       ),
     [onSelect, findByXAndGroup, x],
   )
+
+  // ---- Error: 1:1 invariant violation ----
+  if (pivotResult.error) {
+    return (
+      <div className="flex h-full min-h-[120px] items-center justify-center rounded-md border border-destructive/50 bg-destructive/5 px-6 py-4 text-center text-sm text-destructive">
+        {pivotResult.error}
+      </div>
+    )
+  }
 
   // ---- Donut (1:1 — each record is its own slice) ----
   if (type === 'donut') {
@@ -673,6 +718,124 @@ export function PlotChart<T extends BasePlotRecord>({
               style={{ cursor: onSelect ? 'pointer' : undefined }}
             />
           ))}
+        </BarChart>
+      </ChartContainer>
+    )
+  }
+
+  // ---- Ranked Bar (horizontal, sorted by value) ----
+  if (type === 'ranked-bar') {
+    // Build one bar per flat record — bypasses pivotData entirely so that
+    // groupBy === x (e.g. both 'timePoint') works correctly.  Each record is
+    // one product output → one bar (1:1 invariant).
+    const colorIndex = new Map<string, number>()
+    const ranked = (data as Record<string, unknown>[])
+      .map((item) => {
+        const rawKey = String(field(item, groupBy) ?? 'Value')
+        if (!colorIndex.has(rawKey)) colorIndex.set(rawKey, colorIndex.size)
+        const idx = colorIndex.get(rawKey)!
+        return {
+          name: groupBy === x ? formatXAxis(field(item, groupBy)) : rawKey,
+          rawKey,
+          value: numericField(item, y),
+          fill: getColor(idx, scheme, overrides, rawKey),
+          _original: item,
+        }
+      })
+      .sort((a, b) => b.value - a.value)
+
+    // Build a config entry per bar so ChartContainer knows the colours.
+    const rankedConfig: ChartConfig = Object.fromEntries(
+      ranked.map((r) => [r.name, { label: r.name, color: r.fill }]),
+    )
+
+    return (
+      <ChartContainer
+        config={rankedConfig}
+        className={className ?? 'aspect-auto h-full w-full min-h-[240px]'}
+      >
+        <BarChart
+          accessibilityLayer
+          data={ranked}
+          layout="vertical"
+          margin={{ right: 60, left: 10 }}
+        >
+          {showGrid && <CartesianGrid horizontal={false} />}
+          <YAxis
+            dataKey="name"
+            type="category"
+            tickLine={false}
+            axisLine={false}
+            hide
+          />
+          <XAxis
+            dataKey="value"
+            type="number"
+            tickFormatter={formatValue}
+            hide
+          />
+          <Bar
+            dataKey="value"
+            layout="vertical"
+            radius={barRadius}
+            isAnimationActive={false}
+            style={{ cursor: onSelect ? 'pointer' : undefined }}
+            onClick={(
+              barData: BarClickData,
+              _index: number,
+              event: ReactMouseEvent,
+            ) => {
+              if (!onSelect) return
+              const original = barData.payload?._original
+              if (!original) return
+              const record = data.find((d) => d === original) ?? null
+              onSelect({ dataPoint: record, event })
+            }}
+          >
+            {ranked.map((entry, i) => (
+              <Cell key={i} fill={entry.fill} className="outline-none" />
+            ))}
+            <LabelList
+              dataKey="name"
+              position="insideLeft"
+              offset={8}
+              fontSize={12}
+              fontWeight={500}
+              content={({ x, y, width, height, value, index }) => {
+                const barFill =
+                  typeof index === 'number' ? ranked[index]?.fill : undefined
+                const textFill = barFill
+                  ? getContrastingTextColor(barFill)
+                  : '#fff'
+                const barX = typeof x === 'number' ? x : 0
+                const barY = typeof y === 'number' ? y : 0
+                const barH = typeof height === 'number' ? height : 0
+                const barW = typeof width === 'number' ? width : 0
+                // Only show inside label if bar is wide enough
+                if (barW < 40) return null
+                return (
+                  <text
+                    x={barX + 8}
+                    y={barY + barH / 2}
+                    fill={textFill}
+                    fontSize={12}
+                    fontWeight={500}
+                    dominantBaseline="central"
+                  >
+                    {String(value ?? '')}
+                  </text>
+                )
+              }}
+            />
+            <LabelList
+              dataKey="value"
+              position="right"
+              offset={8}
+              className="fill-foreground"
+              fontSize={12}
+              formatter={formatValue}
+            />
+          </Bar>
         </BarChart>
       </ChartContainer>
     )

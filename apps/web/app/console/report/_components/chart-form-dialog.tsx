@@ -8,6 +8,7 @@ import {
   ChartConfiguration,
   type DivergingColorScheme,
   type LegendPosition,
+  makeDateFormatter,
   MapChartConfiguration,
   PlotChartConfiguration,
   PlotSubType,
@@ -63,6 +64,7 @@ import {
   AreaChart as AreaChartIcon,
   BarChart as BarChartIcon,
   BarChart3,
+  ChartBarDecreasing,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -159,6 +161,8 @@ interface VisualTypeOption {
   subType?: PlotSubType
   label: string
   icon: LucideIcon
+  /** Extra Tailwind classes applied to the icon (e.g. rotation). */
+  iconClassName?: string
   description: string
   /** True if the chart type needs more than one time point to be useful. */
   requiresMultiTime?: boolean
@@ -208,6 +212,14 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Grouped Bar',
     icon: BarChartIcon,
     description: 'Side-by-side comparison',
+  },
+  {
+    key: 'ranked-bar',
+    type: 'plot',
+    subType: 'ranked-bar',
+    label: 'Ranked Bar',
+    icon: ChartBarDecreasing,
+    description: 'Sorted horizontal bars',
   },
   {
     key: 'dot',
@@ -406,6 +418,7 @@ const plotSchema = multiSeriesSelectionSchema
       'stacked-area',
       'stacked-bar',
       'grouped-bar',
+      'ranked-bar',
       'dot',
       'donut',
     ] satisfies PlotSubType[]),
@@ -419,7 +432,9 @@ const plotSchema = multiSeriesSelectionSchema
     const multipleTimePointsSelected =
       (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
 
-    if (data.subType === 'donut') {
+    if (data.subType === 'donut' || data.subType === 'ranked-bar') {
+      const chartLabel =
+        data.subType === 'donut' ? 'Donut chart' : 'Ranked bar chart'
       const multipleCount =
         (multipleIndicatorsSelected ? 1 : 0) +
         (multipleGeometryOutputsSelected ? 1 : 0) +
@@ -429,8 +444,7 @@ const plotSchema = multiSeriesSelectionSchema
         if (multipleIndicatorsSelected) {
           context.addIssue({
             code: 'custom',
-            message:
-              'Donut chart can only vary one dimension — select a single indicator',
+            message: `${chartLabel} can only vary one dimension — select a single indicator`,
             path: ['indicatorIds'],
             input: data.indicatorIds,
           })
@@ -438,8 +452,7 @@ const plotSchema = multiSeriesSelectionSchema
         if (multipleGeometryOutputsSelected) {
           context.addIssue({
             code: 'custom',
-            message:
-              'Donut chart can only vary one dimension — select a single geometry',
+            message: `${chartLabel} can only vary one dimension — select a single geometry`,
             path: ['geometryOutputIds'],
             input: data.geometryOutputIds,
           })
@@ -447,26 +460,60 @@ const plotSchema = multiSeriesSelectionSchema
         if (multipleTimePointsSelected) {
           context.addIssue({
             code: 'custom',
-            message:
-              'Donut chart can only vary one dimension — select a single time point',
+            message: `${chartLabel} can only vary one dimension — select a single time point`,
             path: ['timePoints'],
             input: data.timePoints,
           })
         }
       }
     } else {
-      if (multipleIndicatorsSelected && multipleGeometryOutputsSelected) {
+      // Cartesian charts (line, area, bar, scatter): the x-axis (time) and one
+      // series dimension can be multi — the remaining dimension MUST be single
+      // so every chart element maps 1:1 to a product output.
+      const multiCount =
+        (multipleIndicatorsSelected ? 1 : 0) +
+        (multipleGeometryOutputsSelected ? 1 : 0) +
+        (multipleTimePointsSelected ? 1 : 0)
+
+      if (multiCount > 2) {
+        // All three multi — error on everything
         context.addIssue({
           code: 'custom',
           message:
-            'Can only have multiple indicators or multiple geometry outputs - not both',
+            'Each chart element must map to one product output — select a single indicator',
           path: ['indicatorIds'],
           input: data.indicatorIds,
         })
         context.addIssue({
           code: 'custom',
           message:
-            'Can only have multiple indicators or multiple geometry outputs - not both',
+            'Each chart element must map to one product output — select a single geometry',
+          path: ['geometryOutputIds'],
+          input: data.geometryOutputIds,
+        })
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Each chart element must map to one product output — select a single time point',
+          path: ['timePoints'],
+          input: data.timePoints,
+        })
+      } else if (
+        multipleIndicatorsSelected &&
+        multipleGeometryOutputsSelected
+      ) {
+        // Both non-time dimensions are multi — at most one can be the series
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Each chart element must map to one product output — select a single indicator or a single geometry',
+          path: ['indicatorIds'],
+          input: data.indicatorIds,
+        })
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Each chart element must map to one product output — select a single indicator or a single geometry',
           path: ['geometryOutputIds'],
           input: data.geometryOutputIds,
         })
@@ -574,7 +621,11 @@ function inferSeriesDimension(
     !geometryOutputIds?.length || geometryOutputIds.length > 1
   const multiTime = !timePoints?.length || timePoints.length > 1
 
-  if (chart.type === 'plot' && chart.subType === 'donut') {
+  // For donut / ranked-bar: time can be the series dimension
+  if (
+    chart.type === 'plot' &&
+    (chart.subType === 'donut' || chart.subType === 'ranked-bar')
+  ) {
     if (multiTime && !multiIndicators && !multiGeometries) return 'time'
     if (multiGeometries && !multiIndicators) return 'geometries'
     return 'indicators'
@@ -680,6 +731,7 @@ const TypeGrid = ({
               className={cn(
                 'h-6 w-6',
                 isSelected ? 'text-primary' : 'text-muted-foreground',
+                vt.iconClassName,
               )}
             />
             <span
@@ -721,13 +773,13 @@ const TypeGrid = ({
 const SeriesDimensionToggle = ({
   value,
   onChange,
-  isDonut,
+  isSingleXChart,
 }: {
   value: SeriesDimension
   onChange: (dim: SeriesDimension) => void
-  isDonut: boolean
+  isSingleXChart: boolean
 }) => {
-  const options: { key: SeriesDimension; label: string }[] = isDonut
+  const options: { key: SeriesDimension; label: string }[] = isSingleXChart
     ? [
         { key: 'indicators', label: 'Indicators' },
         { key: 'geometries', label: 'Geometries' },
@@ -741,7 +793,7 @@ const SeriesDimensionToggle = ({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium">
-        {isDonut ? 'Slice by' : 'Compare by'}
+        {isSingleXChart ? 'Slice by' : 'Compare by'}
       </span>
       <div className="flex gap-1.5">
         {options.map((opt) => (
@@ -903,6 +955,7 @@ export const ChartFormDialog = ({
   const indicatorId = form.watch('indicatorId')
   const indicatorIds = form.watch('indicatorIds')
   const geometryOutputIds = form.watch('geometryOutputIds')
+  const timePoint = form.watch('timePoint')
   const timePoints = form.watch('timePoints')
   const xDimension = form.watch('xDimension')
   const yDimension = form.watch('yDimension')
@@ -933,6 +986,20 @@ export const ChartFormDialog = ({
     !!productRunDetail?.geometriesRun?.id,
   )
   const firstGeometryId = geometryOutputsData?.data?.[0]?.id ?? null
+
+  // Fetch the specifically selected geometry outputs so we always have their
+  // names available (the default fetch above only gets the first N).
+  const hasSelectedGeometries =
+    !!geometryOutputIds && geometryOutputIds.length > 0
+  const { data: selectedGeometryOutputsData } = useGeometryOutputs(
+    productRunDetail?.geometriesRun?.id,
+    {
+      geometryOutputIds: hasSelectedGeometries ? geometryOutputIds : undefined,
+      size: hasSelectedGeometries ? geometryOutputIds.length : undefined,
+    },
+    false,
+    hasSelectedGeometries && !!productRunDetail?.geometriesRun?.id,
+  )
 
   // First N indicator / geometry IDs used as defaults when a multi dimension is enabled
   const defaultMultiIndicatorIds = useMemo(() => {
@@ -968,6 +1035,9 @@ export const ChartFormDialog = ({
 
   const visualTypeKey = getVisualTypeKey(chartType, subType)
   const isDonut = chartType === 'plot' && subType === 'donut'
+  const isRankedBar = chartType === 'plot' && subType === 'ranked-bar'
+  /** Chart types where only the series dimension is multi; all others are single. */
+  const isSingleXChart = isDonut || isRankedBar
 
   const sourceComplete = !!productId && !!productRunId
   const typeComplete = !!chartType && (chartType !== 'plot' || !!subType)
@@ -1002,8 +1072,8 @@ export const ChartFormDialog = ({
         isTimeMulti: xDimension === 'timePoint' || yDimension === 'timePoint',
       }
     }
-    // Plot types
-    if (isDonut) {
+    // Plot types where only the series dimension is multi (donut, ranked-bar).
+    if (isSingleXChart) {
       return {
         isIndicatorsMulti: seriesDimension === 'indicators',
         isGeometriesMulti: seriesDimension === 'geometries',
@@ -1016,7 +1086,7 @@ export const ChartFormDialog = ({
       isGeometriesMulti: seriesDimension === 'geometries',
       isTimeMulti: true,
     }
-  }, [chartType, isDonut, seriesDimension, xDimension, yDimension])
+  }, [chartType, isSingleXChart, seriesDimension, xDimension, yDimension])
 
   // Estimate series count for warnings
   const estimatedSeriesCount = useMemo(() => {
@@ -1044,8 +1114,6 @@ export const ChartFormDialog = ({
     if (chartType !== 'plot') return []
     const allIndicators = productRunDetail?.outputSummary?.indicators ?? []
     const allGeometries = geometryOutputsData?.data ?? []
-    const allTimePoints = productRunDetail?.outputSummary?.timePoints ?? []
-
     switch (seriesDimension) {
       case 'indicators': {
         // Each summary indicator has a nested `.indicator` (measured or derived)
@@ -1074,12 +1142,16 @@ export const ChartFormDialog = ({
         return allGeometries.map((g) => g.name ?? g.id)
       }
       case 'time': {
+        const allTimePoints = productRunDetail?.outputSummary?.timePoints ?? []
         const selected = timePoints
-        if (selected && selected.length > 0) return selected
-        return (allTimePoints as string[]) ?? []
+        const datePrecision = timePrecisionToDatePrecision(
+          productSummary?.timePrecision,
+        )
+        const fmt = makeDateFormatter(datePrecision)
+        const points =
+          selected && selected.length > 0 ? selected : allTimePoints
+        return (points as string[]).map((tp) => fmt.format(new Date(tp)))
       }
-      default:
-        return []
     }
   }, [
     chartType,
@@ -1089,75 +1161,107 @@ export const ChartFormDialog = ({
     timePoints,
     productRunDetail,
     geometryOutputsData,
+    productSummary?.timePrecision,
   ])
 
   // Build a sensible default title from the current configuration.
-  // Shows the product name plus the names of any single-selected dimensions.
+  //
+  // Rules:
+  //  - Always include the product name.
+  //  - Include the name of every single-selected (non-series) dimension:
+  //      * indicator name  — when only one indicator is selected
+  //      * geometry name   — when only one geometry is selected
+  //      * time            — when only one time point is selected
+  //  - For map: uses indicatorId (singular) and timePoint (singular).
+  //  - For table: include whatever single dimensions are selected.
+  //  - Parts are joined with " — ".
   const suggestedTitle = useMemo(() => {
     const productName = productSummary?.productName
     if (!productName) return ''
 
     const allIndicators = productRunDetail?.outputSummary?.indicators ?? []
-    const allGeometries = geometryOutputsData?.data ?? []
+    // Use the dedicated selected-geometry fetch so we always resolve the name,
+    // even if the geometry isn't in the first-N default fetch.
+    const selectedGeometries = selectedGeometryOutputsData?.data ?? []
 
+    // Resolve a single indicator name from an array of IDs.
     const resolveIndicatorName = (ids: string[] | undefined): string | null => {
       if (!ids || ids.length !== 1) return null
-      const id = ids[0]
-      const match = allIndicators.find((si) => si.indicator?.id === id)
+      const match = allIndicators.find((si) => si.indicator?.id === ids[0])
       return match?.indicator?.name ?? null
     }
 
+    // Resolve a single geometry name from an array of IDs.
     const resolveGeometryName = (ids: string[] | undefined): string | null => {
       if (!ids || ids.length !== 1) return null
-      const id = ids[0]
-      const match = allGeometries.find((g) => g.id === id)
+      const match = selectedGeometries.find((g) => g.id === ids[0])
       return match?.name ?? null
     }
 
+    // Format a single time point for the title.
+    const resolveTimeName = (tp: string | undefined): string | null => {
+      if (!tp) return null
+      const datePrecision = timePrecisionToDatePrecision(
+        productSummary?.timePrecision,
+      )
+      const fmt = makeDateFormatter(datePrecision)
+      return fmt.format(new Date(tp))
+    }
+
+    // Join non-null parts with " — ".
+    const join = (...parts: (string | null)[]) =>
+      parts.filter(Boolean).join(' — ')
+
     if (chartType === 'map') {
-      // Map: single indicator (indicatorId, not indicatorIds), single time
-      const match = allIndicators.find((si) => si.indicator?.id === indicatorId)
-      const indName = match?.indicator?.name ?? null
-      return indName ? `${indName} — ${productName}` : productName
+      // Map: single indicator (indicatorId), single time (timePoint),
+      // optional geometry filter.
+      const indMatch = allIndicators.find(
+        (si) => si.indicator?.id === indicatorId,
+      )
+      const indName = indMatch?.indicator?.name ?? null
+      const timeName = resolveTimeName(timePoint)
+      const geoName = resolveGeometryName(geometryOutputIds)
+      return join(indName, geoName, timeName) || productName
     }
 
     if (chartType === 'table') {
-      return productName
+      const indName = resolveIndicatorName(indicatorIds)
+      const geoName = resolveGeometryName(geometryOutputIds)
+      const timeName =
+        timePoints?.length === 1 ? resolveTimeName(timePoints[0]) : null
+      return join(productName, indName, geoName, timeName) || productName
     }
 
-    // Plot types: title depends on which dimension is the series (multi)
+    // Plot types — include the product name and every single-selected
+    // (non-series) dimension.
+    const indName = resolveIndicatorName(indicatorIds)
+    const geoName = resolveGeometryName(geometryOutputIds)
+    const timeName =
+      timePoints?.length === 1 ? resolveTimeName(timePoints[0]) : null
+
     switch (seriesDimension) {
-      case 'indicators': {
-        // Slicing by indicators -> geometry & time are single
-        const geoName = resolveGeometryName(geometryOutputIds)
-        return geoName ? `${productName} — ${geoName}` : productName
-      }
-      case 'geometries': {
-        // Slicing by geometries -> indicator & time are single
-        const indName = resolveIndicatorName(indicatorIds)
-        return indName ? `${indName} — ${productName}` : productName
-      }
-      case 'time': {
-        // Slicing by time -> indicator & geometry are single
-        const indName = resolveIndicatorName(indicatorIds)
-        const geoName = resolveGeometryName(geometryOutputIds)
-        if (indName && geoName) return `${indName} — ${geoName}`
-        if (indName) return `${indName} — ${productName}`
-        if (geoName) return `${productName} — ${geoName}`
-        return productName
-      }
-      default:
-        return productName
+      case 'indicators':
+        // Series = indicators → indicator is multi, geometry & time are single
+        return join(productName, geoName, timeName) || productName
+      case 'geometries':
+        // Series = geometries → geometry is multi, indicator & time are single
+        return join(indName, productName, timeName) || productName
+      case 'time':
+        // Series = time → time is multi, indicator & geometry are single
+        return join(indName, productName, geoName) || productName
     }
   }, [
     productSummary?.productName,
+    productSummary?.timePrecision,
     chartType,
     seriesDimension,
     indicatorId,
     indicatorIds,
     geometryOutputIds,
+    timePoint,
+    timePoints,
     productRunDetail,
-    geometryOutputsData,
+    selectedGeometryOutputsData,
   ])
 
   // Track whether the title was auto-generated (true) or manually typed by the
@@ -1313,10 +1417,12 @@ export const ChartFormDialog = ({
       const values = form.getValues()
       if (values.type === 'map') return
 
-      const isDonutChart = values.type === 'plot' && values.subType === 'donut'
+      const isSingleX =
+        values.type === 'plot' &&
+        (values.subType === 'donut' || values.subType === 'ranked-bar')
 
-      if (isDonutChart) {
-        // Donut: series dim is multi, other two are single
+      if (isSingleX) {
+        // Donut / Ranked-bar: only the series dim is multi, others single
         applyDimensionDefaults({
           indicatorsMulti: dim === 'indicators',
           geometriesMulti: dim === 'geometries',
@@ -1385,12 +1491,12 @@ export const ChartFormDialog = ({
 
       // Apply dimension defaults based on the chart type's implicit rules.
       if (vt.type === 'plot') {
-        const isDonut = vt.subType === 'donut'
-        const dim = isDonut ? 'indicators' : seriesDimension
+        const isSingleX = vt.subType === 'donut' || vt.subType === 'ranked-bar'
+        const dim = isSingleX ? 'indicators' : seriesDimension
         setSeriesDimension(dim)
 
-        if (isDonut) {
-          // Donut: series dim multi, other two single
+        if (isSingleX) {
+          // Donut / Ranked-bar: only the series dim is multi, others single
           applyDimensionDefaults({
             indicatorsMulti: dim === 'indicators',
             geometriesMulti: dim === 'geometries',
@@ -1562,7 +1668,7 @@ export const ChartFormDialog = ({
                       <SeriesDimensionToggle
                         value={seriesDimension}
                         onChange={handleSeriesDimensionChange}
-                        isDonut={isDonut}
+                        isSingleXChart={isSingleXChart}
                       />
                     )}
 
@@ -2059,16 +2165,15 @@ export const ChartFormDialog = ({
                       </FieldGroup>
                     )}
 
-                    {/* Chart-specific options — Plot types */}
-                    {chartType === 'plot' && (
-                      <FieldGroup title="Chart Options">
-                        {/* Legend position */}
+                    {/* Legend position — applies to plot and map */}
+                    {(chartType === 'plot' || chartType === 'map') && (
+                      <FieldGroup title="Legend">
                         <FormField
                           control={form.control}
                           name="appearance.legendPosition"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Legend</FormLabel>
+                              <FormLabel>Position</FormLabel>
                               <Select
                                 value={field.value ?? 'bottom'}
                                 onValueChange={(v) =>
@@ -2089,7 +2194,12 @@ export const ChartFormDialog = ({
                             </FormItem>
                           )}
                         />
+                      </FieldGroup>
+                    )}
 
+                    {/* Chart-specific options — Plot types */}
+                    {chartType === 'plot' && (
+                      <FieldGroup title="Chart Options">
                         {/* Show grid */}
                         <FormField
                           control={form.control}
