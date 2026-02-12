@@ -207,7 +207,7 @@ const app = createOpenAPIApp()
       const data = c.req.valid('json')
 
       /*
-      // TODO: Should this be included in this endpoint or a seperate endpoint? It needs to be called here to get the id before writing to the DB.
+      // TODO: Should this be included in this endpoint or a seperate endpoint? It needs to be called beforehand to get the id to write to the DB.
       // Function to POST to Argo Workflows API
       async function submitToArgoWorkflows(input: any) {
         // Replace with your Argo Workflows API endpoint
@@ -247,16 +247,19 @@ const app = createOpenAPIApp()
       */
       // Just for testing without Argo, we will mock the response here. Remove this when Argo integration is ready.
       const argoWorkflow = {
-        id: `argo-${Date.now()}`,
-        name: `workflow-${Date.now()}`,
+        id: `id-argo-${Date.now()}`,
+        name: `name-argo-${Date.now()}`,
       }
 
       // Insert workflow record using Argo response
       const workflowRecord = {
-        ...data,
+        // ...data,
+        // Override the values while developing
         id: argoWorkflow.id,
         name: argoWorkflow.name,
         userId,
+        status: 'Started',
+        inputParameters: { test: 'value' },
       }
       const [newworkflows] = await db
         .insert(workflows)

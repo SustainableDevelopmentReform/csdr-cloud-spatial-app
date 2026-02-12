@@ -15,9 +15,50 @@ import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { WorkflowsButton } from './_components/workflows-button'
-import { useAllWorkflows, useCreateWorkflows, useWorkflowsLink } from './_hooks'
+import {
+  useAllWorkflows,
+  useCreateWorkflows,
+  useWorkflowsLink,
+  WorkflowsListItem,
+} from './_hooks'
 import { createWorkflowsSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../components/table/search-input'
+import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+
+const columnHelper = createColumnHelper<WorkflowsListItem>()
+
+const columns = [
+  columnHelper.accessor((row) => row.status, {
+    id: 'status',
+    header: () => <span>Status</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return <span>{value}</span>
+    },
+    size: 120,
+  }),
+  columnHelper.accessor((row) => row.inputParameters, {
+    id: 'inputParameters',
+    header: () => <span>Input Parameters</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return <span>{JSON.stringify(value)}</span>
+    },
+    size: 120,
+  }),
+  columnHelper.accessor((row) => row.completedAt, {
+    id: 'completedAt',
+    header: () => <span>Completed At</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return new Date(value).toLocaleDateString()
+    },
+    size: 120,
+  }),
+] as ColumnDef<WorkflowsListItem>[]
 
 const WorkflowsFeature = () => {
   const {
@@ -49,39 +90,8 @@ const WorkflowsFeature = () => {
           buttonText="Add Workflows"
           entityName="Workflows"
           entityNamePlural="workflows sets"
-          hiddenFields={[
-            'description',
-            'metadata',
-            'sourceUrl',
-            'sourceMetadataUrl',
-          ]}
+          hiddenFields={['id', 'name', 'description', 'metadata']}
         >
-          {/* <FormField
-            control={form.control}
-            name={'userId'}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>User ID</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          /> */}
-          <FormField
-            control={form.control}
-            name={'status'}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={form.control}
             name={'inputParameters'}
@@ -105,7 +115,8 @@ const WorkflowsFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
-          baseColumns={baseColumns}
+          baseColumns={baseColumns.filter((d) => d !== 'description')}
+          extraColumns={columns}
           title="Workflows"
           itemLink={workflowsLink}
           itemButton={(workflows) => <WorkflowsButton workflows={workflows} />}

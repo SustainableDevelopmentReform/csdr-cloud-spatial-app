@@ -164,9 +164,7 @@ export const workflowsSchema = baseWorkflowsSchema
   .openapi('WorkflowsSchema')
 
 export const createWorkflowsSchema = baseWorkflowsSchema
-  .extend({
-    id: z.string().optional(),
-  })
+  .partial()
   .openapi('CreateWorkflowsSchema')
 
 export const updateWorkflowsSchema = baseWorkflowsSchema
