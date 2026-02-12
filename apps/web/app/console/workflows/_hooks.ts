@@ -17,7 +17,6 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { WORKFLOWS_BASE_PATH } from '../../../lib/paths'
-import { useAuthClient } from '~/hooks/useAuthClient'
 
 export type WorkflowsListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['workflows']['$get'], 200>['data']
@@ -63,10 +62,6 @@ export const useAllWorkflows = (
   _query?: z.infer<typeof workflowsQuerySchema>,
   useSearchParams?: boolean,
 ) => {
-  const authClient = useAuthClient()
-  const { data } = authClient.useSession()
-  const user = data?.user
-  const userId = user?.id
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
     workflowsQuerySchema,
@@ -77,21 +72,9 @@ export const useAllWorkflows = (
   const queryResult = useInfiniteQuery<WorkflowsListResponse>({
     queryKey: workflowsQueryKeys.list(query),
     queryFn: async ({ pageParam = 1 }) => {
-      if (!userId) {
-        return {
-          data: [],
-          pageCount: 0,
-          totalCount: 0,
-          error: {
-            status: 500,
-            message: 'Missing userId',
-          },
-        }
-      }
       const res = client.api.v0.workflows.$get({
         query: {
           ...query,
-          userId,
           page: pageParam,
         },
       })
@@ -106,7 +89,6 @@ export const useAllWorkflows = (
       const nextPage = allPages.length + 1
       return nextPage <= lastPage.pageCount ? nextPage : undefined
     },
-    enabled: !!userId,
   })
 
   const aggregatedData = useMemo(

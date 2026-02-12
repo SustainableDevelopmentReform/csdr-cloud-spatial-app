@@ -49,13 +49,32 @@ const WorkflowsFeature = () => {
           buttonText="Add Workflows"
           entityName="Workflows"
           entityNamePlural="workflows sets"
+          hiddenFields={[
+            'description',
+            'metadata',
+            'sourceUrl',
+            'sourceMetadataUrl',
+          ]}
         >
-          <FormField
+          {/* <FormField
             control={form.control}
-            name={'sourceUrl'}
+            name={'userId'}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Source URL</FormLabel>
+                <FormLabel>User ID</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          /> */}
+          <FormField
+            control={form.control}
+            name={'status'}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -65,10 +84,10 @@ const WorkflowsFeature = () => {
           />
           <FormField
             control={form.control}
-            name={'sourceMetadataUrl'}
+            name={'inputParameters'}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Source Metadata URL</FormLabel>
+                <FormLabel>Input Parameters</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
