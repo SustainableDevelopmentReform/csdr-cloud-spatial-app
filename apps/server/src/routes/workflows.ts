@@ -13,7 +13,6 @@ import { generateJsonResponse } from '../lib/response'
 import { workflows } from '../schemas/db'
 import { QueryForTable } from '../schemas/util'
 import {
-  baseWorkflowsSchema,
   createWorkflowsSchema,
   updateWorkflowsSchema,
   workflowsSchema,
@@ -31,43 +30,40 @@ function throwIfNotAuthenticated(userId: string | undefined) {
   }
 }
 
-const workflowsQuery = (userId: string, id?: string) =>
-  ({
-    columns: {
-      id: true,
-      name: true,
-      userId: true,
-      status: true,
-      inputParameters: true,
-      createdAt: true,
-      updatedAt: true,
-      completedAt: true,
-    },
-    where: (workflows, { eq, and }) =>
-      id
-        ? and(eq(workflows.userId, userId), eq(workflows.id, id))
-        : eq(workflows.userId, userId),
-  }) satisfies QueryForTable<'workflows'>
+const baseWorkflowQuery = {
+  columns: {
+    id: true,
+    name: true,
+    userId: true,
+    status: true,
+    inputParameters: true,
+    createdAt: true,
+    updatedAt: true,
+    completedAt: true,
+  },
+} satisfies QueryForTable<'workflows'>
 
-const workflowsNotFoundError = () =>
+const workflowNotFoundError = () =>
   new ServerError({
     statusCode: 404,
     message: 'Failed to get workflow',
     description: "Workflow you're looking for is not found",
   })
 
-const fetchFullworkflows = async (userId: string, id?: string) => {
+const fetchFullWorkflow = async (userId: string, id: string) => {
   const record = await db.query.workflows.findFirst({
-    ...workflowsQuery(userId, id),
+    ...baseWorkflowQuery,
+    where: (workflows, { eq, and }) =>
+      and(eq(workflows.userId, userId), eq(workflows.id, id)),
   })
   return record ?? null
 }
 
-const fetchFullworkflowsOrThrow = async (userId: string, id?: string) => {
-  const record = await fetchFullworkflows(userId, id)
+const fetchFullWorkflowOrThrow = async (userId: string, id: string) => {
+  const record = await fetchFullWorkflow(userId, id)
 
   if (!record) {
-    throw workflowsNotFoundError()
+    throw workflowNotFoundError()
   }
 
   return record
@@ -96,7 +92,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(baseWorkflowsSchema),
+                  data: z.array(workflowsSchema),
                 }),
               ),
             },
@@ -110,7 +106,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const userId = c.get('user')?.id
       throwIfNotAuthenticated(userId)
-      const { pageCount, totalCount } = await parseQuery(
+      const { pageCount, totalCount, ...query } = await parseQuery(
         workflows,
         c.req.valid('query'),
         {
@@ -120,7 +116,9 @@ const app = createOpenAPIApp()
       )
 
       const data = await db.query.workflows.findMany({
-        ...workflowsQuery(userId),
+        ...baseWorkflowQuery,
+        ...query,
+        where: and(eq(workflows.userId, userId), query.where),
       })
 
       return generateJsonResponse(
@@ -136,7 +134,7 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
-      description: 'Get a single workflow.',
+      description: 'Get a single workflow by ID.',
       method: 'get',
       path: '/:id',
       middleware: [authMiddleware({ permission: 'read:workflows' })],
@@ -162,7 +160,7 @@ const app = createOpenAPIApp()
       const userId = c.get('user')?.id
       throwIfNotAuthenticated(userId)
       const { id } = c.req.valid('param')
-      const record = await fetchFullworkflowsOrThrow(userId, id)
+      const record = await fetchFullWorkflowOrThrow(userId, id)
 
       return generateJsonResponse(c, record, 200)
     },
@@ -274,7 +272,7 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullworkflowsOrThrow(
+      const record = await fetchFullWorkflowOrThrow(
         newworkflows.userId,
         newworkflows.id,
       )
@@ -309,7 +307,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(workflowsSchema),
             },
           },
         },
@@ -331,10 +329,10 @@ const app = createOpenAPIApp()
         .returning()
 
       if (!record) {
-        throw workflowsNotFoundError()
+        throw workflowNotFoundError()
       }
 
-      const fullRecord = await fetchFullworkflowsOrThrow(userId, record.id)
+      const fullRecord = await fetchFullWorkflowOrThrow(userId, record.id)
 
       return generateJsonResponse(c, fullRecord, 200, 'Workflow updated')
     },
@@ -358,7 +356,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(z.any()),
+              schema: createResponseSchema(workflowsSchema),
             },
           },
         },
@@ -372,7 +370,7 @@ const app = createOpenAPIApp()
       const userId = c.get('user')?.id
       throwIfNotAuthenticated(userId)
       const { id } = c.req.valid('param')
-      const record = await fetchFullworkflowsOrThrow(userId, id)
+      const record = await fetchFullWorkflowOrThrow(userId, id)
 
       await db
         .delete(workflows)
