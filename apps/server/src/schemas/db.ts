@@ -840,3 +840,14 @@ export const productOutputSummaryIndicatorRelations = relations(
     }),
   }),
 )
+
+export const workflowRelations = relations(workflows, ({ one }) => ({
+  user: one(user, {
+    fields: [workflows.userId],
+    references: [user.id],
+  }),
+}))
+
+export const userRelations = relations(user, ({ many }) => ({
+  workflows: many(workflows),
+}))
