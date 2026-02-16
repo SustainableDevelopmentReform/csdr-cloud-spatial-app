@@ -49,6 +49,8 @@
     --product-run-foreground: 240 5.9% 10%;
     --indicator: 60 100% 80%;
     --indicator-foreground: 240 5.9% 10%;
+    --workflow: 142 71% 45%;
+    --workflow-foreground: 144 100% 99%;
   }
 
   .dark {
@@ -84,6 +86,7 @@
     --product: #6a3d9a;
     --product-run: #cab2d6;
     --indicator: #33a02c;
+    --workflow: #385c19;
   }
 }
 
