@@ -13,10 +13,10 @@ import { generateJsonResponse } from '../lib/response'
 import { workflows } from '../schemas/db'
 import { QueryForTable } from '../schemas/util'
 import {
-  createWorkflowsSchema,
-  updateWorkflowsSchema,
-  workflowsSchema,
-  workflowsQuerySchema,
+  createWorkflowSchema,
+  updateWorkflowSchema,
+  workflowSchema,
+  workflowQuerySchema,
 } from '@repo/schemas/crud'
 import { parseQuery } from '~/utils/query'
 
@@ -81,7 +81,7 @@ const app = createOpenAPIApp()
         }),
       ],
       request: {
-        query: workflowsQuerySchema,
+        query: workflowQuerySchema,
       },
       responses: {
         200: {
@@ -92,7 +92,7 @@ const app = createOpenAPIApp()
                 z.object({
                   pageCount: z.number().int(),
                   totalCount: z.number().int(),
-                  data: z.array(workflowsSchema),
+                  data: z.array(workflowSchema),
                 }),
               ),
             },
@@ -146,7 +146,7 @@ const app = createOpenAPIApp()
           description: 'Successfully retrieved a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(workflowsSchema),
+              schema: createResponseSchema(workflowSchema),
             },
           },
         },
@@ -181,7 +181,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: createWorkflowsSchema,
+              schema: createWorkflowSchema,
             },
           },
         },
@@ -191,7 +191,7 @@ const app = createOpenAPIApp()
           description: 'Successfully created a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(workflowsSchema),
+              schema: createResponseSchema(workflowSchema),
             },
           },
         },
@@ -259,22 +259,22 @@ const app = createOpenAPIApp()
         status: 'Started',
         inputParameters: data,
       }
-      const [newworkflows] = await db
+      const [newWorkflow] = await db
         .insert(workflows)
         .values(workflowRecord)
         .returning()
 
-      if (!newworkflows) {
+      if (!newWorkflow) {
         throw new ServerError({
           statusCode: 500,
-          message: 'Failed to create workflows',
+          message: 'Failed to create workflow',
           description: 'Workflow insert did not return a record',
         })
       }
 
       const record = await fetchFullWorkflowOrThrow(
-        newworkflows.userId,
-        newworkflows.id,
+        newWorkflow.userId,
+        newWorkflow.id,
       )
 
       return generateJsonResponse(c, record, 201, 'Workflow created')
@@ -297,7 +297,7 @@ const app = createOpenAPIApp()
           required: true,
           content: {
             'application/json': {
-              schema: updateWorkflowsSchema,
+              schema: updateWorkflowSchema,
             },
           },
         },
@@ -307,7 +307,7 @@ const app = createOpenAPIApp()
           description: 'Successfully updated a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(workflowsSchema),
+              schema: createResponseSchema(workflowSchema),
             },
           },
         },
@@ -356,7 +356,7 @@ const app = createOpenAPIApp()
           description: 'Successfully deleted a workflow.',
           content: {
             'application/json': {
-              schema: createResponseSchema(workflowsSchema),
+              schema: createResponseSchema(workflowSchema),
             },
           },
         },

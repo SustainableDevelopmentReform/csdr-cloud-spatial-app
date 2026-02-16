@@ -146,7 +146,7 @@ export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
 })
 
 /* WORKFLOW RESOURCE SCHEMAS */
-export const baseWorkflowsSchema = z
+export const baseWorkflowSchema = z
   .object({
     id: z.string().min(1),
     name: z.string(),
@@ -154,32 +154,32 @@ export const baseWorkflowsSchema = z
     status: z.enum(['Started', 'Succeeded', 'Failed', 'Error']),
     inputParameters: z.any(), // jsonb
   })
-  .openapi('baseWorkflowsSchema')
+  .openapi('baseWorkflowSchema')
 
-export const workflowsSchema = baseWorkflowsSchema
+export const workflowSchema = baseWorkflowSchema
   .extend({
     createdAt: z.iso.datetime().nullable(),
     updatedAt: z.iso.datetime().nullable(),
     completedAt: z.iso.datetime().nullable(),
   })
-  .openapi('WorkflowsSchema')
+  .openapi('WorkflowSchema')
 
-export const createWorkflowsSchema = baseWorkflowsSchema
+export const createWorkflowSchema = baseWorkflowSchema
   .partial()
   .extend({
     sourceUrl: z.string().min(1),
     sourceMetadataUrl: z.string().min(1),
   })
-  .openapi('CreateWorkflowsSchema')
+  .openapi('CreateWorkflowSchema')
 
-export const updateWorkflowsSchema = baseWorkflowsSchema
+export const updateWorkflowSchema = baseWorkflowSchema
   .partial()
   .extend({
     completedAt: z.iso.datetime().nullable().optional(),
   })
-  .openapi('UpdateWorkflowsSchema')
+  .openapi('UpdateWorkflowSchema')
 
-export const workflowsQuerySchema = baseQuerySchema
+export const workflowQuerySchema = baseQuerySchema
 
 /* DATASET RESOURCE SCHEMAS */
 export const baseDatasetRunSchema = baseRunResourceSchema

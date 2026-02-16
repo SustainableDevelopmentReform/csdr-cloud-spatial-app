@@ -14,19 +14,18 @@ import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
-import { WorkflowsButton } from './_components/workflows-button'
+import { WorkflowButton } from './_components/workflow-button'
 import {
   useAllWorkflows,
-  useCreateWorkflows,
-  useWorkflowsLink,
-  WorkflowsListItem,
+  useCreateWorkflow,
+  useWorkflowLink,
+  WorkflowListItem,
 } from './_hooks'
-import { createWorkflowsSchema } from '@repo/schemas/crud'
+import { createWorkflowSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../components/table/search-input'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 
-const columnHelper = createColumnHelper<WorkflowsListItem>()
-
+const columnHelper = createColumnHelper<WorkflowListItem>()
 const columns = [
   columnHelper.accessor((row) => row.status, {
     id: 'status',
@@ -44,7 +43,7 @@ const columns = [
     cell: (info) => {
       const value = info.getValue()
       if (!value) return null
-      return <span>{JSON.stringify(value)}</span>
+      return <pre>{JSON.stringify(value, null, 2)}</pre>
     },
     size: 120,
   }),
@@ -58,9 +57,9 @@ const columns = [
     },
     size: 120,
   }),
-] as ColumnDef<WorkflowsListItem>[]
+] as ColumnDef<WorkflowListItem>[]
 
-const WorkflowsFeature = () => {
+const WorkflowFeature = () => {
   const {
     data,
     query,
@@ -69,15 +68,15 @@ const WorkflowsFeature = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useAllWorkflows(undefined, true)
-  const createWorkflows = useCreateWorkflows()
-  const workflowsLink = useWorkflowsLink()
+  const createWorkflow = useCreateWorkflow()
+  const workflowLink = useWorkflowLink()
 
   const baseColumns = useMemo(() => {
     return ['description', 'createdAt', 'updatedAt'] as const
   }, [])
 
   const form = useForm({
-    resolver: zodResolver(createWorkflowsSchema),
+    resolver: zodResolver(createWorkflowSchema),
   })
 
   return (
@@ -86,10 +85,10 @@ const WorkflowsFeature = () => {
         <h1 className="text-3xl font-medium mb-2">Workflows</h1>
         <CrudFormDialog
           form={form}
-          mutation={createWorkflows}
-          buttonText="Add Workflows"
-          entityName="Workflows"
-          entityNamePlural="workflows sets"
+          mutation={createWorkflow}
+          buttonText="Add Workflow"
+          entityName="Workflow"
+          entityNamePlural="Workflows"
           hiddenFields={['id', 'name', 'description', 'metadata']}
         >
           <FormField
@@ -131,8 +130,8 @@ const WorkflowsFeature = () => {
           baseColumns={baseColumns.filter((d) => d !== 'description')}
           extraColumns={columns}
           title="Workflows"
-          itemLink={workflowsLink}
-          itemButton={(workflows) => <WorkflowsButton workflows={workflows} />}
+          itemLink={workflowLink}
+          itemButton={(workflow) => <WorkflowButton workflow={workflow} />}
           query={query}
           onSortChange={setSearchParams}
         />
@@ -147,4 +146,4 @@ const WorkflowsFeature = () => {
   )
 }
 
-export default WorkflowsFeature
+export default WorkflowFeature

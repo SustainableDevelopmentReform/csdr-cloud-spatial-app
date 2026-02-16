@@ -23,7 +23,7 @@ const SIDEBAR_CONFIG = [
   },
   {
     text: 'Workflows',
-    icon: <SquareIcon className="fill-green-600 stroke-none size-6" />,
+    icon: <SquareIcon className="fill-workflow stroke-none size-6" />,
     href: WORKFLOWS_BASE_PATH,
     roles: ['admin', 'user'],
   },

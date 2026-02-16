@@ -9,15 +9,15 @@ import {
 import { usePathname } from 'next/navigation'
 import Link from '../../../../components/link'
 import { WORKFLOWS_BASE_PATH } from '../../../../lib/paths'
-import { useWorkflows } from '../_hooks'
-import { WorkflowsButton } from './workflows-button'
+import { useWorkflow } from '../_hooks'
+import { WorkflowButton } from './workflow-button'
 
-export const WorkflowsBreadcrumbs = () => {
+export const WorkflowBreadcrumbs = () => {
   const pathname = usePathname()
 
-  const { data: workflowsFromUrl } = useWorkflows()
+  const { data: workflowFromUrl } = useWorkflow()
 
-  const workflows = workflowsFromUrl
+  const workflow = workflowFromUrl
 
   return (
     <Breadcrumb>
@@ -33,12 +33,12 @@ export const WorkflowsBreadcrumbs = () => {
             <Link href={WORKFLOWS_BASE_PATH}>Workflows</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
-        {workflows && (
+        {workflow && (
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <WorkflowsButton workflows={workflows} />
+                <WorkflowButton workflow={workflow} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </>
