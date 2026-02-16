@@ -14,8 +14,10 @@ import { WorkflowButton } from './workflow-button'
 
 export const WorkflowBreadcrumbs = () => {
   const pathname = usePathname()
+  let maybeWorkflowId = pathname.split('/').pop()
+  if (maybeWorkflowId === 'workflow') maybeWorkflowId = undefined
 
-  const { data: workflowFromUrl } = useWorkflow()
+  const { data: workflowFromUrl } = useWorkflow(maybeWorkflowId)
 
   const workflow = workflowFromUrl
 

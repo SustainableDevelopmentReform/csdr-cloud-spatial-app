@@ -27,6 +27,16 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 
 const columnHelper = createColumnHelper<WorkflowListItem>()
 const columns = [
+  columnHelper.accessor((row) => row.completedAt, {
+    id: 'completedAt',
+    header: () => <span>Completed At</span>,
+    cell: (info) => {
+      const value = info.getValue()
+      if (!value) return null
+      return new Date(value).toLocaleDateString()
+    },
+    size: 120,
+  }),
   columnHelper.accessor((row) => row.status, {
     id: 'status',
     header: () => <span>Status</span>,
@@ -47,16 +57,6 @@ const columns = [
     },
     size: 120,
   }),
-  columnHelper.accessor((row) => row.completedAt, {
-    id: 'completedAt',
-    header: () => <span>Completed At</span>,
-    cell: (info) => {
-      const value = info.getValue()
-      if (!value) return null
-      return new Date(value).toLocaleDateString()
-    },
-    size: 120,
-  }),
 ] as ColumnDef<WorkflowListItem>[]
 
 const WorkflowFeature = () => {
@@ -72,7 +72,7 @@ const WorkflowFeature = () => {
   const workflowLink = useWorkflowLink()
 
   const baseColumns = useMemo(() => {
-    return ['description', 'createdAt', 'updatedAt'] as const
+    return ['id', 'createdAt', 'updatedAt'] as const
   }, [])
 
   const form = useForm({
@@ -89,7 +89,7 @@ const WorkflowFeature = () => {
           buttonText="Add Workflow"
           entityName="Workflow"
           entityNamePlural="Workflows"
-          hiddenFields={['id', 'name', 'description', 'metadata']}
+          hiddenFields={['metadata']}
         >
           <FormField
             control={form.control}
@@ -127,7 +127,7 @@ const WorkflowFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
-          baseColumns={baseColumns.filter((d) => d !== 'description')}
+          baseColumns={baseColumns}
           extraColumns={columns}
           title="Workflows"
           itemLink={workflowLink}
