@@ -372,6 +372,59 @@ async function main() {
 
   console.log(`Product Output ID: ${productOutput4[0]!.id}`)
 
+  // Workflows
+  const workflows = await db
+    .insert(schema.workflows)
+    .values([
+      {
+        id: 'id-argo-1770871025321',
+        name: 'name-argo-1770871025321',
+        userId: 'super-admin',
+        status: 'Failed',
+        message:
+          'The workflow errored because the data could not be loaded from the source URL or it was in an unsupported format.',
+        inputParameters: {
+          sourceUrl: 'https://test.com',
+          sourceMetadataUrl: 'https://test.com/metadata',
+        },
+        createdAt: new Date('2026-02-12T04:37:05.36108'),
+        updatedAt: new Date('2026-02-12T06:12:01'),
+        completedAt: new Date('2026-02-12T06:12:01'),
+      },
+      {
+        id: 'id-argo-1770876042773',
+        name: 'name-argo-1770876042773',
+        userId: 'super-admin',
+        status: 'Succeeded',
+        inputParameters: {
+          sourceUrl: 'https://abc.com',
+          sourceMetadataUrl: 'https://abc.com/metadata',
+        },
+        createdAt: new Date('2026-02-12T06:00:42.773667'),
+        updatedAt: new Date('2026-02-12T06:05:32'),
+        completedAt: new Date('2026-02-12T06:05:32'),
+        message: null,
+      },
+      {
+        id: 'id-argo-1771197137533',
+        name: 'name-argo-1771197137533',
+        userId: 'super-admin',
+        status: 'Started',
+        inputParameters: {
+          sourceUrl: 'https://stac-api.com',
+          sourceMetadataUrl: 'https://stac-api.com/metadata',
+        },
+        createdAt: new Date('2026-02-15T23:12:17.568506'),
+        updatedAt: new Date('2026-02-15T23:12:17.568506'),
+        completedAt: null,
+        message: null,
+      },
+    ])
+    .onConflictDoNothing()
+    .returning()
+
+  console.log(`Workflow ID: ${workflows[0]!.id}`)
+
   console.log('Seeding end')
   await client.end()
   console.log('Connection closed')

@@ -27,6 +27,14 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 
 const columnHelper = createColumnHelper<WorkflowListItem>()
 const columns = [
+  columnHelper.accessor((row) => row.duration, {
+    id: 'duration',
+    header: () => <span>Duration</span>,
+    cell: (info) => {
+      return info.getValue()
+    },
+    size: 120,
+  }),
   columnHelper.accessor((row) => row.completedAt, {
     id: 'completedAt',
     header: () => <span>Completed At</span>,
@@ -44,6 +52,14 @@ const columns = [
       const value = info.getValue()
       if (!value) return null
       return <span>{value}</span>
+    },
+    size: 120,
+  }),
+  columnHelper.accessor((row) => row.message, {
+    id: 'message',
+    header: () => <span>Message</span>,
+    cell: (info) => {
+      return info.getValue()
     },
     size: 120,
   }),
