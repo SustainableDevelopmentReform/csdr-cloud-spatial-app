@@ -166,12 +166,14 @@ export const baseWorkflowSchema = z
     name: z.string(),
     userId: z.string(),
     status: z.enum(['Started', 'Succeeded', 'Failed', 'Error']),
+    message: z.string().optional(),
     inputParameters: z.any(), // jsonb
   })
   .openapi('baseWorkflowSchema')
 
 export const workflowSchema = baseWorkflowSchema
   .extend({
+    duration: z.string().nullable(),
     createdAt: z.iso.datetime().nullable(),
     updatedAt: z.iso.datetime().nullable(),
     completedAt: z.iso.datetime().nullable(),

@@ -573,6 +573,7 @@ export const workflows = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     status: workflowStatus('status').notNull(),
+    message: text('message'),
     inputParameters: jsonb('input_parameters').notNull(),
     createdAt: timestamp('created_at', { withTimezone: false })
       .defaultNow()

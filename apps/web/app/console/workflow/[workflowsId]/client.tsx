@@ -94,35 +94,40 @@ const WorkflowDetails = () => {
             </FormItem>
           )}
         />
-        {['status', 'createdAt', 'updatedAt', 'completedAt'].map(
-          (fieldName) => (
-            <FormField
-              key={fieldName}
-              control={form.control}
-              name={fieldName}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{camelCaseToTitleCase(fieldName)}</FormLabel>
-                  <FormControl>
-                    <Input
-                      disabled
-                      className="bg-gray-100"
-                      {...field}
-                      value={
-                        field.value
-                          ? fieldName.endsWith('At')
-                            ? new Date(field.value).toLocaleString()
-                            : field.value
-                          : ''
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ),
-        )}
+        {[
+          'status',
+          'message',
+          'duration',
+          'createdAt',
+          'updatedAt',
+          'completedAt',
+        ].map((fieldName) => (
+          <FormField
+            key={fieldName}
+            control={form.control}
+            name={fieldName}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{camelCaseToTitleCase(fieldName)}</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled
+                    className="bg-gray-100"
+                    {...field}
+                    value={
+                      field.value
+                        ? fieldName.endsWith('At')
+                          ? new Date(field.value).toLocaleString()
+                          : field.value
+                        : ''
+                    }
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ))}
       </CrudForm>
     </div>
   )

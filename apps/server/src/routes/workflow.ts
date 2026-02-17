@@ -20,6 +20,29 @@ import {
 } from '@repo/schemas/crud'
 import { parseQuery } from '~/utils/query'
 
+function durationString(ms: number | null) {
+  if (ms === null) return null
+  // Format milliseconds as human readable duration
+  const hours = Math.floor(ms / 3600000)
+  const mins = Math.floor((ms % 3600000) / 60000)
+  const secs = Math.floor((ms % 60000) / 1000)
+  let out = ''
+  if (hours) out += `${hours}h `
+  if (hours || mins) out += `${mins}m `
+  if (hours || mins || secs) out += `${secs}s `
+  return out.trim()
+}
+
+function calculateDuration(
+  createdAt: Date | null,
+  completedAt: Date | null,
+): string | null {
+  if (!createdAt || !completedAt) return null
+  const duration_ms =
+    new Date(completedAt).getTime() - new Date(createdAt).getTime()
+  return durationString(duration_ms)
+}
+
 function throwIfNotAuthenticated(userId: string | undefined) {
   if (!userId) {
     throw new ServerError({
@@ -36,6 +59,7 @@ const baseWorkflowQuery = {
     name: true,
     userId: true,
     status: true,
+    message: true,
     inputParameters: true,
     createdAt: true,
     updatedAt: true,
@@ -121,11 +145,17 @@ const app = createOpenAPIApp()
         where: and(eq(workflows.userId, userId), query.where),
       })
 
+      // Add duration (ms) to each workflow
+      const dataWithDuration = data.map((wf) => ({
+        ...wf,
+        duration: calculateDuration(wf.createdAt, wf.completedAt),
+      }))
+
       return generateJsonResponse(
         c,
         {
           pageCount,
-          data,
+          data: dataWithDuration,
           totalCount,
         },
         200,
@@ -161,8 +191,15 @@ const app = createOpenAPIApp()
       throwIfNotAuthenticated(userId)
       const { id } = c.req.valid('param')
       const record = await fetchFullWorkflowOrThrow(userId, id)
+      // Add duration (ms) to the workflow
+      const recordWithDuration = record
+        ? {
+            ...record,
+            duration: calculateDuration(record.createdAt, record.completedAt),
+          }
+        : null
 
-      return generateJsonResponse(c, record, 200)
+      return generateJsonResponse(c, recordWithDuration, 200)
     },
   )
 
@@ -233,6 +270,7 @@ const app = createOpenAPIApp()
         return {
           id: argoResult.metadata?.uid || argoResult.id,
           name: argoResult.metadata?.name || argoResult.name,
+          message: 'Workflow submitted to Argo successfully.',
         }
       }
 
@@ -248,6 +286,8 @@ const app = createOpenAPIApp()
       const argoWorkflow = {
         id: `id-argo-${Date.now()}`,
         name: `name-argo-${Date.now()}`,
+        // Leave message null on successful sumbission. It will be updated on success/failure.
+        // message: 'Workflow submitted to Argo successfully (mocked response).',
       }
 
       // Insert workflow record using Argo response
@@ -257,6 +297,8 @@ const app = createOpenAPIApp()
         name: argoWorkflow.name,
         userId,
         status: 'Started',
+        // message: argoWorkflow.message,
+        message: null,
         inputParameters: data,
       }
       const [newWorkflow] = await db
