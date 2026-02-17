@@ -124,6 +124,17 @@ const WorkflowDetails = () => {
                   />
                 </FormControl>
                 <FormMessage />
+                {fieldName === 'status' &&
+                  (field.value === 'Failed' || field.value === 'Error') && (
+                    <p className="text-sm text-red-500 mt-1">
+                      This workflow failed. Check the message field for details.{' '}
+                      <a
+                        href={`mailto:will@auspatious.com?subject=Workflow%20Support%20for%20${workflowId}&body=${encodeURIComponent(JSON.stringify(workflow, null, 2))}`}
+                      >
+                        Click here to contact support
+                      </a>
+                    </p>
+                  )}
               </FormItem>
             )}
           />
