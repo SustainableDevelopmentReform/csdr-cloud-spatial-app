@@ -965,7 +965,7 @@ const ChartPreview = ({
   if (!chartConfig) {
     return (
       <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 text-center text-xs text-muted-foreground lg:h-full">
-        Complete the configuration to see a preview
+        Choose a chart type to see a preview
       </div>
     )
   }
