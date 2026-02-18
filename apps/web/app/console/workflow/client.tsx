@@ -25,6 +25,15 @@ import { createWorkflowSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../components/table/search-input'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 
+export const TrafficLightStatus = ({ status }: { status?: string }) => {
+  let color = 'bg-gray-400'
+  if (status === 'Succeeded') color = 'bg-green-500'
+  else if (status === 'Failed' || status === 'Error') color = 'bg-red-500'
+  else if (status === 'Started') color = 'bg-yellow-500'
+
+  return <span className={`inline-block w-3 h-3 rounded-full mr-2 ${color}`} />
+}
+
 const columnHelper = createColumnHelper<WorkflowListItem>()
 const columns = [
   columnHelper.accessor((row) => row.duration, {
@@ -51,7 +60,12 @@ const columns = [
     cell: (info) => {
       const value = info.getValue()
       if (!value) return null
-      return <span>{value}</span>
+      return (
+        <span>
+          <TrafficLightStatus status={value} />
+          {value}
+        </span>
+      )
     },
     size: 120,
   }),

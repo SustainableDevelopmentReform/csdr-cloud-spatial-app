@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { TrafficLightStatus } from '../client'
 
 function camelCaseToTitleCase(str: string) {
   return str
@@ -109,6 +110,12 @@ const WorkflowDetails = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{camelCaseToTitleCase(fieldName)}</FormLabel>
+                {fieldName === 'status' && (
+                  <>
+                    <span className="mr-2" />
+                    <TrafficLightStatus status={workflow?.status} />
+                  </>
+                )}
                 <FormControl>
                   <Input
                     disabled
