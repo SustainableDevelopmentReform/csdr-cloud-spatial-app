@@ -22,3 +22,8 @@ command = "pnpm typecheck"
 name = "Check Lint"
 icon = "tool"
 command = "pnpm lint"
+
+[[actions]]
+name = "Build"
+icon = "tool"
+command = "pnpm build"
