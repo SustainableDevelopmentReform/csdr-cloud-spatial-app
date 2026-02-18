@@ -7,9 +7,9 @@
   "scripts": {
     "build": "dotenvx run -- turbo build",
     "dev": "dotenvx run -- turbo dev",
-    "lint": "pnpm -r --if-present run lint",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "typecheck:watch": "pnpm -r --parallel --if-present run typecheck:watch",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "typecheck:watch": "turbo typecheck:watch",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,scss,css,html}\"",
     "ui": "pnpm --filter @repo/ui ui",
     "create:migration": "dotenvx run -- turbo --filter @repo/server create:migration",
