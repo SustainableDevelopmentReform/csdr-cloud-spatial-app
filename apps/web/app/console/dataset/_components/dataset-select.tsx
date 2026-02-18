@@ -59,17 +59,15 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
 
   const selectedDatasetIds = props.isMulti === true ? (props.value ?? []) : []
   const hasSelectedDatasets = selectedDatasetIds.length > 0
-  const {
-    data: selectedDatasetsQuery,
-    isLoading: isLoadingSelectedDatasets,
-  } = useDatasets(
-    {
-      datasetIds: selectedDatasetIds,
-      size: selectedDatasetIds.length || undefined,
-    },
-    false,
-    hasSelectedDatasets,
-  )
+  const { data: selectedDatasetsQuery, isLoading: isLoadingSelectedDatasets } =
+    useDatasets(
+      {
+        datasetIds: selectedDatasetIds,
+        size: selectedDatasetIds.length || undefined,
+      },
+      false,
+      hasSelectedDatasets,
+    )
 
   const { data: selectedDataset, isLoading: isLoadingSelectedDataset } =
     useDataset(
@@ -113,9 +111,7 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
           }}
           isDisabled={disabled}
           isLoading={
-            isLoadingDatasets ||
-            isLoadingSelectedDatasets ||
-            isFetchingNextPage
+            isLoadingDatasets || isLoadingSelectedDatasets || isFetchingNextPage
           }
           onMenuScrollToBottom={() => {
             if (hasNextPage) {

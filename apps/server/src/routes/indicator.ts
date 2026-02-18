@@ -245,7 +245,8 @@ const app = createOpenAPIApp()
       const queryParams = c.req.valid('query')
       const { indicatorIds, excludeIndicatorIds, categoryId } = queryParams
       const indicatorIdsArray = normalizeFilterValues(indicatorIds)
-      const excludeIndicatorIdsArray = normalizeFilterValues(excludeIndicatorIds)
+      const excludeIndicatorIdsArray =
+        normalizeFilterValues(excludeIndicatorIds)
       const categoryIdsArray = normalizeFilterValues(categoryId)
       const measuredBaseWhere = and(
         indicatorIdsArray.length > 0

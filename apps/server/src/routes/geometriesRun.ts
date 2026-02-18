@@ -238,9 +238,8 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { geometryOutputIds, excludeGeometryOutputIds } = c.req.valid(
-        'query',
-      )
+      const { geometryOutputIds, excludeGeometryOutputIds } =
+        c.req.valid('query')
       const geometryOutputIdFilters = normalizeFilterValues(geometryOutputIds)
       const excludeGeometryOutputIdFilters = normalizeFilterValues(
         excludeGeometryOutputIds,
