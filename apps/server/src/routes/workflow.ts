@@ -299,7 +299,11 @@ const app = createOpenAPIApp()
         status: 'Started',
         // message: argoWorkflow.message,
         message: null,
-        inputParameters: data,
+        // inputParameters: data,
+        inputParameters: {
+          sourceUrl: data.sourceUrl,
+          sourceMetadataUrl: data.sourceMetadataUrl,
+        },
       }
       const [newWorkflow] = await db
         .insert(workflows)
