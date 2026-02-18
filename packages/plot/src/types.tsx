@@ -168,9 +168,18 @@ export type TableChartConfiguration = {
   timePoints?: string[]
 } & BaseChartConfiguration
 
+export type KpiChartConfiguration = {
+  type: 'kpi'
+  productRunId: string
+  indicatorId: string
+  timePoint: string
+  geometryOutputIds?: string[]
+} & BaseChartConfiguration
+
 export type ChartConfiguration =
   | PlotChartConfiguration
   | MapChartConfiguration
+  | KpiChartConfiguration
   | TableChartConfiguration
 
 export type SelectedDataPoint<T> = {
@@ -185,6 +194,21 @@ export type OnSelectCallback<T> = (
 // ---------------------------------------------------------------------------
 // Shared formatters
 // ---------------------------------------------------------------------------
+
+export function makeNumberFormatter(
+  decimalPlaces?: number,
+  compact?: boolean,
+): Intl.NumberFormat {
+  const opts: Intl.NumberFormatOptions = {
+    notation: compact ? 'compact' : undefined,
+  }
+  if (decimalPlaces !== undefined) {
+    opts.maximumFractionDigits = decimalPlaces
+  } else if (!compact) {
+    opts.maximumFractionDigits = 3
+  }
+  return new Intl.NumberFormat(undefined, opts)
+}
 
 export function makeDateFormatter(
   precision?: AppearanceConfig['datePrecision'],

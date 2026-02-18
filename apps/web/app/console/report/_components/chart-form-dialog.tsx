@@ -7,6 +7,7 @@ import {
   type CurveType,
   ChartConfiguration,
   type DivergingColorScheme,
+  KpiChartConfiguration,
   type LegendPosition,
   makeDateFormatter,
   MapChartConfiguration,
@@ -70,6 +71,7 @@ import {
   ChevronRight,
   CircleDot,
   Crosshair,
+  Hash,
   Layers,
   type LucideIcon,
   Map as MapIcon,
@@ -163,7 +165,7 @@ type SeriesDimension = 'indicators' | 'geometries' | 'time'
 
 interface VisualTypeOption {
   key: string
-  type: 'plot' | 'map' | 'table'
+  type: 'plot' | 'map' | 'table' | 'kpi'
   subType?: PlotSubType
   label: string
   icon: LucideIcon
@@ -257,6 +259,13 @@ const VISUAL_TYPES: VisualTypeOption[] = [
     label: 'Map',
     icon: MapIcon,
     description: 'Spatial view',
+  },
+  {
+    key: 'kpi',
+    type: 'kpi',
+    label: 'KPI Card',
+    icon: Hash,
+    description: 'Single highlighted value',
   },
 ]
 
@@ -548,6 +557,16 @@ const mapSchema = baseChartSchema.extend({
     }),
 }) satisfies z.ZodType<MapChartConfiguration>
 
+const kpiSchema = baseChartSchema.extend({
+  type: z.literal('kpi'),
+  indicatorId: z.string(),
+  timePoint: z.string(),
+  geometryOutputIds: z
+    .array(z.string())
+    .min(1, 'KPI requires a selected geometry')
+    .max(1, 'KPI requires exactly one geometry'),
+}) satisfies z.ZodType<KpiChartConfiguration>
+
 const tablePlotSchema = multiSeriesSelectionSchema
   .extend({
     type: z.literal('table'),
@@ -603,6 +622,7 @@ const tablePlotSchema = multiSeriesSelectionSchema
 const chartSchema = z.discriminatedUnion('type', [
   plotSchema,
   mapSchema,
+  kpiSchema,
   tablePlotSchema,
 ]) satisfies z.ZodType<ChartConfiguration>
 
@@ -617,6 +637,7 @@ function getVisualTypeKey(
   if (type === 'plot' && subType) return subType
   if (type === 'table') return 'table'
   if (type === 'map') return 'map'
+  if (type === 'kpi') return 'kpi'
   return undefined
 }
 
@@ -624,7 +645,7 @@ function inferSeriesDimension(
   chart: ChartConfiguration | null,
 ): SeriesDimension {
   if (!chart) return 'indicators'
-  if (chart.type === 'map') return 'indicators'
+  if (chart.type === 'map' || chart.type === 'kpi') return 'indicators'
 
   const indicatorIds = 'indicatorIds' in chart ? chart.indicatorIds : undefined
   const geometryOutputIds =
@@ -896,6 +917,24 @@ function buildPreviewConfig(
       appearance,
     }
   }
+  if (formValues.type === 'kpi') {
+    if (!formValues.indicatorId || !formValues.timePoint) return null
+    if (
+      !formValues.geometryOutputIds ||
+      formValues.geometryOutputIds.length !== 1
+    )
+      return null
+    return {
+      type: 'kpi',
+      productRunId: formValues.productRunId,
+      indicatorId: formValues.indicatorId,
+      timePoint: formValues.timePoint,
+      geometryOutputIds: formValues.geometryOutputIds,
+      title: formValues.title,
+      description: formValues.description,
+      appearance,
+    }
+  }
   if (formValues.type === 'table') {
     if (!formValues.xDimension || !formValues.yDimension) return null
     return {
@@ -1129,6 +1168,13 @@ export const ChartFormDialog = ({
         isTimeMulti: false,
       }
     }
+    if (chartType === 'kpi') {
+      return {
+        isIndicatorsMulti: false,
+        isGeometriesMulti: false,
+        isTimeMulti: false,
+      }
+    }
     if (chartType === 'table') {
       return {
         isIndicatorsMulti:
@@ -1289,6 +1335,10 @@ export const ChartFormDialog = ({
       const timeName = resolveTimeName(timePoint)
       const geoName = resolveGeometryName(geometryOutputIds)
       return join(indName, geoName, timeName) || productName
+    }
+
+    if (chartType === 'kpi') {
+      return productName
     }
 
     if (chartType === 'table') {
@@ -1524,26 +1574,48 @@ export const ChartFormDialog = ({
       const defaultTime =
         hookDefaults?.firstTimePoint ?? productSummary?.firstTimePoint
 
-      // Convert between map (singular fields) and plot/table (array fields)
-      if (oldType === 'map' && vt.type !== 'map') {
-        const mapIndicatorId = form.getValues('indicatorId')
-        const mapTimePoint = form.getValues('timePoint')
-        if (mapIndicatorId) {
-          form.setValue('indicatorIds', [mapIndicatorId], sv)
+      const oldTypeIsSingular = oldType === 'map' || oldType === 'kpi'
+      const nextTypeIsArray = vt.type === 'plot' || vt.type === 'table'
+      const oldTypeIsArray = oldType === 'plot' || oldType === 'table'
+      const nextTypeIsSingular = vt.type === 'map' || vt.type === 'kpi'
+
+      if (oldTypeIsSingular && nextTypeIsArray) {
+        const singularIndicatorId = form.getValues('indicatorId')
+        const singularTimePoint = form.getValues('timePoint')
+        if (singularIndicatorId) {
+          form.setValue('indicatorIds', [singularIndicatorId], sv)
         }
-        if (mapTimePoint) {
-          form.setValue('timePoints', [mapTimePoint], sv)
+        if (singularTimePoint) {
+          form.setValue('timePoints', [singularTimePoint], sv)
         }
-      } else if (oldType !== 'map' && vt.type === 'map') {
-        // Map needs singular indicatorId and timePoint — use current array
-        // values, fall back to fetched defaults.
+      }
+
+      if (oldTypeIsArray && nextTypeIsSingular) {
         const ids = form.getValues('indicatorIds')
         const tps = form.getValues('timePoints')
         form.setValue('indicatorId', ids?.[0] ?? defaultIndicator ?? '', sv)
         form.setValue('timePoint', tps?.[0] ?? defaultTime ?? '', sv)
-        // Clear geometry filter so the map shows all geometries rather than
-        // zooming into whichever single geometry a previous chart type had set.
+      }
+
+      if (vt.type === 'map') {
         form.setValue('geometryOutputIds', undefined, sv)
+      }
+
+      if (vt.type === 'kpi') {
+        const currentGeo = form.getValues('geometryOutputIds')?.[0]
+        const resolvedGeo = currentGeo ?? firstGeometryId
+        form.setValue(
+          'geometryOutputIds',
+          resolvedGeo ? [resolvedGeo] : undefined,
+          sv,
+        )
+
+        if (!form.getValues('indicatorId')) {
+          form.setValue('indicatorId', defaultIndicator ?? '', sv)
+        }
+        if (!form.getValues('timePoint')) {
+          form.setValue('timePoint', defaultTime ?? '', sv)
+        }
       }
 
       // Set default table dimensions
@@ -1604,7 +1676,7 @@ export const ChartFormDialog = ({
           timeMulti: xd === 'timePoint' || yd === 'timePoint',
         })
       } else {
-        // Map — just trigger validation
+        // Map / KPI — just trigger validation
         form.trigger()
       }
     },
@@ -1614,6 +1686,7 @@ export const ChartFormDialog = ({
       hookDefaults,
       productSummary,
       geometryOutputsData,
+      firstGeometryId,
       applyDimensionDefaults,
     ],
   )
@@ -1863,7 +1936,7 @@ export const ChartFormDialog = ({
                       {/* Data selectors */}
                       <FieldGroup title="Data">
                         {/* Indicators */}
-                        {chartType === 'map' ? (
+                        {chartType === 'map' || chartType === 'kpi' ? (
                           <FormField
                             control={form.control}
                             name="indicatorId"
@@ -1973,7 +2046,7 @@ export const ChartFormDialog = ({
                         />
 
                         {/* Time */}
-                        {chartType === 'map' ? (
+                        {chartType === 'map' || chartType === 'kpi' ? (
                           <FormField
                             control={form.control}
                             name="timePoint"
