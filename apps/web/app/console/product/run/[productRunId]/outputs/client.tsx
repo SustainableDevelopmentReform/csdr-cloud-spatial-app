@@ -17,6 +17,7 @@ import { Input } from '@repo/ui/components/ui/input'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../../../../components/form/crud-form-dialog'
 import BaseCrudTable, {
@@ -41,6 +42,7 @@ import {
 } from '../../../_hooks'
 import { IndicatorButton } from '../../../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../../../indicator/_components/indicators-select'
+import { ProductRunIndicatorsSelect } from '../../../_components/product-run-indicators-select'
 import z from 'zod'
 import { Value } from '../../../../../../components/value'
 
@@ -54,11 +56,18 @@ const ProductOutputFeature = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    filters,
   } = useProductOutputs(undefined, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
   const { data: productRun } = useProductRun()
   const productLink = useProductOutputLink()
+  const selectedIndicatorIds = useMemo(
+    () => normalizeFilterValues(query?.indicatorId),
+    [query?.indicatorId],
+  )
+  const selectedGeometryOutputIds = useMemo(
+    () => normalizeFilterValues(query?.geometryOutputId),
+    [query?.geometryOutputId],
+  )
 
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
@@ -186,9 +195,6 @@ const ProductOutputFeature = () => {
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
           Product Outputs
-          <div className="flex gap-2 items-center justify-center align-middle">
-            {filters}
-          </div>
         </h1>
         <div className="flex items-center gap-3">
           {productRun?.id ? (
@@ -268,11 +274,42 @@ const ProductOutputFeature = () => {
         </div>
       </div>
       <div>
-        <SearchInput
-          placeholder="Search product outputs"
-          value={query?.search ?? ''}
-          onChange={(e) => setSearchParams({ search: e.target.value })}
-        />
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <SearchInput
+            className="w-full md:max-w-md"
+            placeholder="Search product outputs"
+            value={query?.search ?? ''}
+            onChange={(e) => setSearchParams({ search: e.target.value })}
+          />
+          <div className="flex flex-wrap justify-end gap-3">
+            <div className="min-w-[220px] md:min-w-[260px]">
+              <ProductRunIndicatorsSelect
+                productRunId={productRun?.id}
+                value={selectedIndicatorIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    indicatorId: selected.map((indicator) => indicator.id),
+                  })
+                }
+                isMulti
+                isClearable
+              />
+            </div>
+            <div className="min-w-[220px] md:min-w-[260px]">
+              <ProductGeometryOutputSelect
+                title="Filter Geometry Outputs"
+                productRunId={productRun?.id}
+                value={selectedGeometryOutputIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    geometryOutputId: selected.map((output) => output.id),
+                  })
+                }
+                isMulti
+              />
+            </div>
+          </div>
+        </div>
 
         <BaseCrudTable<
           ProductOutputListItem,

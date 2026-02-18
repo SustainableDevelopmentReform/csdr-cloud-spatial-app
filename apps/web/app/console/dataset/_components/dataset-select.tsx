@@ -1,18 +1,46 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import {
+  MultiValue,
+  SelectWithSearch,
+  SingleValue,
+} from '@repo/ui/components/ui/select-with-search'
+import { datasetQuerySchema } from '@repo/schemas/crud'
+import { useMemo } from 'react'
+import z from 'zod'
 import { DatasetListItem, useDataset, useDatasets } from '../_hooks'
 
-export const DatasetSelect = ({
-  value,
-  onChange,
-  disabled,
-  isClearable = true,
-}: {
-  value: string | null | undefined
-  onChange: (dataset: DatasetListItem | null) => void
-  isClearable?: boolean
+type DatasetSelectBaseProps = {
+  title?: string
+  description?: string
   disabled?: boolean
-}) => {
+  isClearable?: boolean
+  placeholder?: string
+  queryOptions?: z.infer<typeof datasetQuerySchema>
+}
+
+type DatasetSelectProps = DatasetSelectBaseProps &
+  (
+    | {
+        value: string[]
+        onChange: (value: MultiValue<DatasetListItem>) => void
+        isMulti: true
+      }
+    | {
+        value: string | null | undefined
+        onChange: (value: SingleValue<DatasetListItem>) => void
+        isMulti?: false
+      }
+  )
+
+export const DatasetSelect = (props: DatasetSelectProps) => {
+  const {
+    title,
+    description,
+    disabled,
+    isClearable = true,
+    placeholder,
+    queryOptions,
+  } = props
   const {
     data: datasets,
     setSearchParams,
@@ -20,33 +48,84 @@ export const DatasetSelect = ({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useDatasets()
+  } = useDatasets(queryOptions)
 
   const { data: selectedDataset, isLoading: isLoadingSelectedDataset } =
-    useDataset(value ?? undefined)
+    useDataset(
+      props.isMulti === true ? undefined : (props.value ?? undefined),
+      props.isMulti !== true && !!props.value,
+    )
+
+  const selectedDatasets = useMemo(() => {
+    if (props.isMulti !== true) {
+      return []
+    }
+
+    const selectedIds = props.value ?? []
+    if (!selectedIds.length || !datasets?.data) {
+      return []
+    }
+
+    const optionsById = new Map(
+      datasets.data.map((dataset) => [dataset.id, dataset]),
+    )
+    return selectedIds
+      .map((id) => optionsById.get(id))
+      .filter((dataset): dataset is DatasetListItem => !!dataset)
+  }, [datasets?.data, props])
 
   return (
-    <FieldGroup title="Select Dataset" disabled={disabled}>
-      <SelectWithSearch
-        options={datasets?.data}
-        value={selectedDataset ?? null}
-        onSearch={(search) => {
-          setSearchParams({ search })
-        }}
-        onChange={(nextValue) => {
-          onChange(nextValue)
-        }}
-        isDisabled={disabled}
-        isLoading={
-          isLoadingDatasets || isLoadingSelectedDataset || isFetchingNextPage
-        }
-        onMenuScrollToBottom={() => {
-          if (hasNextPage) {
-            fetchNextPage()
+    <FieldGroup
+      title={title ?? `Select Dataset${props.isMulti === true ? 's' : ''}`}
+      description={description}
+      disabled={disabled}
+    >
+      {props.isMulti === true ? (
+        <SelectWithSearch
+          placeholder={placeholder}
+          options={datasets?.data}
+          value={selectedDatasets}
+          onSearch={(search) => {
+            setSearchParams({ search })
+          }}
+          onChange={(nextValue) => {
+            props.onChange(nextValue)
+          }}
+          isDisabled={disabled}
+          isLoading={
+            isLoadingDatasets || isLoadingSelectedDataset || isFetchingNextPage
           }
-        }}
-        isClearable={isClearable}
-      />
+          onMenuScrollToBottom={() => {
+            if (hasNextPage) {
+              fetchNextPage()
+            }
+          }}
+          isClearable={isClearable}
+          isMulti
+        />
+      ) : (
+        <SelectWithSearch
+          placeholder={placeholder}
+          options={datasets?.data}
+          value={selectedDataset ?? null}
+          onSearch={(search) => {
+            setSearchParams({ search })
+          }}
+          onChange={(nextValue) => {
+            props.onChange(nextValue)
+          }}
+          isDisabled={disabled}
+          isLoading={
+            isLoadingDatasets || isLoadingSelectedDataset || isFetchingNextPage
+          }
+          onMenuScrollToBottom={() => {
+            if (hasNextPage) {
+              fetchNextPage()
+            }
+          }}
+          isClearable={isClearable}
+        />
+      )}
     </FieldGroup>
   )
 }

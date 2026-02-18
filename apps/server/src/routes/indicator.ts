@@ -36,7 +36,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { parseQuery } from '../utils/query'
+import { normalizeFilterValues, parseQuery } from '../utils/query'
 
 export const fullMeasuredIndicatorQuery = {
   columns: {
@@ -234,52 +234,47 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const queryParams = c.req.valid('query')
-      const { indicatorIds } = queryParams
+      const { indicatorIds, categoryId } = queryParams
+      const indicatorIdsArray = normalizeFilterValues(indicatorIds)
+      const categoryIdsArray = normalizeFilterValues(categoryId)
+      const measuredBaseWhere = and(
+        indicatorIdsArray.length > 0
+          ? inArray(indicator.id, indicatorIdsArray)
+          : undefined,
+        categoryIdsArray.length > 0
+          ? inArray(indicator.categoryId, categoryIdsArray)
+          : undefined,
+      )
+      const derivedBaseWhere = and(
+        indicatorIdsArray.length > 0
+          ? inArray(derivedIndicator.id, indicatorIdsArray)
+          : undefined,
+        categoryIdsArray.length > 0
+          ? inArray(derivedIndicator.categoryId, categoryIdsArray)
+          : undefined,
+      )
 
       // Parse query for both tables
-      const [indicatorQuery, derivedQuery] = await Promise.all([
+      const [indicatorResult, derivedResult] = await Promise.all([
         parseQuery(indicator, queryParams, {
           defaultOrderBy: desc(indicator.createdAt),
-          searchableColumns: [indicator.name],
+          searchableColumns: [
+            indicator.id,
+            indicator.name,
+            indicator.description,
+          ],
+          baseWhere: measuredBaseWhere,
         }),
         parseQuery(derivedIndicator, queryParams, {
           defaultOrderBy: desc(derivedIndicator.createdAt),
-          searchableColumns: [derivedIndicator.name],
+          searchableColumns: [
+            derivedIndicator.id,
+            derivedIndicator.name,
+            derivedIndicator.description,
+          ],
+          baseWhere: derivedBaseWhere,
         }),
       ])
-
-      // Add indicatorIds filter if provided
-      const indicatorIdsArray = indicatorIds
-        ? Array.isArray(indicatorIds)
-          ? indicatorIds
-          : [indicatorIds]
-        : undefined
-
-      const indicatorWhere = indicatorIdsArray
-        ? and(indicatorQuery.where, inArray(indicator.id, indicatorIdsArray))
-        : indicatorQuery.where
-
-      const derivedWhere = indicatorIdsArray
-        ? and(
-            derivedQuery.where,
-            inArray(derivedIndicator.id, indicatorIdsArray),
-          )
-        : derivedQuery.where
-
-      // Get combined count from both tables with filters applied
-      const [indicatorCountResult, derivedCountResult] = await Promise.all([
-        db.select({ count: count() }).from(indicator).where(indicatorWhere),
-        db
-          .select({ count: count() })
-          .from(derivedIndicator)
-          .where(derivedWhere),
-      ])
-
-      const totalCount =
-        (indicatorCountResult[0]?.count ?? 0) +
-        (derivedCountResult[0]?.count ?? 0)
-      const pageSize = indicatorQuery.limit ?? 10
-      const pageCount = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
 
       const fetchIndicators =
         queryParams.type === 'measure' ||
@@ -290,18 +285,24 @@ const app = createOpenAPIApp()
         queryParams.type === 'all' ||
         queryParams.type === undefined
 
+      const totalCount =
+        (fetchIndicators ? indicatorResult.meta.totalCount : 0) +
+        (fetchDerivedIndicators ? derivedResult.meta.totalCount : 0)
+      const pageSize = indicatorResult.query.limit ?? 10
+      const pageCount = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
+
       // Fetch from both tables with their full relations
       const [measuredIndicators, derivedIndicators] = await Promise.all([
         fetchIndicators
           ? db.query.indicator.findMany({
               ...fullMeasuredIndicatorQuery,
-              where: indicatorWhere,
+              where: indicatorResult.query.where,
             })
           : [],
         fetchDerivedIndicators
           ? db.query.derivedIndicator.findMany({
               ...baseDerivedIndicatorQuery,
-              where: derivedWhere,
+              where: derivedResult.query.where,
             })
           : [],
       ])
@@ -336,8 +337,9 @@ const app = createOpenAPIApp()
 
       // Apply pagination from parseQuery
       const data = combined.slice(
-        indicatorQuery.offset ?? 0,
-        (indicatorQuery.offset ?? 0) + (indicatorQuery.limit ?? 10),
+        indicatorResult.query.offset ?? 0,
+        (indicatorResult.query.offset ?? 0) +
+          (indicatorResult.query.limit ?? 10),
       )
 
       return generateJsonResponse(

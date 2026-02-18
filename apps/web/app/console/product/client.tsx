@@ -18,6 +18,7 @@ import {
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
@@ -27,6 +28,7 @@ import { DatasetSelect } from '../dataset/_components/dataset-select'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
 import { IndicatorButtons } from '../indicator/_components/indicator-button'
+import { IndicatorsSelect } from '../indicator/_components/indicators-select'
 import { ProductButton } from './_components/product-button'
 import {
   ProductListItem,
@@ -102,10 +104,21 @@ const ProductFeature = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    filters,
   } = useProducts(undefined, true)
   const productLink = useProductLink()
   const createProduct = useCreateProduct()
+  const selectedDatasetIds = useMemo(
+    () => normalizeFilterValues(query?.datasetId),
+    [query?.datasetId],
+  )
+  const selectedGeometriesIds = useMemo(
+    () => normalizeFilterValues(query?.geometriesId),
+    [query?.geometriesId],
+  )
+  const selectedIndicatorIds = useMemo(
+    () => normalizeFilterValues(query?.indicatorId),
+    [query?.indicatorId],
+  )
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
   }, [])
@@ -119,9 +132,6 @@ const ProductFeature = () => {
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
           Products
-          <div className="flex gap-2 items-center justify-center align-middle">
-            {filters}
-          </div>
         </h1>
         <CrudFormDialog
           form={form}
@@ -186,11 +196,55 @@ const ProductFeature = () => {
         </CrudFormDialog>
       </div>
       <div>
-        <SearchInput
-          placeholder="Search products"
-          value={query?.search ?? ''}
-          onChange={(e) => setSearchParams({ search: e.target.value })}
-        />
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <SearchInput
+            className="w-full md:max-w-md"
+            placeholder="Search products"
+            value={query?.search ?? ''}
+            onChange={(e) => setSearchParams({ search: e.target.value })}
+          />
+          <div className="flex flex-wrap justify-end gap-3">
+            <div className="min-w-[220px] md:min-w-[260px]">
+              <DatasetSelect
+                title="Filter Datasets"
+                value={selectedDatasetIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    datasetId: selected.map((dataset) => dataset.id),
+                  })
+                }
+                isMulti
+                isClearable
+              />
+            </div>
+            <div className="min-w-[220px] md:min-w-[260px]">
+              <GeometriesSelect
+                title="Filter Geometries"
+                value={selectedGeometriesIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    geometriesId: selected.map((geometries) => geometries.id),
+                  })
+                }
+                isMulti
+                isClearable
+              />
+            </div>
+            <div className="min-w-[220px] md:min-w-[260px]">
+              <IndicatorsSelect
+                title="Filter Indicators"
+                value={selectedIndicatorIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    indicatorId: selected.map((indicator) => indicator.id),
+                  })
+                }
+                isMulti
+                isClearable
+              />
+            </div>
+          </div>
+        </div>
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}

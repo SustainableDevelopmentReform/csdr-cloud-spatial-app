@@ -4,6 +4,7 @@ import {
   AnyColumn,
   SQL,
   ValueOrArray,
+  and,
   asc,
   count,
   desc,
@@ -26,15 +27,27 @@ type TableColumn<Table extends PgTable> = Table[TableColumnKeys<Table>] &
 type QueryOptions<Table extends PgTable> = {
   defaultOrderBy: ValueOrArray<AnyColumn | SQL>
   searchableColumns?: Array<TableColumn<Table>>
+  baseWhere?: SQL
 }
 
 type ParseQueryResult = {
-  limit?: number
-  offset?: number
-  totalCount: number
-  pageCount: number
-  where?: SQL
-  orderBy: ValueOrArray<AnyColumn | SQL>
+  meta: {
+    totalCount: number
+    pageCount: number
+  }
+  query: {
+    limit?: number
+    offset?: number
+    where?: SQL
+    orderBy: ValueOrArray<AnyColumn | SQL>
+  }
+}
+
+export const normalizeFilterValues = (
+  value: string | string[] | undefined,
+): string[] => {
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
 }
 
 export const parseQuery = async <
@@ -52,23 +65,29 @@ export const parseQuery = async <
   const limit = size
   const offset = (page - 1) * size
 
-  const [{ totalCount } = { totalCount: 0 }] = await db
-    .select({ totalCount: count() })
-    // TODO: figure out how to type this
-    .from(table as PgTable)
-
-  const total = Number(totalCount ?? 0)
-  const pageCount = size > 0 ? Math.ceil(total / size) : 0
-
   const searchValue = params.search?.trim()
-  let where: SQL | undefined
+  let searchWhere: SQL | undefined
 
   if (searchValue && options.searchableColumns?.length) {
     const clauses = options.searchableColumns.map((column) =>
       ilike(column, `%${searchValue}%`),
     )
-    where = clauses.length === 1 ? clauses[0] : or(...clauses)
+    searchWhere = clauses.length === 1 ? clauses[0] : or(...clauses)
   }
+
+  const where = and(options.baseWhere, searchWhere)
+
+  const countQuery = db
+    .select({ totalCount: count() })
+    // TODO: figure out how to type this
+    .from(table as PgTable)
+
+  const [{ totalCount } = { totalCount: 0 }] = where
+    ? await countQuery.where(where)
+    : await countQuery
+
+  const total = Number(totalCount ?? 0)
+  const pageCount = size > 0 ? Math.ceil(total / size) : 0
 
   let orderBy: ValueOrArray<AnyColumn | SQL> = options.defaultOrderBy
 
@@ -84,11 +103,7 @@ export const parseQuery = async <
   }
 
   return {
-    limit: limit,
-    offset: offset,
-    totalCount: total,
-    pageCount: pageCount,
-    where,
-    orderBy,
+    meta: { totalCount: total, pageCount },
+    query: { limit, offset, where, orderBy },
   }
 }

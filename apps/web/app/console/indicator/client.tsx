@@ -20,6 +20,7 @@ import { parse } from 'mathjs'
 import { useMemo } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
+import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import { StatusMessage } from '../../../components/status-message'
@@ -154,6 +155,10 @@ const IndicatorFeature = () => {
   const createIndicator = useCreateMeasuredIndicator()
   const createDerivedIndicator = useCreateDerivedIndicator()
   const indicatorLink = useIndicatorLink()
+  const selectedCategoryIds = useMemo(
+    () => normalizeFilterValues(query?.categoryId),
+    [query?.categoryId],
+  )
 
   const baseColumns = useMemo(() => {
     return ['description', 'createdAt', 'updatedAt'] as const
@@ -299,11 +304,28 @@ const IndicatorFeature = () => {
         </div>
       </div>
       <div>
-        <SearchInput
-          placeholder="Search indicators"
-          value={query?.search ?? ''}
-          onChange={(e) => setSearchParams({ search: e.target.value })}
-        />
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <SearchInput
+            className="w-full md:max-w-md"
+            placeholder="Search indicators"
+            value={query?.search ?? ''}
+            onChange={(e) => setSearchParams({ search: e.target.value })}
+          />
+          <div className="flex flex-wrap justify-end gap-3">
+            <div className="min-w-[220px] md:min-w-[260px]">
+              <IndicatorCategorySelect
+                value={selectedCategoryIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    categoryId: selected.map((category) => category.id),
+                  })
+                }
+                placeholder="Filter categories"
+                isMulti
+              />
+            </div>
+          </div>
+        </div>
         <BaseCrudTable
           data={data?.data || []}
           baseColumns={baseColumns}

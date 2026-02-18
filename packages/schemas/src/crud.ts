@@ -91,6 +91,7 @@ export const fullMeasuredIndicatorSchema = baseMeasuredIndicatorSchema
 
 export const indicatorQuerySchema = baseQuerySchema.extend({
   indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
+  categoryId: z.union([z.string(), z.array(z.string())]).optional(),
   type: z.enum(['measure', 'derived', 'all']).optional(),
 })
 
@@ -441,9 +442,9 @@ export const fullProductSchema = baseProductSchema
   .openapi('ProductFull')
 
 export const productQuerySchema = baseQuerySchema.extend({
-  datasetId: z.string().optional(),
-  geometriesId: z.string().optional(),
-  indicatorId: z.string().optional(),
+  datasetId: z.union([z.string(), z.array(z.string())]).optional(),
+  geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   hasRun: z.enum(['true', 'false']).optional(),
 })
 
@@ -531,8 +532,8 @@ export const productOutputExportSchema = z
   .openapi('ProductOutputExportSchema')
 
 export const productOutputQuerySchema = baseQuerySchema.extend({
-  geometryOutputId: z.string().optional(),
-  indicatorId: z.string().optional(),
+  geometryOutputId: z.union([z.string(), z.array(z.string())]).optional(),
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   timePoint: z.iso.datetime().optional(),
   sort: z
     .enum(['name', 'createdAt', 'updatedAt', 'value', 'timePoint'])

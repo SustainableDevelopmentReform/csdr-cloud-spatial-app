@@ -90,7 +90,7 @@ const ProductRunFeature = () => {
   return (
     <div>
       <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
+        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle">
           Product Runs
           <div className="flex gap-2 items-center justify-center align-middle">
             {filters}

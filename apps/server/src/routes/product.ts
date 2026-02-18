@@ -8,7 +8,7 @@ import {
   productRunQuerySchema,
   updateProductSchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, exists, or, sql, SQL } from 'drizzle-orm'
+import { and, desc, eq, exists, inArray, or, sql } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -32,7 +32,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { parseQuery } from '../utils/query'
+import { normalizeFilterValues, parseQuery } from '../utils/query'
 import { fullDatasetQuery } from './dataset'
 import { fullGeometriesQuery } from './geometries'
 import {
@@ -151,62 +151,59 @@ const app = createOpenAPIApp()
     async (c) => {
       const { datasetId, geometriesId, indicatorId, hasRun } =
         c.req.valid('query')
-      const { pageCount, totalCount, ...query } = await parseQuery(
-        product,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(product.createdAt),
-          searchableColumns: [product.name],
-        },
-      )
-
-      const filters: SQL[] = []
-      if (datasetId) {
-        filters.push(eq(product.datasetId, datasetId))
-      }
-      if (geometriesId) {
-        filters.push(eq(product.geometriesId, geometriesId))
-      }
-      if (indicatorId) {
-        // Find products whose main run has an output summary with the given indicator ID or derived indicator ID
-        filters.push(
-          exists(
-            db
-              .select({ _: sql`1` })
-              .from(productOutputSummaryIndicator)
-              .where(
-                and(
-                  eq(
-                    productOutputSummaryIndicator.productRunId,
-                    product.mainRunId,
-                  ),
-                  or(
-                    eq(productOutputSummaryIndicator.indicatorId, indicatorId),
+      const datasetIds = normalizeFilterValues(datasetId)
+      const geometriesIds = normalizeFilterValues(geometriesId)
+      const indicatorIds = normalizeFilterValues(indicatorId)
+      const baseWhere = and(
+        datasetIds.length > 0
+          ? inArray(product.datasetId, datasetIds)
+          : undefined,
+        geometriesIds.length > 0
+          ? inArray(product.geometriesId, geometriesIds)
+          : undefined,
+        indicatorIds.length > 0
+          ? exists(
+              db
+                .select({ _: sql`1` })
+                .from(productOutputSummaryIndicator)
+                .where(
+                  and(
                     eq(
-                      productOutputSummaryIndicator.derivedIndicatorId,
-                      indicatorId,
+                      productOutputSummaryIndicator.productRunId,
+                      product.mainRunId,
+                    ),
+                    or(
+                      inArray(
+                        productOutputSummaryIndicator.indicatorId,
+                        indicatorIds,
+                      ),
+                      inArray(
+                        productOutputSummaryIndicator.derivedIndicatorId,
+                        indicatorIds,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ),
-        )
-      }
-      if (hasRun === 'true') {
-        filters.push(
-          exists(
-            db
-              .select({ _: sql`1` })
-              .from(productRun)
-              .where(eq(productRun.productId, product.id)),
-          ),
-        )
-      }
+            )
+          : undefined,
+        hasRun === 'true'
+          ? exists(
+              db
+                .select({ _: sql`1` })
+                .from(productRun)
+                .where(eq(productRun.productId, product.id)),
+            )
+          : undefined,
+      )
+      const { meta, query } = await parseQuery(product, c.req.valid('query'), {
+        defaultOrderBy: desc(product.createdAt),
+        searchableColumns: [product.id, product.name, product.description],
+        baseWhere,
+      })
 
       const data = await db.query.product.findMany({
         ...baseProductQuery,
         ...query,
-        where: and(query.where, ...filters),
       })
 
       const parsedProducts = data.map(parseBaseProduct)
@@ -214,9 +211,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data: parsedProducts,
-          totalCount,
         },
         200,
       )
@@ -291,31 +287,27 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const productId = id === '*' ? undefined : id
       const { datasetRunId, geometriesRunId } = c.req.valid('query')
+      const baseWhere = and(
+        productId ? eq(productRun.productId, id) : undefined,
+        datasetRunId ? eq(productRun.datasetRunId, datasetRunId) : undefined,
+        geometriesRunId
+          ? eq(productRun.geometriesRunId, geometriesRunId)
+          : undefined,
+      )
 
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const { meta, query } = await parseQuery(
         productRun,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(productRun.createdAt),
-          searchableColumns: [productRun.name],
+          searchableColumns: [productRun.name, productRun.description],
+          baseWhere,
         },
       )
-
-      const filters: SQL[] = []
-      if (productId) {
-        filters.push(eq(productRun.productId, id))
-      }
-      if (datasetRunId) {
-        filters.push(eq(productRun.datasetRunId, datasetRunId))
-      }
-      if (geometriesRunId) {
-        filters.push(eq(productRun.geometriesRunId, geometriesRunId))
-      }
 
       const data = await db.query.productRun.findMany({
         ...baseProductRunQuery,
         ...query,
-        where: and(query.where, ...filters),
       })
 
       const parsedProductRuns = data.map(parseBaseProductRun)
@@ -323,9 +315,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data: parsedProductRuns,
-          totalCount,
         },
         200,
       )

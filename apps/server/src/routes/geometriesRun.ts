@@ -33,7 +33,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { parseQuery } from '../utils/query'
+import { normalizeFilterValues, parseQuery } from '../utils/query'
 import {
   baseGeometryOutputQuery,
   geometryOutputExportQuery,
@@ -230,39 +230,33 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const { geometryOutputIds } = c.req.valid('query')
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const geometryOutputIdFilters = normalizeFilterValues(geometryOutputIds)
+      const baseWhere = and(
+        eq(geometryOutput.geometriesRunId, id),
+        geometryOutputIdFilters.length > 0
+          ? inArray(geometryOutput.id, geometryOutputIdFilters)
+          : undefined,
+      )
+      const { meta, query } = await parseQuery(
         geometryOutput,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(geometryOutput.createdAt),
-          searchableColumns: [geometryOutput.name],
+          searchableColumns: [geometryOutput.name, geometryOutput.description],
+          baseWhere,
         },
       )
-
-      if (geometryOutputIds) {
-        query.where = and(
-          query.where,
-          inArray(
-            geometryOutput.id,
-            Array.isArray(geometryOutputIds)
-              ? geometryOutputIds
-              : [geometryOutputIds],
-          ),
-        )
-      }
 
       const data = await db.query.geometryOutput.findMany({
         ...baseGeometryOutputQuery,
         ...query,
-        where: and(eq(geometryOutput.geometriesRunId, id), query.where),
       })
 
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )
@@ -350,15 +344,9 @@ const app = createOpenAPIApp()
 
       const filters: SQL[] = [eq(geometryOutput.geometriesRunId, id)]
 
-      if (geometryOutputIds) {
-        filters.push(
-          inArray(
-            geometryOutput.id,
-            Array.isArray(geometryOutputIds)
-              ? geometryOutputIds
-              : [geometryOutputIds],
-          ),
-        )
+      const normalizedIds = normalizeFilterValues(geometryOutputIds)
+      if (normalizedIds.length > 0) {
+        filters.push(inArray(geometryOutput.id, normalizedIds))
       }
 
       const data = await db.query.geometryOutput.findMany({
