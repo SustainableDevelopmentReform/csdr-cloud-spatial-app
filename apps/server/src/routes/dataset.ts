@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -27,7 +27,7 @@ import {
   updateDatasetSchema,
 } from '@repo/schemas/crud'
 import { baseDatasetRunQuery } from './datasetRun'
-import { parseQuery } from '../utils/query'
+import { normalizeFilterValues, parseQuery } from '../utils/query'
 
 export const baseDatasetQuery = {
   columns: {
@@ -115,9 +115,21 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const { datasetIds, excludeDatasetIds } = c.req.valid('query')
+      const datasetIdsArray = normalizeFilterValues(datasetIds)
+      const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
+      const baseWhere = and(
+        datasetIdsArray.length > 0
+          ? inArray(dataset.id, datasetIdsArray)
+          : undefined,
+        excludeDatasetIdsArray.length > 0
+          ? notInArray(dataset.id, excludeDatasetIdsArray)
+          : undefined,
+      )
       const { meta, query } = await parseQuery(dataset, c.req.valid('query'), {
         defaultOrderBy: desc(dataset.createdAt),
         searchableColumns: [dataset.name, dataset.description],
+        baseWhere,
       })
 
       const data = await db.query.dataset.findMany({
