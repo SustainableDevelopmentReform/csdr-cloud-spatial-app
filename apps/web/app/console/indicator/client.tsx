@@ -150,6 +150,7 @@ const IndicatorFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useIndicators(undefined, true)
   const createIndicator = useCreateMeasuredIndicator()
@@ -328,6 +329,7 @@ const IndicatorFeature = () => {
         </div>
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="Indicator"

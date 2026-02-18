@@ -200,6 +200,7 @@ export const useGeometriesParams = (
 export const useAllGeometries = (
   _query?: z.infer<typeof geometriesQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const client = useApiClient()
   const { query, setSearchParams } = useQueryWithSearchParams(
@@ -228,6 +229,7 @@ export const useAllGeometries = (
       const nextPage = allPages.length + 1
       return nextPage <= lastPage.pageCount ? nextPage : undefined
     },
+    enabled: enabled ?? true,
   })
 
   const aggregatedData = useMemo(

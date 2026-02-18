@@ -103,6 +103,7 @@ const ProductFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useProducts(undefined, true)
   const productLink = useProductLink()
@@ -247,6 +248,7 @@ const ProductFeature = () => {
         </div>
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="Product"

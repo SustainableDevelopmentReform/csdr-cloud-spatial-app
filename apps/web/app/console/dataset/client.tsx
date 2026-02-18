@@ -26,6 +26,7 @@ const DatasetFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useDatasets(undefined, true)
   const createDataset = useCreateDataset()
@@ -87,6 +88,7 @@ const DatasetFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           title="Dataset"
           itemLink={datasetLink}

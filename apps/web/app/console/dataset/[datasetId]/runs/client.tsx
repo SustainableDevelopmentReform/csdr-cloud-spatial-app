@@ -30,6 +30,7 @@ const DatasetRunFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useDatasetRuns(undefined, undefined, true)
   const createDatasetRun = useCreateDatasetRun()
@@ -74,6 +75,7 @@ const DatasetRunFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="DatasetRun"

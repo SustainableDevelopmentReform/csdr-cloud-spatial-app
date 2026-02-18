@@ -57,7 +57,14 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
     hasNextPage,
     isLoading: isLoadingIndicators,
     isFetchingNextPage,
-  } = useIndicators(queryOptions)
+  } = useIndicators(
+    props.isMulti === true
+      ? {
+          ...queryOptions,
+          excludeIndicatorIds: props.value,
+        }
+      : queryOptions,
+  )
 
   const { data: selectedIndicators, isLoading: isLoadingSelectedIndicators } =
     useIndicators(
@@ -86,7 +93,7 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
   }, [props, selectedIndicators?.data])
 
   const commonProps = {
-    placeholder,
+    placeholder: isLoadingSelectedIndicators ? 'Loading...' : placeholder,
     options: indicators?.data,
     isDisabled,
     isLoading:

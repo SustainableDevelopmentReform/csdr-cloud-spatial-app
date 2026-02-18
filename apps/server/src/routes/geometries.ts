@@ -8,7 +8,7 @@ import {
   geometriesRunQuerySchema,
   updateGeometriesSchema,
 } from '@repo/schemas/crud'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -26,7 +26,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { parseQuery } from '../utils/query'
+import { normalizeFilterValues, parseQuery } from '../utils/query'
 import { baseGeometriesRunQuery } from './geometriesRun'
 
 export const baseGeometriesQuery = {
@@ -111,12 +111,25 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const { geometriesIds, excludeGeometriesIds } = c.req.valid('query')
+      const geometriesIdsArray = normalizeFilterValues(geometriesIds)
+      const excludeGeometriesIdsArray =
+        normalizeFilterValues(excludeGeometriesIds)
+      const baseWhere = and(
+        geometriesIdsArray.length > 0
+          ? inArray(geometries.id, geometriesIdsArray)
+          : undefined,
+        excludeGeometriesIdsArray.length > 0
+          ? notInArray(geometries.id, excludeGeometriesIdsArray)
+          : undefined,
+      )
       const { meta, query } = await parseQuery(
         geometries,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(geometries.createdAt),
           searchableColumns: [geometries.name, geometries.description],
+          baseWhere,
         },
       )
 

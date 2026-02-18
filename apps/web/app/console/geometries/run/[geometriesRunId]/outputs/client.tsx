@@ -38,6 +38,7 @@ const GeometryOutputFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useGeometryOutputs(undefined, undefined, true)
   const createGeometryOutput = useCreateGeometryOutput()
@@ -121,6 +122,7 @@ const GeometryOutputFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="GeometryOutput"

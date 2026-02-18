@@ -39,6 +39,8 @@ export const ProductGeometryOutputSelect = ({
   ...props
 }: ProductGeometryOutputSelectProps) => {
   const { data: productRun } = useProductRun(productRunId ?? undefined)
+  const geometryOutputsQuery =
+    isMulti === true ? { excludeGeometryOutputIds: value } : {}
   const {
     data: geometryOutputs,
     setSearchParams,
@@ -46,7 +48,7 @@ export const ProductGeometryOutputSelect = ({
     hasNextPage,
     isLoading: isLoadingGeometryOutputs,
     isFetchingNextPage,
-  } = useGeometryOutputs(productRun?.geometriesRun?.id, {})
+  } = useGeometryOutputs(productRun?.geometriesRun?.id, geometryOutputsQuery)
 
   const hasSelectedValue = Array.isArray(value) ? value.length > 0 : !!value
 
@@ -95,7 +97,9 @@ export const ProductGeometryOutputSelect = ({
     >
       {discriminatedProps.isMulti === true ? (
         <SelectWithSearch
-          placeholder={props.placeholder}
+          placeholder={
+            isLoadingSelectedGeometryOutputs ? 'Loading...' : props.placeholder
+          }
           options={geometryOutputs?.data}
           value={discriminatedProps.value}
           onChange={discriminatedProps.onChange}
@@ -118,7 +122,9 @@ export const ProductGeometryOutputSelect = ({
         />
       ) : (
         <SelectWithSearch
-          placeholder={props.placeholder}
+          placeholder={
+            isLoadingSelectedGeometryOutputs ? 'Loading...' : props.placeholder
+          }
           options={geometryOutputs?.data}
           value={discriminatedProps.value ?? null}
           onChange={discriminatedProps.onChange}

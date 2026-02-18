@@ -9,7 +9,16 @@ import {
   geometryOutputQuerySchema,
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, inArray, isNotNull, sql, SQL } from 'drizzle-orm'
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  notInArray,
+  sql,
+  SQL,
+} from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -229,12 +238,20 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { geometryOutputIds } = c.req.valid('query')
+      const { geometryOutputIds, excludeGeometryOutputIds } = c.req.valid(
+        'query',
+      )
       const geometryOutputIdFilters = normalizeFilterValues(geometryOutputIds)
+      const excludeGeometryOutputIdFilters = normalizeFilterValues(
+        excludeGeometryOutputIds,
+      )
       const baseWhere = and(
         eq(geometryOutput.geometriesRunId, id),
         geometryOutputIdFilters.length > 0
           ? inArray(geometryOutput.id, geometryOutputIdFilters)
+          : undefined,
+        excludeGeometryOutputIdFilters.length > 0
+          ? notInArray(geometryOutput.id, excludeGeometryOutputIdFilters)
           : undefined,
       )
       const { meta, query } = await parseQuery(
