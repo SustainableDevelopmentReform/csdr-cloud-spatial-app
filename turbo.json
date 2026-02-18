@@ -27,17 +27,17 @@
     },
     "lint": {
       "dependsOn": [
-        "^lint"
+        "^build"
       ]
     },
     "typecheck": {
       "dependsOn": [
-        "^typecheck"
+        "^build"
       ]
     },
     "typecheck:watch": {
       "dependsOn": [
-        "^typecheck:watch"
+        "^build"
       ]
     },
     "dev": {
