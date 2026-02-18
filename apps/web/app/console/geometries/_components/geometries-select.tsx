@@ -72,7 +72,10 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
     hasSelectedGeometries,
   )
 
-  const { data: selectedGeometries } = useGeometries(
+  const {
+    data: selectedGeometries,
+    isLoading: isLoadingSelectedGeometriesSingle,
+  } = useGeometries(
     props.isMulti === true ? undefined : (props.value ?? undefined),
     props.isMulti !== true && !!props.value,
   )
@@ -105,7 +108,7 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
     >
       {props.isMulti === true ? (
         <SelectWithSearch
-          placeholder={placeholder}
+          placeholder={isLoadingSelectedGeometries ? 'Loading...' : placeholder}
           options={allGeometries?.data}
           value={selectedGeometriesList}
           onSearch={(search) => {
@@ -130,7 +133,9 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
         />
       ) : (
         <SelectWithSearch
-          placeholder={placeholder}
+          placeholder={
+            isLoadingSelectedGeometriesSingle ? 'Loading...' : placeholder
+          }
           options={allGeometries?.data}
           value={selectedGeometries ?? null}
           onSearch={(search) => {

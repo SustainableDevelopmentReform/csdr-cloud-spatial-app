@@ -30,6 +30,7 @@ const GeometriesFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useAllGeometries(undefined, true)
   const createGeometries = useCreateGeometries()
@@ -90,6 +91,7 @@ const GeometriesFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           title="Geometries"
           itemLink={geometriesLink}

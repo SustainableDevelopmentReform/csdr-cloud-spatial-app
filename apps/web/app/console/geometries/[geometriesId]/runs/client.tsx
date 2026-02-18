@@ -36,6 +36,7 @@ const GeometriesRunFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useGeometriesRuns(undefined, undefined, true)
   const { data: geometries } = useGeometries()
@@ -104,6 +105,7 @@ const GeometriesRunFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="GeometriesRun"

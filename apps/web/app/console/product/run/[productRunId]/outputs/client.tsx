@@ -55,6 +55,7 @@ const ProductOutputFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useProductOutputs(undefined, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
@@ -316,6 +317,7 @@ const ProductOutputFeature = () => {
           Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
         >
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="ProductOutput"

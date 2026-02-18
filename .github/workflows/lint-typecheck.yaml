@@ -2,7 +2,6 @@ name: Lint and Typecheck
 
 on:
   push:
-  pull_request:
 
 jobs:
   lint-typecheck:

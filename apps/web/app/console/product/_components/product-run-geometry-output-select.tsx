@@ -97,7 +97,9 @@ export const ProductGeometryOutputSelect = ({
     >
       {discriminatedProps.isMulti === true ? (
         <SelectWithSearch
-          placeholder={props.placeholder}
+          placeholder={
+            isLoadingSelectedGeometryOutputs ? 'Loading...' : props.placeholder
+          }
           options={geometryOutputs?.data}
           value={discriminatedProps.value}
           onChange={discriminatedProps.onChange}
@@ -120,7 +122,9 @@ export const ProductGeometryOutputSelect = ({
         />
       ) : (
         <SelectWithSearch
-          placeholder={props.placeholder}
+          placeholder={
+            isLoadingSelectedGeometryOutputs ? 'Loading...' : props.placeholder
+          }
           options={geometryOutputs?.data}
           value={discriminatedProps.value ?? null}
           onChange={discriminatedProps.onChange}

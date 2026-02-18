@@ -100,7 +100,7 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
     >
       {props.isMulti === true ? (
         <SelectWithSearch
-          placeholder={placeholder}
+          placeholder={isLoadingSelectedDatasets ? 'Loading...' : placeholder}
           options={datasets?.data}
           value={selectedDatasetOptions}
           onSearch={(search) => {
@@ -123,7 +123,7 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
         />
       ) : (
         <SelectWithSearch
-          placeholder={placeholder}
+          placeholder={isLoadingSelectedDataset ? 'Loading...' : placeholder}
           options={datasets?.data}
           value={selectedDataset ?? null}
           onSearch={(search) => {
