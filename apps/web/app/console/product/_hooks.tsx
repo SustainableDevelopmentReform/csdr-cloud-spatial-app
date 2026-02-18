@@ -32,7 +32,6 @@ import { DatasetRunButton } from '../dataset/_components/dataset-run-button'
 import {
   datasetQueryKeys,
   datasetRunQueryKeys,
-  useDataset,
   useDatasetRun,
 } from '../dataset/_hooks'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
@@ -40,11 +39,8 @@ import { GeometriesRunButton } from '../geometries/_components/geometries-run-bu
 import {
   geometriesQueryKeys,
   geometriesRunQueryKeys,
-  useGeometries,
   useGeometriesRun,
 } from '../geometries/_hooks'
-import { IndicatorButton } from '../indicator/_components/indicator-button'
-import { useIndicator } from '../indicator/_hooks'
 
 export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -227,10 +223,6 @@ export const useProducts = (
     useSearchParams,
   )
 
-  const { data: dataset } = useDataset(query?.datasetId)
-  const { data: geometries } = useGeometries(query?.geometriesId)
-  const { data: indicator } = useIndicator(query?.indicatorId)
-
   const queryResult = useInfiniteQuery<ProductListResponse>({
     queryKey: productQueryKeys.list(query),
     queryFn: async ({ pageParam = 1 }) => {
@@ -265,13 +257,6 @@ export const useProducts = (
     query,
 
     setSearchParams,
-    filters: [
-      dataset && <DatasetButton dataset={dataset} key={dataset.id} />,
-      geometries && (
-        <GeometriesButton geometries={geometries} key={geometries.id} />
-      ),
-      indicator && <IndicatorButton indicator={indicator} key={indicator.id} />,
-    ].filter((d) => !!d) as React.ReactNode[],
   }
 }
 
@@ -330,7 +315,6 @@ export const useProductRuns = (
     ...queryResult,
     data: aggregatedData,
     query,
-
     setSearchParams,
     filters: [
       datasetRun && (
@@ -354,7 +338,7 @@ export const useProductRuns = (
           key={geometriesRun.id}
         />
       ),
-    ].filter((d) => !!d) as React.ReactNode[],
+    ].filter(Boolean) as React.ReactNode[],
   }
 }
 
@@ -371,9 +355,6 @@ export const useProductOutputs = (
     _query,
     useSearchParams,
   )
-
-  const { data: filteredIndicator } = useIndicator(query?.indicatorId)
-
   const queryResult = useInfiniteQuery<ProductOutputListResponse>({
     queryKey: productOutputQueryKeys.list(
       productRun?.product?.id,
@@ -416,14 +397,6 @@ export const useProductOutputs = (
     ...queryResult,
     data: aggregatedData,
     query,
-    filters: [
-      filteredIndicator && (
-        <IndicatorButton
-          indicator={filteredIndicator}
-          key={filteredIndicator.id}
-        />
-      ),
-    ].filter((d) => !!d) as React.ReactNode[],
     setSearchParams,
   }
 }

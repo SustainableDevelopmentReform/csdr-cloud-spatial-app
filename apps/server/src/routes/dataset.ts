@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -115,14 +115,10 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { pageCount, totalCount, ...query } = await parseQuery(
-        dataset,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(dataset.createdAt),
-          searchableColumns: [dataset.name],
-        },
-      )
+      const { meta, query } = await parseQuery(dataset, c.req.valid('query'), {
+        defaultOrderBy: desc(dataset.createdAt),
+        searchableColumns: [dataset.name, dataset.description],
+      })
 
       const data = await db.query.dataset.findMany({
         ...baseDatasetQuery,
@@ -132,9 +128,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )
@@ -211,27 +206,26 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const { meta, query } = await parseQuery(
         datasetRun,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(datasetRun.createdAt),
-          searchableColumns: [datasetRun.name],
+          searchableColumns: [datasetRun.name, datasetRun.description],
+          baseWhere: eq(datasetRun.datasetId, id),
         },
       )
 
       const data = await db.query.datasetRun.findMany({
         ...baseDatasetRunQuery,
         ...query,
-        where: and(eq(datasetRun.datasetId, id), query.where),
       })
 
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )

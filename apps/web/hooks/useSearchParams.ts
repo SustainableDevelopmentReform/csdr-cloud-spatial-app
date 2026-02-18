@@ -24,7 +24,22 @@ export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
 
   const parsedResult = useMemo(() => {
     const params = useSearchParams
-      ? Object.fromEntries(searchParams ?? [])
+      ? (() => {
+          const next: Record<string, string | string[]> = {}
+          if (!searchParams) return next
+
+          const uniqueKeys = new Set(searchParams.keys())
+          for (const key of uniqueKeys) {
+            const values = searchParams.getAll(key)
+            if (values.length === 1) {
+              next[key] = values[0]!
+            } else if (values.length > 1) {
+              next[key] = values
+            }
+          }
+
+          return next
+        })()
       : localQueryState
 
     return schema.safeParse({
@@ -42,7 +57,13 @@ export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
 
       // Delete empty search params
       Object.keys(newParams).forEach((key) => {
-        if (newParams[key] === '') {
+        const value = newParams[key]
+        if (
+          value === '' ||
+          value === undefined ||
+          value === null ||
+          (Array.isArray(value) && value.length === 0)
+        ) {
           delete newParams[key]
         }
       })

@@ -108,6 +108,7 @@ export const ProductGeometryOutputSelect = ({
             isLoadingSelectedGeometryOutputs ||
             isFetchingNextPage
           }
+          isClearable={isClearable}
           onMenuScrollToBottom={() => {
             if (hasNextPage) {
               fetchNextPage()

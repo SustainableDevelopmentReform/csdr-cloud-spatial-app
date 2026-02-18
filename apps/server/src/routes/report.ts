@@ -93,14 +93,10 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { pageCount, totalCount, ...query } = await parseQuery(
-        report,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(report.createdAt),
-          searchableColumns: [report.name],
-        },
-      )
+      const { meta, query } = await parseQuery(report, c.req.valid('query'), {
+        defaultOrderBy: desc(report.createdAt),
+        searchableColumns: [report.name, report.description],
+      })
 
       const data = await db.query.report.findMany({
         ...baseReportQuery,
@@ -110,9 +106,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )

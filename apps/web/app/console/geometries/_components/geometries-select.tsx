@@ -1,18 +1,46 @@
 import { FieldGroup } from '../../../../components/form/action'
-import { SelectWithSearch } from '@repo/ui/components/ui/select-with-search'
+import {
+  MultiValue,
+  SelectWithSearch,
+  SingleValue,
+} from '@repo/ui/components/ui/select-with-search'
+import { geometriesQuerySchema } from '@repo/schemas/crud'
+import { useMemo } from 'react'
+import z from 'zod'
 import { GeometriesListItem, useAllGeometries, useGeometries } from '../_hooks'
 
-export const GeometriesSelect = ({
-  value,
-  onChange,
-  disabled,
-  isClearable = true,
-}: {
-  value: string | null | undefined
-  onChange: (geometries: GeometriesListItem | null) => void
+type GeometriesSelectBaseProps = {
+  title?: string
+  description?: string
   disabled?: boolean
   isClearable?: boolean
-}) => {
+  placeholder?: string
+  queryOptions?: z.infer<typeof geometriesQuerySchema>
+}
+
+type GeometriesSelectProps = GeometriesSelectBaseProps &
+  (
+    | {
+        value: string[]
+        onChange: (value: MultiValue<GeometriesListItem>) => void
+        isMulti: true
+      }
+    | {
+        value: string | null | undefined
+        onChange: (value: SingleValue<GeometriesListItem>) => void
+        isMulti?: false
+      }
+  )
+
+export const GeometriesSelect = (props: GeometriesSelectProps) => {
+  const {
+    title,
+    description,
+    disabled,
+    isClearable = true,
+    placeholder,
+    queryOptions,
+  } = props
   const {
     data: allGeometries,
     setSearchParams,
@@ -20,30 +48,79 @@ export const GeometriesSelect = ({
     hasNextPage,
     isLoading: isLoadingGeometries,
     isFetchingNextPage,
-  } = useAllGeometries()
+  } = useAllGeometries(queryOptions)
 
-  const { data: selectedGeometries } = useGeometries(value ?? undefined)
+  const { data: selectedGeometries } = useGeometries(
+    props.isMulti === true ? undefined : (props.value ?? undefined),
+    props.isMulti !== true && !!props.value,
+  )
+
+  const selectedGeometriesList = useMemo(() => {
+    if (props.isMulti !== true) {
+      return []
+    }
+
+    const selectedIds = props.value ?? []
+    if (!selectedIds.length || !allGeometries?.data) {
+      return []
+    }
+
+    const optionsById = new Map(
+      allGeometries.data.map((geometries) => [geometries.id, geometries]),
+    )
+    return selectedIds
+      .map((id) => optionsById.get(id))
+      .filter((geometries): geometries is GeometriesListItem => !!geometries)
+  }, [allGeometries?.data, props])
 
   return (
-    <FieldGroup title="Select Geometries" disabled={disabled}>
-      <SelectWithSearch
-        options={allGeometries?.data}
-        value={selectedGeometries ?? null}
-        onSearch={(search) => {
-          setSearchParams({ search })
-        }}
-        onChange={(nextValue) => {
-          onChange(nextValue)
-        }}
-        isDisabled={disabled}
-        isLoading={isLoadingGeometries || isFetchingNextPage}
-        onMenuScrollToBottom={() => {
-          if (hasNextPage) {
-            fetchNextPage()
-          }
-        }}
-        isClearable={isClearable}
-      />
+    <FieldGroup
+      title={title ?? `Select Geometr${props.isMulti === true ? 'ies' : 'y'}`}
+      description={description}
+      disabled={disabled}
+    >
+      {props.isMulti === true ? (
+        <SelectWithSearch
+          placeholder={placeholder}
+          options={allGeometries?.data}
+          value={selectedGeometriesList}
+          onSearch={(search) => {
+            setSearchParams({ search })
+          }}
+          onChange={(nextValue) => {
+            props.onChange(nextValue)
+          }}
+          isDisabled={disabled}
+          isLoading={isLoadingGeometries || isFetchingNextPage}
+          onMenuScrollToBottom={() => {
+            if (hasNextPage) {
+              fetchNextPage()
+            }
+          }}
+          isClearable={isClearable}
+          isMulti
+        />
+      ) : (
+        <SelectWithSearch
+          placeholder={placeholder}
+          options={allGeometries?.data}
+          value={selectedGeometries ?? null}
+          onSearch={(search) => {
+            setSearchParams({ search })
+          }}
+          onChange={(nextValue) => {
+            props.onChange(nextValue)
+          }}
+          isDisabled={disabled}
+          isLoading={isLoadingGeometries || isFetchingNextPage}
+          onMenuScrollToBottom={() => {
+            if (hasNextPage) {
+              fetchNextPage()
+            }
+          }}
+          isClearable={isClearable}
+        />
+      )}
     </FieldGroup>
   )
 }

@@ -54,7 +54,7 @@ import {
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
-import { parseQuery } from '../utils/query'
+import { normalizeFilterValues, parseQuery } from '../utils/query'
 import { baseDatasetRunQuery } from './datasetRun'
 import { baseGeometriesRunQuery } from './geometriesRun'
 import {
@@ -332,36 +332,41 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
+      const indicatorIds = normalizeFilterValues(indicatorId)
+      const geometryOutputIds = normalizeFilterValues(geometryOutputId)
+      const baseWhere = and(
+        eq(productOutput.productRunId, id),
+        indicatorIds.length > 0
+          ? or(
+              inArray(productOutput.indicatorId, indicatorIds),
+              inArray(productOutput.derivedIndicatorId, indicatorIds),
+            )
+          : undefined,
+        geometryOutputIds.length > 0
+          ? inArray(productOutput.geometryOutputId, geometryOutputIds)
+          : undefined,
+        timePoint
+          ? eq(productOutput.timePoint, new Date(timePoint))
+          : undefined,
+      )
 
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const { meta, query } = await parseQuery(
         productOutput,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(productOutput.createdAt),
-          searchableColumns: [productOutput.name],
+          searchableColumns: [
+            productOutput.id,
+            productOutput.name,
+            productOutput.description,
+          ],
+          baseWhere,
         },
       )
-      const filters: (SQL | undefined)[] = [eq(productOutput.productRunId, id)]
-
-      if (indicatorId) {
-        filters.push(
-          or(
-            eq(productOutput.indicatorId, indicatorId),
-            eq(productOutput.derivedIndicatorId, indicatorId),
-          ),
-        )
-      }
-      if (geometryOutputId) {
-        filters.push(eq(productOutput.geometryOutputId, geometryOutputId))
-      }
-      if (timePoint) {
-        filters.push(eq(productOutput.timePoint, new Date(timePoint)))
-      }
 
       const data = await db.query.productOutput.findMany({
         ...baseProductOutputQuery,
         ...query,
-        where: and(query.where, ...filters),
       })
 
       const parsedData = data.map((output) => ({
@@ -376,9 +381,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data: parsedData,
-          totalCount,
         },
         200,
       )
@@ -418,12 +422,8 @@ const app = createOpenAPIApp()
 
       const filters: (SQL | undefined)[] = [eq(productOutput.productRunId, id)]
 
-      if (indicatorId) {
-        const indicatorIds = Array.isArray(indicatorId)
-          ? indicatorId
-          : [indicatorId]
-
-        // Filter for indicators or derived indicators
+      const indicatorIds = normalizeFilterValues(indicatorId)
+      if (indicatorIds.length > 0) {
         filters.push(
           or(
             and(
@@ -437,19 +437,16 @@ const app = createOpenAPIApp()
           ),
         )
       }
-      if (geometryOutputId) {
-        const geometryOutputIds = Array.isArray(geometryOutputId)
-          ? geometryOutputId
-          : [geometryOutputId]
+      const geometryOutputIds = normalizeFilterValues(geometryOutputId)
+      if (geometryOutputIds.length > 0) {
         filters.push(inArray(productOutput.geometryOutputId, geometryOutputIds))
       }
-
-      if (timePoint) {
-        const timePoints = Array.isArray(timePoint) ? timePoint : [timePoint]
+      const timePoints = normalizeFilterValues(timePoint)
+      if (timePoints.length > 0) {
         filters.push(
           inArray(
             productOutput.timePoint,
-            timePoints.map((timePoint) => new Date(timePoint)),
+            timePoints.map((tp) => new Date(tp)),
           ),
         )
       }

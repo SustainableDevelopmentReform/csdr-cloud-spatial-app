@@ -99,12 +99,12 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const { meta, query } = await parseQuery(
         dashboard,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(dashboard.createdAt),
-          searchableColumns: [dashboard.name],
+          searchableColumns: [dashboard.name, dashboard.description],
         },
       )
 
@@ -116,9 +116,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )

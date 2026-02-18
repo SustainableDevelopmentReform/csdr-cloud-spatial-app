@@ -110,6 +110,7 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
           {...commonProps}
           value={discriminatedProps.value}
           onChange={discriminatedProps.onChange}
+          isClearable={isClearable}
           isMulti
         />
       </FieldGroup>

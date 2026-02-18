@@ -8,7 +8,7 @@ import {
   geometriesRunQuerySchema,
   updateGeometriesSchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -111,12 +111,12 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const { meta, query } = await parseQuery(
         geometries,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(geometries.createdAt),
-          searchableColumns: [geometries.name],
+          searchableColumns: [geometries.name, geometries.description],
         },
       )
 
@@ -128,9 +128,8 @@ const app = createOpenAPIApp()
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )
@@ -199,27 +198,26 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { pageCount, totalCount, ...query } = await parseQuery(
+      const { meta, query } = await parseQuery(
         geometriesRun,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(geometriesRun.createdAt),
-          searchableColumns: [geometriesRun.name],
+          searchableColumns: [geometriesRun.name, geometriesRun.description],
+          baseWhere: eq(geometriesRun.geometriesId, id),
         },
       )
 
       const data = await db.query.geometriesRun.findMany({
         ...baseGeometriesRunQuery,
         ...query,
-        where: and(eq(geometriesRun.geometriesId, id), query.where),
       })
 
       return generateJsonResponse(
         c,
         {
-          pageCount,
+          ...meta,
           data,
-          totalCount,
         },
         200,
       )
