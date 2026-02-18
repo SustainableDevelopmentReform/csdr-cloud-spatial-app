@@ -11,7 +11,16 @@ import {
   updateDerivedIndicatorSchema,
   updateIndicatorSchema,
 } from '@repo/schemas/crud'
-import { and, count, desc, eq, exists, inArray, or } from 'drizzle-orm'
+import {
+  and,
+  count,
+  desc,
+  eq,
+  exists,
+  inArray,
+  notInArray,
+  or,
+} from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -234,12 +243,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const queryParams = c.req.valid('query')
-      const { indicatorIds, categoryId } = queryParams
+      const { indicatorIds, excludeIndicatorIds, categoryId } = queryParams
       const indicatorIdsArray = normalizeFilterValues(indicatorIds)
+      const excludeIndicatorIdsArray =
+        normalizeFilterValues(excludeIndicatorIds)
       const categoryIdsArray = normalizeFilterValues(categoryId)
       const measuredBaseWhere = and(
         indicatorIdsArray.length > 0
           ? inArray(indicator.id, indicatorIdsArray)
+          : undefined,
+        excludeIndicatorIdsArray.length > 0
+          ? notInArray(indicator.id, excludeIndicatorIdsArray)
           : undefined,
         categoryIdsArray.length > 0
           ? inArray(indicator.categoryId, categoryIdsArray)
@@ -248,6 +262,9 @@ const app = createOpenAPIApp()
       const derivedBaseWhere = and(
         indicatorIdsArray.length > 0
           ? inArray(derivedIndicator.id, indicatorIdsArray)
+          : undefined,
+        excludeIndicatorIdsArray.length > 0
+          ? notInArray(derivedIndicator.id, excludeIndicatorIdsArray)
           : undefined,
         categoryIdsArray.length > 0
           ? inArray(derivedIndicator.categoryId, categoryIdsArray)

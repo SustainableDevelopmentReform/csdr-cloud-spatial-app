@@ -91,6 +91,7 @@ export const fullMeasuredIndicatorSchema = baseMeasuredIndicatorSchema
 
 export const indicatorQuerySchema = baseQuerySchema.extend({
   indicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeIndicatorIds: z.union([z.string(), z.array(z.string())]).optional(),
   categoryId: z.union([z.string(), z.array(z.string())]).optional(),
   type: z.enum(['measure', 'derived', 'all']).optional(),
 })
@@ -187,7 +188,10 @@ export const fullDatasetSchema = baseDatasetSchema
   })
   .openapi('DatasetFull')
 
-export const datasetQuerySchema = baseQuerySchema
+export const datasetQuerySchema = baseQuerySchema.extend({
+  datasetIds: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeDatasetIds: z.union([z.string(), z.array(z.string())]).optional(),
+})
 
 export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
@@ -243,7 +247,10 @@ export const fullGeometriesSchema = baseGeometriesSchema
   })
   .openapi('GeometriesFull')
 
-export const geometriesQuerySchema = baseQuerySchema
+export const geometriesQuerySchema = baseQuerySchema.extend({
+  geometriesIds: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeGeometriesIds: z.union([z.string(), z.array(z.string())]).optional(),
+})
 
 export const createGeometriesSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
@@ -299,6 +306,9 @@ export const geometryOutputExportSchema = z
 
 export const geometryOutputQuerySchema = baseQuerySchema.extend({
   geometryOutputIds: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeGeometryOutputIds: z
+    .union([z.string(), z.array(z.string())])
+    .optional(),
 })
 
 export const geometryOutputExportQuerySchema = z.object({
