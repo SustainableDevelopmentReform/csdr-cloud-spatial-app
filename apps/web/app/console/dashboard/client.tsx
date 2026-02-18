@@ -19,6 +19,7 @@ const DashboardFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useDashboards(undefined, true)
   const createDashboard = useCreateDashboard()
@@ -57,6 +58,7 @@ const DashboardFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           title="Dashboard"
           itemLink={dashboardLink}

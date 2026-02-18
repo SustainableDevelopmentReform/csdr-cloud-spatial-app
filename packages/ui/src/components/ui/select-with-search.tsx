@@ -46,6 +46,8 @@ export function SelectWithSearch<
       getOptionValue={(option) => option.id}
       {...rest}
       filterOption={onSearch ? null : undefined}
+      loadingMessage={() => 'Loading...'}
+      noOptionsMessage={() => (rest.isLoading ? 'Loading...' : EmptyResult())}
       onInputChange={handleInputChange}
       placeholder={rest.placeholder ?? 'Select an option'}
     />

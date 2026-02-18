@@ -35,6 +35,7 @@ const ProductRunFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
     filters,
   } = useProductRuns(undefined, undefined, true)
@@ -154,6 +155,7 @@ const ProductRunFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
           title="ProductRun"

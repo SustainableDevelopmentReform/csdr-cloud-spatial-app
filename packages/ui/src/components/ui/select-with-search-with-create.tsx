@@ -52,7 +52,10 @@ export function SelectWithSearchWithCreate<
       formatCreateLabel={(input) => `Create "${input}"`}
       {...rest}
       filterOption={onSearch ? null : undefined}
+      loadingMessage={() => 'Loading...'}
+      noOptionsMessage={() => (rest.isLoading ? 'Loading...' : EmptyResult())}
       onInputChange={handleInputChange}
+      placeholder={rest.placeholder ?? 'Select an option'}
     />
   )
 }

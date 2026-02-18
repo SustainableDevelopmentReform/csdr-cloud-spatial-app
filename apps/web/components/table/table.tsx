@@ -3,9 +3,17 @@ import React from 'react'
 
 interface Props<T> {
   table: TableType<T>
+  isLoading?: boolean
+  emptyStateLabel?: string
+  loadingStateLabel?: string
 }
 
-const Table = <T,>({ table }: Props<T>) => {
+const Table = <T,>({
+  table,
+  isLoading = false,
+  emptyStateLabel = 'No items found',
+  loadingStateLabel = 'Loading...',
+}: Props<T>) => {
   const rows = table.getRowModel().rows
   return (
     <table className="w-full">
@@ -34,7 +42,7 @@ const Table = <T,>({ table }: Props<T>) => {
               colSpan={table.getAllColumns().length}
               className="text-center py-4"
             >
-              No items found
+              {isLoading ? loadingStateLabel : emptyStateLabel}
             </td>
           </tr>
         )}

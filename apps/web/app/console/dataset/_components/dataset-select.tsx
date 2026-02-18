@@ -48,7 +48,28 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useDatasets(queryOptions)
+  } = useDatasets(
+    props.isMulti === true
+      ? {
+          ...queryOptions,
+          excludeDatasetIds: props.value,
+        }
+      : queryOptions,
+  )
+
+  const selectedDatasetIds = props.isMulti === true ? (props.value ?? []) : []
+  const hasSelectedDatasets = selectedDatasetIds.length > 0
+  const {
+    data: selectedDatasetsQuery,
+    isLoading: isLoadingSelectedDatasets,
+  } = useDatasets(
+    {
+      datasetIds: selectedDatasetIds,
+      size: selectedDatasetIds.length || undefined,
+    },
+    false,
+    hasSelectedDatasets,
+  )
 
   const { data: selectedDataset, isLoading: isLoadingSelectedDataset } =
     useDataset(
@@ -56,23 +77,22 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
       props.isMulti !== true && !!props.value,
     )
 
-  const selectedDatasets = useMemo(() => {
+  const selectedDatasetOptions = useMemo(() => {
     if (props.isMulti !== true) {
       return []
     }
 
-    const selectedIds = props.value ?? []
-    if (!selectedIds.length || !datasets?.data) {
+    if (!selectedDatasetIds.length || !selectedDatasetsQuery?.data) {
       return []
     }
 
     const optionsById = new Map(
-      datasets.data.map((dataset) => [dataset.id, dataset]),
+      selectedDatasetsQuery.data.map((dataset) => [dataset.id, dataset]),
     )
-    return selectedIds
+    return selectedDatasetIds
       .map((id) => optionsById.get(id))
       .filter((dataset): dataset is DatasetListItem => !!dataset)
-  }, [datasets?.data, props])
+  }, [props.isMulti, selectedDatasetIds, selectedDatasetsQuery?.data])
 
   return (
     <FieldGroup
@@ -82,9 +102,9 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
     >
       {props.isMulti === true ? (
         <SelectWithSearch
-          placeholder={placeholder}
+          placeholder={isLoadingSelectedDatasets ? 'Loading...' : placeholder}
           options={datasets?.data}
-          value={selectedDatasets}
+          value={selectedDatasetOptions}
           onSearch={(search) => {
             setSearchParams({ search })
           }}
@@ -93,7 +113,9 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
           }}
           isDisabled={disabled}
           isLoading={
-            isLoadingDatasets || isLoadingSelectedDataset || isFetchingNextPage
+            isLoadingDatasets ||
+            isLoadingSelectedDatasets ||
+            isFetchingNextPage
           }
           onMenuScrollToBottom={() => {
             if (hasNextPage) {
@@ -105,7 +127,7 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
         />
       ) : (
         <SelectWithSearch
-          placeholder={placeholder}
+          placeholder={isLoadingSelectedDataset ? 'Loading...' : placeholder}
           options={datasets?.data}
           value={selectedDataset ?? null}
           onSearch={(search) => {
