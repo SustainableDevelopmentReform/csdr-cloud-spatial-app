@@ -92,6 +92,7 @@ const useDatasetParams = (_datasetId?: string, _datasetRunId?: string) => {
 export const useDatasets = (
   _query?: z.infer<typeof datasetQuerySchema>,
   useSearchParams?: boolean,
+  enabled: boolean = true,
 ) => {
   const client = useApiClient()
 
@@ -121,6 +122,7 @@ export const useDatasets = (
       const nextPage = allPages.length + 1
       return nextPage <= lastPage.pageCount ? nextPage : undefined
     },
+    enabled: enabled ?? true,
   })
 
   const aggregatedData = useMemo(
