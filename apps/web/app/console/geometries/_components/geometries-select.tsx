@@ -48,7 +48,29 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
     hasNextPage,
     isLoading: isLoadingGeometries,
     isFetchingNextPage,
-  } = useAllGeometries(queryOptions)
+  } = useAllGeometries(
+    props.isMulti === true
+      ? {
+          ...queryOptions,
+          excludeGeometriesIds: props.value,
+        }
+      : queryOptions,
+  )
+
+  const selectedGeometriesIds =
+    props.isMulti === true ? (props.value ?? []) : []
+  const hasSelectedGeometries = selectedGeometriesIds.length > 0
+  const {
+    data: selectedGeometriesQuery,
+    isLoading: isLoadingSelectedGeometries,
+  } = useAllGeometries(
+    {
+      geometriesIds: selectedGeometriesIds,
+      size: selectedGeometriesIds.length || undefined,
+    },
+    false,
+    hasSelectedGeometries,
+  )
 
   const { data: selectedGeometries } = useGeometries(
     props.isMulti === true ? undefined : (props.value ?? undefined),
@@ -60,18 +82,20 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
       return []
     }
 
-    const selectedIds = props.value ?? []
-    if (!selectedIds.length || !allGeometries?.data) {
+    if (!selectedGeometriesIds.length || !selectedGeometriesQuery?.data) {
       return []
     }
 
     const optionsById = new Map(
-      allGeometries.data.map((geometries) => [geometries.id, geometries]),
+      selectedGeometriesQuery.data.map((geometries) => [
+        geometries.id,
+        geometries,
+      ]),
     )
-    return selectedIds
+    return selectedGeometriesIds
       .map((id) => optionsById.get(id))
       .filter((geometries): geometries is GeometriesListItem => !!geometries)
-  }, [allGeometries?.data, props])
+  }, [props.isMulti, selectedGeometriesIds, selectedGeometriesQuery?.data])
 
   return (
     <FieldGroup
@@ -91,7 +115,11 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
             props.onChange(nextValue)
           }}
           isDisabled={disabled}
-          isLoading={isLoadingGeometries || isFetchingNextPage}
+          isLoading={
+            isLoadingGeometries ||
+            isLoadingSelectedGeometries ||
+            isFetchingNextPage
+          }
           onMenuScrollToBottom={() => {
             if (hasNextPage) {
               fetchNextPage()
