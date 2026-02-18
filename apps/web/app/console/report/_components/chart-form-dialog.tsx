@@ -390,9 +390,9 @@ const appearanceSchema = (
     showOutlines: z.boolean().optional(),
     mapBbox: z
       .object({
-        minLon: z.number(),
+        minLon: z.number().min(-360).max(360),
         minLat: z.number().min(-90).max(90),
-        maxLon: z.number(),
+        maxLon: z.number().min(-360).max(360),
         maxLat: z.number().min(-90).max(90),
       })
       .optional(),
