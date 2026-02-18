@@ -2124,9 +2124,9 @@ export const ChartFormDialog = ({
 
                       {/* Colour scheme — table/map use sequential/diverging */}
                       {(chartType === 'table' || chartType === 'map') && (
-                        <FieldGroup title="Colour Scale">
+                        <FieldGroup title="Colour and Scale">
                           <FormItem>
-                            <FormLabel>Colour Scale</FormLabel>
+                            <FormLabel>Colour Map</FormLabel>
                             <Select
                               value={
                                 form.watch('appearance.colorScaleType') ===
