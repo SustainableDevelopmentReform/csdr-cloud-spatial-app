@@ -4,7 +4,10 @@ import { getPlotCodeSnippet } from '@repo/plot/Plot'
 import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
 import {
   ChartConfiguration,
+  KpiChartConfiguration,
   MapChartConfiguration,
+  makeDateFormatter,
+  makeNumberFormatter,
   OnSelectCallback,
   PlotChartConfiguration,
   TableChartConfiguration,
@@ -141,6 +144,108 @@ const MapContainer = ({
   )
 }
 
+const KpiContainer = ({
+  chart,
+  className,
+  onSelect,
+}: {
+  chart: KpiChartConfiguration
+  className?: string
+  onSelect?: OnSelectCallback<ProductOutputExportListItem>
+}) => {
+  const geometryOutputId = chart.geometryOutputIds?.[0]
+
+  const { data: productOutputs, isLoading } = useProductOutputsExport(
+    chart.productRunId,
+    {
+      indicatorId: chart.indicatorId,
+      geometryOutputId,
+      timePoint: chart.timePoint,
+    },
+  )
+
+  const numberFormatter = useMemo(
+    () =>
+      makeNumberFormatter(
+        chart.appearance?.decimalPlaces,
+        chart.appearance?.compactNumbers,
+      ),
+    [chart.appearance?.compactNumbers, chart.appearance?.decimalPlaces],
+  )
+  const dateFormatter = useMemo(
+    () => makeDateFormatter(chart.appearance?.datePrecision),
+    [chart.appearance?.datePrecision],
+  )
+
+  const outputs = productOutputs?.data ?? []
+
+  if (isLoading && outputs.length === 0) {
+    return (
+      <div
+        className={cn(
+          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
+          className,
+        )}
+      >
+        Loading KPI value...
+      </div>
+    )
+  }
+
+  if (outputs.length === 0) {
+    return (
+      <div
+        className={cn(
+          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
+          className,
+        )}
+      >
+        No value for selected filters.
+      </div>
+    )
+  }
+
+  if (outputs.length > 1) {
+    return (
+      <div
+        className={cn(
+          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-destructive',
+          className,
+        )}
+      >
+        KPI requires exactly one product output. Narrow your selections to a
+        single indicator, geometry, and time point.
+      </div>
+    )
+  }
+
+  const dataPoint = outputs[0]!
+  const contextParts = [
+    dataPoint.indicatorName ?? 'Indicator',
+    dataPoint.geometryOutputName ?? 'Geometry',
+    dateFormatter.format(new Date(dataPoint.timePoint)),
+  ]
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'flex h-full w-full flex-col items-center justify-center gap-2 rounded-md px-3 py-4 text-center',
+        'hover:bg-muted/20',
+        className,
+      )}
+      onClick={(event) => onSelect?.({ dataPoint, event })}
+    >
+      <div className="text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
+        {numberFormatter.format(dataPoint.value)}
+      </div>
+      <div className="max-w-full truncate text-xs text-muted-foreground sm:text-sm">
+        {contextParts.join(' · ')}
+      </div>
+    </button>
+  )
+}
+
 const TablePlotContainer = ({
   chart,
   config,
@@ -212,6 +317,11 @@ const ChartDiscriminator = ({
         />
       )
     }
+    case 'kpi': {
+      return (
+        <KpiContainer chart={chart} className={className} onSelect={onSelect} />
+      )
+    }
     case 'table': {
       return (
         <TablePlotContainer
@@ -223,7 +333,7 @@ const ChartDiscriminator = ({
       )
     }
     default:
-      return <UnsupportedChart type={(chart as { type: string }).type} />
+      return <UnsupportedChart type="unknown" />
   }
 }
 
