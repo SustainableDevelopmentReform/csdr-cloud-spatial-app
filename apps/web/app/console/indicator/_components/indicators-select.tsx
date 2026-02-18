@@ -93,7 +93,7 @@ export const IndicatorsSelect = (props: IndicatorsSelectProps) => {
   }, [props, selectedIndicators?.data])
 
   const commonProps = {
-    placeholder,
+    placeholder: isLoadingSelectedIndicators ? 'Loading...' : placeholder,
     options: indicators?.data,
     isDisabled,
     isLoading:

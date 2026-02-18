@@ -84,6 +84,7 @@ interface BaseCrudTableProps<
   Q extends BaseCrudTableQuery = BaseCrudTableQuery,
 > extends BaseActionProps<T> {
   data: T[]
+  isLoading?: boolean
   baseColumns: readonly (keyof T)[]
   extraColumns?: ColumnDef<T>[]
   query?: Q
@@ -126,6 +127,7 @@ const BaseCrudTable = <
   title,
   itemLink,
   itemButton,
+  isLoading = false,
   onSortChange,
 }: BaseCrudTableProps<T, Q>) => {
   const columns = useMemo(() => {
@@ -291,7 +293,7 @@ const BaseCrudTable = <
     },
   })
 
-  return <Table table={table} />
+  return <Table table={table} isLoading={isLoading} />
 }
 
 export default BaseCrudTable

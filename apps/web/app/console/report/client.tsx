@@ -18,6 +18,7 @@ const ReportFeature = () => {
     setSearchParams,
     fetchNextPage,
     hasNextPage,
+    isLoading,
     isFetchingNextPage,
   } = useReports(undefined, true)
   const createReport = useCreateReport()
@@ -52,6 +53,7 @@ const ReportFeature = () => {
         />
         <BaseCrudTable
           data={data?.data || []}
+          isLoading={isLoading}
           baseColumns={baseColumns}
           title="Report"
           itemLink={reportLink}
