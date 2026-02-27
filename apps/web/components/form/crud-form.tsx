@@ -17,6 +17,7 @@ import { UseMutationResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
+import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning'
 import { CrudFormAction, FormAction } from './crud-form-action'
 
 export interface CrudFormConfig<
@@ -57,6 +58,9 @@ export const CrudForm = <
   onSuccess,
   successMessage,
 }: CrudFormProps<Data>) => {
+  // Warn on navigation when the form has unsaved changes
+  useUnsavedChangesWarning(form.formState.isDirty)
+
   // Helper function to get field label
   const getFieldLabel = (field: keyof Data): string => {
     if (fieldLabels) {
@@ -110,6 +114,7 @@ export const CrudForm = <
           onSubmit={form.handleSubmit((formData) => {
             mutation.mutate(formData, {
               onSuccess: () => {
+                form.reset(formData)
                 toast.success(successMessage)
                 onSuccess?.()
               },

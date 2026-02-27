@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createDashboardSchema } from '@repo/schemas/crud'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
+import { useUnsavedChangesWarning } from '../../../hooks/useUnsavedChangesWarning'
 import DashboardGridEditor, {
   createEmptyDashboardContent,
 } from '../dashboard/_components/dashboard-grid-editor'
@@ -18,6 +19,8 @@ const DataExplorerFeature = () => {
     },
   })
 
+  useUnsavedChangesWarning(form.formState.isDirty)
+
   return (
     <div className="flex flex-col gap-4">
       <CrudFormDialog
@@ -30,7 +33,12 @@ const DataExplorerFeature = () => {
       />
       <DashboardGridEditor
         value={form.watch('content')}
-        onChange={(next) => form.setValue('content', next)}
+        onChange={(next) =>
+          form.setValue('content', next, {
+            shouldDirty: true,
+            shouldTouch: true,
+          })
+        }
       />
     </div>
   )
