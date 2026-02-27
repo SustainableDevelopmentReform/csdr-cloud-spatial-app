@@ -49,7 +49,10 @@ const ReportDetails = () => {
         {report && (
           <SimpleEditor
             onUpdate={(json) => {
-              form.setValue('content', json)
+              form.setValue('content', json, {
+                shouldDirty: true,
+                shouldTouch: true,
+              })
             }}
             content={report.content}
             chartFormBuilder={formBuilder}

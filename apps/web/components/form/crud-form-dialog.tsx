@@ -35,6 +35,15 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
+        if (
+          !open &&
+          formProps.form.formState.isDirty &&
+          !window.confirm(
+            'You have unsaved changes. Are you sure you want to close?',
+          )
+        ) {
+          return
+        }
         setOpen(open)
         if (open) {
           onOpen?.()
