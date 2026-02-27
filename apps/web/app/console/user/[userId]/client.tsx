@@ -42,6 +42,7 @@ import {
 } from '@repo/ui/components/ui/select'
 import { DeleteAlertDialog } from '../../../../components/form/delete-alert-dialog'
 import { USERS_BASE_PATH } from '../../../../lib/paths'
+import { useUnsavedChangesWarning } from '../../../../hooks/useUnsavedChangesWarning'
 
 const formSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
@@ -69,12 +70,18 @@ const UserProfile = () => {
   })
   const queryClient = useQueryClient()
 
-  const { control, handleSubmit, setValue } = form
+  const { control, handleSubmit } = form
+
+  useUnsavedChangesWarning(form.formState.isDirty)
 
   useEffect(() => {
-    setValue('name', user?.name ?? '')
-    setValue('role', (user?.role ?? 'user') as 'admin' | 'user')
-  }, [user])
+    if (user) {
+      form.reset({
+        name: user.name ?? '',
+        role: (user.role ?? 'user') as 'admin' | 'user',
+      })
+    }
+  }, [user, form])
 
   const updateUser = useMutation({
     mutationFn: async (data: Data) => {
@@ -186,7 +193,11 @@ const UserProfile = () => {
   })
 
   function onSubmit(data: Data) {
-    updateUser.mutate(data)
+    updateUser.mutate(data, {
+      onSuccess: () => {
+        form.reset(data)
+      },
+    })
   }
 
   return (
