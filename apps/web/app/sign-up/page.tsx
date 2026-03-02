@@ -1,7 +1,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { AuthShell } from '~/components/auth-shell'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import Link from '../../components/link'
@@ -13,19 +12,10 @@ const Page = () => {
   const { appUrl } = useConfig()
 
   return (
-    <AuthShell
-      eyebrow="Create account"
-      title="Set up your access"
-      description="Your account starts with password-based sign-in. If email verification is required in this environment, we will send the confirmation link after registration."
-      footer={
-        <>
-          Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-[#9d3c17]">
-            Log in
-          </Link>
-        </>
-      }
-    >
+    <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
+      <div className="font-bold text-2xl mb-8 -mt-8 w-full">
+        Create your account
+      </div>
       <SignupForm
         mutationFn={async (data) => {
           const res = await authClient.signUp.email({
@@ -49,7 +39,13 @@ const Page = () => {
           router.push('/')
         }}
       />
-    </AuthShell>
+      <div className="text-sm mt-12">
+        Already have an account?{' '}
+        <Link href="/login" className="text-blue-500">
+          Log in
+        </Link>
+      </div>
+    </div>
   )
 }
 

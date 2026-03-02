@@ -2,17 +2,11 @@
 
 import { CopyButton } from '@repo/ui/components/ui/copy-button'
 import { Button } from '@repo/ui/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@repo/ui/components/ui/dialog'
+import { Dialog, DialogContent } from '@repo/ui/components/ui/dialog'
 import { Input } from '@repo/ui/components/ui/input'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation } from '@tanstack/react-query'
-import { ShieldCheck, ShieldOff } from 'lucide-react'
+import { CheckCircle2, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -33,47 +27,34 @@ type DialogStep =
   | 'regenerate-codes'
   | 'disable-confirm'
 
-const displayFont =
-  '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", serif'
-
 function BackupCodesPanel(props: {
-  caption: string
   codes: string[]
   acknowledged: boolean
   onAcknowledgedChange: (next: boolean) => void
 }) {
   return (
-    <div className="space-y-5">
-      <div className="rounded-[26px] border border-[#9d3c17]/15 bg-[#9d3c17]/6 p-5">
-        <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[#7d2f11]">
-          Backup codes
-        </div>
-        <p className="mt-2 text-sm leading-6 text-stone-600">{props.caption}</p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {props.codes.map((code) => (
-            <div
-              key={code}
-              className="flex items-center justify-between rounded-2xl border border-stone-900/10 bg-white/70 px-4 py-3"
-            >
-              <span className="font-mono text-sm tracking-[0.18em] text-stone-800">
-                {code}
-              </span>
-              <CopyButton value={code} className="h-8 w-8" />
-            </div>
-          ))}
-        </div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 rounded-md border border-gray-200 bg-gray-50 p-4 font-mono text-sm">
+        {props.codes.map((code) => (
+          <div
+            key={code}
+            className="flex items-center justify-between rounded border bg-white px-3 py-2"
+          >
+            <span>{code}</span>
+            <CopyButton value={code} className="h-8 w-8" />
+          </div>
+        ))}
       </div>
-
-      <label className="flex items-start gap-3 rounded-2xl border border-stone-900/10 bg-white/65 px-4 py-4 text-sm leading-6 text-stone-700">
+      <label className="flex items-start gap-3 text-sm text-gray-600">
         <input
           type="checkbox"
           checked={props.acknowledged}
           onChange={(event) => props.onAcknowledgedChange(event.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-stone-400 text-[#1d3d35] focus:ring-[#1d3d35]"
+          className="mt-1"
         />
         <span>
-          I have stored these backup codes somewhere safe. I understand each one
-          can only be used once.
+          I have stored these backup codes somewhere safe. Each code can only be
+          used once.
         </span>
       </label>
     </div>
@@ -172,7 +153,6 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
 
       setFreshBackupCodes(res.data?.backupCodes ?? [])
       setBackupAcknowledged(false)
-      setRegeneratePassword('')
       setStep('regenerate-codes')
     },
     onError(error) {
@@ -244,353 +224,266 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
         }}
       >
         <DialogContent
-          className="w-full max-w-3xl rounded-[30px] border border-stone-900/10 bg-[#fffaf4] p-0"
+          className="max-w-2xl p-6"
           showCloseButton={!preventDismiss}
         >
-          <div className="border-b border-stone-900/10 px-6 py-6">
-            <DialogHeader>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-500">
-                Two-factor
-              </div>
-              <DialogTitle
-                className="mt-3 text-3xl text-stone-950"
-                style={{ fontFamily: displayFont }}
-              >
-                {currentStep === 'enabled'
-                  ? 'Second-factor coverage is active.'
-                  : currentStep === 'setup-materials'
-                    ? 'Scan the QR code and store your recovery set.'
-                    : currentStep === 'regenerate-codes'
-                      ? 'Store the replacement recovery set.'
-                      : 'Protect the account with another factor.'}
-              </DialogTitle>
-              <DialogDescription className="mt-2 text-sm leading-6 text-stone-600">
-                TOTP setup is the enrollment step. Email OTP and backup codes
-                remain available during sign-in challenges.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="px-6 py-6">
-            {currentStep === 'initial' ? (
-              <div className="grid gap-5">
-                <div className="rounded-[28px] border border-stone-900/10 bg-white/70 px-5 py-5">
-                  <div className="flex items-center gap-3 text-stone-900">
-                    <ShieldOff className="h-5 w-5" />
-                    <div className="text-lg font-semibold">
-                      Two-factor is not enabled yet
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-stone-600">
-                    Add an authenticator app as the primary second factor, then
-                    keep the generated backup codes somewhere safe.
-                  </p>
+          {currentStep === 'initial' ? (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldOff className="h-5 w-5 text-gray-400" />
+                <div className="text-lg font-semibold">
+                  Two-Factor Authentication
                 </div>
-                <Button
-                  className="w-fit rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
-                  onClick={() => setStep('setup-password')}
-                >
-                  Set up 2FA
-                </Button>
               </div>
-            ) : null}
+              <p className="text-sm text-gray-500 mb-6">
+                Add an extra layer of security to your account by requiring a
+                verification code in addition to your password.
+              </p>
+              <Button
+                onClick={() => setStep('setup-password')}
+                className="w-full"
+              >
+                Enable 2FA
+              </Button>
+            </div>
+          ) : null}
 
-            {currentStep === 'setup-password' ? (
+          {currentStep === 'setup-password' ? (
+            <div>
+              <div className="text-lg font-semibold mb-4">
+                Confirm your password
+              </div>
               <div className="grid gap-4">
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-stone-900">
-                    Password
-                  </span>
-                  <Input
-                    value={setupPassword}
-                    onChange={(event) => setSetupPassword(event.target.value)}
-                    type="password"
-                    placeholder="Confirm your password"
-                  />
-                </label>
-                <div className="flex flex-wrap gap-3">
+                <Input
+                  value={setupPassword}
+                  onChange={(event) => setSetupPassword(event.target.value)}
+                  type="password"
+                  placeholder="Password"
+                />
+                <div className="flex gap-2">
                   <Button
                     disabled={
                       enableTwoFactorMutation.isPending ||
                       setupPassword.trim().length === 0
                     }
-                    className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
                     onClick={() => enableTwoFactorMutation.mutate()}
                   >
                     {enableTwoFactorMutation.isPending
-                      ? 'Preparing...'
-                      : 'Generate setup materials'}
+                      ? 'Loading...'
+                      : 'Continue'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full border-stone-900/15"
-                    onClick={() => setStep('initial')}
-                  >
+                  <Button variant="outline" onClick={() => setStep('initial')}>
                     Back
                   </Button>
                 </div>
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {currentStep === 'setup-materials' ? (
-              <div className="space-y-6">
-                <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-[26px] border border-stone-900/10 bg-white/70 p-5">
-                    <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-                      Authenticator QR
-                    </div>
-                    <div className="mt-4 flex justify-center rounded-[24px] border border-stone-900/10 bg-[#fcf7ef] p-4">
-                      {totpURI ? (
-                        <QRCodeSVG value={totpURI} size={192} />
-                      ) : null}
+          {currentStep === 'setup-materials' ? (
+            <div>
+              <div className="text-lg font-semibold mb-4">
+                Set up your authenticator
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-md border border-gray-200 p-4">
+                  <div className="text-sm font-medium mb-3">Scan QR code</div>
+                  <div className="flex justify-center">
+                    {totpURI ? <QRCodeSVG value={totpURI} size={180} /> : null}
+                  </div>
+                </div>
+                <div className="rounded-md border border-gray-200 p-4 space-y-4">
+                  <div>
+                    <div className="text-xs text-gray-500">Issuer</div>
+                    <div>{setupDetails?.issuer ?? 'CSDR Cloud Spatial'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Account</div>
+                    <div>
+                      {setupDetails?.account ?? user?.email ?? 'Unavailable'}
                     </div>
                   </div>
-                  <div className="rounded-[26px] border border-stone-900/10 bg-white/70 p-5">
-                    <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-                      Manual setup
+                  <div>
+                    <div className="text-xs text-gray-500">Secret</div>
+                    <div className="mt-1 flex items-center justify-between rounded border bg-gray-50 px-3 py-2">
+                      <code className="text-xs break-all">
+                        {setupDetails?.secret ?? 'Unavailable'}
+                      </code>
+                      <CopyButton
+                        value={setupDetails?.secret ?? ''}
+                        className="h-8 w-8"
+                      />
                     </div>
-                    <div className="mt-4 space-y-4 text-sm text-stone-700">
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                          Issuer
-                        </div>
-                        <div className="mt-1 font-medium text-stone-900">
-                          {setupDetails?.issuer ?? 'CSDR Cloud Spatial'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                          Account label
-                        </div>
-                        <div className="mt-1 font-medium text-stone-900">
-                          {setupDetails?.account ??
-                            user?.email ??
-                            'Unavailable'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                          Secret
-                        </div>
-                        <div className="mt-2 flex items-center justify-between rounded-2xl border border-stone-900/10 bg-[#fcf7ef] px-4 py-3">
-                          <span className="font-mono text-sm tracking-[0.18em] text-stone-900">
-                            {setupDetails?.secret ?? 'Unavailable'}
-                          </span>
-                          <CopyButton
-                            value={setupDetails?.secret ?? ''}
-                            className="h-8 w-8"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                          TOTP URI
-                        </div>
-                        <div className="mt-2 flex items-center justify-between rounded-2xl border border-stone-900/10 bg-[#fcf7ef] px-4 py-3">
-                          <span className="truncate font-mono text-xs text-stone-900">
-                            {totpURI ?? 'Unavailable'}
-                          </span>
-                          <CopyButton
-                            value={totpURI ?? ''}
-                            className="h-8 w-8"
-                          />
-                        </div>
-                      </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">TOTP URI</div>
+                    <div className="mt-1 flex items-center justify-between rounded border bg-gray-50 px-3 py-2">
+                      <code className="text-xs break-all">
+                        {totpURI ?? 'Unavailable'}
+                      </code>
+                      <CopyButton value={totpURI ?? ''} className="h-8 w-8" />
                     </div>
                   </div>
                 </div>
+              </div>
 
+              <div className="mt-6">
+                <div className="text-sm font-medium mb-3">Backup codes</div>
                 <BackupCodesPanel
-                  caption="Store these backup codes before you finish setup. Each code works once."
                   codes={setupBackupCodes}
                   acknowledged={setupAcknowledged}
                   onAcknowledgedChange={setSetupAcknowledged}
                 />
+              </div>
 
-                <div className="rounded-[26px] border border-stone-900/10 bg-white/70 p-5">
-                  <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-                    Verify setup
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">
-                    Scan the QR code in your authenticator app, then enter a
-                    6-digit code to finish enabling 2FA.
-                  </p>
-                  <div className="mt-5 flex justify-center">
-                    <OTPCodeInput value={setupCode} onChange={setSetupCode} />
-                  </div>
-                  <div className="mt-5">
-                    <Button
-                      disabled={
-                        verifyTwoFactorSetupMutation.isPending ||
-                        setupCode.length !== 6 ||
-                        !setupAcknowledged
-                      }
-                      className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
-                      onClick={() => verifyTwoFactorSetupMutation.mutate()}
-                    >
-                      {verifyTwoFactorSetupMutation.isPending
-                        ? 'Verifying...'
-                        : 'Verify and enable'}
-                    </Button>
-                  </div>
+              <div className="mt-6">
+                <div className="text-sm font-medium mb-3">Verify setup</div>
+                <div className="flex justify-center mb-4">
+                  <OTPCodeInput value={setupCode} onChange={setSetupCode} />
+                </div>
+                <Button
+                  disabled={
+                    verifyTwoFactorSetupMutation.isPending ||
+                    setupCode.length !== 6 ||
+                    !setupAcknowledged
+                  }
+                  onClick={() => verifyTwoFactorSetupMutation.mutate()}
+                >
+                  {verifyTwoFactorSetupMutation.isPending
+                    ? 'Verifying...'
+                    : 'Verify and enable'}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {currentStep === 'enabled' ? (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldCheck className="h-5 w-5 text-green-500" />
+                <div className="text-lg font-semibold">
+                  Two-Factor Authentication
                 </div>
               </div>
-            ) : null}
-
-            {currentStep === 'enabled' ? (
-              <div className="space-y-5">
-                <div className="rounded-[28px] border border-stone-900/10 bg-white/70 px-5 py-5">
-                  <div className="flex items-center gap-3 text-stone-900">
-                    <ShieldCheck className="h-5 w-5" />
-                    <div className="text-lg font-semibold">
-                      Two-factor is active
-                    </div>
-                  </div>
-                  <ul className="mt-4 grid gap-3 text-sm leading-6 text-stone-600">
-                    <li>
-                      Authenticator app codes remain the primary challenge.
-                    </li>
-                    <li>
-                      Email OTP is available on the sign-in screen when needed.
-                    </li>
-                    <li>
-                      Backup codes cover recovery when devices are unavailable.
-                    </li>
-                  </ul>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
-                    onClick={() => setStep('regenerate-password')}
-                  >
-                    Regenerate backup codes
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="rounded-full border-[#9d3c17]/25 text-[#7d2f11] hover:bg-[#9d3c17]/8 hover:text-[#7d2f11]"
-                    onClick={() => setStep('disable-confirm')}
-                  >
-                    Disable 2FA
-                  </Button>
-                </div>
+              <div className="flex items-center gap-2 mb-6 p-3 bg-green-50 rounded-lg border border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-700 font-medium">
+                  2FA is enabled
+                </span>
               </div>
-            ) : null}
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep('regenerate-password')}
+                >
+                  Regenerate backup codes
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setStep('disable-confirm')}
+                >
+                  Disable 2FA
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
-            {currentStep === 'regenerate-password' ? (
+          {currentStep === 'regenerate-password' ? (
+            <div>
+              <div className="text-lg font-semibold mb-4">
+                Regenerate backup codes
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Generating a new set invalidates every existing backup code.
+              </p>
               <div className="grid gap-4">
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-stone-900">
-                    Password
-                  </span>
-                  <Input
-                    value={regeneratePassword}
-                    onChange={(event) =>
-                      setRegeneratePassword(event.target.value)
-                    }
-                    type="password"
-                    placeholder="Confirm your password"
-                  />
-                </label>
-                <div className="rounded-[24px] border border-[#9d3c17]/15 bg-[#9d3c17]/6 px-4 py-4 text-sm leading-6 text-stone-600">
-                  Generating a new set invalidates every existing backup code.
-                </div>
-                <div className="flex flex-wrap gap-3">
+                <Input
+                  value={regeneratePassword}
+                  onChange={(event) =>
+                    setRegeneratePassword(event.target.value)
+                  }
+                  type="password"
+                  placeholder="Password"
+                />
+                <div className="flex gap-2">
                   <Button
                     disabled={
                       regenerateBackupCodesMutation.isPending ||
                       regeneratePassword.trim().length === 0
                     }
-                    className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
                     onClick={() => regenerateBackupCodesMutation.mutate()}
                   >
                     {regenerateBackupCodesMutation.isPending
-                      ? 'Regenerating...'
+                      ? 'Loading...'
                       : 'Generate new codes'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full border-stone-900/15"
-                    onClick={() => setStep('enabled')}
-                  >
+                  <Button variant="outline" onClick={() => setStep('enabled')}>
                     Back
                   </Button>
                 </div>
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {currentStep === 'regenerate-codes' ? (
-              <div className="space-y-5">
-                <BackupCodesPanel
-                  caption="These replacement codes are the only valid recovery set now."
-                  codes={freshBackupCodes}
-                  acknowledged={backupAcknowledged}
-                  onAcknowledgedChange={setBackupAcknowledged}
-                />
-                <Button
-                  disabled={!backupAcknowledged}
-                  className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
-                  onClick={() => {
-                    toast.success('Backup codes refreshed')
-                    setStep('enabled')
-                    setFreshBackupCodes([])
-                    setBackupAcknowledged(false)
-                  }}
-                >
-                  Done
-                </Button>
+          {currentStep === 'regenerate-codes' ? (
+            <div>
+              <div className="text-lg font-semibold mb-4">
+                Save your new backup codes
               </div>
-            ) : null}
+              <BackupCodesPanel
+                codes={freshBackupCodes}
+                acknowledged={backupAcknowledged}
+                onAcknowledgedChange={setBackupAcknowledged}
+              />
+              <Button
+                className="mt-6"
+                disabled={!backupAcknowledged}
+                onClick={() => {
+                  setFreshBackupCodes([])
+                  setBackupAcknowledged(false)
+                  setStep('enabled')
+                  toast.success('Backup codes refreshed')
+                }}
+              >
+                Done
+              </Button>
+            </div>
+          ) : null}
 
-            {currentStep === 'disable-confirm' ? (
+          {currentStep === 'disable-confirm' ? (
+            <div>
+              <div className="text-lg font-semibold mb-4">Disable 2FA</div>
+              <p className="text-sm text-gray-500 mb-4">
+                Enter your password to disable two-factor authentication. This
+                will remove the second-factor challenge from future sign-ins.
+              </p>
               <div className="grid gap-4">
-                <div className="rounded-[24px] border border-[#9d3c17]/15 bg-[#9d3c17]/6 px-4 py-4 text-sm leading-6 text-stone-600">
-                  Disabling two-factor removes the extra verification step from
-                  future credential sign-ins on this account.
-                </div>
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-stone-900">
-                    Password
-                  </span>
-                  <Input
-                    value={disablePassword}
-                    onChange={(event) => setDisablePassword(event.target.value)}
-                    type="password"
-                    placeholder="Confirm your password"
-                  />
-                </label>
-                <div className="flex flex-wrap gap-3">
+                <Input
+                  value={disablePassword}
+                  onChange={(event) => setDisablePassword(event.target.value)}
+                  type="password"
+                  placeholder="Password"
+                />
+                <div className="flex gap-2">
                   <Button
+                    variant="destructive"
                     disabled={
                       disableTwoFactorMutation.isPending ||
                       disablePassword.trim().length === 0
                     }
-                    variant="outline"
-                    className="rounded-full border-[#9d3c17]/25 text-[#7d2f11] hover:bg-[#9d3c17]/8 hover:text-[#7d2f11]"
                     onClick={() => disableTwoFactorMutation.mutate()}
                   >
                     {disableTwoFactorMutation.isPending
-                      ? 'Disabling...'
+                      ? 'Loading...'
                       : 'Disable 2FA'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full border-stone-900/15"
-                    onClick={() => setStep('enabled')}
-                  >
+                  <Button variant="outline" onClick={() => setStep('enabled')}>
                     Back
                   </Button>
                 </div>
               </div>
-            ) : null}
-          </div>
-
-          <div className="border-t border-stone-900/10 bg-white/40 px-6 py-4 text-sm text-stone-600">
-            Trusted devices are selected during sign-in and remain valid for 30
-            days.
-          </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </>

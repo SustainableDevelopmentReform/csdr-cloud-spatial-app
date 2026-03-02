@@ -115,10 +115,7 @@ const SignupForm = ({
               </FormItem>
             )}
           />
-          <Button
-            disabled={submitMutation.isPending}
-            className="mt-2 h-11 rounded-full bg-[#9d3c17] text-[#fff8f2] hover:bg-[#842f10]"
-          >
+          <Button disabled={submitMutation.isPending} className="mt-1">
             {submitMutation.isPending ? 'Loading...' : 'Create your account'}
           </Button>
         </form>

@@ -15,7 +15,6 @@ import { useMutation } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { AuthShell } from '~/components/auth-shell'
 import Link from '~/components/link'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
@@ -68,81 +67,79 @@ export default function ResetPasswordPage() {
   const hasInvalidToken = error === 'INVALID_TOKEN' || !token
 
   return (
-    <AuthShell
-      eyebrow="Reset password"
-      title={hasInvalidToken ? 'Reset link expired' : 'Choose a new password'}
-      description={
-        hasInvalidToken
-          ? 'Request a fresh reset link and start again.'
-          : 'Set a new password for this account. Once complete, existing sessions are revoked.'
-      }
-      footer={
-        <>
-          Need a fresh link?{' '}
-          <Link
-            href="/forgot-password"
-            className="font-semibold text-[#9d3c17]"
-          >
-            Request another reset
-          </Link>
-        </>
-      }
-    >
+    <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       {hasInvalidToken ? (
-        <div className="rounded-[28px] border border-[#9d3c17]/15 bg-[#9d3c17]/6 px-5 py-5">
-          <div className="text-base font-semibold text-[#7d2f11]">
-            This reset link is no longer valid
+        <>
+          <div className="font-bold text-2xl mb-2 w-full">
+            Reset link expired
           </div>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
+          <p className="text-sm text-gray-500 text-center mb-6 w-full">
             Password reset links can expire or become invalid after use.
           </p>
-        </div>
+          <div className="text-sm">
+            Need a fresh link?{' '}
+            <Link href="/forgot-password" className="text-blue-500">
+              Request another reset
+            </Link>
+          </div>
+        </>
       ) : (
-        <Form {...form}>
-          <form
-            className="grid gap-4"
-            onSubmit={form.handleSubmit((data) =>
-              resetPasswordMutation.mutate(data),
-            )}
-          >
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>New password</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="password" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+        <>
+          <div className="font-bold text-2xl mb-2 w-full">
+            Choose a new password
+          </div>
+          <p className="text-sm text-gray-500 mb-8 w-full">
+            Set a new password for this account. Once complete, existing
+            sessions are revoked.
+          </p>
+          <Form {...form}>
+            <form
+              className="grid gap-4 w-full"
+              onSubmit={form.handleSubmit((data) =>
+                resetPasswordMutation.mutate(data),
               )}
-            />
-            <FormField
-              control={form.control}
-              name="passwordConfirmation"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm password</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="password" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              disabled={resetPasswordMutation.isPending}
-              className="mt-2 h-11 rounded-full bg-[#9d3c17] text-[#fff8f2] hover:bg-[#842f10]"
             >
-              {resetPasswordMutation.isPending
-                ? 'Updating...'
-                : 'Update password'}
-            </Button>
-          </form>
-        </Form>
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New password</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="password" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="passwordConfirmation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm password</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="password" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={resetPasswordMutation.isPending}>
+                {resetPasswordMutation.isPending
+                  ? 'Updating...'
+                  : 'Update password'}
+              </Button>
+            </form>
+          </Form>
+          <div className="text-sm mt-12">
+            Need a fresh link?{' '}
+            <Link href="/forgot-password" className="text-blue-500">
+              Request another reset
+            </Link>
+          </div>
+        </>
       )}
-    </AuthShell>
+    </div>
   )
 }

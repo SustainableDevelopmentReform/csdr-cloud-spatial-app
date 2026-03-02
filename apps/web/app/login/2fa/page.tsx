@@ -1,26 +1,18 @@
 'use client'
 
-import { AuthShell } from '~/components/auth-shell'
 import Link from '~/components/link'
 import TwoFactorForm from '../_components/two-factor-form'
 
 export default function LoginTwoFactorPage() {
   return (
-    <AuthShell
-      eyebrow="Two-factor verification"
-      title="Finish signing in"
-      description="Choose the second-factor method that is available to you for this account."
-      footer={
-        <>
-          Need to start over?{' '}
-          <Link href="/login" className="font-semibold text-[#9d3c17]">
-            Return to sign in
-          </Link>
-        </>
-      }
-      panelClassName="max-w-2xl"
-    >
+    <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       <TwoFactorForm />
-    </AuthShell>
+      <div className="text-sm mt-12">
+        Need to start over?{' '}
+        <Link href="/login" className="text-blue-500">
+          Return to sign in
+        </Link>
+      </div>
+    </div>
   )
 }
