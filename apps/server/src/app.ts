@@ -14,6 +14,11 @@ import {
   jsonErrorResponse,
 } from './lib/openapi'
 import { generateJsonResponse } from './lib/response'
+import {
+  enforceAuthRateLimit,
+  getAuthRequestBody,
+  logTwoFactorRouteResult,
+} from './lib/auth-security'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
 import dataset from './routes/dataset'
@@ -65,7 +70,25 @@ app.use('*', async (c, next) => {
 })
 
 // Handle auth routes
-app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw))
+app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
+  const body = await getAuthRequestBody(c.req.raw)
+
+  await enforceAuthRateLimit(c.req.raw, body)
+
+  const session = await auth.api
+    .getSession({ headers: c.req.raw.headers })
+    .catch(() => null)
+
+  const response = await auth.handler(c.req.raw)
+
+  logTwoFactorRouteResult({
+    request: c.req.raw,
+    response,
+    session: session ? { user: session.user } : null,
+  })
+
+  return response
+})
 
 const v0ApiRoutes = app
   .basePath('/api/v0/')
