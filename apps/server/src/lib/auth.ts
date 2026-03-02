@@ -10,6 +10,12 @@ import {
 } from 'better-auth/plugins'
 import { env } from '~/env'
 import * as schema from '~/schemas/db'
+import {
+  sendResetPasswordEmail,
+  sendTwoFactorOTPEmail,
+  sendVerificationEmail,
+} from './auth-email'
+import { logAuthSecurity } from './auth-security'
 import { db } from './db'
 
 export type Plugins = [
@@ -23,7 +29,25 @@ export type Plugins = [
 
 const plugins: Plugins = [
   admin(),
-  twoFactor(),
+  twoFactor({
+    issuer: 'CSDR Cloud Spatial',
+    otpOptions: {
+      sendOTP: async ({ user, otp }) => {
+        await sendTwoFactorOTPEmail({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          },
+          otp,
+        })
+      },
+      storeOTP: 'hashed',
+    },
+    backupCodeOptions: {
+      storeBackupCodes: 'encrypted',
+    },
+  }),
   openAPI({ path: '/scalar' }),
   anonymous(),
   apiKey({
@@ -46,7 +70,8 @@ const authConfig = {
       console.log(level, message)
     },
   },
-  baseURL: env.INTERNAL_BACKEND_URL,
+  appName: 'CSDR Cloud Spatial',
+  baseURL: env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL,
   trustedOrigins: env.TRUSTED_ORIGINS,
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -74,6 +99,48 @@ const authConfig = {
     // requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
     requireEmailVerification: false,
     minPasswordLength: 8,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url, token }) => {
+      await sendResetPasswordEmail({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        url,
+        token,
+      })
+    },
+    onPasswordReset: async ({ user }) => {
+      logAuthSecurity('password_reset_completed', {
+        userId: user.id,
+        email: user.email,
+      })
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url, token }) => {
+      await sendVerificationEmail({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        url,
+        token,
+      })
+    },
+    sendOnSignUp: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
+    sendOnSignIn: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
+    expiresIn: 60 * 60 * 24,
+    autoSignInAfterVerification: false,
+    afterEmailVerification: async (user) => {
+      logAuthSecurity('email_verified', {
+        userId: user.id,
+        email: user.email,
+      })
+    },
   },
   // socialProviders: {
   //   google: {

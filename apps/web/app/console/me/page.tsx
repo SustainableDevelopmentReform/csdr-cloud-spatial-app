@@ -1,5 +1,10 @@
-import { notFound } from 'next/navigation'
+import PageAuthGuard from '~/components/page-auth-guard'
+import ClientPage from './client'
 
 export default () => {
-  return notFound()
+  return (
+    <PageAuthGuard>
+      <ClientPage />
+    </PageAuthGuard>
+  )
 }

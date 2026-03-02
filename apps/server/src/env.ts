@@ -9,6 +9,8 @@ export const env = createEnv({
   },
   server: {
     APP_URL: z.url().default('http://localhost:3000'),
+    AUTH_BASE_URL: z.url().optional(),
+    AUTH_EMAIL_MODE: z.enum(['log', 'smtp']).default('log'),
     INTERNAL_BACKEND_URL: z.url().optional(),
     DATABASE_HOST: z.string().default('localhost'),
     DATABASE_PORT: z.coerce.number().default(5431),
@@ -46,6 +48,8 @@ export const env = createEnv({
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
+    AUTH_BASE_URL: process.env.AUTH_BASE_URL,
+    AUTH_EMAIL_MODE: process.env.AUTH_EMAIL_MODE,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
     DATABASE_HOST: process.env.DATABASE_HOST,
     DATABASE_PORT: process.env.DATABASE_PORT,
