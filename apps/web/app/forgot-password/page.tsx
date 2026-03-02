@@ -15,7 +15,6 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { AuthShell } from '~/components/auth-shell'
 import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
@@ -53,71 +52,67 @@ export default function ForgotPasswordPage() {
   })
 
   return (
-    <AuthShell
-      eyebrow="Password reset"
-      title="Recover account access"
-      description="We will send the reset link if the address belongs to an account. The response stays the same either way."
-      footer={
-        <>
-          Remembered your password?{' '}
-          <Link href="/login" className="font-semibold text-[#9d3c17]">
-            Return to sign in
-          </Link>
-        </>
-      }
-    >
+    <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       {submittedEmail ? (
-        <div className="rounded-[28px] border border-[#1d3d35]/15 bg-[#1d3d35]/6 px-5 py-5">
-          <div className="text-base font-semibold text-[#173129]">
-            Check your email
-          </div>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
+        <>
+          <div className="font-bold text-2xl mb-2 w-full">Check your email</div>
+          <p className="text-sm text-gray-500 text-center mb-6 w-full">
             If <span className="font-medium">{submittedEmail}</span> belongs to
             an account, the reset instructions have been sent.
           </p>
           <Button
             variant="outline"
-            className="mt-5 rounded-full border-stone-900/15"
             onClick={() => {
               setSubmittedEmail(null)
             }}
           >
             Send another request
           </Button>
-        </div>
+        </>
       ) : (
-        <Form {...form}>
-          <form
-            className="grid gap-4"
-            onSubmit={form.handleSubmit((data) =>
-              requestResetMutation.mutate(data),
-            )}
-          >
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+        <>
+          <div className="font-bold text-2xl mb-2 w-full">
+            Forgot your password?
+          </div>
+          <p className="text-sm text-gray-500 mb-8 w-full">
+            Enter your email and we&apos;ll send you a link to reset your
+            password.
+          </p>
+          <Form {...form}>
+            <form
+              className="grid gap-4 w-full"
+              onSubmit={form.handleSubmit((data) =>
+                requestResetMutation.mutate(data),
               )}
-            />
-            <Button
-              type="submit"
-              disabled={requestResetMutation.isPending}
-              className="mt-2 h-11 rounded-full bg-[#9d3c17] text-[#fff8f2] hover:bg-[#842f10]"
             >
-              {requestResetMutation.isPending
-                ? 'Sending...'
-                : 'Send reset link'}
-            </Button>
-          </form>
-        </Form>
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={requestResetMutation.isPending}>
+                {requestResetMutation.isPending
+                  ? 'Sending...'
+                  : 'Send reset link'}
+              </Button>
+            </form>
+          </Form>
+          <div className="text-sm mt-12">
+            Remembered your password?{' '}
+            <Link href="/login" className="text-blue-500">
+              Return to sign in
+            </Link>
+          </div>
+        </>
       )}
-    </AuthShell>
+    </div>
   )
 }
