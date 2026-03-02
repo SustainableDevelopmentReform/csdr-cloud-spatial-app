@@ -17,9 +17,11 @@ import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
 import { isAuthErrorMessage } from '~/utils/auth-errors'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/useAuthClient'
+import TwoFactorForm from './two-factor-form'
 
 const formSchema = z.object({
   email: z.string({ message: 'Email is required' }).email('Email is invalid'),
@@ -34,6 +36,7 @@ const LoginForm = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { appUrl } = useConfig()
+  const [twoFactorPending, setTwoFactorPending] = useState(false)
   const form = useForm<Data>({
     defaultValues: {
       email: '',
@@ -46,12 +49,28 @@ const LoginForm = () => {
 
   const submitMutation = useMutation({
     mutationFn: async (data: Data) => {
-      const res = await authClient.signIn.email({
-        email: data.email,
-        password: data.password,
-        rememberMe: data.remember,
-        callbackURL: `${appUrl}/login?emailVerified=1`,
-      })
+      const res = await authClient.signIn.email(
+        {
+          email: data.email,
+          password: data.password,
+          rememberMe: data.remember,
+          callbackURL: `${appUrl}/login?emailVerified=1`,
+        },
+        {
+          onSuccess(context) {
+            if (
+              context.data &&
+              'twoFactorRedirect' in context.data &&
+              context.data.twoFactorRedirect
+            ) {
+              setTwoFactorPending(true)
+              return
+            }
+
+            router.push('/')
+          },
+        },
+      )
 
       if (res.error) {
         if (isAuthErrorMessage(res.error, 'Email not verified')) {
@@ -63,13 +82,6 @@ const LoginForm = () => {
 
         throw res.error
       }
-
-      if (res.data && 'twoFactorRedirect' in res.data) {
-        router.push('/login/2fa')
-        return
-      }
-
-      router.push('/')
     },
   })
 
@@ -93,6 +105,15 @@ const LoginForm = () => {
         }
       : null,
   ].filter(Boolean) as Array<{ title: string; description: string }>
+
+  if (twoFactorPending) {
+    return (
+      <TwoFactorForm
+        onCancel={() => setTwoFactorPending(false)}
+        onSuccess={() => router.push('/')}
+      />
+    )
+  }
 
   return (
     <>

@@ -11,13 +11,7 @@ import { createAuthClient as createReactAuthClient } from 'better-auth/react'
 const authConfig = {
   plugins: [
     adminClient(),
-    twoFactorClient({
-      onTwoFactorRedirect() {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login/2fa'
-        }
-      },
-    }),
+    twoFactorClient(),
     anonymousClient(),
     apiKeyClient(),
     organizationClient(),
