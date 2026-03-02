@@ -10,6 +10,7 @@ import {
   desc,
   ilike,
   or,
+  sql,
 } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
 import { db } from '../lib/db'
@@ -43,6 +44,10 @@ type ParseQueryResult = {
   }
 }
 
+const asOrderByArray = (
+  orderBy: ValueOrArray<AnyColumn | SQL>,
+): Array<AnyColumn | SQL> => (Array.isArray(orderBy) ? orderBy : [orderBy])
+
 export const normalizeFilterValues = (
   value: string | string[] | undefined,
 ): string[] => {
@@ -67,12 +72,25 @@ export const parseQuery = async <
 
   const searchValue = params.search?.trim()
   let searchWhere: SQL | undefined
+  let searchRank: SQL | undefined
 
   if (searchValue && options.searchableColumns?.length) {
-    const clauses = options.searchableColumns.map((column) =>
+    const exactClauses = options.searchableColumns.map((column) =>
       ilike(column, `%${searchValue}%`),
     )
+    const fuzzyClauses = options.searchableColumns.map(
+      (column) => sql`${searchValue} <% ${column}`,
+    )
+    const clauses = [...exactClauses, ...fuzzyClauses]
     searchWhere = clauses.length === 1 ? clauses[0] : or(...clauses)
+
+    const similarityClauses = options.searchableColumns.map(
+      (column) => sql`coalesce(word_similarity(${searchValue}, ${column}), 0)`,
+    )
+    searchRank =
+      similarityClauses.length === 1
+        ? similarityClauses[0]
+        : sql`greatest(${sql.join(similarityClauses, sql`, `)})`
   }
 
   const where = and(options.baseWhere, searchWhere)
@@ -90,6 +108,13 @@ export const parseQuery = async <
   const pageCount = size > 0 ? Math.ceil(total / size) : 0
 
   let orderBy: ValueOrArray<AnyColumn | SQL> = options.defaultOrderBy
+
+  if (!params.sort && searchRank) {
+    orderBy = [
+      sql`${searchRank} desc`,
+      ...asOrderByArray(options.defaultOrderBy),
+    ]
+  }
 
   if (params.sort && params.sort in table) {
     // TODO: figure out how to type this

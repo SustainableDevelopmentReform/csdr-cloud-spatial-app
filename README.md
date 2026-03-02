@@ -32,6 +32,10 @@ Start up postgres container with docker compose:
 docker-compose -f docker-compose-dev.yml up -d
 ```
 
+For fresh local DBs, the dev container enables PostgreSQL `pg_trgm` during
+initialization. If your DB container already exists, recreate it or enable the
+extension manually before applying migrations that depend on trigram indexes.
+
 **Important**: before run `pnpm seed` you have to set values for `INITIAL_USER_NAME`, `INITIAL_USER_EMAIL`, and `INITIAL_USER_PASSWORD` inside `.env` file.
 
 - This will default to `csdr-admin`, `admin@example.com`, and `admin@123`
