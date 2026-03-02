@@ -16,7 +16,6 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { AuthShell } from '~/components/auth-shell'
 import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
@@ -67,69 +66,64 @@ export default function VerifyEmailPendingPage() {
   })
 
   return (
-    <AuthShell
-      eyebrow="Email verification"
-      title="Confirm your email first"
-      description="Open the verification link from your inbox to finish the sign-in setup for this environment."
-      footer={
-        <>
-          Already verified?{' '}
-          <Link href="/login" className="font-semibold text-[#9d3c17]">
-            Return to sign in
-          </Link>
-        </>
-      }
-    >
+    <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       {resentEmail ? (
-        <div className="rounded-[28px] border border-[#1d3d35]/15 bg-[#1d3d35]/6 px-5 py-5">
-          <div className="text-base font-semibold text-[#173129]">
+        <>
+          <div className="font-bold text-2xl mb-2 w-full">
             Verification email sent
           </div>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
+          <p className="text-sm text-gray-500 text-center mb-6 w-full">
             If <span className="font-medium">{resentEmail}</span> is registered,
             a fresh verification link is on the way.
           </p>
-          <Button
-            variant="outline"
-            className="mt-5 rounded-full border-stone-900/15"
-            onClick={() => {
-              setResentEmail(null)
-            }}
-          >
+          <Button variant="outline" onClick={() => setResentEmail(null)}>
             Resend another email
           </Button>
-        </div>
+        </>
       ) : (
-        <Form {...form}>
-          <form
-            className="grid gap-4"
-            onSubmit={form.handleSubmit((data) => resendMutation.mutate(data))}
-          >
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+        <>
+          <div className="font-bold text-2xl mb-2 w-full">
+            Confirm your email first
+          </div>
+          <p className="text-sm text-gray-500 mb-8 w-full">
+            Open the verification link from your inbox to finish the sign-in
+            setup for this environment.
+          </p>
+          <Form {...form}>
+            <form
+              className="grid gap-4 w-full"
+              onSubmit={form.handleSubmit((data) =>
+                resendMutation.mutate(data),
               )}
-            />
-            <Button
-              type="submit"
-              disabled={resendMutation.isPending}
-              className="mt-2 h-11 rounded-full bg-[#9d3c17] text-[#fff8f2] hover:bg-[#842f10]"
             >
-              {resendMutation.isPending
-                ? 'Sending...'
-                : 'Resend verification email'}
-            </Button>
-          </form>
-        </Form>
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={resendMutation.isPending}>
+                {resendMutation.isPending
+                  ? 'Sending...'
+                  : 'Resend verification email'}
+              </Button>
+            </form>
+          </Form>
+          <div className="text-sm mt-12">
+            Already verified?{' '}
+            <Link href="/login" className="text-blue-500">
+              Return to sign in
+            </Link>
+          </div>
+        </>
       )}
-    </AuthShell>
+    </div>
   )
 }

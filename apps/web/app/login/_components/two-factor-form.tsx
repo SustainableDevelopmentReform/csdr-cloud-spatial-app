@@ -124,84 +124,67 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-4">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Two-factor verification
-          </div>
-          <div className="mt-2 text-2xl font-semibold text-stone-950">
-            Finish signing in
-          </div>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
+          <div className="font-bold text-2xl mb-2">Two-factor verification</div>
+          <p className="text-sm text-gray-500 mb-4">
             Choose the second-factor method that is available to you for this
             account.
           </p>
         </div>
-        {props.onCancel ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="rounded-full text-stone-600 hover:text-stone-900"
-            onClick={props.onCancel}
-          >
-            Back
-          </Button>
-        ) : (
-          <Link href="/login" className="text-sm font-medium text-[#9d3c17]">
-            Back to login
-          </Link>
-        )}
       </div>
+      {props.onCancel ? (
+        <button
+          className="flex items-center gap-1 text-sm text-gray-500 mb-4 hover:text-gray-700"
+          onClick={props.onCancel}
+        >
+          Back to login
+        </button>
+      ) : (
+        <Link href="/login" className="text-sm text-blue-500 mb-4 inline-block">
+          Back to login
+        </Link>
+      )}
 
-      <div className="mb-5 rounded-[28px] border border-stone-900/10 bg-white/60 px-5 py-4">
-        <div className="text-sm font-semibold text-stone-900">
-          Trust this device
-        </div>
-        <div className="mt-1 text-sm leading-6 text-stone-600">
+      <div className="mb-4 rounded-md border border-gray-200 bg-white p-4">
+        <div className="text-sm font-medium">Trust this device</div>
+        <div className="mt-1 text-sm text-gray-500">
           Skip another two-factor prompt on this browser for the next 30 days.
         </div>
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-stone-900/10 bg-[#fcf7ef] px-4 py-3">
-          <div className="text-sm text-stone-700">Remember this browser</div>
-          <Switch
-            checked={trustDevice}
-            onCheckedChange={setTrustDevice}
-            className="data-[state=checked]:bg-[#1d3d35]"
-          />
+        <div className="mt-4 flex items-center gap-2">
+          <div className="text-sm">Remember this browser</div>
+          <Switch checked={trustDevice} onCheckedChange={setTrustDevice} />
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-5 grid h-auto w-full grid-cols-3 rounded-2xl bg-stone-900/5 p-1">
-          <TabsTrigger value="totp" className="rounded-2xl py-2.5">
+        <TabsList className="w-full">
+          <TabsTrigger value="totp">
             <Smartphone className="mr-2 h-4 w-4" />
             App
           </TabsTrigger>
-          <TabsTrigger value="email" className="rounded-2xl py-2.5">
+          <TabsTrigger value="email">
             <Mail className="mr-2 h-4 w-4" />
             Email
           </TabsTrigger>
-          <TabsTrigger value="backup" className="rounded-2xl py-2.5">
+          <TabsTrigger value="backup">
             <KeyRound className="mr-2 h-4 w-4" />
             Backup
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="totp">
-          <div className="rounded-[28px] border border-stone-900/10 bg-white/60 px-5 py-5">
-            <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Authenticator app
-            </div>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
+        <TabsContent value="totp" className="mt-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-4">
               Enter the 6-digit code from your authenticator app.
             </p>
-            <div className="mt-5 flex justify-center">
+            <div className="flex justify-center mb-4">
               <OTPCodeInput value={totpCode} onChange={setTotpCode} />
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="flex gap-2">
               <Button
                 type="button"
                 disabled={verifyTotpMutation.isPending || totpCode.length !== 6}
-                className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
                 onClick={() => verifyTotpMutation.mutate()}
               >
                 {verifyTotpMutation.isPending ? 'Verifying...' : 'Verify code'}
@@ -209,7 +192,6 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full border-stone-900/15"
                 disabled={sendOtpMutation.isPending}
                 onClick={() => sendOtpMutation.mutate()}
               >
@@ -219,22 +201,18 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="email">
-          <div className="rounded-[28px] border border-stone-900/10 bg-white/60 px-5 py-5">
-            <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Email code
-            </div>
-            <p className="mt-2 text-sm leading-6 text-stone-600">{emailHint}</p>
-            <div className="mt-5 flex justify-center">
+        <TabsContent value="email" className="mt-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-4">{emailHint}</p>
+            <div className="flex justify-center mb-4">
               <OTPCodeInput value={emailCode} onChange={setEmailCode} />
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="flex gap-2">
               <Button
                 type="button"
                 disabled={
                   verifyEmailOtpMutation.isPending || emailCode.length !== 6
                 }
-                className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
                 onClick={() => verifyEmailOtpMutation.mutate()}
               >
                 {verifyEmailOtpMutation.isPending
@@ -244,7 +222,6 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full border-stone-900/15"
                 disabled={sendOtpMutation.isPending}
                 onClick={() => sendOtpMutation.mutate()}
               >
@@ -254,29 +231,25 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="backup">
-          <div className="rounded-[28px] border border-stone-900/10 bg-white/60 px-5 py-5">
-            <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Backup code
-            </div>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
+        <TabsContent value="backup" className="mt-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-4">
               Use one of the single-use recovery codes you saved when 2FA was
               enabled.
             </p>
             <Input
-              className="mt-5"
               value={backupCode}
               onChange={(event) => setBackupCode(event.target.value)}
               autoCapitalize="characters"
               placeholder="Enter a saved backup code"
+              className="mb-4"
             />
-            <div className="mt-5">
+            <div>
               <Button
                 type="button"
                 disabled={
                   verifyBackupCodeMutation.isPending || backupCode.trim() === ''
                 }
-                className="rounded-full bg-[#1d3d35] text-white hover:bg-[#173129]"
                 onClick={() => verifyBackupCodeMutation.mutate()}
               >
                 {verifyBackupCodeMutation.isPending

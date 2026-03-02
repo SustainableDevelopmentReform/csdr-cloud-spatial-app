@@ -162,7 +162,7 @@ const LoginForm = () => {
                   <FormLabel>Password</FormLabel>
                   <Link
                     href="/forgot-password"
-                    className="text-xs font-medium uppercase tracking-[0.2em] text-[#9d3c17] transition-colors hover:text-[#7d2f11]"
+                    className="text-sm text-blue-500"
                   >
                     Forgot password?
                   </Link>
@@ -194,10 +194,7 @@ const LoginForm = () => {
               </FormItem>
             )}
           />
-          <Button
-            disabled={submitMutation.isPending}
-            className="mt-2 h-11 rounded-full bg-[#9d3c17] text-[#fff8f2] hover:bg-[#842f10]"
-          >
+          <Button disabled={submitMutation.isPending} className="mt-1">
             {submitMutation.isPending ? 'Loading...' : 'Log in'}
           </Button>
         </form>
