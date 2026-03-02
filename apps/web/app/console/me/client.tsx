@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { OTPCodeInput } from '~/components/otp-code-input'
@@ -716,7 +717,18 @@ export default function ClientPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="rounded-[26px] border border-stone-900/10 bg-white/70 p-5">
+                    <div className="text-sm font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Authenticator QR
+                    </div>
+                    <div className="mt-4 flex justify-center rounded-[24px] border border-stone-900/10 bg-[#fcf7ef] p-4">
+                      {setupTotpURI ? (
+                        <QRCodeSVG value={setupTotpURI} size={192} />
+                      ) : null}
+                    </div>
+                  </div>
+
                   <div className="rounded-[26px] border border-stone-900/10 bg-white/70 p-5">
                     <div className="text-sm font-semibold uppercase tracking-[0.2em] text-stone-500">
                       Manual authenticator setup
@@ -752,28 +764,21 @@ export default function ClientPage() {
                           />
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[26px] border border-stone-900/10 bg-white/70 p-5">
-                    <div className="text-sm font-semibold uppercase tracking-[0.2em] text-stone-500">
-                      Full TOTP URI
-                    </div>
-                    <div className="mt-4 rounded-2xl border border-stone-900/10 bg-[#fcf7ef] px-4 py-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <code className="break-all text-xs leading-6 text-stone-700">
-                          {setupTotpURI}
-                        </code>
-                        <CopyButton
-                          value={setupTotpURI ?? ''}
-                          className="h-8 w-8"
-                        />
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.18em] text-stone-500">
+                          Full TOTP URI
+                        </div>
+                        <div className="mt-2 flex items-start justify-between gap-4 rounded-2xl border border-stone-900/10 bg-[#fcf7ef] px-4 py-4">
+                          <code className="break-all text-xs leading-6 text-stone-700">
+                            {setupTotpURI}
+                          </code>
+                          <CopyButton
+                            value={setupTotpURI ?? ''}
+                            className="h-8 w-8"
+                          />
+                        </div>
                       </div>
                     </div>
-                    <p className="mt-4 text-sm leading-6 text-stone-600">
-                      Use manual entry in your authenticator app if scanning a
-                      QR code is not available.
-                    </p>
                   </div>
                 </div>
 

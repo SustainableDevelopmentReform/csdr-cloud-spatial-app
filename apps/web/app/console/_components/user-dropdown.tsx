@@ -15,6 +15,8 @@ import { useConfig } from '../../../components/providers'
 import { SignOutButton } from '../../../components/sign-out-button'
 import { useAuthClient } from '../../../hooks/useAuthClient'
 import { useState } from 'react'
+import AccountSettingsButton from './account-settings-button'
+import TwoFactorButton from './two-factor-dialog'
 
 export const UserDropdown = () => {
   const { apiBaseUrl } = useConfig()
@@ -45,13 +47,8 @@ export const UserDropdown = () => {
           </div>
         </div>
         <div className="pt-2 mt-2 border-t border-gray-200 px-4 flex flex-col gap-1">
-          <Link
-            className="mb-2 block w-full text-left"
-            href="/console/me"
-            onClick={() => setIsOpen(false)}
-          >
-            Account details
-          </Link>
+          <AccountSettingsButton onClose={() => setIsOpen(false)} />
+          <TwoFactorButton onClose={() => setIsOpen(false)} />
           <Link
             className="mb-2 block w-full text-left"
             href="/console/me/api-keys"
