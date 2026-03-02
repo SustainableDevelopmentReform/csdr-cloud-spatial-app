@@ -499,7 +499,7 @@ const ProductOutputsImportForm = ({
 
   return (
     <Form {...form}>
-      <form className="space-y-6 overflow-x-auto" onSubmit={onSubmit}>
+      <form className="space-y-6" onSubmit={onSubmit}>
         <FormField
           control={form.control}
           name="csvFile"
@@ -669,8 +669,8 @@ const ProductOutputsImportForm = ({
         {csvSummary ? (
           <div className="space-y-2">
             <FormLabel>Data preview</FormLabel>
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
+            <div className="max-w-full overflow-x-auto rounded-md border">
+              <table className="w-full min-w-max text-sm">
                 <thead>
                   <tr>
                     {csvSummary.columns.map((column) => (

@@ -324,17 +324,17 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
   ])
 
   return (
-    <div className="flex w-full flex-1 min-h-0 flex-col overflow-auto rounded-md border border-border shadow-sm">
-      <table className="h-full w-full min-w-[480px] table-fixed border-collapse text-sm">
+    <div className="flex w-full max-w-full min-w-0 flex-1 min-h-0 flex-col overflow-x-auto overflow-y-auto rounded-md border border-border shadow-sm">
+      <table className="h-full w-full min-w-max table-auto border-collapse text-sm">
         <thead className="bg-muted/40">
           <tr>
-            <th className="sticky left-0 z-1 border-b border-border bg-muted/40 px-4 py-2 text-left font-semibold">
+            <th className="sticky left-0 z-1 border-b border-border bg-muted/40 px-2 py-2 text-left font-semibold">
               {dimensionLabels[yDimension]}
             </th>
             {columns.map((column) => (
               <th
                 key={column.key}
-                className="border-b border-l border-border px-4 py-2 text-left font-semibold"
+                className="border-b border-l border-border px-2 py-2 text-left font-semibold"
               >
                 {column.label}
               </th>
@@ -349,7 +349,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
                 index < rows.length - 1 && 'border-b border-border',
               )}
             >
-              <th className="sticky left-0 z-1 border-r border-border bg-background px-4 py-2 text-left font-medium">
+              <th className="sticky left-0 z-1 border-r border-border bg-background px-2 py-2 text-left font-medium">
                 {row.meta.label}
               </th>
               {columns.map((column) => {
@@ -369,7 +369,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
                   <td
                     key={column.key}
                     className={clsx(
-                      'border-l border-border px-4 py-2 text-right transition cursor-pointer hover:brightness-95',
+                      'border-l border-border px-2 py-2 text-right transition cursor-pointer hover:brightness-95',
                       // isSelected && 'outline outline-2 outline-primary',
                     )}
                     style={{
