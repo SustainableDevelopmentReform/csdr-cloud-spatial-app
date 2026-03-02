@@ -106,7 +106,12 @@ v0ApiRoutes
     },
     servers: [
       {
-        url: new URL(c.req.url).origin,
+        url: (() => {
+          const proto = c.req.header('x-forwarded-proto')
+          const host = c.req.header('x-forwarded-host') ?? c.req.header('host')
+          if (proto && host) return `${proto}://${host}`
+          return new URL(c.req.url).origin
+        })(),
         description: 'Current environment',
       },
     ],
