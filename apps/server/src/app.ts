@@ -75,16 +75,14 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
 
   await enforceAuthRateLimit(c.req.raw, body)
 
-  const session = await auth.api
-    .getSession({ headers: c.req.raw.headers })
-    .catch(() => null)
+  const user = c.get('user')
 
   const response = await auth.handler(c.req.raw)
 
   logTwoFactorRouteResult({
     request: c.req.raw,
     response,
-    session: session ? { user: session.user } : null,
+    session: user ? { user } : null,
   })
 
   return response
