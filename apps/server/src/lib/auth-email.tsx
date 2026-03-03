@@ -7,7 +7,6 @@ import { VerificationEmail } from '~/emails/verification-email'
 import { env } from '~/env'
 import { logAuthSecurity } from './auth-security'
 
-export type AuthEmailMode = 'log' | 'smtp'
 export type AuthEmailKind = 'verification' | 'password-reset' | 'two-factor-otp'
 
 interface AuthEmailUser {
@@ -26,7 +25,6 @@ interface AuthEmailMessage {
   rawToken?: string
 }
 
-const authEmailMode: AuthEmailMode = env.AUTH_EMAIL_MODE
 let smtpTransporter: Transporter | null = null
 
 async function getSmtpTransporter() {
@@ -77,7 +75,8 @@ async function renderEmail(message: AuthEmailMessage) {
 }
 
 async function deliverAuthEmail(message: AuthEmailMessage) {
-  if (authEmailMode === 'log') {
+  console.info(`[auth_email] AUTH_EMAIL_MODE: ${env.AUTH_EMAIL_MODE}`)
+  if (env.AUTH_EMAIL_MODE === 'log') {
     const safeDetails =
       env.NODE_ENV === 'production'
         ? {
@@ -100,6 +99,8 @@ async function deliverAuthEmail(message: AuthEmailMessage) {
 
   const { html, text } = await renderEmail(message)
   const transporter = await getSmtpTransporter()
+
+  console.info(`[auth_email] Sending email to ${message.to}`)
 
   await transporter.sendMail({
     from: env.EMAIL_SENDER,
@@ -129,7 +130,7 @@ export async function sendVerificationEmail(data: {
   logAuthSecurity('verification_email_sent', {
     userId: data.user.id,
     email: data.user.email,
-    deliveryMode: authEmailMode,
+    deliveryMode: env.AUTH_EMAIL_MODE,
   })
 }
 
@@ -150,7 +151,7 @@ export async function sendResetPasswordEmail(data: {
   logAuthSecurity('password_reset_requested', {
     userId: data.user.id,
     email: data.user.email,
-    deliveryMode: authEmailMode,
+    deliveryMode: env.AUTH_EMAIL_MODE,
   })
 }
 
@@ -169,6 +170,6 @@ export async function sendTwoFactorOTPEmail(data: {
   logAuthSecurity('two_factor_email_otp_sent', {
     userId: data.user.id,
     email: data.user.email,
-    deliveryMode: authEmailMode,
+    deliveryMode: env.AUTH_EMAIL_MODE,
   })
 }

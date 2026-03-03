@@ -46,6 +46,7 @@ import {
 } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
 import { ImportProductOutputsPayload, useImportProductOutputs } from '../_hooks'
 import type { IndicatorListItem } from '../../indicator/_hooks'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
@@ -221,6 +222,8 @@ const ProductOutputsImportForm = ({
   const [dropError, setDropError] = useState<string | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useUnsavedChangesWarning(selectedFile !== null)
 
   const geometryColumn = form.watch('geometryColumn')
   const indicatorMappings = form.watch('indicatorMappings')
@@ -499,7 +502,7 @@ const ProductOutputsImportForm = ({
 
   return (
     <Form {...form}>
-      <form className="space-y-6" onSubmit={onSubmit}>
+      <form className="min-w-0 space-y-6" onSubmit={onSubmit}>
         <FormField
           control={form.control}
           name="csvFile"
@@ -669,7 +672,7 @@ const ProductOutputsImportForm = ({
         {csvSummary ? (
           <div className="space-y-2">
             <FormLabel>Data preview</FormLabel>
-            <div className="max-w-full overflow-x-auto rounded-md border">
+            <div className="min-w-0 overflow-x-auto rounded-md border">
               <table className="w-full min-w-max text-sm">
                 <thead>
                   <tr>

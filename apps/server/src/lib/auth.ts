@@ -42,7 +42,7 @@ const plugins: Plugins = [
           otp,
         })
       },
-      storeOTP: 'hashed',
+      storeOTP: 'encrypted',
     },
     backupCodeOptions: {
       storeBackupCodes: 'encrypted',
@@ -62,6 +62,8 @@ const plugins: Plugins = [
   organization(),
 ]
 
+const authBaseUrl = env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL
+
 const authConfig = {
   logger: {
     level: 'info',
@@ -71,7 +73,7 @@ const authConfig = {
     },
   },
   appName: 'CSDR Cloud Spatial',
-  baseURL: env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL,
+  baseURL: authBaseUrl,
   trustedOrigins: env.TRUSTED_ORIGINS,
   database: drizzleAdapter(db, {
     provider: 'pg',

@@ -122,7 +122,7 @@ const LoginForm = () => {
           {notices.map((notice) => (
             <div
               key={notice.title}
-              className="rounded-3xl border border-[#1d3d35]/15 bg-[#1d3d35]/6 px-4 py-3"
+              className="rounded-md border border-[#1d3d35]/15 bg-[#1d3d35]/6 px-4 py-3"
             >
               <div className="text-sm font-semibold text-[#173129]">
                 {notice.title}

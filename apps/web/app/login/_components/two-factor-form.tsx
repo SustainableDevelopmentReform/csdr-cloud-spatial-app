@@ -11,7 +11,7 @@ import {
 } from '@repo/ui/components/ui/tabs'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation } from '@tanstack/react-query'
-import { KeyRound, Mail, Smartphone } from 'lucide-react'
+import { ArrowLeft, KeyRound, Mail, Smartphone } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { OTPCodeInput } from '~/components/otp-code-input'
@@ -133,18 +133,13 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
           </p>
         </div>
       </div>
-      {props.onCancel ? (
-        <button
-          className="flex items-center gap-1 text-sm text-gray-500 mb-4 hover:text-gray-700"
-          onClick={props.onCancel}
-        >
-          Back to login
-        </button>
-      ) : (
-        <Link href="/login" className="text-sm text-blue-500 mb-4 inline-block">
-          Back to login
-        </Link>
-      )}
+      <button
+        onClick={() => props.onCancel?.() || router.push('/login')}
+        className="flex items-center gap-1 text-sm text-blue-500 mb-4 hover:text-blue-700"
+      >
+        <ArrowLeft className="h-4 w-4 " />
+        Back to login
+      </button>
 
       <div className="mb-4 rounded-md border border-gray-200 bg-white p-4">
         <div className="text-sm font-medium">Trust this device</div>
