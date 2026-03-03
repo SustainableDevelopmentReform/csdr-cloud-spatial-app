@@ -1,4 +1,4 @@
-import { auth } from '~/lib/auth'
+import { AuthType } from '~/lib/auth'
 import { createMiddleware } from 'hono/factory'
 import { ServerError } from '../lib/error'
 
@@ -8,29 +8,23 @@ interface AuthMiddlewareOptions {
 
 export const authMiddleware = (options: AuthMiddlewareOptions) =>
   createMiddleware<{
-    Variables: {
-      userId: string
-    }
-    Bindings: any
+    Variables: AuthType
   }>(async (c, next) => {
-    // Use better-auth's session management
-    const session = await auth.api.getSession({
-      headers: c.req.raw.headers,
-    })
+    const user = c.get('user')
+    const session = c.get('session')
 
-    if (!session) {
+    if (!session || !user) {
       throw new ServerError({
         statusCode: 401,
         message: 'User is not authenticated',
       })
     }
 
-    // Allow all read permissions to logged in users
     if (options.permission.startsWith('read:')) {
       return await next()
     }
 
-    if (session.user.role === 'admin') {
+    if (user.role === 'admin') {
       return await next()
     }
 

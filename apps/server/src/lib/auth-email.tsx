@@ -75,7 +75,6 @@ async function renderEmail(message: AuthEmailMessage) {
 }
 
 async function deliverAuthEmail(message: AuthEmailMessage) {
-  console.info(`[auth_email] AUTH_EMAIL_MODE: ${env.AUTH_EMAIL_MODE}`)
   if (env.AUTH_EMAIL_MODE === 'log') {
     const safeDetails =
       env.NODE_ENV === 'production'
@@ -100,7 +99,7 @@ async function deliverAuthEmail(message: AuthEmailMessage) {
   const { html, text } = await renderEmail(message)
   const transporter = await getSmtpTransporter()
 
-  console.info(`[auth_email] Sending email to ${message.to}`)
+  console.info(`[auth_email] Sending ${message.kind} email to ${message.to}`)
 
   await transporter.sendMail({
     from: env.EMAIL_SENDER,

@@ -18,22 +18,14 @@ import {
 import { logAuthSecurity } from './auth-security'
 import { db } from './db'
 
-export type Plugins = [
-  ReturnType<typeof admin>,
-  ReturnType<typeof twoFactor>,
-  ReturnType<typeof openAPI>,
-  ReturnType<typeof anonymous>,
-  ReturnType<typeof apiKey>,
-  ReturnType<typeof organization>,
-]
-
-const plugins: Plugins = [
+const plugins = [
   admin(),
   twoFactor({
     issuer: 'CSDR Cloud Spatial',
     otpOptions: {
       sendOTP: async ({ user, otp }) => {
-        await sendTwoFactorOTPEmail({
+        // Better-auth recommends not awaiting the email sending to avoid timing attacks
+        void sendTwoFactorOTPEmail({
           user: {
             id: user.id,
             email: user.email,
@@ -104,7 +96,8 @@ const authConfig = {
     resetPasswordTokenExpiresIn: 60 * 60,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url, token }) => {
-      await sendResetPasswordEmail({
+      // Better-auth recommends not awaiting the email sending to avoid timing attacks
+      void sendResetPasswordEmail({
         user: {
           id: user.id,
           email: user.email,
@@ -123,7 +116,8 @@ const authConfig = {
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url, token }) => {
-      await sendVerificationEmail({
+      // Better-auth recommends not awaiting the email sending to avoid timing attacks
+      void sendVerificationEmail({
         user: {
           id: user.id,
           email: user.email,
@@ -157,9 +151,7 @@ const authConfig = {
   },
 } satisfies BetterAuthOptions
 
-export const auth = betterAuth(authConfig) as ReturnType<
-  typeof betterAuth<typeof authConfig>
->
+export const auth = betterAuth(authConfig)
 
 export type AuthType = {
   user: typeof auth.$Infer.Session.user | null
