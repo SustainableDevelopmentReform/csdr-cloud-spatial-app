@@ -64,6 +64,12 @@ export const dataset = pgTable(
     sourceMetadataUrl: text('source_metadata_url'),
   },
   (table) => [
+    // Substring search indexes require the pg_trgm extension.
+    index('dataset_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('dataset_name_idx').on(table.name),
     index('dataset_created_at_idx').on(table.createdAt),
     index('dataset_main_run_id_idx').on(table.mainRunId),
@@ -78,6 +84,11 @@ export const geometries = pgTable(
     sourceMetadataUrl: text('source_metadata_url'),
   },
   (table) => [
+    index('geometries_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('geometries_name_idx').on(table.name),
     index('geometries_created_at_idx').on(table.createdAt),
     index('geometries_main_run_id_idx').on(table.mainRunId),
@@ -110,6 +121,12 @@ export const product = pgTable(
     timePrecision: timePrecision('time_precision').notNull(),
   },
   (table) => [
+    index('product_search_trgm_idx').using(
+      'gin',
+      table.id.op('gin_trgm_ops'),
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('product_name_idx').on(table.name),
     index('product_dataset_id_idx').on(table.datasetId),
     index('product_geometries_id_idx').on(table.geometriesId),
@@ -129,6 +146,11 @@ export const datasetRun = pgTable(
       .references(() => dataset.id, { onDelete: 'cascade' }),
   },
   (table) => [
+    index('dataset_run_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('dataset_run_dataset_idx').on(table.datasetId),
     index('dataset_run_created_at_idx').on(table.createdAt),
   ],
@@ -145,6 +167,11 @@ export const geometriesRun = pgTable(
       .references(() => geometries.id, { onDelete: 'cascade' }),
   },
   (table) => [
+    index('geometries_run_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('geometries_run_geometries_idx').on(table.geometriesId),
     index('geometries_run_created_at_idx').on(table.createdAt),
   ],
@@ -185,6 +212,15 @@ export const productRun = pgTable(
     ),
   },
   (table) => [
+    index('product_run_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
+    index('product_run_product_created_at_idx').on(
+      table.productId,
+      table.createdAt,
+    ),
     index('product_run_dataset_idx').on(table.datasetRunId),
     index('product_run_geometries_idx').on(table.geometriesRunId),
     index('product_run_created_at_idx').on(table.createdAt),
@@ -275,6 +311,10 @@ export const productOutput = pgTable(
     // timeInterval: tstzrange('time_interval'),
   },
   (table) => [
+    index('product_output_run_created_at_idx').on(
+      table.productRunId,
+      table.createdAt,
+    ),
     index('product_output_product_run_idx').on(table.productRunId),
     index('product_output_created_at_idx').on(table.createdAt),
     index('product_output_geometry_output_id_idx').on(table.geometryOutputId),
@@ -432,6 +472,12 @@ export const indicator = pgTable(
     ...indicatorBaseColumns,
   },
   (table) => [
+    index('indicator_search_trgm_idx').using(
+      'gin',
+      table.id.op('gin_trgm_ops'),
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('indicator_category_idx').on(table.categoryId),
     index('indicator_name_idx').on(table.name),
     // Composite index for listing indicators within a category with ordering
@@ -449,6 +495,12 @@ export const derivedIndicator = pgTable(
     expression: text('expression').notNull(),
   },
   (table) => [
+    index('derived_indicator_search_trgm_idx').using(
+      'gin',
+      table.id.op('gin_trgm_ops'),
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
     index('derived_indicator_category_idx').on(table.categoryId),
     index('derived_indicator_name_idx').on(table.name),
     // Composite index for listing indicators within a category with ordering
@@ -474,15 +526,35 @@ export const derivedIndicatorToIndicator = pgTable(
   ],
 )
 
-export const report = pgTable('report', {
-  ...baseColumns,
-  content: jsonb('content'),
-})
+export const report = pgTable(
+  'report',
+  {
+    ...baseColumns,
+    content: jsonb('content'),
+  },
+  (table) => [
+    index('report_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
+  ],
+)
 
-export const dashboard = pgTable('dashboard', {
-  ...baseColumns,
-  content: jsonb('content').notNull(),
-})
+export const dashboard = pgTable(
+  'dashboard',
+  {
+    ...baseColumns,
+    content: jsonb('content').notNull(),
+  },
+  (table) => [
+    index('dashboard_search_trgm_idx').using(
+      'gin',
+      table.name.op('gin_trgm_ops'),
+      table.description.op('gin_trgm_ops'),
+    ),
+  ],
+)
 
 // Relations
 export const datasetRelations = relations(dataset, ({ many, one }) => ({
