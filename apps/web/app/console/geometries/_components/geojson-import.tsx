@@ -44,6 +44,7 @@ import {
 } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
 import { ImportGeometriesRunPayload, useImportGeometryOutputs } from '../_hooks'
 
 type GeojsonSummary = {
@@ -176,6 +177,8 @@ const GeojsonImportForm = ({
   const [isDragActive, setIsDragActive] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useUnsavedChangesWarning(selectedFile !== null)
 
   const resetGeojsonState = useCallback(() => {
     setGeojsonSummary(null)

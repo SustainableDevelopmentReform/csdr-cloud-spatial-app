@@ -81,6 +81,8 @@
   },
   "globalEnv": [
     "APP_URL",
+    "AUTH_BASE_URL",
+    "AUTH_EMAIL_MODE",
     "INTERNAL_FRONTEND_URL",
     "INTERNAL_BACKEND_URL",
     "TRUSTED_ORIGINS",

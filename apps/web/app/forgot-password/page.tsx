@@ -55,7 +55,9 @@ export default function ForgotPasswordPage() {
     <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       {submittedEmail ? (
         <>
-          <div className="font-bold text-2xl mb-2 w-full">Check your email</div>
+          <div className="font-bold text-2xl mb-2 w-full text-center">
+            Check your email
+          </div>
           <p className="text-sm text-gray-500 text-center mb-6 w-full">
             If <span className="font-medium">{submittedEmail}</span> belongs to
             an account, the reset instructions have been sent.

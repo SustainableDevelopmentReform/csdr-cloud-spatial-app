@@ -22,6 +22,11 @@ export function OTPCodeInput({
   length = 6,
 }: OTPCodeInputProps) {
   const midpoint = Math.floor(length / 2)
+  const firstGroup = Array.from({ length: midpoint }, (_, index) => index)
+  const secondGroup = Array.from(
+    { length: length - midpoint },
+    (_, index) => index + midpoint,
+  )
 
   return (
     <InputOTP
@@ -32,16 +37,27 @@ export function OTPCodeInput({
       pattern={REGEXP_ONLY_DIGITS}
       containerClassName="w-full justify-center"
     >
-      <InputOTPGroup>
-        {Array.from({ length }).map((_, index) => (
-          <div key={index} className="flex items-center">
-            {length > 4 && index === midpoint ? (
-              <InputOTPSeparator className="mx-1 text-stone-400" />
-            ) : null}
-            <InputOTPSlot index={index} />
-          </div>
-        ))}
-      </InputOTPGroup>
+      {length > 4 ? (
+        <>
+          <InputOTPGroup>
+            {firstGroup.map((index) => (
+              <InputOTPSlot key={index} index={index} />
+            ))}
+          </InputOTPGroup>
+          <InputOTPSeparator className="mx-1 text-stone-400" />
+          <InputOTPGroup>
+            {secondGroup.map((index) => (
+              <InputOTPSlot key={index} index={index} />
+            ))}
+          </InputOTPGroup>
+        </>
+      ) : (
+        <InputOTPGroup>
+          {secondGroup.map((index) => (
+            <InputOTPSlot key={index} index={index} />
+          ))}
+        </InputOTPGroup>
+      )}
     </InputOTP>
   )
 }

@@ -13,16 +13,17 @@ import {
 import React from 'react'
 
 const palette = {
-  paper: '#f4efe6',
-  ink: '#1b1c19',
-  muted: '#65645d',
-  border: '#d8cfbe',
-  accent: '#9d3c17',
-  code: '#fcf6ee',
+  background: '#fafafa',
+  card: '#ffffff',
+  foreground: '#09090b',
+  muted: '#71717a',
+  border: '#e4e4e7',
+  primary: '#18181b',
+  primaryForeground: '#fafaf9',
 }
 
-const fontStack = '"Iowan Old Style", "Palatino Linotype", Palatino, serif'
-const sansStack = '"Avenir Next", "Segoe UI", sans-serif'
+const sansStack =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif'
 
 interface AuthEmailLayoutProps {
   preview: string
@@ -41,38 +42,28 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
       <Preview>{props.preview}</Preview>
       <Body
         style={{
-          backgroundColor: '#e9dfcf',
+          backgroundColor: palette.background,
           fontFamily: sansStack,
           margin: '0',
-          padding: '32px 0',
-          color: palette.ink,
+          padding: '40px 16px',
+          color: palette.foreground,
         }}
       >
         <Container
           style={{
-            maxWidth: '620px',
+            maxWidth: '520px',
             margin: '0 auto',
-            backgroundColor: palette.paper,
+            backgroundColor: palette.card,
             border: `1px solid ${palette.border}`,
-            borderRadius: '28px',
-            overflow: 'hidden',
-            boxShadow: '0 24px 70px rgba(41, 29, 16, 0.10)',
+            borderRadius: '8px',
           }}
         >
-          <Section
-            style={{
-              padding: '28px 32px 18px',
-              background:
-                'linear-gradient(135deg, rgba(157,60,23,0.10), rgba(244,239,230,0.4))',
-              borderBottom: `1px solid ${palette.border}`,
-            }}
-          >
+          <Section style={{ padding: '32px 32px 0' }}>
             <Text
               style={{
-                margin: '0 0 10px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.2em',
-                fontSize: '11px',
+                margin: '0 0 4px',
+                fontSize: '13px',
+                fontWeight: '500',
                 color: palette.muted,
               }}
             >
@@ -81,24 +72,23 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
             <Heading
               style={{
                 margin: '0',
-                fontFamily: fontStack,
-                fontSize: '34px',
-                lineHeight: '1.1',
-                fontWeight: '700',
-                color: palette.ink,
+                fontSize: '24px',
+                lineHeight: '1.3',
+                fontWeight: '600',
+                color: palette.foreground,
               }}
             >
               {props.heading}
             </Heading>
           </Section>
 
-          <Section style={{ padding: '28px 32px 32px' }}>
+          <Section style={{ padding: '24px 32px 32px' }}>
             <Text
               style={{
-                margin: '0 0 18px',
-                fontSize: '16px',
-                lineHeight: '26px',
-                color: palette.ink,
+                margin: '0 0 20px',
+                fontSize: '14px',
+                lineHeight: '24px',
+                color: palette.foreground,
               }}
             >
               {props.lead}
@@ -107,31 +97,33 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
             {props.code ? (
               <Section
                 style={{
-                  margin: '0 0 18px',
-                  padding: '18px 20px',
-                  backgroundColor: palette.code,
+                  margin: '0 0 20px',
+                  padding: '16px 20px',
+                  backgroundColor: palette.background,
                   border: `1px solid ${palette.border}`,
-                  borderRadius: '18px',
+                  borderRadius: '6px',
+                  textAlign: 'center' as const,
                 }}
               >
                 <Text
                   style={{
-                    margin: '0 0 8px',
+                    margin: '0 0 4px',
                     fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.18em',
+                    fontWeight: '500',
                     color: palette.muted,
                   }}
                 >
-                  One-time code
+                  Your verification code
                 </Text>
                 <Text
                   style={{
                     margin: '0',
-                    fontSize: '34px',
+                    fontSize: '32px',
                     fontWeight: '700',
-                    letterSpacing: '0.32em',
-                    color: palette.ink,
+                    letterSpacing: '0.2em',
+                    fontFamily:
+                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    color: palette.foreground,
                   }}
                 >
                   {props.code}
@@ -144,14 +136,14 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
                 href={props.actionUrl}
                 style={{
                   display: 'inline-block',
-                  margin: '8px 0 16px',
-                  padding: '14px 24px',
-                  backgroundColor: palette.accent,
-                  color: '#fff7f2',
-                  borderRadius: '999px',
+                  margin: '4px 0 20px',
+                  padding: '10px 16px',
+                  backgroundColor: palette.primary,
+                  color: palette.primaryForeground,
+                  borderRadius: '6px',
                   textDecoration: 'none',
                   fontSize: '14px',
-                  fontWeight: '700',
+                  fontWeight: '500',
                 }}
               >
                 {props.actionLabel}
@@ -161,9 +153,9 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
             {props.helperText ? (
               <Text
                 style={{
-                  margin: '0',
-                  fontSize: '14px',
-                  lineHeight: '22px',
+                  margin: '0 0 8px',
+                  fontSize: '13px',
+                  lineHeight: '20px',
                   color: palette.muted,
                 }}
               >
@@ -174,15 +166,15 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
             <Hr
               style={{
                 borderColor: palette.border,
-                margin: '26px 0 18px',
+                margin: '24px 0 16px',
               }}
             />
 
             <Text
               style={{
                 margin: '0',
-                fontSize: '13px',
-                lineHeight: '22px',
+                fontSize: '12px',
+                lineHeight: '20px',
                 color: palette.muted,
               }}
             >

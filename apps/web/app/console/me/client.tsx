@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { Label } from '@repo/ui/components/ui/label'
 import { Switch } from '@repo/ui/components/ui/switch'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation } from '@tanstack/react-query'
@@ -694,7 +695,7 @@ export default function ClientPage() {
             {!isShowingSetupMaterials ? (
               <div className="grid gap-4">
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <Label>Password</Label>
                   <Input
                     value={setupPassword}
                     onChange={(event) => setSetupPassword(event.target.value)}
@@ -862,7 +863,7 @@ export default function ClientPage() {
             {freshBackupCodes.length === 0 ? (
               <div className="grid gap-4">
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <Label>Password</Label>
                   <Input
                     value={backupPassword}
                     onChange={(event) => setBackupPassword(event.target.value)}
@@ -935,7 +936,7 @@ export default function ClientPage() {
           </div>
           <div className="px-6 py-6">
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <Label>Password</Label>
               <Input
                 value={disablePassword}
                 onChange={(event) => setDisablePassword(event.target.value)}
