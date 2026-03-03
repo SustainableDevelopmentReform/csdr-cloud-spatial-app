@@ -183,10 +183,12 @@ const ProductOutputsImportForm = ({
   productRunId,
   geometriesRunId,
   onCompleted,
+  dirtyRef,
 }: {
   productRunId?: string
   geometriesRunId?: string
   onCompleted: () => void
+  dirtyRef: React.RefObject<boolean>
 }) => {
   const defaultValues = useMemo(
     () => ({
@@ -224,6 +226,10 @@ const ProductOutputsImportForm = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useUnsavedChangesWarning(selectedFile !== null)
+
+  useEffect(() => {
+    dirtyRef.current = selectedFile !== null
+  }, [selectedFile, dirtyRef])
 
   const geometryColumn = form.watch('geometryColumn')
   const indicatorMappings = form.watch('indicatorMappings')
@@ -744,10 +750,18 @@ export const ProductOutputsImportDialog = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const dirtyRef = useRef(false)
 
   const handleOpenChange = (next: boolean) => {
+    if (!next && dirtyRef.current) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to close?',
+      )
+      if (!confirmed) return
+    }
     setIsOpen(next)
     if (!next) {
+      dirtyRef.current = false
       setFormKey((prev) => prev + 1)
     }
   }
@@ -772,6 +786,7 @@ export const ProductOutputsImportDialog = ({
             key={formKey}
             productRunId={productRunId}
             geometriesRunId={geometriesRunId}
+            dirtyRef={dirtyRef}
             onCompleted={() => handleOpenChange(false)}
           />
         ) : null}
