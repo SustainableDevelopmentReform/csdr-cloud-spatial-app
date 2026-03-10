@@ -86,6 +86,10 @@ const config = {
           DEFAULT: 'hsl(var(--indicator))',
           foreground: 'hsl(var(--indicator-foreground))',
         },
+        workflow: {
+          DEFAULT: 'hsl(var(--workflow))',
+          foreground: 'hsl(var(--workflow-foreground))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

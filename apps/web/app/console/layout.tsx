@@ -5,6 +5,7 @@ import {
   DASHBOARDS_BASE_PATH,
   DATASETS_BASE_PATH,
   GEOMETRIES_BASE_PATH,
+  WORKFLOWS_BASE_PATH,
   PRODUCTS_BASE_PATH,
   REPORTS_BASE_PATH,
   USERS_BASE_PATH,
@@ -19,6 +20,12 @@ const SIDEBAR_CONFIG = [
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: USERS_BASE_PATH,
     roles: ['admin'],
+  },
+  {
+    text: 'Workflows',
+    icon: <SquareIcon className="fill-workflow stroke-none size-6" />,
+    href: WORKFLOWS_BASE_PATH,
+    roles: ['admin', 'user'],
   },
   {
     text: 'Datasets',

@@ -28,6 +28,7 @@ import indicator from './routes/indicator'
 import indicatorCategory from './routes/indicatorCategory'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
+import workflow from './routes/workflow'
 
 const isProduction = env.NODE_ENV === 'production'
 
@@ -82,6 +83,7 @@ const v0ApiRoutes = app
   .route('/indicator-category', indicatorCategory)
   .route('/report', report)
   .route('/dashboard', dashboard)
+  .route('/workflow', workflow)
 
 v0ApiRoutes.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',

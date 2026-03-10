@@ -16,6 +16,7 @@ import {
 import { multiPolygon } from './customTypes'
 
 export * from './auth'
+import { user } from './auth'
 
 const baseColumns = {
   id: text('id').primaryKey(),
@@ -556,6 +557,38 @@ export const dashboard = pgTable(
   ],
 )
 
+export const workflowStatus = pgEnum('workflow_status', [
+  'Started',
+  'Succeeded',
+  'Failed',
+  'Error',
+])
+
+export const workflows = pgTable(
+  'workflows',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: workflowStatus('status').notNull(),
+    message: text('message'),
+    inputParameters: jsonb('input_parameters').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: false })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: false })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: false }),
+  },
+  (table) => [
+    index('idx_workflows_user_id').on(table.userId),
+    index('idx_workflows_id_user_id').on(table.id, table.userId),
+  ],
+)
+
 // Relations
 export const datasetRelations = relations(dataset, ({ many, one }) => ({
   runs: many(datasetRun),
@@ -808,3 +841,14 @@ export const productOutputSummaryIndicatorRelations = relations(
     }),
   }),
 )
+
+export const workflowRelations = relations(workflows, ({ one }) => ({
+  user: one(user, {
+    fields: [workflows.userId],
+    references: [user.id],
+  }),
+}))
+
+export const userRelations = relations(user, ({ many }) => ({
+  workflows: many(workflows),
+}))
