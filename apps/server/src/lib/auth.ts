@@ -71,7 +71,8 @@ const authConfig = {
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
+    // requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
+    requireEmailVerification: false,
     minPasswordLength: 8,
   },
   // socialProviders: {
