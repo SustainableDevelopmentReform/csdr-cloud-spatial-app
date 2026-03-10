@@ -1,6 +1,6 @@
 {
-  "id": "3afaafa6-b6f1-429b-88cc-1c99d3ef38ce",
-  "prevId": "fe4fae5c-78c2-49a5-9cd5-5e08404d6984",
+  "id": "b131c05e-e5de-42f2-b243-f38727b06f99",
+  "prevId": "1840126a-72fc-4a1f-939c-fc6bfc5425f3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -53,7 +53,31 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "dashboard_search_trgm_idx": {
+          "name": "dashboard_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -123,6 +147,29 @@
         }
       },
       "indexes": {
+        "dataset_search_trgm_idx": {
+          "name": "dataset_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "dataset_name_idx": {
           "name": "dataset_name_idx",
           "columns": [
@@ -289,6 +336,29 @@
         }
       },
       "indexes": {
+        "dataset_run_search_trgm_idx": {
+          "name": "dataset_run_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "dataset_run_dataset_idx": {
           "name": "dataset_run_dataset_idx",
           "columns": [
@@ -410,6 +480,36 @@
         }
       },
       "indexes": {
+        "derived_indicator_search_trgm_idx": {
+          "name": "derived_indicator_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "derived_indicator_category_idx": {
           "name": "derived_indicator_category_idx",
           "columns": [
@@ -605,6 +705,29 @@
         }
       },
       "indexes": {
+        "geometries_search_trgm_idx": {
+          "name": "geometries_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "geometries_name_idx": {
           "name": "geometries_name_idx",
           "columns": [
@@ -777,6 +900,29 @@
         }
       },
       "indexes": {
+        "geometries_run_search_trgm_idx": {
+          "name": "geometries_run_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "geometries_run_geometries_idx": {
           "name": "geometries_run_geometries_idx",
           "columns": [
@@ -1000,6 +1146,36 @@
         }
       },
       "indexes": {
+        "indicator_search_trgm_idx": {
+          "name": "indicator_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "indicator_category_idx": {
           "name": "indicator_category_idx",
           "columns": [
@@ -1272,6 +1448,36 @@
         }
       },
       "indexes": {
+        "product_search_trgm_idx": {
+          "name": "product_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "product_name_idx": {
           "name": "product_name_idx",
           "columns": [
@@ -1475,6 +1681,27 @@
         }
       },
       "indexes": {
+        "product_output_run_created_at_idx": {
+          "name": "product_output_run_created_at_idx",
+          "columns": [
+            {
+              "expression": "product_run_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "product_output_product_run_idx": {
           "name": "product_output_product_run_idx",
           "columns": [
@@ -2101,6 +2328,50 @@
         }
       },
       "indexes": {
+        "product_run_search_trgm_idx": {
+          "name": "product_run_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "product_run_product_created_at_idx": {
+          "name": "product_run_product_created_at_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "product_run_dataset_idx": {
           "name": "product_run_dataset_idx",
           "columns": [
@@ -2466,7 +2737,31 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "report_search_trgm_idx": {
+          "name": "report_search_trgm_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            },
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -2502,6 +2797,12 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "input_parameters": {
           "name": "input_parameters",

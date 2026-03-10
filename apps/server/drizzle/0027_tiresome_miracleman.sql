@@ -1,1 +1,0 @@
-ALTER TABLE "workflows" ADD COLUMN "message" text;

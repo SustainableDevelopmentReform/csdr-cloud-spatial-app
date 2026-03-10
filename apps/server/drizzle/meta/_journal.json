@@ -180,22 +180,15 @@
     {
       "idx": 25,
       "version": "7",
-      "when": 1770852904769,
-      "tag": "0025_tranquil_cargill",
+      "when": 1772420069848,
+      "tag": "0025_hesitant_christian_walker",
       "breakpoints": true
     },
     {
       "idx": 26,
       "version": "7",
-      "when": 1770876017609,
-      "tag": "0026_mature_spirit",
-      "breakpoints": true
-    },
-    {
-      "idx": 27,
-      "version": "7",
-      "when": 1771285905490,
-      "tag": "0027_tiresome_miracleman",
+      "when": 1773112296152,
+      "tag": "0026_far_tusk",
       "breakpoints": true
     }
   ]

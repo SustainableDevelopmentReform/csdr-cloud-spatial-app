@@ -4,8 +4,10 @@ CREATE TABLE "workflows" (
 	"name" text NOT NULL,
 	"user_id" text NOT NULL,
 	"status" "workflow_status" NOT NULL,
+	"message" text,
 	"input_parameters" jsonb NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"completed_at" timestamp
 );
 --> statement-breakpoint
