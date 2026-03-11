@@ -5,6 +5,9 @@ import { env } from '../env'
 
 const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
+  options: env.DATABASE_SCHEMA
+    ? `-c search_path=${env.DATABASE_SCHEMA},public`
+    : undefined,
   ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   host: env.DATABASE_URL ? undefined : env.DATABASE_HOST,
   port: env.DATABASE_URL ? undefined : env.DATABASE_PORT,

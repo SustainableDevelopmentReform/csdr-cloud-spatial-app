@@ -1,97 +1,18 @@
-import { apiKeyClient } from '@better-auth/api-key/client'
-import { createAuthClient } from 'better-auth/client'
-import {
-  adminClient,
-  anonymousClient,
-  organizationClient,
-  twoFactorClient,
-} from 'better-auth/client/plugins'
-import { setCookieToHeader } from 'better-auth/cookies'
 import { symmetricDecrypt } from 'better-auth/crypto'
-import type { TestHelpers } from 'better-auth/plugins'
 import { desc, eq, like } from 'drizzle-orm'
-import { testClient } from 'hono/testing'
-import { beforeAll, describe, expect, it } from 'vitest'
-import app from '~/app'
-import { auth } from '~/lib/auth'
-import { db } from '~/lib/db'
+import { describe, expect, it } from 'vitest'
 import { twoFactor, user, verification } from '~/schemas/db'
+import { setupIsolatedTestFile } from '~/test-utils/integration'
 
 const FRONTEND_ORIGIN = 'http://localhost:3000'
-
-let test: TestHelpers
-
-function createTestAuthClient(initialHeaders?: HeadersInit) {
-  const sessionHeaders = new Headers(initialHeaders)
-  const updateSessionCookies = setCookieToHeader(sessionHeaders)
-
-  const client = createAuthClient({
-    baseURL: 'http://localhost/api/auth',
-    plugins: [
-      adminClient(),
-      twoFactorClient(),
-      anonymousClient(),
-      apiKeyClient(),
-      organizationClient(),
-    ],
-    fetchOptions: {
-      customFetchImpl: async (url, init) => {
-        const headers = new Headers(sessionHeaders)
-
-        new Headers(init?.headers).forEach((value, key) => {
-          headers.set(key, value)
-        })
-
-        if ((init?.method ?? 'GET').toUpperCase() !== 'GET') {
-          headers.set('origin', FRONTEND_ORIGIN)
-        }
-
-        const response = await auth.handler(
-          new Request(url, {
-            ...init,
-            headers,
-          }),
-        )
-
-        updateSessionCookies({ response })
-
-        return response
-      },
-    },
-  })
-
-  return { client, headers: sessionHeaders }
-}
-
-function createAppClient(headers?: HeadersInit) {
-  return testClient(
-    app,
-    {},
-    undefined,
-    headers
-      ? {
-          headers: Object.fromEntries(new Headers(headers).entries()),
-        }
-      : undefined,
-  )
-}
-
-async function promoteToAdmin(email: string) {
-  const record = await db.query.user.findFirst({
-    where: eq(user.email, email),
-  })
-
-  if (!record) {
-    throw new Error(`Expected user ${email} to exist`)
-  }
-
-  await db
-    .update(user)
-    .set({
-      role: 'admin',
-    })
-    .where(eq(user.id, record.id))
-}
+const {
+  auth,
+  createAppClient,
+  createSessionHeaders,
+  createTestAuthClient,
+  db,
+  getTestHelpers,
+} = await setupIsolatedTestFile(import.meta.url)
 
 async function latestVerification(pattern: string) {
   return db.query.verification.findFirst({
@@ -99,11 +20,6 @@ async function latestVerification(pattern: string) {
     orderBy: desc(verification.createdAt),
   })
 }
-
-beforeAll(async () => {
-  const ctx = await auth.$context
-  test = ctx.test
-})
 
 describe('auth integration', () => {
   it('rejects privilege escalation during sign up', async () => {
@@ -229,6 +145,7 @@ describe('auth integration', () => {
   })
 
   it('updates safe profile fields but rejects role escalation through update-user', async () => {
+    const test = getTestHelpers()
     const profileUser = await test.saveUser(
       test.createUser({
         email: 'profile@example.com',
@@ -298,6 +215,34 @@ describe('auth integration', () => {
       password: 'better-password123',
     })
     expect(newPasswordResult.error).toBeNull()
+  })
+
+  it('uses auth-issued session cookies for application authorization checks', async () => {
+    const authClient = createTestAuthClient()
+
+    const signUpResult = await authClient.client.signUp.email({
+      email: 'route-session@example.com',
+      password: 'password123',
+      name: 'Route Session User',
+    })
+
+    expect(signUpResult.error).toBeNull()
+
+    const listResponse = await createAppClient(
+      authClient.headers,
+    ).api.v0.dataset.$get({
+      query: {},
+    })
+    expect(listResponse.status).toBe(200)
+
+    const writeResponse = await createAppClient(
+      authClient.headers,
+    ).api.v0.dataset.$post({
+      json: {
+        name: 'Should fail for non-admin',
+      },
+    })
+    expect(writeResponse.status).toBe(403)
   })
 
   it('requires a second factor once TOTP is enabled and supports backup-code recovery', async () => {
@@ -401,13 +346,9 @@ describe('auth integration', () => {
   })
 
   it('allows API keys to authenticate after creation and invalidates them after deletion', async () => {
-    const apiKeyUser = await test.saveUser(
-      test.createUser({
-        email: 'api-key@example.com',
-      }),
-    )
-
-    const headers = await test.getAuthHeaders({ userId: apiKeyUser.id })
+    const headers = await createSessionHeaders({
+      email: 'api-key@example.com',
+    })
     const { client } = createTestAuthClient(headers)
 
     const createKeyResult = await client.apiKey.create({
@@ -440,25 +381,14 @@ describe('auth integration', () => {
     const adminEmail = 'admin@example.com'
     const userEmail = 'member@example.com'
 
-    const adminUser = await test.saveUser(
-      test.createUser({
-        email: adminEmail,
-      }),
-    )
-    await promoteToAdmin(adminEmail)
-
-    const adminHeaders = await test.getAuthHeaders({
-      userId: adminUser.id,
+    const adminHeaders = await createSessionHeaders({
+      email: adminEmail,
+      role: 'admin',
     })
     const adminClient = createTestAuthClient(adminHeaders).client
 
-    const memberUser = await test.saveUser(
-      test.createUser({
-        email: userEmail,
-      }),
-    )
-    const userHeaders = await test.getAuthHeaders({
-      userId: memberUser.id,
+    const userHeaders = await createSessionHeaders({
+      email: userEmail,
     })
     const userClient = createTestAuthClient(userHeaders).client
 
