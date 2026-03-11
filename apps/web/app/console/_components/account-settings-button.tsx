@@ -12,11 +12,14 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import { Switch } from '@repo/ui/components/ui/switch'
+import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation } from '@tanstack/react-query'
-import { Trash2, User2 } from 'lucide-react'
-import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
 interface AccountSettingsProps {
@@ -25,95 +28,145 @@ interface AccountSettingsProps {
 
 const profileSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
-  image: z.string().optional().nullable(),
+  image: z.string().url('Image URL must be valid').or(z.literal('')),
 })
 
-type Profile = z.infer<typeof profileSchema>
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z
+      .string()
+      .min(8, 'New password must be at least 8 characters long'),
+    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+    revokeOtherSessions: z.boolean(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  })
 
-const AccountSettingsButton: React.FC<AccountSettingsProps> = ({ onClose }) => {
+type ProfileData = z.infer<typeof profileSchema>
+type PasswordData = z.infer<typeof passwordSchema>
+
+const AccountSettingsButton = ({ onClose }: AccountSettingsProps) => {
   const authClient = useAuthClient()
+  const router = useRouter()
+  const { appUrl } = useConfig()
   const { data } = authClient.useSession()
   const user = data?.user
   const [isOpen, setOpen] = useState(false)
-  const profileForm = useForm<Profile>({
+
+  const profileForm = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: user?.name,
-      image: user?.image,
+      name: '',
+      image: '',
     },
   })
 
+  const passwordForm = useForm<PasswordData>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+      revokeOtherSessions: true,
+    },
+  })
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+
+    profileForm.reset({
+      name: user.name ?? '',
+      image: user.image ?? '',
+    })
+  }, [profileForm, user])
+
+  const refreshSession = async () => {
+    await authClient.getSession()
+    router.refresh()
+  }
+
   const handleUpdateProfile = useMutation({
-    mutationFn: async (data: Profile) => {
+    mutationFn: async (values: ProfileData) => {
       const res = await authClient.updateUser({
-        name: data.name,
-        image: data.image ?? null,
+        name: values.name,
+        image: values.image || null,
       })
 
       if (res.error) {
         throw res.error
       }
 
-      window.location.reload()
+      await refreshSession()
+      toast.success('Profile updated')
+    },
+    onError(error) {
+      toast.error(error instanceof Error ? error.message : 'Update failed')
     },
   })
 
-  // const handleUploadImage = useMutation({
-  //   mutationFn: async () => {
-  //     const file = await browseFile('image/*')
+  const changePasswordMutation = useMutation({
+    mutationFn: async (values: PasswordData) => {
+      const res = await authClient.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        revokeOtherSessions: values.revokeOtherSessions,
+      })
 
-  //     if (!file.type.startsWith('image')) {
-  //       toast.error('Failed to upload', {
-  //         description: 'Image format is invalid',
-  //       })
-  //       return
-  //     }
+      if (res.error) {
+        throw res.error
+      }
 
-  //     if (file.size / (1024 * 1024) > 3) {
-  //       toast.error('Failed to upload', {
-  //         description: 'File size max 3mb',
-  //       })
-  //       return
-  //     }
+      passwordForm.reset({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        revokeOtherSessions: values.revokeOtherSessions,
+      })
 
-  //     const res = client.api.v0.file['get-presigned-url'].$post({
-  //       json: {
-  //         fileKey: `assets/${new Date().getTime()}-${file.name}`,
-  //       },
-  //     })
+      await refreshSession()
+      toast.success('Password changed')
+    },
+    onError(error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Password change failed',
+      )
+    },
+  })
 
-  //     const { data } = await unwrapResponse(res)
+  const resendVerificationMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.email) {
+        return
+      }
 
-  //     if (!data?.url) {
-  //       toast.error('Failed to upload', {
-  //         description: 'Failed to get presigned url',
-  //       })
-  //       return
-  //     }
+      const res = await authClient.sendVerificationEmail({
+        email: user.email,
+        callbackURL: `${appUrl}/login?emailVerified=1`,
+      })
 
-  //     await ofetch(data?.url, {
-  //       method: 'PUT',
-  //       headers: {
-  //         'x-amz-acl': 'public-read',
-  //         'content-type': file.type,
-  //       },
-  //       body: file,
-  //     })
+      if (res.error) {
+        throw res.error
+      }
 
-  //     const url = new URL(data?.url)
-  //     profileForm.setValue('image', url.origin + url.pathname)
-  //   },
-  // })
+      toast.success('Verification email sent')
+    },
+    onError(error) {
+      toast.error(error instanceof Error ? error.message : 'Resend failed')
+    },
+  })
 
   return (
     <>
       <button
         className="mb-2 block w-full text-left"
-        onClick={() => {
-          setOpen(true)
-        }}
+        onClick={() => setOpen(true)}
       >
-        Account details
+        Account Details
       </button>
       <Dialog
         open={isOpen}
@@ -125,64 +178,141 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = ({ onClose }) => {
         }}
       >
         <DialogContent className="max-w-xl p-6">
-          <div className="bg-white rounded-md">
-            <div className="text-lg font-semibold mb-4">Profile Details</div>
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4">
-              <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center relative">
-                {profileForm.watch('image') ? (
-                  <>
-                    <button
-                      className="absolute bottom-0 right-0 h-5 w-5 bg-red-500 flex items-center justify-center text-white rounded-full"
-                      onClick={() => profileForm.setValue('image', null)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                    <img
-                      src={profileForm.watch('image') ?? ''}
-                      className="w-full h-full object-cover object-center rounded-full"
-                    />
-                  </>
-                ) : (
-                  <User2 className="text-gray-400" />
-                )}
+          <div className="text-lg font-semibold mb-4">Account Details</div>
+
+          {!user?.emailVerified ? (
+            <div className="mb-6 rounded-md border border-gray-200 p-4">
+              <div className="text-sm font-medium">Verification pending</div>
+              <div className="text-sm text-gray-500 mt-1">
+                Some environments require a verified email before another
+                credential sign-in can complete.
               </div>
-              {/* <div>
-                <div className="text-sm font-medium text-gray-500">
-                  Profile picture
-                </div>
-                <div className="text-xs text-gray-400 mb-2">
-                  Recommended aspect ratio 1:1
-                </div>
-                <button
-                  className="flex text-xs border border-gray-200 rounded-full py-1 px-8 items-center gap-2 font-semibold hover:bg-gray-100"
-                  onClick={() => handleUploadImage.mutate()}
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  {handleUploadImage.isPending
-                    ? 'Loading...'
-                    : 'Upload picture'}
-                </button>
-              </div> */}
+              <Button
+                className="mt-4"
+                disabled={resendVerificationMutation.isPending}
+                onClick={() => resendVerificationMutation.mutate()}
+              >
+                {resendVerificationMutation.isPending
+                  ? 'Sending...'
+                  : 'Resend email'}
+              </Button>
             </div>
-            <Form {...profileForm}>
+          ) : null}
+
+          <Form {...profileForm}>
+            <form
+              className="grid gap-3"
+              onSubmit={profileForm.handleSubmit((values) =>
+                handleUpdateProfile.mutate(values),
+              )}
+            >
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <Input
+                  disabled
+                  value={user?.email ?? ''}
+                  className="bg-gray-100"
+                />
+              </FormItem>
+              <FormField
+                control={profileForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={profileForm.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Profile image URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Optional image URL"
+                        value={field.value ?? ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end mt-3">
+                <Button className="rounded-lg w-40" type="submit">
+                  {handleUpdateProfile.isPending
+                    ? 'Loading...'
+                    : 'Save changes'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+
+          <div className="border-t border-gray-200 mt-6 pt-6">
+            <div className="text-lg font-semibold mb-4">Change password</div>
+            <Form {...passwordForm}>
               <form
-                className="grid gap-3 mt-4"
-                onSubmit={profileForm.handleSubmit((data) =>
-                  handleUpdateProfile.mutate(data),
+                className="grid gap-3"
+                onSubmit={passwordForm.handleSubmit((values) =>
+                  changePasswordMutation.mutate(values),
                 )}
               >
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <Input disabled value={user?.email} className="bg-gray-100" />
-                </FormItem>
                 <FormField
-                  control={profileForm.control}
-                  name="name"
+                  control={passwordForm.control}
+                  name="currentPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>Current password</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={passwordForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={passwordForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm new password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={passwordForm.control}
+                  name="revokeOtherSessions"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2 space-y-0">
+                      <FormLabel>Revoke other sessions</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -190,9 +320,9 @@ const AccountSettingsButton: React.FC<AccountSettingsProps> = ({ onClose }) => {
                 />
                 <div className="flex justify-end mt-3">
                   <Button className="rounded-lg w-40" type="submit">
-                    {handleUpdateProfile.isPending
+                    {changePasswordMutation.isPending
                       ? 'Loading...'
-                      : 'Save changes'}
+                      : 'Update password'}
                   </Button>
                 </div>
               </form>

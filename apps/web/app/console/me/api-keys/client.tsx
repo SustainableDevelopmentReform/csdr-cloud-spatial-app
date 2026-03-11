@@ -22,7 +22,7 @@ const UserFeature = () => {
         </ApiKeysForm>
       </div>
       <div className="mt-8">
-        <ApiKeysTable data={apiKeys || []} />
+        <ApiKeysTable data={apiKeys?.apiKeys ?? []} />
       </div>
     </div>
   )

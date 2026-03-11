@@ -25,6 +25,14 @@ function askUser(promptText: string): Promise<string> {
 }
 
 ;(async function main() {
+  if (
+    process.env.AUTH_USE_TESTCONTAINERS === 'true' ||
+    process.env.CI === 'true'
+  ) {
+    console.log('Proceeding with tests...')
+    return
+  }
+
   if (!isRunningInDocker()) {
     const answer = await askUser(
       'Tests are running outside Docker, you can lose all your local db data. Proceed? (y/n): ',

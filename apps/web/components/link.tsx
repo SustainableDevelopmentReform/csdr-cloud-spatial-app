@@ -8,6 +8,7 @@ interface Props extends LinkProps {
   children?: React.ReactNode
   end?: boolean
   className?: string
+  tabIndex?: number
 }
 
 const Link: React.FC<Props> = ({ children, end, ...props }) => {
