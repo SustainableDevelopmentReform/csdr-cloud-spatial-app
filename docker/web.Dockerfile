@@ -1,4 +1,4 @@
-# Use the official Node.js 20 image
+# Use the official Node.js 22 image
 FROM node:22-alpine AS base
 
 FROM base AS builder
