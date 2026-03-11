@@ -1,10 +1,10 @@
-name: Lint and Typecheck
+name: Lint, typecheck and unit tests
 
 on:
   push:
 
 jobs:
-  lint-typecheck:
+  lint-typecheck-unit-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
