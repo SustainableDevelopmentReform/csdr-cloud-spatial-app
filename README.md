@@ -24,13 +24,15 @@ pnpm install
 cp .env.example.local .env
 ```
 
-### Setting up Database
+### Setting local development environment
 
-Start up postgres container with docker compose:
+Start up postgres and mailpit containers with docker compose:
 
 ```bash
 docker-compose -f docker-compose-dev.yml up -d
 ```
+
+**Note** Mailpit is used to catch auth emails locally (for password reset, etc.) - you can see the emails in the browser at `http://localhost:8025`.
 
 For fresh local DBs, the dev container enables PostgreSQL `pg_trgm` during
 initialization. If your DB container already exists, recreate it or enable the
