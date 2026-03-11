@@ -166,7 +166,7 @@ const AccountSettingsButton = ({ onClose }: AccountSettingsProps) => {
         className="mb-2 block w-full text-left"
         onClick={() => setOpen(true)}
       >
-        Account details
+        Account Details
       </button>
       <Dialog
         open={isOpen}
@@ -178,7 +178,7 @@ const AccountSettingsButton = ({ onClose }: AccountSettingsProps) => {
         }}
       >
         <DialogContent className="max-w-xl p-6">
-          <div className="text-lg font-semibold mb-4">Account details</div>
+          <div className="text-lg font-semibold mb-4">Account Details</div>
 
           {!user?.emailVerified ? (
             <div className="mb-6 rounded-md border border-gray-200 p-4">

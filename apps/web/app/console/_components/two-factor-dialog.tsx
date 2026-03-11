@@ -207,7 +207,7 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
         className="mb-2 block w-full text-left"
         onClick={() => setOpen(true)}
       >
-        Two-factor auth
+        Two-factor Auth
       </button>
       <Dialog
         open={isOpen}
