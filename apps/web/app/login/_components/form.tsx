@@ -162,6 +162,7 @@ const LoginForm = () => {
                   <FormLabel>Password</FormLabel>
                   <Link
                     href="/forgot-password"
+                    tabIndex={-1}
                     className="text-sm text-blue-500"
                   >
                     Forgot password?

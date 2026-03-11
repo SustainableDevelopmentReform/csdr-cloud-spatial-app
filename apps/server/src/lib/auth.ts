@@ -1,11 +1,12 @@
+import { apiKey } from '@better-auth/api-key'
 import { betterAuth, BetterAuthOptions } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import {
   admin,
   anonymous,
-  apiKey,
   openAPI,
   organization,
+  testUtils,
   twoFactor,
 } from 'better-auth/plugins'
 import { env } from '~/env'
@@ -52,6 +53,7 @@ const plugins = [
     enableSessionForAPIKeys: true,
   }),
   organization(),
+  ...(env.NODE_ENV === 'production' ? [] : [testUtils()]),
 ]
 
 const authBaseUrl = env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL
@@ -65,6 +67,7 @@ const authConfig = {
     },
   },
   appName: 'CSDR Cloud Spatial',
+  secret: env.BETTER_AUTH_SECRET,
   baseURL: authBaseUrl,
   trustedOrigins: env.TRUSTED_ORIGINS,
   database: drizzleAdapter(db, {
@@ -77,16 +80,13 @@ const authConfig = {
       role: {
         type: 'string',
         required: false,
+        input: false,
       },
     },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days in seconds
     updateAge: 60 * 60 * 24, // Update session every 24 hours
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // Cache for 5 minutes
-    },
   },
   emailAndPassword: {
     enabled: true,

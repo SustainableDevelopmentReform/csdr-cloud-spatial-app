@@ -12,6 +12,7 @@ export const env = createEnv({
     AUTH_BASE_URL: z.url().optional(),
     AUTH_EMAIL_MODE: z.enum(['log', 'smtp']).default('log'),
     INTERNAL_BACKEND_URL: z.url().optional(),
+    DATABASE_URL: z.string().optional(),
     DATABASE_HOST: z.string().default('localhost'),
     DATABASE_PORT: z.coerce.number().default(5431),
     DATABASE_USER: z.string().default('admin'),
@@ -45,12 +46,16 @@ export const env = createEnv({
       .optional()
       .default('false')
       .transform((val) => val === 'true'),
+    BETTER_AUTH_SECRET: z
+      .string()
+      .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters long'),
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
     AUTH_BASE_URL: process.env.AUTH_BASE_URL,
     AUTH_EMAIL_MODE: process.env.AUTH_EMAIL_MODE,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_HOST: process.env.DATABASE_HOST,
     DATABASE_PORT: process.env.DATABASE_PORT,
     DATABASE_USER: process.env.DATABASE_USER,
@@ -76,5 +81,6 @@ export const env = createEnv({
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
     AUTH_REQUIRE_EMAIL_VERIFICATION:
       process.env.AUTH_REQUIRE_EMAIL_VERIFICATION,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
   },
 })

@@ -1,9 +1,9 @@
+import { apiKeyClient } from '@better-auth/api-key/client'
 import { InferSessionFromClient, InferUserFromClient } from 'better-auth'
 import {
   adminClient,
   anonymousClient,
   twoFactorClient,
-  apiKeyClient,
   organizationClient,
 } from 'better-auth/client/plugins'
 import { createAuthClient as createReactAuthClient } from 'better-auth/react'

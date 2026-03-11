@@ -249,7 +249,12 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
           ) : null}
 
           {currentStep === 'setup-password' ? (
-            <div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                enableTwoFactorMutation.mutate()
+              }}
+            >
               <div className="text-lg font-semibold mb-4">
                 Confirm your password
               </div>
@@ -259,25 +264,30 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
                   onChange={(event) => setSetupPassword(event.target.value)}
                   type="password"
                   placeholder="Password"
+                  autoFocus
                 />
                 <div className="flex gap-2">
                   <Button
+                    type="submit"
                     disabled={
                       enableTwoFactorMutation.isPending ||
                       setupPassword.trim().length === 0
                     }
-                    onClick={() => enableTwoFactorMutation.mutate()}
                   >
                     {enableTwoFactorMutation.isPending
                       ? 'Loading...'
                       : 'Continue'}
                   </Button>
-                  <Button variant="outline" onClick={() => setStep('initial')}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep('initial')}
+                  >
                     Back
                   </Button>
                 </div>
               </div>
-            </div>
+            </form>
           ) : null}
 
           {currentStep === 'setup-materials' ? (
@@ -389,7 +399,12 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
           ) : null}
 
           {currentStep === 'regenerate-password' ? (
-            <div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                regenerateBackupCodesMutation.mutate()
+              }}
+            >
               <div className="text-lg font-semibold mb-4">
                 Regenerate backup codes
               </div>
@@ -404,25 +419,30 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
                   }
                   type="password"
                   placeholder="Password"
+                  autoFocus
                 />
                 <div className="flex gap-2">
                   <Button
+                    type="submit"
                     disabled={
                       regenerateBackupCodesMutation.isPending ||
                       regeneratePassword.trim().length === 0
                     }
-                    onClick={() => regenerateBackupCodesMutation.mutate()}
                   >
                     {regenerateBackupCodesMutation.isPending
                       ? 'Loading...'
                       : 'Generate new codes'}
                   </Button>
-                  <Button variant="outline" onClick={() => setStep('enabled')}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep('enabled')}
+                  >
                     Back
                   </Button>
                 </div>
               </div>
-            </div>
+            </form>
           ) : null}
 
           {currentStep === 'regenerate-codes' ? (
@@ -451,7 +471,12 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
           ) : null}
 
           {currentStep === 'disable-confirm' ? (
-            <div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                disableTwoFactorMutation.mutate()
+              }}
+            >
               <div className="text-lg font-semibold mb-4">Disable 2FA</div>
               <p className="text-sm text-gray-500 mb-4">
                 Enter your password to disable two-factor authentication. This
@@ -463,26 +488,31 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
                   onChange={(event) => setDisablePassword(event.target.value)}
                   type="password"
                   placeholder="Password"
+                  autoFocus
                 />
                 <div className="flex gap-2">
                   <Button
+                    type="submit"
                     variant="destructive"
                     disabled={
                       disableTwoFactorMutation.isPending ||
                       disablePassword.trim().length === 0
                     }
-                    onClick={() => disableTwoFactorMutation.mutate()}
                   >
                     {disableTwoFactorMutation.isPending
                       ? 'Loading...'
                       : 'Disable 2FA'}
                   </Button>
-                  <Button variant="outline" onClick={() => setStep('enabled')}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep('enabled')}
+                  >
                     Back
                   </Button>
                 </div>
               </div>
-            </div>
+            </form>
           ) : null}
         </DialogContent>
       </Dialog>

@@ -1,75 +1,64 @@
-// import { migrate } from 'drizzle-orm/node-postgres/migrator'
-// import { db } from './lib/db'
+import { PostgreSqlContainer } from '@testcontainers/postgresql'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import pg from 'pg'
+import { sql } from 'drizzle-orm'
+import { fileURLToPath } from 'url'
+import { afterAll, beforeEach } from 'vitest'
 
-// import { fileURLToPath } from 'url'
-// import type { GlobalSetupContext } from 'vitest/node'
-// import { env } from './env'
+process.env.NODE_ENV = 'test'
+process.env.APP_URL = 'http://localhost:3000'
+process.env.AUTH_BASE_URL = 'http://localhost'
+process.env.AUTH_EMAIL_MODE = 'log'
+process.env.TRUSTED_ORIGINS = 'http://localhost,http://localhost:3000'
+process.env.BETTER_AUTH_SECRET =
+  'test-secret-that-is-long-enough-for-better-auth'
 
-// async function cleanUpDatabase() {
-//   await db.delete(users)
-//   await db.delete(organizations)
-//   await db.delete(roles)
-//   await db.delete(permissionTable)
-//   await db.delete(usersToOrganizations)
-//   await db.delete(rolesToUsers)
-//   await db.delete(permissionsToRoles)
-//   await db.delete(sessions)
-//   await db.delete(otpTokens)
-//   await db.delete(authMethods)
-// }
+const container = await new PostgreSqlContainer('postgis/postgis:16-3.4')
+  .withDatabase('csdr_auth_test')
+  .withUsername('test')
+  .withPassword('test')
+  .start()
 
-// export default async function setup({ provide }: GlobalSetupContext) {
-//   await migrate(db, {
-//     migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)),
-//   })
+process.env.DATABASE_URL = container.getConnectionUri()
 
-//   await cleanUpDatabase()
+const migrationPool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+})
+const migrationDb = drizzle(migrationPool)
 
-//   await db.insert(organizations).values({
-//     name: 'Default Organization',
-//     isDefault: true,
-//   })
+await migrate(migrationDb, {
+  migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)),
+})
 
-//   const role = await db
-//     .insert(roles)
-//     .values({
-//       key: 'admin',
-//       name: 'Admin',
-//     })
-//     .onConflictDoNothing()
-//     .returning()
+await migrationPool.end()
 
-//   const roleId = role[0]!.id
+const { db } = await import('./lib/db')
 
-//   const permissions = await db
-//     .insert(permissionTable)
-//     .values(DEFAULT_PERMISSIONS)
-//     .onConflictDoNothing()
-//     .returning()
+beforeEach(async () => {
+  const { rows } = await db.$client.query<{
+    tablename: string
+  }>(`
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname = 'public'
+      AND tablename NOT IN ('__drizzle_migrations', 'spatial_ref_sys')
+  `)
 
-//   await db
-//     .insert(permissionsToRoles)
-//     .values(
-//       permissions.map(({ id }) => ({
-//         roleId,
-//         permissionId: id,
-//       })),
-//     )
-//     .onConflictDoNothing()
+  if (rows.length === 0) {
+    return
+  }
 
-//   const { sessionToken } = await createUserWithRole(
-//     'Admin',
-//     'admin@sidrstudio.com',
-//     'admin',
-//   )
-//   const headers: Record<string, string> = {}
-//   headers['Cookie'] = `${env.SESSION_COOKIE_NAME}=${sessionToken}`
+  const tableList = rows
+    .map(({ tablename }) => `"public"."${tablename}"`)
+    .join(', ')
 
-//   provide('adminUserHeaders', headers)
-// }
+  await db.execute(
+    sql.raw(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`),
+  )
+})
 
-// declare module 'vitest' {
-//   export interface ProvidedContext {
-//     adminUserHeaders: Record<string, string>
-//   }
-// }
+afterAll(async () => {
+  await db.$client.end()
+  await container.stop()
+})

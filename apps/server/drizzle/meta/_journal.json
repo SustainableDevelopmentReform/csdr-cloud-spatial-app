@@ -183,6 +183,13 @@
       "when": 1772420069848,
       "tag": "0025_hesitant_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1773209786360,
+      "tag": "0026_sticky_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }
