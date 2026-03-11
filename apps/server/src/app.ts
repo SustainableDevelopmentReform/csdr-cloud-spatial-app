@@ -88,7 +88,7 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
   return response
 })
 
-const v0ApiRoutes = app
+const v0ApiBase = app
   .basePath('/api/v0/')
   // .route('/file', file)
   .route('/dataset', dataset)
@@ -104,7 +104,7 @@ const v0ApiRoutes = app
   .route('/report', report)
   .route('/dashboard', dashboard)
 
-v0ApiRoutes.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
+v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',
   in: 'header',
   name: 'x-api-key',
@@ -112,7 +112,29 @@ v0ApiRoutes.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
 
 // TODO: add better auth responses here (eg 429 rate limit)
 
-v0ApiRoutes
+const v0ApiRoutes = v0ApiBase
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/healthcheck',
+      responses: {
+        200: {
+          description: 'Service healthcheck.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  message: z.string(),
+                }),
+              ),
+            },
+          },
+        },
+        500: jsonErrorResponse('Healthcheck failed'),
+      },
+    }),
+    (c) => generateJsonResponse(c, { message: 'OK' as const }, 200),
+  )
   .doc('/doc', (c) => ({
     openapi: '3.0.0',
     externalDocs: {
@@ -146,29 +168,6 @@ v0ApiRoutes
     ],
   }))
   .get('/scalar', Scalar({ url: '/api/v0/doc' }))
-
-app.openapi(
-  createRoute({
-    method: 'get',
-    path: '/api/v0/healthcheck',
-    responses: {
-      200: {
-        description: 'Service healthcheck.',
-        content: {
-          'application/json': {
-            schema: createResponseSchema(
-              z.object({
-                message: z.string(),
-              }),
-            ),
-          },
-        },
-      },
-      500: jsonErrorResponse('Healthcheck failed'),
-    },
-  }),
-  (c) => generateJsonResponse(c, { message: 'OK' as const }, 200),
-)
 
 app.onError(async (err, c) => {
   console.error(err)
