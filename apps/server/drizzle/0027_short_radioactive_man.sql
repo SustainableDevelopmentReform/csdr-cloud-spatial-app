@@ -1,0 +1,1 @@
+CREATE INDEX "geometry_geometry_gist_idx" ON "geometry_output" USING gist ("geometry");
