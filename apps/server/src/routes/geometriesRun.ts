@@ -9,16 +9,7 @@ import {
   geometryOutputQuerySchema,
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
-import {
-  and,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  notInArray,
-  sql,
-  SQL,
-} from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray, sql, SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -64,6 +55,7 @@ export const fullGeometriesRunQuery = baseGeometriesRunQuery
 
 const TILE_EXTENT = 4096
 const TILE_BUFFER = 64
+const TILE_MARGIN = TILE_BUFFER / TILE_EXTENT
 
 const fetchGeometryOutputsTile = async ({
   geometriesRunId,
@@ -76,13 +68,22 @@ const fetchGeometryOutputsTile = async ({
   x: number
   y: number
 }) => {
+  const tileEnvelope3857 = sql`ST_TileEnvelope(${z}, ${x}, ${y})`
+  // Keep the prefilter in the source SRID so PostGIS can use the geometry index.
+  const tileEnvelope4326 = sql`
+    ST_Transform(
+      ST_TileEnvelope(${z}, ${x}, ${y}, margin => ${TILE_MARGIN}),
+      4326
+    )
+  `
+
   const tile = db
     .select({
       geometry_output_id: geometryOutput.id,
       geom: sql<string>`
         ST_AsMVTGeom(
           ST_Transform(${geometryOutput.geometry}, 3857),
-          ST_TileEnvelope(${z}, ${x}, ${y}),
+          ${tileEnvelope3857},
           ${TILE_EXTENT},
           ${TILE_BUFFER},
           true
@@ -93,10 +94,8 @@ const fetchGeometryOutputsTile = async ({
     .where(
       and(
         eq(geometryOutput.geometriesRunId, geometriesRunId),
-        sql`ST_Intersects(
-          ST_Transform(${geometryOutput.geometry}, 3857),
-          ST_TileEnvelope(${z}, ${x}, ${y})
-        )`,
+        sql`${geometryOutput.geometry} && ${tileEnvelope4326}`,
+        sql`ST_Intersects(${geometryOutput.geometry}, ${tileEnvelope4326})`,
       ),
     )
     .as('tile')
@@ -108,7 +107,6 @@ const fetchGeometryOutputsTile = async ({
       `,
     })
     .from(tile)
-    .where(isNotNull(tile.geom))
 
   return tileData[0]?.mvt ?? Buffer.alloc(0)
 }
