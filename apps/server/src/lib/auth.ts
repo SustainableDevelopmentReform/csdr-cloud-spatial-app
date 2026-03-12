@@ -90,8 +90,7 @@ const authConfig = {
   },
   emailAndPassword: {
     enabled: true,
-    // requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
-    requireEmailVerification: false,
+    requireEmailVerification: env.AUTH_REQUIRE_EMAIL_VERIFICATION,
     minPasswordLength: 8,
     resetPasswordTokenExpiresIn: 60 * 60,
     revokeSessionsOnPasswordReset: true,
