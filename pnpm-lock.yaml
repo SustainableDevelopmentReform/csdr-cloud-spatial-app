@@ -452,6 +452,9 @@ importers:
       '@observablehq/plot':
         specifier: ^0.6.17
         version: 0.6.17
+      '@repo/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
@@ -510,6 +513,30 @@ importers:
       '@hono/zod-openapi':
         specifier: 'catalog:'
         version: 1.1.5(hono@4.10.8)(zod@4.1.13)
+      '@tiptap/core':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/pm@3.6.1)
+      '@tiptap/extension-highlight':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))
+      '@tiptap/extension-list':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)
+      '@tiptap/extension-subscript':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)
+      '@tiptap/extension-superscript':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)
+      '@tiptap/extension-text-align':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))
+      '@tiptap/extension-typography':
+        specifier: ^3.6.1
+        version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))
+      '@tiptap/starter-kit':
+        specifier: ^3.6.1
+        version: 3.6.1
       wkx:
         specifier: 'catalog:'
         version: 0.5.0
@@ -526,6 +553,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.2
+      vitest:
+        specifier: ^3.0.6
+        version: 3.0.6(@types/node@22.9.0)(sass@1.93.2)
 
   packages/typescript-config: {}
 
@@ -579,6 +609,9 @@ importers:
       '@repo/plot':
         specifier: workspace:*
         version: link:../plot
+      '@repo/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       '@tiptap/extension-collaboration':
         specifier: 3.6.1
         version: 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.2(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(yjs@13.6.29)

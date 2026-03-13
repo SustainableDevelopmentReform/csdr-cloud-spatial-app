@@ -1,13 +1,13 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { DashboardContent } from '@repo/schemas/crud'
 import { updateDashboardSchema } from '@repo/schemas/crud'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
 import DashboardGridEditor, {
-  DashboardContent,
   createEmptyDashboardContent,
 } from '../_components/dashboard-grid-editor'
 import { useDashboard, useDeleteDashboard, useUpdateDashboard } from '../_hooks'

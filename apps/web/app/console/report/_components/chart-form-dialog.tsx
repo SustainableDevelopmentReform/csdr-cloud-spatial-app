@@ -17,6 +17,11 @@ import {
   TableChartConfiguration,
   TableChartDimension,
 } from '@repo/plot/types'
+import {
+  chartConfigurationSchema,
+  chartVisualTypeMetadata,
+  tableChartDimensionMetadata,
+} from '@repo/schemas/chart'
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Dialog,
@@ -81,7 +86,6 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, type UseFormReturn } from 'react-hook-form'
-import { z } from 'zod'
 import { FieldGroup } from '../../../../components/form/action'
 import {
   MapPreviewProvider,
@@ -95,6 +99,11 @@ import { ProductSelect } from '../../product/_components/product-select'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { useGeometryOutputs } from '../../geometries/_hooks'
 import { ProductListItem, useProductRun } from '../../product/_hooks'
+import {
+  chartFormSchema,
+  type ChartFormValues,
+  toPersistedChartConfiguration,
+} from './chart-form-schema'
 import { ChartRenderer } from './chart-renderer'
 
 // ---------------------------------------------------------------------------
@@ -102,7 +111,6 @@ import { ChartRenderer } from './chart-renderer'
 // ---------------------------------------------------------------------------
 
 const MAX_RECOMMENDED_SERIES = 8
-const MAX_CLASSES = 100
 const DEFAULT_MULTI_COUNT = 10
 
 const CATEGORICAL_PALETTES: Record<CategoricalColorScheme, readonly string[]> =
@@ -178,102 +186,57 @@ interface VisualTypeOption {
 
 const VISUAL_TYPES: VisualTypeOption[] = [
   {
-    key: 'line',
-    type: 'plot',
-    subType: 'line',
-    label: 'Line',
+    ...chartVisualTypeMetadata[0],
     icon: TrendingUp,
-    description: 'Trends over time',
     requiresMultiTime: true,
   },
   {
-    key: 'area',
-    type: 'plot',
-    subType: 'area',
-    label: 'Area',
+    ...chartVisualTypeMetadata[1],
     icon: AreaChartIcon,
-    description: 'Filled trends',
     requiresMultiTime: true,
   },
   {
-    key: 'stacked-area',
-    type: 'plot',
-    subType: 'stacked-area',
-    label: 'Stacked Area',
+    ...chartVisualTypeMetadata[2],
     icon: Layers,
-    description: 'Part-to-whole over time',
     requiresMultiTime: true,
   },
   {
-    key: 'stacked-bar',
-    type: 'plot',
-    subType: 'stacked-bar',
-    label: 'Stacked Bar',
+    ...chartVisualTypeMetadata[3],
     icon: BarChart3,
-    description: 'Totals by category',
     requiresMultiTime: true,
   },
   {
-    key: 'grouped-bar',
-    type: 'plot',
-    subType: 'grouped-bar',
-    label: 'Grouped Bar',
+    ...chartVisualTypeMetadata[4],
     icon: BarChartIcon,
-    description: 'Side-by-side comparison',
   },
   {
-    key: 'ranked-bar',
-    type: 'plot',
-    subType: 'ranked-bar',
-    label: 'Ranked Bar',
+    ...chartVisualTypeMetadata[5],
     icon: ChartBarDecreasing,
-    description: 'Sorted horizontal bars',
   },
   {
-    key: 'dot',
-    type: 'plot',
-    subType: 'dot',
-    label: 'Scatter',
+    ...chartVisualTypeMetadata[6],
     icon: CircleDot,
-    description: 'Value distribution',
     requiresMultiTime: true,
   },
   {
-    key: 'donut',
-    type: 'plot',
-    subType: 'donut',
-    label: 'Donut',
+    ...chartVisualTypeMetadata[7],
     icon: PieChartIcon,
-    description: 'Proportions',
   },
   {
-    key: 'table',
-    type: 'table',
-    label: 'Table',
+    ...chartVisualTypeMetadata[8],
     icon: Table2,
-    description: 'Colour-coded grid',
   },
   {
-    key: 'map',
-    type: 'map',
-    label: 'Map',
+    ...chartVisualTypeMetadata[9],
     icon: MapIcon,
-    description: 'Spatial view',
   },
   {
-    key: 'kpi',
-    type: 'kpi',
-    label: 'KPI Card',
+    ...chartVisualTypeMetadata[10],
     icon: Hash,
-    description: 'Single highlighted value',
   },
 ]
 
-const tableDimensionOptions: { value: TableChartDimension; label: string }[] = [
-  { value: 'timePoint', label: 'Time' },
-  { value: 'indicatorName', label: 'Indicator' },
-  { value: 'geometryOutputName', label: 'Geometry' },
-]
+const tableDimensionOptions = [...tableChartDimensionMetadata]
 
 // ---------------------------------------------------------------------------
 // Appearance option lists
@@ -348,283 +311,6 @@ const DATE_PRECISION_OPTIONS: {
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
-
-const appearanceSchema = (
-  z.object({
-    categoricalScheme: z
-      .enum([
-        'tableau10',
-        'category10',
-        'paired',
-        'set1',
-        'set2',
-        'set3',
-        'dark2',
-        'accent',
-        'observable10',
-      ])
-      .optional(),
-    colorOverrides: z.record(z.string(), z.string()).optional(),
-    sequentialScheme: z
-      .enum([
-        'ylOrRd',
-        'viridis',
-        'plasma',
-        'inferno',
-        'blues',
-        'greens',
-        'oranges',
-        'ylGnBu',
-        'buPu',
-      ])
-      .optional(),
-    divergingScheme: z
-      .enum(['rdBu', 'brBG', 'piYG', 'prGn', 'rdYlGn'])
-      .optional(),
-    colorScaleType: z.enum(['sequential', 'diverging']).optional(),
-    divergingMidpoint: z.number().optional(),
-    colorScaleMin: z.number().optional(),
-    colorScaleMax: z.number().optional(),
-    reverseColorScale: z.boolean().optional(),
-    includeZero: z.boolean().optional(),
-    yMin: z.number().optional(),
-    yMax: z.number().optional(),
-    legendPosition: z.enum(['top', 'bottom', 'none']).optional(),
-    showGrid: z.boolean().optional(),
-    curveType: z.enum(['monotone', 'linear', 'step']).optional(),
-    showDots: z.boolean().optional(),
-    areaOpacity: z.number().min(0).max(1).optional(),
-    barRadius: z.number().min(0).max(20).optional(),
-    donutInnerRadius: z.number().min(0).max(100).optional(),
-    showOutlines: z.boolean().optional(),
-    mapBbox: z
-      .object({
-        minLon: z.number().min(-360).max(360),
-        minLat: z.number().min(-90).max(90),
-        maxLon: z.number().min(-360).max(360),
-        maxLat: z.number().min(-90).max(90),
-      })
-      .optional(),
-    decimalPlaces: z.number().int().min(0).max(6).optional(),
-    compactNumbers: z.boolean().optional(),
-    datePrecision: z
-      .enum(['year', 'year-month', 'year-month-day', 'full'])
-      .optional(),
-  }) satisfies z.ZodType<AppearanceConfig>
-).optional()
-
-const baseChartSchema = z.object({
-  productId: z.string(),
-  productRunId: z.string(),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  appearance: appearanceSchema,
-})
-
-const multiSeriesSelectionSchema = baseChartSchema.extend({
-  indicatorIds: z
-    .array(z.string())
-    .max(MAX_CLASSES, `At most ${MAX_CLASSES} indicators can be selected`)
-    .optional(),
-  geometryOutputIds: z
-    .array(z.string())
-    .max(MAX_CLASSES, `At most ${MAX_CLASSES} geometry outputs can be selected`)
-    .optional(),
-  timePoints: z.array(z.string()).optional(),
-})
-
-const plotSchema = multiSeriesSelectionSchema
-  .extend({
-    type: z.literal('plot'),
-    subType: z.enum([
-      'line',
-      'area',
-      'stacked-area',
-      'stacked-bar',
-      'grouped-bar',
-      'ranked-bar',
-      'dot',
-      'donut',
-    ] satisfies PlotSubType[]),
-  })
-  .superRefine((data, context) => {
-    const multipleIndicatorsSelected =
-      (data.indicatorIds?.length ?? 0) > 1 || !data.indicatorIds?.length
-    const multipleGeometryOutputsSelected =
-      (data.geometryOutputIds?.length ?? 0) > 1 ||
-      !data.geometryOutputIds?.length
-    const multipleTimePointsSelected =
-      (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
-
-    if (data.subType === 'donut' || data.subType === 'ranked-bar') {
-      const chartLabel =
-        data.subType === 'donut' ? 'Donut chart' : 'Ranked bar chart'
-      const multipleCount =
-        (multipleIndicatorsSelected ? 1 : 0) +
-        (multipleGeometryOutputsSelected ? 1 : 0) +
-        (multipleTimePointsSelected ? 1 : 0)
-
-      if (multipleCount > 1) {
-        if (multipleIndicatorsSelected) {
-          context.addIssue({
-            code: 'custom',
-            message: `${chartLabel} can only vary one dimension — select a single indicator`,
-            path: ['indicatorIds'],
-            input: data.indicatorIds,
-          })
-        }
-        if (multipleGeometryOutputsSelected) {
-          context.addIssue({
-            code: 'custom',
-            message: `${chartLabel} can only vary one dimension — select a single geometry`,
-            path: ['geometryOutputIds'],
-            input: data.geometryOutputIds,
-          })
-        }
-        if (multipleTimePointsSelected) {
-          context.addIssue({
-            code: 'custom',
-            message: `${chartLabel} can only vary one dimension — select a single time point`,
-            path: ['timePoints'],
-            input: data.timePoints,
-          })
-        }
-      }
-    } else {
-      // Cartesian charts (line, area, bar, scatter): the x-axis (time) and one
-      // series dimension can be multi — the remaining dimension MUST be single
-      // so every chart element maps 1:1 to a product output.
-      const multiCount =
-        (multipleIndicatorsSelected ? 1 : 0) +
-        (multipleGeometryOutputsSelected ? 1 : 0) +
-        (multipleTimePointsSelected ? 1 : 0)
-
-      if (multiCount > 2) {
-        // All three multi — error on everything
-        context.addIssue({
-          code: 'custom',
-          message:
-            'Each chart element must map to one product output — select a single indicator',
-          path: ['indicatorIds'],
-          input: data.indicatorIds,
-        })
-        context.addIssue({
-          code: 'custom',
-          message:
-            'Each chart element must map to one product output — select a single geometry',
-          path: ['geometryOutputIds'],
-          input: data.geometryOutputIds,
-        })
-        context.addIssue({
-          code: 'custom',
-          message:
-            'Each chart element must map to one product output — select a single time point',
-          path: ['timePoints'],
-          input: data.timePoints,
-        })
-      } else if (
-        multipleIndicatorsSelected &&
-        multipleGeometryOutputsSelected
-      ) {
-        // Both non-time dimensions are multi — at most one can be the series
-        context.addIssue({
-          code: 'custom',
-          message:
-            'Each chart element must map to one product output — select a single indicator or a single geometry',
-          path: ['indicatorIds'],
-          input: data.indicatorIds,
-        })
-        context.addIssue({
-          code: 'custom',
-          message:
-            'Each chart element must map to one product output — select a single indicator or a single geometry',
-          path: ['geometryOutputIds'],
-          input: data.geometryOutputIds,
-        })
-      }
-    }
-  }) satisfies z.ZodType<PlotChartConfiguration>
-
-const mapSchema = baseChartSchema.extend({
-  type: z.literal('map'),
-  indicatorId: z.string(),
-  timePoint: z.string(),
-  geometryOutputIds: z
-    .array(z.string())
-    .optional()
-    .refine((val) => (val?.length ?? 0) <= 10, {
-      message: 'At most 10 geometry outputs can be selected',
-    }),
-}) satisfies z.ZodType<MapChartConfiguration>
-
-const kpiSchema = baseChartSchema.extend({
-  type: z.literal('kpi'),
-  indicatorId: z.string(),
-  timePoint: z.string(),
-  geometryOutputIds: z
-    .array(z.string())
-    .min(1, 'KPI requires a selected geometry')
-    .max(1, 'KPI requires exactly one geometry'),
-}) satisfies z.ZodType<KpiChartConfiguration>
-
-const tablePlotSchema = multiSeriesSelectionSchema
-  .extend({
-    type: z.literal('table'),
-    xDimension: z.enum(['timePoint', 'indicatorName', 'geometryOutputName']),
-    yDimension: z.enum(['timePoint', 'indicatorName', 'geometryOutputName']),
-  })
-  .superRefine((data, context) => {
-    const multipleIndicatorsSelected =
-      (data.indicatorIds?.length ?? 0) > 1 || !data.indicatorIds?.length
-    const multipleGeometryOutputsSelected =
-      (data.geometryOutputIds?.length ?? 0) > 1 ||
-      !data.geometryOutputIds?.length
-    const multipleTimePointsSelected =
-      (data.timePoints?.length ?? 0) > 1 || !data.timePoints?.length
-
-    const allowsMultipleIndicators =
-      data.xDimension === 'indicatorName' || data.yDimension === 'indicatorName'
-    if (!allowsMultipleIndicators && multipleIndicatorsSelected) {
-      context.addIssue({
-        code: 'custom',
-        message: 'Indicator is not used as a table axis, one must be selected.',
-        path: ['indicatorIds'],
-        input: data.indicatorIds,
-      })
-    }
-
-    const allowsMultipleGeometry =
-      data.xDimension === 'geometryOutputName' ||
-      data.yDimension === 'geometryOutputName'
-    if (!allowsMultipleGeometry && multipleGeometryOutputsSelected) {
-      context.addIssue({
-        code: 'custom',
-        message:
-          'Geometry output is not used as a table axis, one must be selected.',
-        path: ['geometryOutputIds'],
-        input: data.geometryOutputIds,
-      })
-    }
-
-    const allowsMultipleTimePoints =
-      data.xDimension === 'timePoint' || data.yDimension === 'timePoint'
-    if (!allowsMultipleTimePoints && multipleTimePointsSelected) {
-      context.addIssue({
-        code: 'custom',
-        message:
-          'Time point is not used as a table axis, one must be selected.',
-        path: ['timePoints'],
-        input: data.timePoints,
-      })
-    }
-  }) satisfies z.ZodType<TableChartConfiguration>
-
-const chartSchema = z.discriminatedUnion('type', [
-  plotSchema,
-  mapSchema,
-  kpiSchema,
-  tablePlotSchema,
-]) satisfies z.ZodType<ChartConfiguration>
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -879,12 +565,12 @@ const SeriesWarning = ({ count }: { count: number | null }) => {
  * Returns null only when the essential fields are missing.
  */
 function buildPreviewConfig(
-  formValues: z.infer<typeof chartSchema>,
+  formValues: ChartFormValues,
 ): ChartConfiguration | null {
   if (!formValues.productRunId) return null
 
   // Strict parse: if it passes, use it (includes superRefine)
-  const strict = chartSchema.safeParse(formValues)
+  const strict = chartConfigurationSchema.safeParse(formValues)
   if (strict.success) return strict.data
 
   const appearance = formValues.appearance ?? undefined
@@ -989,11 +675,7 @@ const MapExtentButton = ({
   )
 }
 
-const ChartPreview = ({
-  form,
-}: {
-  form: UseFormReturn<z.infer<typeof chartSchema>>
-}) => {
+const ChartPreview = ({ form }: { form: UseFormReturn<ChartFormValues> }) => {
   const formValues = form.watch()
 
   const chartConfig = useMemo(
@@ -1032,7 +714,7 @@ export const ChartFormDialog = ({
 }: {
   buttonText?: string
   chart: ChartConfiguration | null
-  onSubmit: (data: z.infer<typeof chartSchema>) => void
+  onSubmit: (data: ChartConfiguration) => void
   onOpen?: () => void
   onClose?: () => void
 }) => {
@@ -1041,9 +723,9 @@ export const ChartFormDialog = ({
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(isEditing ? 2 : 0)
 
-  const form = useForm<z.infer<typeof chartSchema>>({
-    resolver: zodResolver(chartSchema),
-    defaultValues: chart ?? undefined,
+  const form = useForm<ChartFormValues>({
+    resolver: zodResolver(chartFormSchema),
+    defaultValues: chart as Partial<ChartFormValues> | undefined,
     mode: 'all',
     criteriaMode: 'all',
   })
@@ -1136,6 +818,28 @@ export const ChartFormDialog = ({
         : null,
     }
   }, [productRunDetail])
+
+  useEffect(() => {
+    if (!productRunDetail?.outputSummary) return
+
+    if (!form.getValues('productId') && productRunDetail.product?.id) {
+      form.setValue('productId', productRunDetail.product.id, {
+        shouldValidate: false,
+        shouldDirty: false,
+        shouldTouch: false,
+      })
+    }
+
+    const firstTimePoint = hookDefaults?.firstTimePoint ?? null
+    setProductSummary((current) => ({
+      productName: productRunDetail.product?.name ?? current?.productName ?? '',
+      indicatorCount: productRunDetail.outputSummary?.indicators?.length ?? 0,
+      timePointCount: productRunDetail.outputSummary?.timePoints?.length ?? 0,
+      timePrecision: current?.timePrecision ?? null,
+      firstIndicatorId: hookDefaults?.firstIndicatorId ?? null,
+      firstTimePoint,
+    }))
+  }, [form, hookDefaults, productRunDetail])
 
   // --- Derived state ---
 
@@ -1734,7 +1438,7 @@ export const ChartFormDialog = ({
                 e.preventDefault()
                 e.stopPropagation()
                 form.handleSubmit((data) => {
-                  onSubmit(data)
+                  onSubmit(toPersistedChartConfiguration(data))
                   setOpen(false)
                   onClose?.()
                 })(e)

@@ -4,6 +4,7 @@ import {
   createReportSchema,
   fullReportSchema,
   reportQuerySchema,
+  reportStoredContentSchema,
   updateReportSchema,
 } from '@repo/schemas/crud'
 import { desc, eq } from 'drizzle-orm'
@@ -59,7 +60,10 @@ const fetchFullReportOrThrow = async (id: string) => {
     throw reportNotFoundError()
   }
 
-  return record
+  return {
+    ...record,
+    content: reportStoredContentSchema.nullable().parse(record.content),
+  }
 }
 
 const app = createOpenAPIApp()

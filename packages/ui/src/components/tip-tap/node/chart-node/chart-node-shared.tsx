@@ -1,11 +1,8 @@
 import type { ChartConfiguration, OnSelectCallback } from '@repo/plot/types'
 import type { ReactNode } from 'react'
+import type { ChartNodeAttributes } from './chart-node-core'
 
-export type ChartNodeAttributes = {
-  chart: ChartConfiguration | null
-  /** Persisted height (in pixels) of the chart body. */
-  height: number | null
-}
+export type { ChartNodeAttributes } from './chart-node-core'
 
 /* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars */
 export type ChartEditorHookParams = {

@@ -1,6 +1,7 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema, WKBSchema } from './geojson'
 import type { MultiPolygon } from 'geojson'
+import { chartConfigurationSchema } from './chart'
 
 const fileSchema = z.instanceof(File).openapi('FileSchema', {
   title: 'File',
@@ -608,39 +609,59 @@ export const importProductOutputsSchema = z.object({
 /* REPORT RESOURCE SCHEMAS */
 
 export const baseReportSchema = baseResourceSchema.openapi('ReportSchemaBase')
+export const reportStoredContentSchema = z
+  .record(z.string(), z.unknown())
+  .openapi('ReportStoredContentSchema', {
+    type: 'object',
+    additionalProperties: true,
+    description:
+      'Opaque report document payload. It is currently stored as Tiptap JSON, but clients should treat the structure as an implementation detail.',
+  })
+
 export const fullReportSchema = baseReportSchema
-  .extend({ content: z.any() })
+  .extend({ content: reportStoredContentSchema.nullable() })
   .openapi('ReportSchemaFull')
 
 export const reportQuerySchema = baseQuerySchema
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
-  content: z.any(),
+  content: reportStoredContentSchema.nullable(),
 })
 
 /* DASHBOARD RESOURCE SCHEMAS */
-const gridLayoutItemSchema = z.object({
-  i: z.string(),
-  x: z.number(),
-  y: z.number(),
-  w: z.number(),
-  h: z.number(),
-  minH: z.number().optional(),
-  minW: z.number().optional(),
-  maxH: z.number().optional(),
-  maxW: z.number().optional(),
-  static: z.boolean().optional(),
-  isDraggable: z.boolean().optional(),
-  isResizable: z.boolean().optional(),
-  moved: z.boolean().optional(),
-})
+export const gridLayoutItemSchema = z
+  .object({
+    i: z.string(),
+    x: z.number(),
+    y: z.number(),
+    w: z.number(),
+    h: z.number(),
+    minH: z.number().optional(),
+    minW: z.number().optional(),
+    maxH: z.number().optional(),
+    maxW: z.number().optional(),
+    static: z.boolean().optional(),
+    isDraggable: z.boolean().optional(),
+    isResizable: z.boolean().optional(),
+    moved: z.boolean().optional(),
+  })
+  .openapi('DashboardGridLayoutItemSchema', {
+    description: 'Layout item for a dashboard chart card.',
+  })
 
 export const dashboardLayoutSchema = z.array(gridLayoutItemSchema)
 
-export const dashboardContentSchema = z.object({
-  charts: z.record(z.string(), z.any()),
-  layout: dashboardLayoutSchema,
-})
+export const dashboardContentSchema = z
+  .object({
+    charts: z.record(z.string(), chartConfigurationSchema),
+    layout: dashboardLayoutSchema,
+  })
+  .openapi('DashboardContentSchema', {
+    description:
+      'Typed dashboard content. Each chart card uses the shared persisted chart schema.',
+  })
+
+export type DashboardContent = z.infer<typeof dashboardContentSchema>
 
 export const baseDashboardSchema = baseResourceSchema.openapi(
   'DashboardSchemaBase',

@@ -1,3 +1,4 @@
+import type { AppearanceConfig, ChartConfiguration } from '@repo/schemas/chart'
 import { rgb } from 'd3-color'
 import { MouseEvent as ReactMouseEvent } from 'react'
 
@@ -23,164 +24,29 @@ import { MouseEvent as ReactMouseEvent } from 'react'
 // For maps:
 //   - A single indicator and single time point are selected.
 //
-// Validation (superRefine in chart-form-dialog.tsx) and the pivotData function
-// enforce this invariant.  If pivotData detects a collision (duplicate
-// (x, groupBy) combination) it returns an error — no values are ever
-// summarised, aggregated, or silently dropped.
+// Validation (shared chart schemas in @repo/schemas) and the pivotData
+// function enforce this invariant. If pivotData detects a collision
+// (duplicate (x, groupBy) combination) it returns an error — no values are
+// ever summarised, aggregated, or silently dropped.
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Colour scheme types
-// ---------------------------------------------------------------------------
-
-export type CategoricalColorScheme =
-  | 'tableau10'
-  | 'category10'
-  | 'paired'
-  | 'set1'
-  | 'set2'
-  | 'set3'
-  | 'dark2'
-  | 'accent'
-  | 'observable10'
-
-export type SequentialColorScheme =
-  | 'ylOrRd'
-  | 'viridis'
-  | 'plasma'
-  | 'inferno'
-  | 'blues'
-  | 'greens'
-  | 'oranges'
-  | 'ylGnBu'
-  | 'buPu'
-
-export type DivergingColorScheme = 'rdBu' | 'brBG' | 'piYG' | 'prGn' | 'rdYlGn'
-
-// ---------------------------------------------------------------------------
-// Appearance configuration
-// ---------------------------------------------------------------------------
-
-export type CurveType = 'monotone' | 'linear' | 'step'
-
-export type LegendPosition = 'top' | 'bottom' | 'none'
-
-export type AppearanceConfig = {
-  // Categorical colours (plot charts)
-  categoricalScheme?: CategoricalColorScheme
-  colorOverrides?: Record<string, string>
-
-  // Sequential / diverging colours (table, map)
-  sequentialScheme?: SequentialColorScheme
-  divergingScheme?: DivergingColorScheme
-  colorScaleType?: 'sequential' | 'diverging'
-  divergingMidpoint?: number
-  colorScaleMin?: number
-  colorScaleMax?: number
-  reverseColorScale?: boolean
-
-  // Y-axis
-  includeZero?: boolean
-  yMin?: number
-  yMax?: number
-
-  // Legend
-  legendPosition?: LegendPosition
-
-  // Grid
-  showGrid?: boolean
-
-  // Line / Area
-  curveType?: CurveType
-  showDots?: boolean
-  areaOpacity?: number
-
-  // Bar
-  barRadius?: number
-
-  // Donut
-  donutInnerRadius?: number // percentage 0-100, default 50
-
-  // Map-specific
-  showOutlines?: boolean
-  mapBbox?: {
-    minLon: number
-    minLat: number
-    maxLon: number
-    maxLat: number
-  }
-
-  // Formatting
-  decimalPlaces?: number
-  compactNumbers?: boolean
-  datePrecision?: 'year' | 'year-month' | 'year-month-day' | 'full'
-}
-
-// ---------------------------------------------------------------------------
-// Chart configuration types
-// ---------------------------------------------------------------------------
-
-export type BaseChartConfiguration = {
-  title?: string
-  description?: string
-  appearance?: AppearanceConfig
-}
-
-export type PlotSubType =
-  | 'line'
-  | 'area'
-  | 'stacked-area'
-  | 'stacked-bar'
-  | 'grouped-bar'
-  | 'ranked-bar'
-  | 'dot'
-  | 'donut'
-
-export type PlotChartConfiguration = {
-  type: 'plot'
-  subType: PlotSubType
-  productRunId: string
-  indicatorIds?: string[]
-  geometryOutputIds?: string[]
-  timePoints?: string[]
-} & BaseChartConfiguration
-
-export type MapChartConfiguration = {
-  type: 'map'
-  productRunId: string
-  indicatorId: string
-  timePoint: string
-  geometryOutputIds?: string[]
-} & BaseChartConfiguration
-
-export type TableChartDimension =
-  | 'timePoint'
-  | 'indicatorName'
-  | 'geometryOutputName'
-
-export type TableChartConfiguration = {
-  type: 'table'
-  productRunId: string
-  indicatorIds?: string[]
-  geometryOutputIds?: string[]
-  xDimension: TableChartDimension
-  yDimension: TableChartDimension
-  timePoints?: string[]
-} & BaseChartConfiguration
-
-export type KpiChartConfiguration = {
-  type: 'kpi'
-  productRunId: string
-  indicatorId: string
-  timePoint: string
-  geometryOutputIds?: string[]
-} & BaseChartConfiguration
-
-export type ChartConfiguration =
-  | PlotChartConfiguration
-  | MapChartConfiguration
-  | KpiChartConfiguration
-  | TableChartConfiguration
+export type {
+  AppearanceConfig,
+  BaseChartConfiguration,
+  CategoricalColorScheme,
+  ChartConfiguration,
+  CurveType,
+  DatePrecision,
+  DivergingColorScheme,
+  KpiChartConfiguration,
+  LegendPosition,
+  MapChartConfiguration,
+  PlotChartConfiguration,
+  PlotSubType,
+  SequentialColorScheme,
+  TableChartConfiguration,
+  TableChartDimension,
+} from '@repo/schemas/chart'
 
 export type SelectedDataPoint<T> = {
   dataPoint: T | null

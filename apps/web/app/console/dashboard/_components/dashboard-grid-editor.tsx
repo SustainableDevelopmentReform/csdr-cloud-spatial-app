@@ -1,6 +1,7 @@
 'use client'
 
-import { ChartConfiguration, SelectedDataPoint } from '@repo/plot/types'
+import { type ChartConfiguration, SelectedDataPoint } from '@repo/plot/types'
+import type { DashboardContent } from '@repo/schemas/crud'
 import { Button } from '@repo/ui/components/ui/button'
 import { Copy, Hand, Trash } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
@@ -20,11 +21,7 @@ const ROW_HEIGHT = 40
 const DEFAULT_HEIGHT = 12
 const DEFAULT_WIDTH = 4
 const COLS = 12
-
-export type DashboardContent = {
-  charts: Record<string, ChartConfiguration>
-  layout: Layout[]
-}
+type DashboardChart = DashboardContent['charts'][string]
 
 export const createEmptyDashboardContent = (): DashboardContent => ({
   charts: {},
@@ -104,7 +101,7 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
       updateContent((prev) => ({
         charts: {
           ...prev.charts,
-          [id]: chart,
+          [id]: chart as DashboardChart,
         },
         layout: [
           ...prev.layout,
@@ -171,7 +168,7 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
         return {
           charts: {
             ...prev.charts,
-            [id]: nextChart,
+            [id]: nextChart as DashboardChart,
           },
           layout: prev.layout,
         }
@@ -188,9 +185,7 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
         if (!chart) return null
         return { id: item.i, chart }
       })
-      .filter(
-        (item): item is { id: string; chart: ChartConfiguration } => !!item,
-      )
+      .filter((item): item is { id: string; chart: DashboardChart } => !!item)
 
     Object.entries(content.charts).forEach(([id, chart]) => {
       if (!layoutMap.has(id)) {
