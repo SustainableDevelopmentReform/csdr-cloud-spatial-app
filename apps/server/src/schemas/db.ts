@@ -190,6 +190,7 @@ export const geometryOutput = pgTable(
   },
   (table) => [
     index('geometry_geometries_run_idx').on(table.geometriesRunId),
+    index('geometry_geometry_gist_idx').using('gist', table.geometry),
     // Ensure unique geometry names per run
     unique('geometry_name_per_run').on(table.geometriesRunId, table.name),
   ],

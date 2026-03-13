@@ -5,7 +5,9 @@ import { useState } from 'react'
 import { QueryKey } from '~/utils/apiClient'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
-export type ApiKey = NonNullable<ReturnType<typeof useApiKeys>['data']>[0]
+export type ApiKey = NonNullable<
+  ReturnType<typeof useApiKeys>['data']
+>['apiKeys'][number]
 
 export const useApiKeys = () => {
   const authClient = useAuthClient()

@@ -24,13 +24,15 @@ pnpm install
 cp .env.example.local .env
 ```
 
-### Setting up Database
+### Setting local development environment
 
-Start up postgres container with docker compose:
+Start up postgres and mailpit containers with docker compose:
 
 ```bash
 docker-compose -f docker-compose-dev.yml up -d
 ```
+
+**Note** Mailpit is used to catch auth emails locally (for password reset, etc.) - you can see the emails in the browser at `http://localhost:8025`.
 
 For fresh local DBs, the dev container enables PostgreSQL `pg_trgm` during
 initialization. If your DB container already exists, recreate it or enable the
@@ -104,11 +106,11 @@ pnpm seed
 
 ### Updating Better Auth DB Schema
 
-Note: you may need to update the version (eg `@1.4.6`) of the better-auth CLI to the version used in the project.
+Note: generate the auth schema with the current Better Auth CLI wrapper.
 
 ```bash
 cd apps/server
-npx @better-auth/cli@1.4.6 generate --output src/schemas/auth.ts --config src/lib/auth.ts
+npx auth@latest generate --output src/schemas/auth.ts --config src/lib/auth.ts
 ```
 
 Then follow the instructions in the terminal to generate and run the migration...

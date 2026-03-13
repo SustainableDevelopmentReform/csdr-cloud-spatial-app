@@ -46,6 +46,7 @@ import {
 } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
 import { ImportProductOutputsPayload, useImportProductOutputs } from '../_hooks'
 import type { IndicatorListItem } from '../../indicator/_hooks'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
@@ -182,10 +183,12 @@ const ProductOutputsImportForm = ({
   productRunId,
   geometriesRunId,
   onCompleted,
+  dirtyRef,
 }: {
   productRunId?: string
   geometriesRunId?: string
   onCompleted: () => void
+  dirtyRef: React.RefObject<boolean>
 }) => {
   const defaultValues = useMemo(
     () => ({
@@ -221,6 +224,12 @@ const ProductOutputsImportForm = ({
   const [dropError, setDropError] = useState<string | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useUnsavedChangesWarning(selectedFile !== null)
+
+  useEffect(() => {
+    dirtyRef.current = selectedFile !== null
+  }, [selectedFile, dirtyRef])
 
   const geometryColumn = form.watch('geometryColumn')
   const indicatorMappings = form.watch('indicatorMappings')
@@ -499,7 +508,7 @@ const ProductOutputsImportForm = ({
 
   return (
     <Form {...form}>
-      <form className="space-y-6" onSubmit={onSubmit}>
+      <form className="min-w-0 space-y-6" onSubmit={onSubmit}>
         <FormField
           control={form.control}
           name="csvFile"
@@ -669,7 +678,7 @@ const ProductOutputsImportForm = ({
         {csvSummary ? (
           <div className="space-y-2">
             <FormLabel>Data preview</FormLabel>
-            <div className="max-w-full overflow-x-auto rounded-md border">
+            <div className="min-w-0 overflow-x-auto rounded-md border">
               <table className="w-full min-w-max text-sm">
                 <thead>
                   <tr>
@@ -741,10 +750,18 @@ export const ProductOutputsImportDialog = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const dirtyRef = useRef(false)
 
   const handleOpenChange = (next: boolean) => {
+    if (!next && dirtyRef.current) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to close?',
+      )
+      if (!confirmed) return
+    }
     setIsOpen(next)
     if (!next) {
+      dirtyRef.current = false
       setFormKey((prev) => prev + 1)
     }
   }
@@ -769,6 +786,7 @@ export const ProductOutputsImportDialog = ({
             key={formKey}
             productRunId={productRunId}
             geometriesRunId={geometriesRunId}
+            dirtyRef={dirtyRef}
             onCompleted={() => handleOpenChange(false)}
           />
         ) : null}

@@ -44,6 +44,7 @@ import {
 } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
 import { ImportGeometriesRunPayload, useImportGeometryOutputs } from '../_hooks'
 
 type GeojsonSummary = {
@@ -146,9 +147,11 @@ const readGeojsonSummary = async (file: File): Promise<GeojsonSummary> => {
 const GeojsonImportForm = ({
   geometriesRunId,
   onCompleted,
+  dirtyRef,
 }: {
   geometriesRunId?: string
   onCompleted: () => void
+  dirtyRef: React.RefObject<boolean>
 }) => {
   const defaultValues = useMemo(
     () => ({
@@ -176,6 +179,12 @@ const GeojsonImportForm = ({
   const [isDragActive, setIsDragActive] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useUnsavedChangesWarning(selectedFile !== null)
+
+  useEffect(() => {
+    dirtyRef.current = selectedFile !== null
+  }, [selectedFile, dirtyRef])
 
   const resetGeojsonState = useCallback(() => {
     setGeojsonSummary(null)
@@ -541,10 +550,18 @@ export const GeojsonImportDialog = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const dirtyRef = useRef(false)
 
   const handleOpenChange = (next: boolean) => {
+    if (!next && dirtyRef.current) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to close?',
+      )
+      if (!confirmed) return
+    }
     setIsOpen(next)
     if (!next) {
+      dirtyRef.current = false
       setFormKey((prev) => prev + 1)
     }
   }
@@ -566,6 +583,7 @@ export const GeojsonImportDialog = ({
           <GeojsonImportForm
             key={formKey}
             geometriesRunId={geometriesRunId}
+            dirtyRef={dirtyRef}
             onCompleted={() => handleOpenChange(false)}
           />
         ) : null}
