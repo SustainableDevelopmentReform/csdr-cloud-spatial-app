@@ -101,6 +101,9 @@ describe('geometries-run route', () => {
     expect(tileResponse.headers.get('content-type')).toBe(
       'image/vnd.mapbox-vector-tile',
     )
+    expect(tileResponse.headers.get('cache-control')).toBe(
+      'private, max-age=600, stale-while-revalidate=86400',
+    )
 
     await expectJsonResponse(
       await memberClient.api.v0['geometries-run'][':id'].$get({
