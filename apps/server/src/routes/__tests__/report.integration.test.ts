@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { reportIndicatorUsage } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import { expectJsonResponse } from './test-helpers'
 
-const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
-  import.meta.url,
-)
+const { createAppClient, createSessionHeaders, db } =
+  await setupIsolatedTestFile(import.meta.url)
 
 let adminClient: ReturnType<typeof createAppClient>
 let memberClient: ReturnType<typeof createAppClient>
@@ -24,6 +25,16 @@ beforeEach(async () => {
 })
 
 describe('report route', () => {
+  const validReportContent = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Updated report content' }],
+      },
+    ],
+  }
+
   it('returns read responses with expected messages', async () => {
     await expectJsonResponse(
       await createAppClient().api.v0.report.$get({ query: {} }),
@@ -100,7 +111,7 @@ describe('report route', () => {
         param: { id: createdJson.data.id },
         json: {
           description: 'Updated report',
-          content: {},
+          content: validReportContent,
         },
       }),
       {
@@ -118,5 +129,119 @@ describe('report route', () => {
         message: 'Report deleted',
       },
     )
+  })
+
+  it('rejects invalid stored report content payloads', async () => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Validated report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    const invalidJson = await expectJsonResponse<{
+      issues: { path: string; message: string; code: string }[]
+    }>(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: {},
+        },
+      }),
+      {
+        status: 422,
+        message: 'Validation Error',
+      },
+    )
+
+    expect(invalidJson.data.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'type',
+          message: 'Invalid input: expected "doc"',
+        }),
+      ]),
+    )
+  })
+
+  it('syncs report indicator usage rows from chart content', async () => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Chart report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'chart',
+                attrs: {
+                  chart: {
+                    type: 'plot',
+                    subType: 'line',
+                    productRunId: seededIds.productRun,
+                    indicatorIds: [seededIds.indicator],
+                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                    timePoints: ['2021-01-01T00:00:00.000Z'],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    expect(
+      await db.query.reportIndicatorUsage.findMany({
+        where: eq(reportIndicatorUsage.reportId, createdJson.data.id),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        reportId: createdJson.data.id,
+        productRunId: seededIds.productRun,
+        indicatorId: seededIds.indicator,
+        derivedIndicatorId: null,
+      }),
+    ])
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: validReportContent,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    expect(
+      await db.query.reportIndicatorUsage.findMany({
+        where: eq(reportIndicatorUsage.reportId, createdJson.data.id),
+      }),
+    ).toEqual([])
   })
 })

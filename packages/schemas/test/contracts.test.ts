@@ -1,12 +1,22 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { describe, expect, it } from 'vitest'
-import { chartConfigurationSchema } from '../src/chart'
+import {
+  chartConfigurationSchema,
+  extractChartIndicatorSelection,
+} from '../src/chart'
 import {
   dashboardContentSchema,
   fullDashboardSchema,
   fullReportSchema,
   reportStoredContentSchema,
 } from '../src/crud'
+import {
+  extractReportChartReferences,
+  extractReportIndicatorSelections,
+  extractReportProductRunIds,
+  parseReportStoredContent,
+  reportTiptapDocumentSchema,
+} from '../src/report-content'
 
 const basePlotSelections = {
   productRunId: 'run-1',
@@ -318,6 +328,74 @@ describe('chartConfigurationSchema', () => {
   })
 })
 
+describe('extractChartIndicatorSelection', () => {
+  it('returns explicit indicator selections for plot and table charts', () => {
+    expect(
+      extractChartIndicatorSelection({
+        type: 'plot',
+        subType: 'line',
+        ...basePlotSelections,
+        indicatorIds: ['indicator-1', 'indicator-2'],
+      }),
+    ).toEqual({
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1', 'indicator-2'],
+    })
+
+    expect(
+      extractChartIndicatorSelection({
+        type: 'table',
+        ...basePlotSelections,
+        indicatorIds: ['indicator-1'],
+        xDimension: 'timePoint',
+        yDimension: 'geometryOutputName',
+      }),
+    ).toEqual({
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+    })
+  })
+
+  it('returns explicit indicator selections for single-indicator chart types', () => {
+    expect(
+      extractChartIndicatorSelection({
+        type: 'map',
+        productRunId: 'run-1',
+        indicatorId: 'indicator-1',
+        timePoint: '2024',
+      }),
+    ).toEqual({
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+    })
+  })
+})
+
+describe('explicit indicator requirements', () => {
+  it('requires explicit indicatorIds for plot and table charts', () => {
+    expect(
+      chartConfigurationSchema.safeParse({
+        type: 'plot',
+        subType: 'line',
+        productRunId: 'run-1',
+        geometryOutputIds: ['geometry-1'],
+        timePoints: ['2024'],
+      }).success,
+    ).toBe(false)
+
+    expect(
+      chartConfigurationSchema.safeParse({
+        type: 'table',
+        productRunId: 'run-1',
+        xDimension: 'timePoint',
+        yDimension: 'indicatorName',
+        geometryOutputIds: ['geometry-1'],
+        timePoints: ['2024'],
+      }).success,
+    ).toBe(false)
+  })
+})
+
 describe('reportStoredContentSchema', () => {
   it('keeps the public report payload schema opaque', () => {
     expect(
@@ -329,6 +407,154 @@ describe('reportStoredContentSchema', () => {
       type: 'doc',
       content: [{ type: 'paragraph' }],
     })
+  })
+})
+
+describe('reportTiptapDocumentSchema', () => {
+  it('parses generic Tiptap content while typing chart nodes', () => {
+    const parsed = parseReportStoredContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Overview' }],
+        },
+        {
+          type: 'chart',
+          attrs: {
+            chart: {
+              type: 'plot',
+              subType: 'line',
+              ...basePlotSelections,
+              productId: 'legacy-product',
+            },
+            height: 360,
+          },
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Nested chart' }],
+                },
+                {
+                  type: 'chart',
+                  attrs: {
+                    chart: {
+                      type: 'kpi',
+                      productRunId: 'run-2',
+                      indicatorId: 'indicator-2',
+                      timePoint: '2024',
+                      geometryOutputIds: ['geometry-2'],
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    const topLevelChart = parsed.content?.[1]
+    expect(topLevelChart).toMatchObject({
+      type: 'chart',
+      attrs: {
+        height: 360,
+      },
+    })
+    expect(topLevelChart?.attrs).not.toHaveProperty('productId')
+
+    expect(extractReportProductRunIds(parsed)).toEqual(['run-1', 'run-2'])
+    expect(extractReportIndicatorSelections(parsed)).toEqual([
+      {
+        productRunId: 'run-1',
+        indicatorIds: ['indicator-1'],
+      },
+      {
+        productRunId: 'run-2',
+        indicatorIds: ['indicator-2'],
+      },
+    ])
+    expect(extractReportChartReferences(parsed)).toEqual([
+      expect.objectContaining({
+        path: [1],
+        height: 360,
+        chart: expect.objectContaining({
+          productRunId: 'run-1',
+        }),
+      }),
+      expect.objectContaining({
+        path: [2, 0, 1],
+        height: null,
+        chart: expect.objectContaining({
+          productRunId: 'run-2',
+        }),
+      }),
+    ])
+  })
+
+  it('allows unconfigured chart nodes and ignores them during extraction', () => {
+    const parsed = reportTiptapDocumentSchema.parse({
+      type: 'doc',
+      content: [
+        {
+          type: 'chart',
+          attrs: {
+            chart: null,
+            height: null,
+          },
+        },
+      ],
+    })
+
+    expect(extractReportChartReferences(parsed)).toEqual([])
+    expect(extractReportProductRunIds(parsed)).toEqual([])
+  })
+
+  it('rejects invalid chart configurations embedded in report content', () => {
+    const result = reportTiptapDocumentSchema.safeParse({
+      type: 'doc',
+      content: [
+        {
+          type: 'chart',
+          attrs: {
+            chart: {
+              type: 'plot',
+              subType: 'donut',
+              ...basePlotSelections,
+              indicatorIds: ['indicator-1', 'indicator-2'],
+              timePoints: ['2024', '2025'],
+            },
+          },
+        },
+      ],
+    })
+
+    expect(result.success).toBe(false)
+
+    if (result.success) {
+      throw new Error('Expected invalid chart content to fail')
+    }
+
+    expect(result.error.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ['content', 0, 'attrs', 'chart', 'indicatorIds'],
+          message:
+            'Donut chart can only vary one dimension — select a single indicator',
+        }),
+        expect.objectContaining({
+          path: ['content', 0, 'attrs', 'chart', 'timePoints'],
+          message:
+            'Donut chart can only vary one dimension — select a single time point',
+        }),
+      ]),
+    )
   })
 })
 

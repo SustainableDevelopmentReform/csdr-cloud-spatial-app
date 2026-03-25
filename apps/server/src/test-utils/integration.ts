@@ -515,7 +515,18 @@ const seedBaseData = async (db: DbModule['db']) => {
     description: 'Seeded report for integration tests',
     metadata: null,
     content: {
-      summary: 'Forest cover has been seeded for route tests.',
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Forest cover has been seeded for route tests.',
+            },
+          ],
+        },
+      ],
     },
     createdAt: now,
     updatedAt: now,

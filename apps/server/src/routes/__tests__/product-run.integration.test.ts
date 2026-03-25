@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { product, productOutput } from '~/schemas/db'
+import { dashboardIndicatorUsage, product, productOutput } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import { expectJsonResponse } from './test-helpers'
 
@@ -219,7 +219,13 @@ describe('product-run route', () => {
       },
     )
     expect(derivedAfterAssignJson.data).toHaveLength(1)
-    expect(derivedAfterAssignJson.data[0]?.derivedIndicator.id).toBe(
+    const assignedDerivedIndicator = derivedAfterAssignJson.data[0]
+
+    if (!assignedDerivedIndicator) {
+      throw new Error('Expected assigned derived indicator to exist')
+    }
+
+    expect(assignedDerivedIndicator.derivedIndicator.id).toBe(
       seededIds.derivedIndicator,
     )
 
@@ -247,6 +253,69 @@ describe('product-run route', () => {
       eq(productOutput.derivedIndicatorId, seededIds.derivedIndicator),
     )
     expect(derivedOutputCount).toBe(4)
+
+    const dashboardJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.dashboard.$post({
+        json: {
+          name: 'Derived indicator dashboard',
+          content: {
+            charts: {
+              primary: {
+                type: 'plot',
+                subType: 'line',
+                productRunId: seededIds.productRun,
+                indicatorIds: [seededIds.derivedIndicator],
+                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                timePoints: ['2021-01-01T00:00:00.000Z'],
+              },
+            },
+            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+          },
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard created',
+      },
+    )
+
+    expect(
+      await db.query.dashboardIndicatorUsage.findMany({
+        where: eq(dashboardIndicatorUsage.dashboardId, dashboardJson.data.id),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        dashboardId: dashboardJson.data.id,
+        productRunId: seededIds.productRun,
+        indicatorId: null,
+        derivedIndicatorId: seededIds.derivedIndicator,
+      }),
+    ])
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id']['derived-indicators'][
+        ':assignedDerivedIndicatorId'
+      ].$delete({
+        param: {
+          id: seededIds.productRun,
+          assignedDerivedIndicatorId: assignedDerivedIndicator.id,
+        },
+      }),
+      {
+        status: 400,
+        message: 'Cannot delete derived indicator',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'].$delete({
+        param: { id: seededIds.productRun },
+      }),
+      {
+        status: 400,
+        message: 'Cannot delete product run',
+      },
+    )
 
     const tempRunJson = await expectJsonResponse<{ id: string }>(
       await adminClient.api.v0['product-run'].$post({
@@ -301,6 +370,11 @@ describe('product-run route', () => {
       },
     )
     expect(tempAssignedJson.data).toHaveLength(1)
+    const tempAssignedIndicator = tempAssignedJson.data[0]
+
+    if (!tempAssignedIndicator) {
+      throw new Error('Expected temporary assigned derived indicator to exist')
+    }
 
     await expectJsonResponse(
       await adminClient.api.v0['product-run'][':id']['derived-indicators'][
@@ -308,7 +382,7 @@ describe('product-run route', () => {
       ].$delete({
         param: {
           id: tempRunJson.data.id,
-          assignedDerivedIndicatorId: tempAssignedJson.data[0]!.id,
+          assignedDerivedIndicatorId: tempAssignedIndicator.id,
         },
       }),
       {

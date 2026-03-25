@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 export const chartFormSchema = z.intersection(
   z.object({
-    productId: z.string(),
+    productId: z.string().optional(),
   }),
   chartConfigurationSchema,
 )

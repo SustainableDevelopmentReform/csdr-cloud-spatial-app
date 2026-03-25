@@ -21,6 +21,10 @@ import {
   notInArray,
   or,
 } from 'drizzle-orm'
+import {
+  ensureDerivedIndicatorNotUsedByCharts,
+  ensureMeasuredIndicatorNotUsedByCharts,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -748,6 +752,7 @@ const app = createOpenAPIApp()
             },
           },
         },
+        400: jsonErrorResponse('Cannot delete measured indicator'),
         401: jsonErrorResponse('Unauthorized'),
         404: jsonErrorResponse('Measured indicator not found'),
         422: validationErrorResponse,
@@ -757,6 +762,8 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const record = await fetchFullMeasuredIndicatorOrThrow(id)
+
+      await ensureMeasuredIndicatorNotUsedByCharts(id)
 
       await db.delete(indicator).where(eq(indicator.id, id))
 
@@ -782,6 +789,7 @@ const app = createOpenAPIApp()
             },
           },
         },
+        400: jsonErrorResponse('Cannot delete derived indicator'),
         401: jsonErrorResponse('Unauthorized'),
         404: jsonErrorResponse('Derived indicator not found'),
         422: validationErrorResponse,
@@ -791,6 +799,8 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const record = await fetchFullDerivedIndicatorOrThrow(id)
+
+      await ensureDerivedIndicatorNotUsedByCharts(id)
 
       await db.delete(derivedIndicator).where(eq(derivedIndicator.id, id))
 

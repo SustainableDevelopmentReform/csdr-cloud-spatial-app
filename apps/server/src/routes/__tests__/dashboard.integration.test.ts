@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { dashboardIndicatorUsage } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import { expectJsonResponse } from './test-helpers'
 
-const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
-  import.meta.url,
-)
+const { createAppClient, createSessionHeaders, db } =
+  await setupIsolatedTestFile(import.meta.url)
 
 let adminClient: ReturnType<typeof createAppClient>
 let memberClient: ReturnType<typeof createAppClient>
@@ -125,5 +126,45 @@ describe('dashboard route', () => {
         message: 'Dashboard deleted',
       },
     )
+  })
+
+  it('syncs dashboard indicator usage rows from chart cards', async () => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.dashboard.$post({
+        json: {
+          name: 'Chart dashboard',
+          content: {
+            charts: {
+              primary: {
+                type: 'plot',
+                subType: 'line',
+                productRunId: seededIds.productRun,
+                indicatorIds: [seededIds.indicator],
+                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                timePoints: ['2021-01-01T00:00:00.000Z'],
+              },
+            },
+            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+          },
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard created',
+      },
+    )
+
+    expect(
+      await db.query.dashboardIndicatorUsage.findMany({
+        where: eq(dashboardIndicatorUsage.dashboardId, createdJson.data.id),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        dashboardId: createdJson.data.id,
+        productRunId: seededIds.productRun,
+        indicatorId: seededIds.indicator,
+        derivedIndicatorId: null,
+      }),
+    ])
   })
 })

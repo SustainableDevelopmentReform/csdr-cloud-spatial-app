@@ -214,4 +214,95 @@ describe('indicator route', () => {
       },
     )
   })
+
+  it('blocks deleting indicators that are used by reports or dashboards', async () => {
+    const reportJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Measured indicator report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportJson.data.id },
+        json: {
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'chart',
+                attrs: {
+                  chart: {
+                    type: 'plot',
+                    subType: 'line',
+                    productRunId: seededIds.productRun,
+                    indicatorIds: [seededIds.indicator],
+                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                    timePoints: ['2021-01-01T00:00:00.000Z'],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const dashboardJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.dashboard.$post({
+        json: {
+          name: 'Derived indicator dashboard',
+          content: {
+            charts: {
+              primary: {
+                type: 'plot',
+                subType: 'line',
+                productRunId: seededIds.productRun,
+                indicatorIds: [seededIds.derivedIndicator],
+                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                timePoints: ['2021-01-01T00:00:00.000Z'],
+              },
+            },
+            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+          },
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard created',
+      },
+    )
+
+    expect(dashboardJson.data.id).toBeTruthy()
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.measured[':id'].$delete({
+        param: { id: seededIds.indicator },
+      }),
+      {
+        status: 400,
+        message: 'Cannot delete measured indicator',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.derived[':id'].$delete({
+        param: { id: seededIds.derivedIndicator },
+      }),
+      {
+        status: 400,
+        message: 'Cannot delete derived indicator',
+      },
+    )
+  })
 })

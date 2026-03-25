@@ -99,6 +99,7 @@ export type AppearanceConfig = {
 }
 
 export type BaseChartConfiguration = {
+  productRunId: string
   title?: string
   description?: string
   appearance?: AppearanceConfig
@@ -107,15 +108,13 @@ export type BaseChartConfiguration = {
 export type PlotChartConfiguration = BaseChartConfiguration & {
   type: 'plot'
   subType: PlotSubType
-  productRunId: string
-  indicatorIds?: string[]
+  indicatorIds: string[]
   geometryOutputIds?: string[]
   timePoints?: string[]
 }
 
 export type MapChartConfiguration = BaseChartConfiguration & {
   type: 'map'
-  productRunId: string
   indicatorId: string
   timePoint: string
   geometryOutputIds?: string[]
@@ -123,8 +122,7 @@ export type MapChartConfiguration = BaseChartConfiguration & {
 
 export type TableChartConfiguration = BaseChartConfiguration & {
   type: 'table'
-  productRunId: string
-  indicatorIds?: string[]
+  indicatorIds: string[]
   geometryOutputIds?: string[]
   xDimension: TableChartDimension
   yDimension: TableChartDimension
@@ -133,7 +131,6 @@ export type TableChartConfiguration = BaseChartConfiguration & {
 
 export type KpiChartConfiguration = BaseChartConfiguration & {
   type: 'kpi'
-  productRunId: string
   indicatorId: string
   timePoint: string
   geometryOutputIds: string[]
@@ -144,6 +141,11 @@ export type ChartConfiguration =
   | MapChartConfiguration
   | TableChartConfiguration
   | KpiChartConfiguration
+
+export type ChartIndicatorSelection = {
+  productRunId: string
+  indicatorIds: string[]
+}
 
 export const chartVisualTypeMetadata = [
   {
@@ -283,12 +285,12 @@ export const appearanceConfigSchema = z
 
 export const baseChartConfigurationSchema = z
   .object({
-    title: z
-      .string()
-      .optional()
-      .openapi({
-        description: 'Optional chart title shown in reports and dashboards.',
-      }),
+    productRunId: z.string().openapi({
+      description: 'Product run providing the chart data.',
+    }),
+    title: z.string().optional().openapi({
+      description: 'Optional chart title shown in reports and dashboards.',
+    }),
     description: z.string().optional().openapi({
       description: 'Optional chart description shown under the title.',
     }),
@@ -299,13 +301,10 @@ export const baseChartConfigurationSchema = z
   ) satisfies z.ZodType<BaseChartConfiguration>
 
 const multiSeriesSelectionSchema = baseChartConfigurationSchema.extend({
-  productRunId: z.string().openapi({
-    description: 'Product run providing the chart data.',
-  }),
   indicatorIds: z
     .array(z.string())
     .max(MAX_CLASSES, `At most ${MAX_CLASSES} indicators can be selected`)
-    .optional(),
+    .min(1, 'At least one indicator must be selected'),
   geometryOutputIds: z
     .array(z.string())
     .max(MAX_CLASSES, `At most ${MAX_CLASSES} geometry outputs can be selected`)
@@ -321,8 +320,7 @@ export const plotChartConfigurationSchema = multiSeriesSelectionSchema
     }),
   })
   .superRefine((data, context) => {
-    const multipleIndicatorsSelected =
-      (data.indicatorIds?.length ?? 0) > 1 || !data.indicatorIds?.length
+    const multipleIndicatorsSelected = data.indicatorIds.length > 1
     const multipleGeometryOutputsSelected =
       (data.geometryOutputIds?.length ?? 0) > 1 ||
       !data.geometryOutputIds?.length
@@ -418,7 +416,6 @@ export const plotChartConfigurationSchema = multiSeriesSelectionSchema
 export const mapChartConfigurationSchema = baseChartConfigurationSchema
   .extend({
     type: z.literal('map'),
-    productRunId: z.string(),
     indicatorId: z.string().openapi({
       description: 'Map charts require exactly one indicator selection.',
     }),
@@ -442,7 +439,6 @@ export const mapChartConfigurationSchema = baseChartConfigurationSchema
 export const kpiChartConfigurationSchema = baseChartConfigurationSchema
   .extend({
     type: z.literal('kpi'),
-    productRunId: z.string(),
     indicatorId: z.string().openapi({
       description: 'KPI cards require exactly one indicator selection.',
     }),
@@ -469,8 +465,7 @@ export const tableChartConfigurationSchema = multiSeriesSelectionSchema
     yDimension: z.enum(tableChartDimensionValues),
   })
   .superRefine((data, context) => {
-    const multipleIndicatorsSelected =
-      (data.indicatorIds?.length ?? 0) > 1 || !data.indicatorIds?.length
+    const multipleIndicatorsSelected = data.indicatorIds.length > 1
     const multipleGeometryOutputsSelected =
       (data.geometryOutputIds?.length ?? 0) > 1 ||
       !data.geometryOutputIds?.length
@@ -529,3 +524,29 @@ export const chartConfigurationSchema = z
     description:
       'Persisted chart configuration used by report chart nodes and dashboard cards.',
   }) satisfies z.ZodType<ChartConfiguration>
+
+const dedupeIndicatorIds = (indicatorIds: string[]): string[] =>
+  Array.from(new Set(indicatorIds))
+
+export const extractChartIndicatorSelection = (
+  chart: ChartConfiguration,
+): ChartIndicatorSelection => {
+  switch (chart.type) {
+    case 'plot':
+    case 'table':
+      return {
+        productRunId: chart.productRunId,
+        indicatorIds: dedupeIndicatorIds(chart.indicatorIds),
+      }
+    case 'map':
+    case 'kpi':
+      return {
+        productRunId: chart.productRunId,
+        indicatorIds: [chart.indicatorId],
+      }
+    default: {
+      const exhaustiveCheck: never = chart
+      throw new Error(`Unhandled chart type: ${String(exhaustiveCheck)}`)
+    }
+  }
+}

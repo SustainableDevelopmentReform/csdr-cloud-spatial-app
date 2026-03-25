@@ -1,6 +1,7 @@
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   AnyPgColumn,
+  check,
   index,
   integer,
   jsonb,
@@ -12,6 +13,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { multiPolygon } from './customTypes'
 
@@ -557,6 +559,82 @@ export const dashboard = pgTable(
   ],
 )
 
+export const reportIndicatorUsage = pgTable(
+  'report_indicator_usage',
+  {
+    reportId: text('report_id')
+      .notNull()
+      .references(() => report.id, { onDelete: 'cascade' }),
+    productRunId: text('product_run_id')
+      .notNull()
+      .references(() => productRun.id),
+    indicatorId: text('indicator_id').references(() => indicator.id),
+    derivedIndicatorId: text('derived_indicator_id').references(
+      () => derivedIndicator.id,
+    ),
+  },
+  (table) => [
+    check(
+      'report_indicator_usage_indicator_xor_chk',
+      sql`(
+        ("indicator_id" is not null and "derived_indicator_id" is null)
+        or
+        ("indicator_id" is null and "derived_indicator_id" is not null)
+      )`,
+    ),
+    index('report_indicator_usage_report_idx').on(table.reportId),
+    index('report_indicator_usage_product_run_idx').on(table.productRunId),
+    index('report_indicator_usage_indicator_idx').on(table.indicatorId),
+    index('report_indicator_usage_derived_indicator_idx').on(
+      table.derivedIndicatorId,
+    ),
+    uniqueIndex('report_indicator_usage_measured_uidx')
+      .on(table.reportId, table.productRunId, table.indicatorId)
+      .where(sql`${table.indicatorId} is not null`),
+    uniqueIndex('report_indicator_usage_derived_uidx')
+      .on(table.reportId, table.productRunId, table.derivedIndicatorId)
+      .where(sql`${table.derivedIndicatorId} is not null`),
+  ],
+)
+
+export const dashboardIndicatorUsage = pgTable(
+  'dashboard_indicator_usage',
+  {
+    dashboardId: text('dashboard_id')
+      .notNull()
+      .references(() => dashboard.id, { onDelete: 'cascade' }),
+    productRunId: text('product_run_id')
+      .notNull()
+      .references(() => productRun.id),
+    indicatorId: text('indicator_id').references(() => indicator.id),
+    derivedIndicatorId: text('derived_indicator_id').references(
+      () => derivedIndicator.id,
+    ),
+  },
+  (table) => [
+    check(
+      'dashboard_indicator_usage_indicator_xor_chk',
+      sql`(
+        ("indicator_id" is not null and "derived_indicator_id" is null)
+        or
+        ("indicator_id" is null and "derived_indicator_id" is not null)
+      )`,
+    ),
+    index('dashboard_indicator_usage_dashboard_idx').on(table.dashboardId),
+    index('dashboard_indicator_usage_product_run_idx').on(table.productRunId),
+    index('dashboard_indicator_usage_indicator_idx').on(table.indicatorId),
+    index('dashboard_indicator_usage_derived_indicator_idx').on(
+      table.derivedIndicatorId,
+    ),
+    uniqueIndex('dashboard_indicator_usage_measured_uidx')
+      .on(table.dashboardId, table.productRunId, table.indicatorId)
+      .where(sql`${table.indicatorId} is not null`),
+    uniqueIndex('dashboard_indicator_usage_derived_uidx')
+      .on(table.dashboardId, table.productRunId, table.derivedIndicatorId)
+      .where(sql`${table.derivedIndicatorId} is not null`),
+  ],
+)
+
 // Relations
 export const datasetRelations = relations(dataset, ({ many, one }) => ({
   runs: many(datasetRun),
@@ -643,6 +721,8 @@ export const productRunRelations = relations(productRun, ({ one, many }) => ({
   }),
   outputSummaryIndicators: many(productOutputSummaryIndicator),
   assignedDerivedIndicators: many(productRunAssignedDerivedIndicator),
+  reportIndicatorUsages: many(reportIndicatorUsage),
+  dashboardIndicatorUsages: many(dashboardIndicatorUsage),
 }))
 
 export const productRunAssignedDerivedIndicatorRelations = relations(
@@ -749,6 +829,8 @@ export const indicatorRelations = relations(indicator, ({ one, many }) => ({
   assignedDerivedIndicatorDependencies: many(
     productRunAssignedDerivedIndicatorDependency,
   ),
+  reportUsages: many(reportIndicatorUsage),
+  dashboardUsages: many(dashboardIndicatorUsage),
 }))
 
 export const derivedIndicatorRelations = relations(
@@ -760,6 +842,8 @@ export const derivedIndicatorRelations = relations(
     }),
     indicators: many(derivedIndicatorToIndicator),
     productOutputs: many(productOutput),
+    reportUsages: many(reportIndicatorUsage),
+    dashboardUsages: many(dashboardIndicatorUsage),
   }),
 )
 
@@ -805,6 +889,58 @@ export const productOutputSummaryIndicatorRelations = relations(
     }),
     derivedIndicator: one(derivedIndicator, {
       fields: [productOutputSummaryIndicator.derivedIndicatorId],
+      references: [derivedIndicator.id],
+    }),
+  }),
+)
+
+export const reportRelations = relations(report, ({ many }) => ({
+  indicatorUsages: many(reportIndicatorUsage),
+}))
+
+export const dashboardRelations = relations(dashboard, ({ many }) => ({
+  indicatorUsages: many(dashboardIndicatorUsage),
+}))
+
+export const reportIndicatorUsageRelations = relations(
+  reportIndicatorUsage,
+  ({ one }) => ({
+    report: one(report, {
+      fields: [reportIndicatorUsage.reportId],
+      references: [report.id],
+    }),
+    productRun: one(productRun, {
+      fields: [reportIndicatorUsage.productRunId],
+      references: [productRun.id],
+    }),
+    indicator: one(indicator, {
+      fields: [reportIndicatorUsage.indicatorId],
+      references: [indicator.id],
+    }),
+    derivedIndicator: one(derivedIndicator, {
+      fields: [reportIndicatorUsage.derivedIndicatorId],
+      references: [derivedIndicator.id],
+    }),
+  }),
+)
+
+export const dashboardIndicatorUsageRelations = relations(
+  dashboardIndicatorUsage,
+  ({ one }) => ({
+    dashboard: one(dashboard, {
+      fields: [dashboardIndicatorUsage.dashboardId],
+      references: [dashboard.id],
+    }),
+    productRun: one(productRun, {
+      fields: [dashboardIndicatorUsage.productRunId],
+      references: [productRun.id],
+    }),
+    indicator: one(indicator, {
+      fields: [dashboardIndicatorUsage.indicatorId],
+      references: [indicator.id],
+    }),
+    derivedIndicator: one(derivedIndicator, {
+      fields: [dashboardIndicatorUsage.derivedIndicatorId],
       references: [derivedIndicator.id],
     }),
   }),
