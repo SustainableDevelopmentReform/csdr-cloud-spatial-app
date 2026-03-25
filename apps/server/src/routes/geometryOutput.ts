@@ -7,8 +7,9 @@ import {
   importGeometryOutputsSchema,
   updateGeometryOutputSchema,
 } from '@repo/schemas/crud'
+import { MultiPolygonSchema, PolygonSchema } from '@repo/schemas/geojson'
 import { DrizzleQueryError, eq, inArray } from 'drizzle-orm'
-import { Feature, FeatureCollection, MultiPolygon } from 'geojson'
+import { MultiPolygon } from 'geojson'
 import { DatabaseError } from 'pg'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -74,6 +75,25 @@ const geometryOutputNotFoundError = () =>
     description: "geometryOutput you're looking for is not found",
   })
 
+const geoJsonFeatureSchema = z
+  .object({
+    type: z.literal('Feature'),
+    properties: z.record(z.string(), z.unknown()).nullable().optional(),
+    geometry: z.union([PolygonSchema, MultiPolygonSchema]).nullable(),
+  })
+  .passthrough()
+
+const geoJsonFeatureCollectionSchema = z
+  .object({
+    type: z.literal('FeatureCollection'),
+    features: z
+      .array(geoJsonFeatureSchema)
+      .min(1, 'GeoJSON file does not contain any features'),
+  })
+  .passthrough()
+
+type UploadedGeoJsonFeature = z.infer<typeof geoJsonFeatureSchema>
+
 export const fetchFullGeometryOutput = async (id: string) => {
   const record = await db.query.geometryOutput.findFirst({
     where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
@@ -96,20 +116,7 @@ export const fetchFullGeometryOutputOrThrow = async (id: string) => {
 const parseGeoJsonFile = async (file: File) => {
   try {
     const raw = await file.text()
-    const parsed = JSON.parse(raw) as FeatureCollection
-
-    if (
-      parsed.type !== 'FeatureCollection' ||
-      !Array.isArray(parsed.features)
-    ) {
-      throw new Error('GeoJSON must be a FeatureCollection with features')
-    }
-
-    if (!parsed.features.length) {
-      throw new Error('GeoJSON file does not contain any features')
-    }
-
-    return parsed
+    return geoJsonFeatureCollectionSchema.parse(JSON.parse(raw))
   } catch (error) {
     throw new ServerError({
       statusCode: 400,
@@ -127,7 +134,7 @@ const extractValidatedFeatures = ({
   idProperty,
   nameProperty,
 }: {
-  features: Feature[]
+  features: UploadedGeoJsonFeature[]
   idProperty: string
   nameProperty: string
 }) => {
@@ -136,7 +143,7 @@ const extractValidatedFeatures = ({
     featureId: string
     name: string
     geometry: MultiPolygon
-    properties: Record<string, any>
+    properties: Record<string, unknown>
   }[] = []
 
   features.forEach((feature, index) => {
@@ -164,14 +171,8 @@ const extractValidatedFeatures = ({
     }
 
     const properties = feature.properties ?? {}
-    const featureIdRaw =
-      properties && typeof properties === 'object'
-        ? (properties[idProperty] as unknown)
-        : undefined
-    const featureNameRaw =
-      properties && typeof properties === 'object'
-        ? (properties[nameProperty] as unknown)
-        : undefined
+    const featureIdRaw = properties[idProperty]
+    const featureNameRaw = properties[nameProperty]
 
     if (featureIdRaw === undefined || featureIdRaw === null) {
       warnings.push({

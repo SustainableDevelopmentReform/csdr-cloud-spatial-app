@@ -7,7 +7,7 @@ import {
   extractReportChartReferences,
   parseNullableReportStoredContent,
 } from '@repo/schemas/report-content'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import { dashboardIndicatorUsage, reportIndicatorUsage } from '~/schemas/db'

@@ -57,7 +57,10 @@ export const DatasetSelect = (props: DatasetSelectProps) => {
       : queryOptions,
   )
 
-  const selectedDatasetIds = props.isMulti === true ? (props.value ?? []) : []
+  const selectedDatasetIds = useMemo(
+    () => (props.isMulti === true ? (props.value ?? []) : []),
+    [props.isMulti, props.value],
+  )
   const hasSelectedDatasets = selectedDatasetIds.length > 0
   const { data: selectedDatasetsQuery, isLoading: isLoadingSelectedDatasets } =
     useDatasets(

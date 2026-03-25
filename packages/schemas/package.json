@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
+    "typecheck": "tsc --noEmit",
     "test:unit": "vitest run"
   },
   "devDependencies": {

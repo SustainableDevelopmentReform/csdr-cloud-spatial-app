@@ -1,7 +1,7 @@
 import { type StatusCode } from 'hono/utils/http-status'
 
 interface ServerErrorOptions {
-  data?: any
+  data?: unknown
   statusCode?: StatusCode
   message?: string
   description?: string
@@ -10,7 +10,7 @@ interface ServerErrorOptions {
 export class ServerError extends Error {
   private statusCode: StatusCode = 500
   public message = 'Something went wrong'
-  private data: any
+  private data: unknown
   private description: string | null = null
 
   constructor(options: ServerErrorOptions) {
@@ -21,7 +21,12 @@ export class ServerError extends Error {
     this.description = options.description || null
   }
 
-  get response() {
+  get response(): {
+    statusCode: StatusCode
+    message: string
+    data: unknown
+    description: string | null
+  } {
     return {
       statusCode: this.statusCode,
       message: this.message,
