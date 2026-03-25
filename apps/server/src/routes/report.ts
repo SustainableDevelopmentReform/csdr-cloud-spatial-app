@@ -8,8 +8,11 @@ import {
   updateReportSchema,
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
-import { desc, eq } from 'drizzle-orm'
-import { syncReportChartUsages } from '~/lib/chartUsage'
+import { and, desc, eq } from 'drizzle-orm'
+import {
+  buildReportUsageFilters,
+  syncReportChartUsages,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -154,9 +157,14 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { meta, query } = await parseQuery(report, c.req.valid('query'), {
+      const queryParams = c.req.valid('query')
+      const usageFilters = buildReportUsageFilters(queryParams)
+      const baseWhere =
+        usageFilters.length > 0 ? and(...usageFilters) : undefined
+      const { meta, query } = await parseQuery(report, queryParams, {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
+        baseWhere,
       })
 
       const data = await db.query.report.findMany({

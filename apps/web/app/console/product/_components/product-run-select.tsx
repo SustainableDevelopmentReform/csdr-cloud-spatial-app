@@ -7,12 +7,14 @@ export const ProductRunSelect = ({
   value,
   productId,
   onChange,
+  title,
   disabled,
   isClearable,
 }: {
   value: string | null | undefined
   productId: string | null | undefined
   onChange: (productRun: ProductRunListItem | null) => void
+  title?: string
   disabled?: boolean
   isClearable?: boolean
 }) => {
@@ -25,14 +27,11 @@ export const ProductRunSelect = ({
     isFetchingNextPage,
   } = useProductRuns(productId ?? undefined)
 
-  const selectedProductRun =
-    productRuns?.data?.find((run) => run.id === value) ?? null
-
   return (
-    <FieldGroup title="Select Product Run" disabled={disabled}>
+    <FieldGroup title={title ?? 'Select Product Run'} disabled={disabled}>
       <SelectWithSearch
         options={productRuns?.data}
-        value={selectedProductRun}
+        value={productRuns?.data?.find((run) => run.id === value) ?? null}
         onSearch={(search) => {
           setSearchParams({ search })
         }}

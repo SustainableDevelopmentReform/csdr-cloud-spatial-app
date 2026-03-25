@@ -7,12 +7,14 @@ export const DatasetRunSelect = ({
   value,
   datasetId,
   onChange,
+  title,
   disabled,
   isClearable,
 }: {
   value: string | null | undefined
   datasetId: string | null | undefined
   onChange: (datasetRun: DatasetRunListItem | null) => void
+  title?: string
   disabled?: boolean
   isClearable?: boolean
 }) => {
@@ -28,7 +30,7 @@ export const DatasetRunSelect = ({
   const { data: selectedDatasetRun } = useDatasetRun(value ?? undefined)
 
   return (
-    <FieldGroup title="Select Dataset Run" disabled={disabled}>
+    <FieldGroup title={title ?? 'Select Dataset Run'} disabled={disabled}>
       <SelectWithSearch
         options={datasetRuns?.data}
         value={selectedDatasetRun ?? null}

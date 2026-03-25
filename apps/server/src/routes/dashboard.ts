@@ -7,8 +7,11 @@ import {
   fullDashboardSchema,
   updateDashboardSchema,
 } from '@repo/schemas/crud'
-import { desc, eq } from 'drizzle-orm'
-import { syncDashboardChartUsages } from '~/lib/chartUsage'
+import { and, desc, eq } from 'drizzle-orm'
+import {
+  buildDashboardUsageFilters,
+  syncDashboardChartUsages,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -100,14 +103,15 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { meta, query } = await parseQuery(
-        dashboard,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(dashboard.createdAt),
-          searchableColumns: [dashboard.name, dashboard.description],
-        },
-      )
+      const queryParams = c.req.valid('query')
+      const usageFilters = buildDashboardUsageFilters(queryParams)
+      const baseWhere =
+        usageFilters.length > 0 ? and(...usageFilters) : undefined
+      const { meta, query } = await parseQuery(dashboard, queryParams, {
+        defaultOrderBy: desc(dashboard.createdAt),
+        searchableColumns: [dashboard.name, dashboard.description],
+        baseWhere,
+      })
 
       const data = await db.query.dashboard.findMany({
         ...baseDashboardQuery,

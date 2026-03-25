@@ -5,9 +5,14 @@ import {
   extractChartIndicatorSelection,
 } from '../src/chart'
 import {
+  dashboardQuerySchema,
   dashboardContentSchema,
+  fullDatasetRunSchema,
+  fullMeasuredIndicatorSchema,
+  fullProductSchema,
   fullDashboardSchema,
   fullReportSchema,
+  reportQuerySchema,
   reportStoredContentSchema,
 } from '../src/crud'
 import {
@@ -325,6 +330,117 @@ describe('chartConfigurationSchema', () => {
         message: 'KPI requires exactly one geometry',
       },
     ])
+  })
+})
+
+describe('crud schemas', () => {
+  it('accepts usage counts on full detail schemas', () => {
+    expect(
+      fullMeasuredIndicatorSchema.parse({
+        id: 'indicator-1',
+        name: 'Forest cover',
+        description: null,
+        metadata: null,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        unit: '%',
+        category: null,
+        displayOrder: null,
+        categoryId: null,
+        type: 'measured',
+        productCount: 1,
+        reportCount: 2,
+        dashboardCount: 3,
+      }).reportCount,
+    ).toBe(2)
+
+    expect(
+      fullProductSchema.parse({
+        id: 'product-1',
+        name: 'Forest model',
+        description: null,
+        metadata: null,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        timePrecision: 'year',
+        mainRunId: null,
+        dataset: null,
+        geometries: null,
+        mainRun: null,
+        runCount: 1,
+        reportCount: 4,
+        dashboardCount: 5,
+      }).dashboardCount,
+    ).toBe(5)
+
+    expect(
+      fullDatasetRunSchema.parse({
+        id: 'dataset-run-1',
+        name: 'Dataset run',
+        description: null,
+        metadata: null,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        imageCode: null,
+        imageTag: null,
+        provenanceJson: null,
+        provenanceUrl: null,
+        dataUrl: null,
+        dataType: null,
+        dataSize: null,
+        dataEtag: null,
+        dataset: {
+          id: 'dataset-1',
+          name: 'Dataset',
+          mainRunId: null,
+        },
+        productRunCount: 1,
+        reportCount: 6,
+        dashboardCount: 7,
+      }).reportCount,
+    ).toBe(6)
+  })
+
+  it('accepts expanded report and dashboard usage filters', () => {
+    expect(
+      reportQuerySchema.parse({
+        indicatorId: ['indicator-1'],
+        productId: ['product-1'],
+        productRunId: 'product-run-1',
+        datasetId: ['dataset-1'],
+        datasetRunId: 'dataset-run-1',
+        geometriesId: ['geometries-1'],
+        geometriesRunId: 'geometries-run-1',
+      }),
+    ).toMatchObject({
+      indicatorId: ['indicator-1'],
+      productId: ['product-1'],
+      productRunId: 'product-run-1',
+      datasetId: ['dataset-1'],
+      datasetRunId: 'dataset-run-1',
+      geometriesId: ['geometries-1'],
+      geometriesRunId: 'geometries-run-1',
+    })
+
+    expect(
+      dashboardQuerySchema.parse({
+        indicatorId: 'indicator-1',
+        productId: 'product-1',
+        productRunId: 'product-run-1',
+        datasetId: 'dataset-1',
+        datasetRunId: 'dataset-run-1',
+        geometriesId: 'geometries-1',
+        geometriesRunId: 'geometries-run-1',
+      }),
+    ).toMatchObject({
+      indicatorId: 'indicator-1',
+      productId: 'product-1',
+      productRunId: 'product-run-1',
+      datasetId: 'dataset-1',
+      datasetRunId: 'dataset-run-1',
+      geometriesId: 'geometries-1',
+      geometriesRunId: 'geometries-run-1',
+    })
   })
 })
 

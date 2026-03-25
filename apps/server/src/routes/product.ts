@@ -8,7 +8,17 @@ import {
   productRunQuerySchema,
   updateProductSchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, exists, inArray, or, sql } from 'drizzle-orm'
+import {
+  and,
+  desc,
+  eq,
+  exists,
+  inArray,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm'
+import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -103,9 +113,14 @@ const fetchFullProduct = async (id: string) => {
     return null
   }
 
-  const runCount = await db.$count(productRun, eq(productRun.productId, id))
+  const [runCount, usageCounts] = await Promise.all([
+    db.$count(productRun, eq(productRun.productId, id)),
+    fetchChartUsageCounts({ type: 'product', id }),
+  ])
 
-  return record ? parseFullProduct({ ...record, runCount }) : null
+  return record
+    ? parseFullProduct({ ...record, runCount, ...usageCounts })
+    : null
 }
 
 const fetchFullProductOrThrow = async (id: string) => {
@@ -149,12 +164,26 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { datasetId, geometriesId, indicatorId, hasRun } =
-        c.req.valid('query')
+      const {
+        productIds,
+        excludeProductIds,
+        datasetId,
+        geometriesId,
+        indicatorId,
+        hasRun,
+      } = c.req.valid('query')
+      const productIdsArray = normalizeFilterValues(productIds)
+      const excludeProductIdsArray = normalizeFilterValues(excludeProductIds)
       const datasetIds = normalizeFilterValues(datasetId)
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
       const baseWhere = and(
+        productIdsArray.length > 0
+          ? inArray(product.id, productIdsArray)
+          : undefined,
+        excludeProductIdsArray.length > 0
+          ? notInArray(product.id, excludeProductIdsArray)
+          : undefined,
         datasetIds.length > 0
           ? inArray(product.datasetId, datasetIds)
           : undefined,
