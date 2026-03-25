@@ -56,6 +56,7 @@ export const fullGeometriesRunQuery = baseGeometriesRunQuery
 const TILE_EXTENT = 4096
 const TILE_BUFFER = 64
 const TILE_MARGIN = TILE_BUFFER / TILE_EXTENT
+const TILE_CACHE_CONTROL = 'private, max-age=600, stale-while-revalidate=86400'
 
 const fetchGeometryOutputsTile = async ({
   geometriesRunId,
@@ -319,6 +320,7 @@ const app = createOpenAPIApp()
       })
 
       return c.body(Buffer.from(tileBuffer), 200, {
+        'Cache-Control': TILE_CACHE_CONTROL,
         'Content-Type': 'image/vnd.mapbox-vector-tile',
         'Content-Length': tileBuffer.length.toString(),
       })
