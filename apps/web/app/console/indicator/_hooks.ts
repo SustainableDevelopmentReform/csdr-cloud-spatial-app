@@ -96,7 +96,7 @@ const indicatorParamsSchema = z.object({
   indicatorCategoryId: z.string().optional(),
 })
 
-const indicatorQueryKeys = {
+export const indicatorQueryKeys = {
   all: ['indicator'] as const,
   list: (query: z.infer<typeof indicatorQuerySchema> | undefined) =>
     [...indicatorQueryKeys.all, 'list', { query }] as const,

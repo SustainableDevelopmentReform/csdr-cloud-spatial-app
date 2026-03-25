@@ -24,6 +24,7 @@ import {
 import {
   ensureDerivedIndicatorNotUsedByCharts,
   ensureMeasuredIndicatorNotUsedByCharts,
+  fetchChartUsageCounts,
 } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -112,16 +113,21 @@ export const parseFullMeasuredIndicator = <
   }
 }
 const fetchFullMeasuredIndicator = async (id: string) => {
-  const [indicatorRecord, productCount] = await Promise.all([
+  const [indicatorRecord, productCount, usageCounts] = await Promise.all([
     db.query.indicator.findFirst({
       where: (indicator, { eq }) => eq(indicator.id, id),
       ...fullMeasuredIndicatorQuery,
     }),
     fetchProductUsageCount(id),
+    fetchChartUsageCounts({ type: 'indicator', id }),
   ])
 
   return indicatorRecord
-    ? { ...parseFullMeasuredIndicator(indicatorRecord), productCount }
+    ? {
+        ...parseFullMeasuredIndicator(indicatorRecord),
+        productCount,
+        ...usageCounts,
+      }
     : null
 }
 
@@ -154,16 +160,23 @@ export const parseFullDerivedIndicator = <
 }
 
 const fetchFullDerivedIndicator = async (id: string) => {
-  const [derivedIndicatorRecord, productCount] = await Promise.all([
-    db.query.derivedIndicator.findFirst({
-      where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
-      ...fullDerivedIndicatorQuery,
-    }),
-    fetchProductUsageCount(id),
-  ])
+  const [derivedIndicatorRecord, productCount, usageCounts] = await Promise.all(
+    [
+      db.query.derivedIndicator.findFirst({
+        where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
+        ...fullDerivedIndicatorQuery,
+      }),
+      fetchProductUsageCount(id),
+      fetchChartUsageCounts({ type: 'derived-indicator', id }),
+    ],
+  )
 
   return derivedIndicatorRecord
-    ? { ...parseFullDerivedIndicator(derivedIndicatorRecord), productCount }
+    ? {
+        ...parseFullDerivedIndicator(derivedIndicatorRecord),
+        productCount,
+        ...usageCounts,
+      }
     : null
 }
 export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {

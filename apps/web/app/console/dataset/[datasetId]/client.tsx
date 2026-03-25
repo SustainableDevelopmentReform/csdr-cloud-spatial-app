@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { DATASETS_BASE_PATH } from '../../../../lib/paths'
 import { DetailCard } from '../../_components/detail-cards'
+import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import { DatasetRunSummaryCard } from '../_components/dataset-run-summary-card'
@@ -40,7 +41,7 @@ const DatasetDetails = () => {
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DatasetRunSummaryCard run={dataset?.mainRun} mainRun />
-        <div className="grid grid-cols-1 grid-rows-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {dataset && (
             <DetailCard
               title={`${dataset?.runCount} ${pluralize(dataset?.runCount, 'run', 'runs')}`}
@@ -60,6 +61,14 @@ const DatasetDetails = () => {
             />
           )}
           {dataset && <SourcesCard resource={dataset} />}
+          {dataset && (
+            <ResourceUsageDetailCards
+              reportCount={dataset.reportCount}
+              dashboardCount={dataset.dashboardCount}
+              reportQuery={{ datasetId: dataset.id }}
+              dashboardQuery={{ datasetId: dataset.id }}
+            />
+          )}
         </div>
       </div>
 

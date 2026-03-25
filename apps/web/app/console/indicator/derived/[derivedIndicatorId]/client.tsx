@@ -15,6 +15,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { IndicatorButton } from '../../_components/indicator-button'
 import { IndicatorCategorySelect } from '../../_components/indicator-category-select'
 import { IndicatorProductUsageCard } from '../../_components/indicator-product-usage-card'
@@ -48,6 +49,14 @@ const IndicatorDetails = () => {
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <IndicatorProductUsageCard indicator={derivedIndicator} />
+          {derivedIndicator && (
+            <ResourceUsageDetailCards
+              reportCount={derivedIndicator.reportCount}
+              dashboardCount={derivedIndicator.dashboardCount}
+              reportQuery={{ indicatorId: derivedIndicator.id }}
+              dashboardQuery={{ indicatorId: derivedIndicator.id }}
+            />
+          )}
         </div>
       </div>
       <CrudForm

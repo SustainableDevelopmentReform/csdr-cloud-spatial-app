@@ -15,6 +15,7 @@ import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { IndicatorListItem, useDerivedIndicator } from '../../indicator/_hooks'
 import {
+  ProductDetail,
   ProductRunAssignedDerivedIndicator,
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
@@ -167,7 +168,7 @@ const DependencyMappingRow = ({
 export const AssignDerivedIndicatorsDialog = ({
   run,
 }: {
-  run?: ProductRunDetail | null
+  run?: ProductRunDetail | ProductDetail['mainRun'] | null
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(

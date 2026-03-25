@@ -10,6 +10,7 @@ import { CrudForm } from '../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../components/form/crud-form-action'
 import { PRODUCTS_BASE_PATH } from '../../../../lib/paths'
 import { DetailCard } from '../../_components/detail-cards'
+import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
@@ -52,7 +53,7 @@ const ProductDetails = () => {
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProductRunSummaryCard run={product?.mainRun} mainRun />
-        <div className="grid grid-cols-1 grid-rows-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {product && (
             <DetailCard
               title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
@@ -75,6 +76,14 @@ const ProductDetails = () => {
                   )}
                 </div>
               }
+            />
+          )}
+          {product && (
+            <ResourceUsageDetailCards
+              reportCount={product.reportCount}
+              dashboardCount={product.dashboardCount}
+              reportQuery={{ productId: product.id }}
+              dashboardQuery={{ productId: product.id }}
             />
           )}
         </div>

@@ -5,6 +5,7 @@ import { DetailCard } from '../../_components/detail-cards'
 import { NoMainRunCard } from '../../_components/no-main-run-card'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import {
+  ProductDetail,
   ProductRunDetail,
   useProductRunOutputsLink,
   useRefreshProductRunSummary,
@@ -19,7 +20,7 @@ export const ProductRunSummaryCard = ({
   run,
   mainRun = false,
 }: {
-  run?: ProductRunDetail | undefined | null
+  run?: ProductRunDetail | ProductDetail['mainRun'] | undefined | null
   mainRun?: boolean
 }) => {
   const productRunOutputsLink = useProductRunOutputsLink()

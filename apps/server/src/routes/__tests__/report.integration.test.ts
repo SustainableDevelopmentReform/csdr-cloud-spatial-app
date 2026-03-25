@@ -35,6 +35,52 @@ describe('report route', () => {
     ],
   }
 
+  const createReportWithChartUsage = async (indicatorId: string) => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: `Chart report ${indicatorId}`,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'chart',
+                attrs: {
+                  chart: {
+                    type: 'plot',
+                    subType: 'line',
+                    productRunId: seededIds.productRun,
+                    indicatorIds: [indicatorId],
+                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                    timePoints: ['2021-01-01T00:00:00.000Z'],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    return createdJson.data.id
+  }
+
   it('returns read responses with expected messages', async () => {
     await expectJsonResponse(
       await createAppClient().api.v0.report.$get({ query: {} }),
@@ -243,5 +289,32 @@ describe('report route', () => {
         where: eq(reportIndicatorUsage.reportId, createdJson.data.id),
       }),
     ).toEqual([])
+  })
+
+  it('filters reports by chart usage relationships', async () => {
+    const reportId = await createReportWithChartUsage(seededIds.indicator)
+
+    const filters = [
+      { indicatorId: seededIds.indicator },
+      { productId: seededIds.product },
+      { productRunId: seededIds.productRun },
+      { datasetId: seededIds.dataset },
+      { datasetRunId: seededIds.datasetRun },
+      { geometriesId: seededIds.geometries },
+      { geometriesRunId: seededIds.geometriesRun },
+    ]
+
+    for (const query of filters) {
+      const filteredJson = await expectJsonResponse<{
+        data: { id: string }[]
+      }>(await memberClient.api.v0.report.$get({ query }), {
+        status: 200,
+        message: 'OK',
+      })
+
+      const returnedIds = filteredJson.data.data.map((item) => item.id)
+      expect(returnedIds).toContain(reportId)
+      expect(returnedIds).not.toContain(seededIds.report)
+    }
   })
 })

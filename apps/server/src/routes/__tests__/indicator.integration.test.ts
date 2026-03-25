@@ -24,7 +24,83 @@ beforeEach(async () => {
 })
 
 describe('indicator route', () => {
+  const createReportWithChartUsage = async (indicatorId: string) => {
+    const reportJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: `Indicator usage report ${indicatorId}`,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportJson.data.id },
+        json: {
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'chart',
+                attrs: {
+                  chart: {
+                    type: 'plot',
+                    subType: 'line',
+                    productRunId: seededIds.productRun,
+                    indicatorIds: [indicatorId],
+                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                    timePoints: ['2021-01-01T00:00:00.000Z'],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+  }
+
+  const createDashboardWithChartUsage = async (indicatorId: string) => {
+    await expectJsonResponse(
+      await adminClient.api.v0.dashboard.$post({
+        json: {
+          name: `Indicator usage dashboard ${indicatorId}`,
+          content: {
+            charts: {
+              primary: {
+                type: 'plot',
+                subType: 'line',
+                productRunId: seededIds.productRun,
+                indicatorIds: [indicatorId],
+                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                timePoints: ['2021-01-01T00:00:00.000Z'],
+              },
+            },
+            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+          },
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard created',
+      },
+    )
+  }
+
   it('returns read responses with expected messages', async () => {
+    await createReportWithChartUsage(seededIds.indicator)
+    await createDashboardWithChartUsage(seededIds.indicator)
+    await createReportWithChartUsage(seededIds.derivedIndicator)
+    await createDashboardWithChartUsage(seededIds.derivedIndicator)
+
     await expectJsonResponse(
       await createAppClient().api.v0.indicator.$get({ query: {} }),
       {
@@ -52,6 +128,8 @@ describe('indicator route', () => {
     const measuredJson = await expectJsonResponse<{
       id: string
       type: 'measured'
+      reportCount: number
+      dashboardCount: number
     }>(
       await memberClient.api.v0.indicator.measured[':id'].$get({
         param: { id: seededIds.indicator },
@@ -63,11 +141,15 @@ describe('indicator route', () => {
     )
     expect(measuredJson.data.id).toBe(seededIds.indicator)
     expect(measuredJson.data.type).toBe('measured')
+    expect(measuredJson.data.reportCount).toBe(1)
+    expect(measuredJson.data.dashboardCount).toBe(1)
 
     const derivedJson = await expectJsonResponse<{
       id: string
       type: 'derived'
       indicators: { id: string }[]
+      reportCount: number
+      dashboardCount: number
     }>(
       await memberClient.api.v0.indicator.derived[':id'].$get({
         param: { id: seededIds.derivedIndicator },
@@ -84,6 +166,8 @@ describe('indicator route', () => {
         (item) => item.id === seededIds.indicator,
       ),
     ).toBe(true)
+    expect(derivedJson.data.reportCount).toBe(1)
+    expect(derivedJson.data.dashboardCount).toBe(1)
 
     const anyIndicatorJson = await expectJsonResponse<{
       id: string

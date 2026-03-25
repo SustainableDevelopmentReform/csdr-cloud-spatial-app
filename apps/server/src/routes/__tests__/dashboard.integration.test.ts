@@ -25,6 +25,35 @@ beforeEach(async () => {
 })
 
 describe('dashboard route', () => {
+  const createDashboardWithChartUsage = async (indicatorId: string) => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.dashboard.$post({
+        json: {
+          name: `Chart dashboard ${indicatorId}`,
+          content: {
+            charts: {
+              primary: {
+                type: 'plot',
+                subType: 'line',
+                productRunId: seededIds.productRun,
+                indicatorIds: [indicatorId],
+                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                timePoints: ['2021-01-01T00:00:00.000Z'],
+              },
+            },
+            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+          },
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard created',
+      },
+    )
+
+    return createdJson.data.id
+  }
+
   it('returns read responses with expected messages', async () => {
     await expectJsonResponse(
       await createAppClient().api.v0.dashboard.$get({ query: {} }),
@@ -129,42 +158,48 @@ describe('dashboard route', () => {
   })
 
   it('syncs dashboard indicator usage rows from chart cards', async () => {
-    const createdJson = await expectJsonResponse<{ id: string }>(
-      await adminClient.api.v0.dashboard.$post({
-        json: {
-          name: 'Chart dashboard',
-          content: {
-            charts: {
-              primary: {
-                type: 'plot',
-                subType: 'line',
-                productRunId: seededIds.productRun,
-                indicatorIds: [seededIds.indicator],
-                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
-                timePoints: ['2021-01-01T00:00:00.000Z'],
-              },
-            },
-            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
-          },
-        },
-      }),
-      {
-        status: 201,
-        message: 'Dashboard created',
-      },
-    )
+    const dashboardId = await createDashboardWithChartUsage(seededIds.indicator)
 
     expect(
       await db.query.dashboardIndicatorUsage.findMany({
-        where: eq(dashboardIndicatorUsage.dashboardId, createdJson.data.id),
+        where: eq(dashboardIndicatorUsage.dashboardId, dashboardId),
       }),
     ).toEqual([
       expect.objectContaining({
-        dashboardId: createdJson.data.id,
+        dashboardId,
         productRunId: seededIds.productRun,
         indicatorId: seededIds.indicator,
         derivedIndicatorId: null,
       }),
     ])
+  })
+
+  it('filters dashboards by chart usage relationships', async () => {
+    const dashboardId = await createDashboardWithChartUsage(
+      seededIds.derivedIndicator,
+    )
+
+    const filters = [
+      { indicatorId: seededIds.derivedIndicator },
+      { productId: seededIds.product },
+      { productRunId: seededIds.productRun },
+      { datasetId: seededIds.dataset },
+      { datasetRunId: seededIds.datasetRun },
+      { geometriesId: seededIds.geometries },
+      { geometriesRunId: seededIds.geometriesRun },
+    ]
+
+    for (const query of filters) {
+      const filteredJson = await expectJsonResponse<{
+        data: { id: string }[]
+      }>(await memberClient.api.v0.dashboard.$get({ query }), {
+        status: 200,
+        message: 'OK',
+      })
+
+      const returnedIds = filteredJson.data.data.map((item) => item.id)
+      expect(returnedIds).toContain(dashboardId)
+      expect(returnedIds).not.toContain(seededIds.dashboard)
+    }
   })
 })
