@@ -8,8 +8,16 @@ import {
   updateReportSchema,
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { syncReportChartUsages } from '~/lib/chartUsage'
+import { assertReportDependenciesPublic } from '~/lib/public-visibility'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildConsoleReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -22,8 +30,8 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { report } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -31,7 +39,7 @@ import { parseQuery } from '../utils/query'
 
 export const baseReportQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
   },
 } satisfies QueryForTable<'report'>
 
@@ -99,17 +107,18 @@ const validateReportContentOrThrow = (content: unknown) => {
   return result.data
 }
 
-const fetchFullReport = async (id: string) => {
+const fetchFullReport = async (id: string, organizationId: string) => {
   const record = await db.query.report.findFirst({
-    where: (report, { eq }) => eq(report.id, id),
+    where: (report, { and, eq }) =>
+      and(eq(report.id, id), eq(report.organizationId, organizationId)),
     ...fullReportQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullReportOrThrow = async (id: string) => {
-  const record = await fetchFullReport(id)
+const fetchFullReportOrThrow = async (id: string, organizationId: string) => {
+  const record = await fetchFullReport(id, organizationId)
 
   if (!record) {
     throw reportNotFoundError()
@@ -157,6 +166,7 @@ const app = createOpenAPIApp()
       const { meta, query } = await parseQuery(report, c.req.valid('query'), {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
+        baseWhere: buildConsoleReadScope(c, report.organizationId),
       })
 
       const data = await db.query.report.findMany({
@@ -201,7 +211,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullReportOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'report',
+        resourceId: id,
+        notFoundError: reportNotFoundError,
+      })
+      const record = await fetchFullReportOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -239,12 +258,19 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
       const data = {
         ...payload,
       }
       const [newReport] = await db
         .insert(report)
-        .values(createPayload(data))
+        .values(
+          createOwnedPayload({
+            ...data,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newReport) {
@@ -255,7 +281,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullReportOrThrow(newReport.id)
+      const record = await fetchFullReportOrThrow(
+        newReport.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Report created')
     },
@@ -296,6 +325,13 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'report',
+        resourceId: id,
+        notFoundError: reportNotFoundError,
+      })
       const data = {
         ...payload,
       }
@@ -304,11 +340,23 @@ const app = createOpenAPIApp()
         data.content = validateReportContentOrThrow(payload.content)
       }
 
+      assertCanSetVisibility({
+        actor,
+        nextVisibility: payload.visibility,
+        ownerUserId: accessRecord.createdByUserId,
+        resource: 'report',
+      })
+
       const record = await db.transaction(async (tx) => {
         const [updatedRecord] = await tx
           .update(report)
           .set(updatePayload(data))
-          .where(eq(report.id, id))
+          .where(
+            and(
+              eq(report.id, id),
+              eq(report.organizationId, accessRecord.organizationId),
+            ),
+          )
           .returning()
 
         if (!updatedRecord) {
@@ -319,10 +367,17 @@ const app = createOpenAPIApp()
           await syncReportChartUsages(tx, updatedRecord.id, data.content)
         }
 
+        if (updatedRecord.visibility === 'public') {
+          await assertReportDependenciesPublic(tx, updatedRecord.id)
+        }
+
         return updatedRecord
       })
 
-      const fullRecord = await fetchFullReportOrThrow(record.id)
+      const fullRecord = await fetchFullReportOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Report updated')
     },
@@ -354,9 +409,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullReportOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'report',
+        resourceId: id,
+        notFoundError: reportNotFoundError,
+      })
+      const record = await fetchFullReportOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(report).where(eq(report.id, id))
+      await db
+        .delete(report)
+        .where(
+          and(
+            eq(report.id, id),
+            eq(report.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Report deleted')
     },

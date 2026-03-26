@@ -9,6 +9,13 @@ import {
   updateProductSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, exists, inArray, or, sql } from 'drizzle-orm'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildConsoleReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -25,8 +32,8 @@ import {
   productRun,
 } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   idColumns,
   InferQueryModel,
   QueryForTable,
@@ -42,9 +49,9 @@ import {
   parseFullProductRun,
 } from './productRun'
 
-const baseProductQuery = {
+export const baseProductQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
     timePrecision: true,
     mainRunId: true,
   },
@@ -71,7 +78,7 @@ const productNotFoundError = () =>
     description: "Product you're looking for is not found",
   })
 
-const parseBaseProduct = <
+export const parseBaseProduct = <
   T extends InferQueryModel<'product', typeof baseProductQuery>,
 >(
   record: T,
@@ -82,7 +89,7 @@ const parseBaseProduct = <
   }
 }
 
-const parseFullProduct = <
+export const parseFullProduct = <
   T extends InferQueryModel<'product', typeof fullProductQuery>,
 >(
   record: T,
@@ -93,9 +100,10 @@ const parseFullProduct = <
   }
 }
 
-const fetchFullProduct = async (id: string) => {
+const fetchFullProduct = async (id: string, organizationId: string) => {
   const record = await db.query.product.findFirst({
-    where: (product, { eq }) => eq(product.id, id),
+    where: (product, { and, eq }) =>
+      and(eq(product.id, id), eq(product.organizationId, organizationId)),
     ...fullProductQuery,
   })
 
@@ -108,8 +116,8 @@ const fetchFullProduct = async (id: string) => {
   return record ? parseFullProduct({ ...record, runCount }) : null
 }
 
-const fetchFullProductOrThrow = async (id: string) => {
-  const fullProduct = await fetchFullProduct(id)
+const fetchFullProductOrThrow = async (id: string, organizationId: string) => {
+  const fullProduct = await fetchFullProduct(id, organizationId)
 
   if (!fullProduct) {
     throw productNotFoundError()
@@ -155,6 +163,7 @@ const app = createOpenAPIApp()
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
       const baseWhere = and(
+        buildConsoleReadScope(c, product.organizationId),
         datasetIds.length > 0
           ? inArray(product.datasetId, datasetIds)
           : undefined,
@@ -245,7 +254,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullProductOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+      const record = await fetchFullProductOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -257,7 +275,12 @@ const app = createOpenAPIApp()
         'List product runs for a product, or across products using "*".',
       method: 'get',
       path: '/:id/runs',
-      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:productRun',
+          targetResource: 'product',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         query: productRunQuerySchema,
@@ -286,6 +309,14 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const productId = id === '*' ? undefined : id
+      if (productId) {
+        await assertResourceReadable({
+          c,
+          resource: 'product',
+          resourceId: productId,
+          notFoundError: productNotFoundError,
+        })
+      }
       const { datasetRunId, geometriesRunId } = c.req.valid('query')
       const baseWhere = and(
         productId ? eq(productRun.productId, id) : undefined,
@@ -355,9 +386,32 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
+      if (payload.datasetId) {
+        await assertResourceWritable({
+          c,
+          resource: 'dataset',
+          resourceId: payload.datasetId,
+          notFoundError: productNotFoundError,
+        })
+      }
+      if (payload.geometriesId) {
+        await assertResourceWritable({
+          c,
+          resource: 'geometries',
+          resourceId: payload.geometriesId,
+          notFoundError: productNotFoundError,
+        })
+      }
       const [newProduct] = await db
         .insert(product)
-        .values(createPayload(payload))
+        .values(
+          createOwnedPayload({
+            ...payload,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newProduct) {
@@ -368,7 +422,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullProductOrThrow(newProduct.id)
+      const record = await fetchFullProductOrThrow(
+        newProduct.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Product created')
     },
@@ -409,18 +466,40 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        nextVisibility: payload.visibility,
+        ownerUserId: accessRecord.createdByUserId,
+        resource: 'product',
+      })
 
       const [record] = await db
         .update(product)
         .set(updatePayload(payload))
-        .where(eq(product.id, id))
+        .where(
+          and(
+            eq(product.id, id),
+            eq(product.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw productNotFoundError()
       }
 
-      const fullRecord = await fetchFullProductOrThrow(record.id)
+      const fullRecord = await fetchFullProductOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Product updated')
     },
@@ -452,9 +531,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullProductOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+      const record = await fetchFullProductOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(product).where(eq(product.id, id))
+      await db
+        .delete(product)
+        .where(
+          and(
+            eq(product.id, id),
+            eq(product.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Product deleted')
     },

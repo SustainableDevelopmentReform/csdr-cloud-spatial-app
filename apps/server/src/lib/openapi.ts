@@ -5,6 +5,7 @@ import {
   z,
   type Hook,
 } from '@hono/zod-openapi'
+import type { AuthType } from './auth'
 import { generateJsonResponse } from './response'
 
 const defaultValidationHook: Hook<any, any, any, Response | undefined> = (
@@ -133,7 +134,11 @@ type CreateAppOptions<E extends Env> = OpenAPIHonoOptions<E> & {
   router?: any
 }
 
-export const createOpenAPIApp = <E extends Env = Env>(
+type AppEnv = {
+  Variables: AuthType
+}
+
+export const createOpenAPIApp = <E extends Env = AppEnv>(
   options: CreateAppOptions<E> = {},
 ) =>
   new OpenAPIHono<E>({

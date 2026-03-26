@@ -16,6 +16,7 @@ interface CrudFormDialogProps<
 > extends Omit<CrudFormProps<Data>, 'successMessage'> {
   buttonText?: string
   children?: React.ReactNode
+  hideTrigger?: boolean
   onOpen?: () => void
   onClose?: () => void
 }
@@ -24,6 +25,7 @@ interface CrudFormDialogProps<
 const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
   buttonText,
   children,
+  hideTrigger,
   onOpen,
   onClose,
   hiddenFields = [],
@@ -31,6 +33,11 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
   ...formProps
 }: CrudFormDialogProps<Data>) => {
   const [isOpen, setOpen] = useState(false)
+
+  if (hideTrigger) {
+    return null
+  }
+
   return (
     <Dialog
       open={isOpen}

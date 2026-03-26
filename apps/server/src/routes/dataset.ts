@@ -1,5 +1,12 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildConsoleReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -12,8 +19,8 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, product } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -31,7 +38,7 @@ import { normalizeFilterValues, parseQuery } from '../utils/query'
 
 export const baseDatasetQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
     mainRunId: true,
     sourceUrl: true,
     sourceMetadataUrl: true,
@@ -52,9 +59,10 @@ const datasetNotFoundError = () =>
     description: "Dataset you're looking for is not found",
   })
 
-const fetchFullDataset = async (id: string) => {
+const fetchFullDataset = async (id: string, organizationId: string) => {
   const record = await db.query.dataset.findFirst({
-    where: (dataset, { eq }) => eq(dataset.id, id),
+    where: (dataset, { and, eq }) =>
+      and(eq(dataset.id, id), eq(dataset.organizationId, organizationId)),
     ...fullDatasetQuery,
   })
 
@@ -70,8 +78,8 @@ const fetchFullDataset = async (id: string) => {
   return { ...record, runCount, productCount }
 }
 
-const fetchFullDatasetOrThrow = async (id: string) => {
-  const fullDataset = await fetchFullDataset(id)
+const fetchFullDatasetOrThrow = async (id: string, organizationId: string) => {
+  const fullDataset = await fetchFullDataset(id, organizationId)
 
   if (!fullDataset) {
     throw datasetNotFoundError()
@@ -119,6 +127,7 @@ const app = createOpenAPIApp()
       const datasetIdsArray = normalizeFilterValues(datasetIds)
       const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
       const baseWhere = and(
+        buildConsoleReadScope(c, dataset.organizationId),
         datasetIdsArray.length > 0
           ? inArray(dataset.id, datasetIdsArray)
           : undefined,
@@ -175,7 +184,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDatasetOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+      const record = await fetchFullDatasetOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -188,6 +206,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
+          targetResource: 'dataset',
         }),
       ],
       request: {
@@ -218,6 +237,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      await assertResourceReadable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
       const { meta, query } = await parseQuery(
         datasetRun,
         c.req.valid('query'),
@@ -279,9 +304,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
       const [newDataset] = await db
         .insert(dataset)
-        .values(createPayload(payload))
+        .values(
+          createOwnedPayload({
+            ...payload,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newDataset) {
@@ -292,7 +324,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullDatasetOrThrow(newDataset.id)
+      const record = await fetchFullDatasetOrThrow(
+        newDataset.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Dataset created')
     },
@@ -336,18 +371,40 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        nextVisibility: payload.visibility,
+        ownerUserId: accessRecord.createdByUserId,
+        resource: 'dataset',
+      })
 
       const [record] = await db
         .update(dataset)
         .set(updatePayload(payload))
-        .where(eq(dataset.id, id))
+        .where(
+          and(
+            eq(dataset.id, id),
+            eq(dataset.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw datasetNotFoundError()
       }
 
-      const fullRecord = await fetchFullDatasetOrThrow(record.id)
+      const fullRecord = await fetchFullDatasetOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dataset updated')
     },
@@ -382,9 +439,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDatasetOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+      const record = await fetchFullDatasetOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(dataset).where(eq(dataset.id, id))
+      await db
+        .delete(dataset)
+        .where(
+          and(
+            eq(dataset.id, id),
+            eq(dataset.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Dataset deleted')
     },

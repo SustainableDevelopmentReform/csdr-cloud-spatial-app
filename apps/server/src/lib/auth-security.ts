@@ -1,3 +1,5 @@
+import { auditLog } from '~/schemas/db'
+import { db } from './db'
 import { RateLimiterMemory } from 'rate-limiter-flexible'
 import { ServerError } from './error'
 
@@ -39,6 +41,25 @@ const AUTH_SEND_PATHS = new Set([
   '/api/auth/two-factor/send-otp',
 ])
 
+const AUTH_LOG_ACTIONS = {
+  '/api/auth/sign-in/email': 'sign_in',
+  '/api/auth/sign-out': 'sign_out',
+  '/api/auth/two-factor/enable': 'two_factor_enable',
+  '/api/auth/two-factor/disable': 'two_factor_disable',
+  '/api/auth/two-factor/verify-totp': 'two_factor_verify',
+  '/api/auth/two-factor/verify-otp': 'two_factor_verify',
+  '/api/auth/two-factor/verify-backup-code': 'two_factor_verify',
+  '/api/auth/two-factor/send-otp': 'two_factor_send_otp',
+  '/api/auth/two-factor/generate-backup-codes': 'backup_codes_regenerate',
+  '/api/auth/api-key/create': 'api_key_create',
+  '/api/auth/api-key/delete': 'api_key_delete',
+  '/api/auth/organization/set-active': 'set_active_organization',
+  '/api/auth/organization/invite-member': 'invite_member',
+  '/api/auth/organization/accept-invitation': 'accept_invitation',
+  '/api/auth/organization/remove-member': 'remove_member',
+  '/api/auth/organization/update-member-role': 'update_member_role',
+} as const
+
 export function logAuthSecurity(
   event: string,
   data: Record<string, unknown> = {},
@@ -61,6 +82,85 @@ export function getRequestIp(request: Request) {
   }
 
   return request.headers.get('x-real-ip')
+}
+
+const redactSensitiveValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(redactSensitiveValue)
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => {
+        const normalizedKey = key.toLowerCase()
+        if (
+          normalizedKey.includes('password') ||
+          normalizedKey.includes('token') ||
+          normalizedKey.includes('secret') ||
+          normalizedKey === 'code' ||
+          normalizedKey.includes('backupcode') ||
+          normalizedKey === 'key'
+        ) {
+          return [key, '[REDACTED]']
+        }
+
+        return [key, redactSensitiveValue(nestedValue)]
+      }),
+    )
+  }
+
+  return value
+}
+
+export async function persistAuthAuditLog(options: {
+  body: AuthRequestBody
+  request: Request
+  response: Response
+  session: AuthSessionSnapshot | null
+}): Promise<void> {
+  const path = new URL(options.request.url).pathname
+  const action = AUTH_LOG_ACTIONS[path as keyof typeof AUTH_LOG_ACTIONS]
+
+  if (!action) {
+    return
+  }
+
+  const bodyOrganizationId =
+    typeof options.body?.organizationId === 'string'
+      ? options.body.organizationId
+      : null
+  const invitationId =
+    typeof options.body?.invitationId === 'string'
+      ? options.body.invitationId
+      : null
+  const memberIdOrEmail =
+    typeof options.body?.memberIdOrEmail === 'string'
+      ? options.body.memberIdOrEmail
+      : null
+
+  try {
+    await db.insert(auditLog).values({
+      id: crypto.randomUUID(),
+      actorUserId: options.session?.user?.id ?? null,
+      actorRole: null,
+      activeOrganizationId: bodyOrganizationId,
+      targetOrganizationId: bodyOrganizationId,
+      resourceType: 'auth',
+      resourceId: invitationId ?? memberIdOrEmail,
+      action,
+      decision: options.response.ok ? 'allow' : 'deny',
+      requestPath: path,
+      requestMethod: options.request.method,
+      ipAddress: getRequestIp(options.request),
+      userAgent: options.request.headers.get('user-agent'),
+      details: {
+        body: redactSensitiveValue(options.body),
+        statusCode: options.response.status,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to persist auth audit log entry', error)
+  }
 }
 
 export async function getAuthRequestBody(

@@ -1,6 +1,8 @@
 import { apiKey } from '@better-auth/api-key'
 import { betterAuth, BetterAuthOptions } from 'better-auth'
+import { APIError } from 'better-auth/api'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { and, eq, isNull } from 'drizzle-orm'
 import {
   admin,
   anonymous,
@@ -12,15 +14,101 @@ import {
 import { env } from '~/env'
 import * as schema from '~/schemas/db'
 import {
+  appAdminRoles,
+  appOrganizationAccessControl,
+  appOrganizationRoles,
+  getHighestOrganizationRole,
+  parseOrganizationRoles,
+} from './access-control'
+import {
   sendResetPasswordEmail,
   sendTwoFactorOTPEmail,
   sendVerificationEmail,
 } from './auth-email'
 import { logAuthSecurity } from './auth-security'
 import { db } from './db'
+import type { RequestActor } from './request-actor'
+
+const createPersonalOrganizationName = (name: string | null | undefined) => {
+  const trimmedName = name?.trim()
+
+  if (!trimmedName) {
+    return 'Personal Workspace'
+  }
+
+  return `${trimmedName}'s Workspace`
+}
+
+const createOrganizationSlug = (name: string, userId: string) => {
+  const slugBase = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  const normalizedBase = slugBase.length > 0 ? slugBase : 'workspace'
+
+  return `${normalizedBase}-${userId.slice(0, 8)}`
+}
+
+const listOrganizationAdmins = async (organizationId: string) =>
+  db.query.member.findMany({
+    columns: {
+      id: true,
+      role: true,
+      userId: true,
+    },
+    where: (member, { eq }) => eq(member.organizationId, organizationId),
+  })
+
+const ensureOrgAdminFloor = async (options: {
+  organizationId: string
+  memberId: string
+  nextRole: string | null
+}) => {
+  const allMembers = await listOrganizationAdmins(options.organizationId)
+  const currentMember = allMembers.find(
+    (member) => member.id === options.memberId,
+  )
+
+  if (!currentMember) {
+    throw APIError.fromStatus('BAD_REQUEST', {
+      message: 'Member not found.',
+    })
+  }
+
+  const currentHighestRole = getHighestOrganizationRole(currentMember.role)
+
+  if (currentHighestRole !== 'org_admin') {
+    return
+  }
+
+  const nextHighestRole =
+    options.nextRole === null
+      ? null
+      : getHighestOrganizationRole(options.nextRole)
+
+  if (nextHighestRole === 'org_admin') {
+    return
+  }
+
+  const adminCount = allMembers.filter(
+    (member) => getHighestOrganizationRole(member.role) === 'org_admin',
+  ).length
+
+  if (adminCount <= 1) {
+    throw APIError.fromStatus('BAD_REQUEST', {
+      message:
+        'An organization must keep at least one org admin. Promote another org admin before removing or demoting this member.',
+    })
+  }
+}
 
 const plugins = [
-  admin(),
+  admin({
+    adminRoles: ['super_admin'],
+    defaultRole: 'user',
+    roles: appAdminRoles,
+  }),
   twoFactor({
     issuer: 'CSDR Cloud Spatial',
     otpOptions: {
@@ -52,7 +140,44 @@ const plugins = [
     },
     enableSessionForAPIKeys: true,
   }),
-  organization(),
+  organization({
+    allowUserToCreateOrganization: false,
+    creatorRole: 'org_creator',
+    ac: appOrganizationAccessControl,
+    roles: appOrganizationRoles,
+    organizationHooks: {
+      beforeAddMember: async ({ member }) => {
+        const firstRole = parseOrganizationRoles(member.role)[0] ?? 'org_viewer'
+
+        return {
+          data: {
+            ...member,
+            role: firstRole,
+          },
+        }
+      },
+      beforeCreateInvitation: async ({ invitation }) => ({
+        data: {
+          ...invitation,
+          role: invitation.role ?? 'org_viewer',
+        },
+      }),
+      beforeRemoveMember: async ({ member, organization }) => {
+        await ensureOrgAdminFloor({
+          organizationId: organization.id,
+          memberId: member.id,
+          nextRole: null,
+        })
+      },
+      beforeUpdateMemberRole: async ({ member, newRole, organization }) => {
+        await ensureOrgAdminFloor({
+          organizationId: organization.id,
+          memberId: member.id,
+          nextRole: newRole,
+        })
+      },
+    },
+  }),
   ...(env.NODE_ENV === 'production' ? [] : [testUtils()]),
 ]
 
@@ -63,7 +188,7 @@ const authConfig = {
     level: 'info',
     disabled: false,
     log: (level, message) => {
-      console.log(level, message)
+      console.info(level, message)
     },
   },
   appName: 'CSDR Cloud Spatial',
@@ -137,6 +262,84 @@ const authConfig = {
       })
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (createdUser) => {
+          const existingPersonalMember = await db.query.member.findFirst({
+            columns: {
+              id: true,
+            },
+            where: (member, { eq }) => eq(member.userId, createdUser.id),
+          })
+
+          if (existingPersonalMember) {
+            return
+          }
+
+          const organizationName = createPersonalOrganizationName(
+            createdUser.name,
+          )
+          const organizationId = crypto.randomUUID()
+          const now = new Date()
+
+          await db.insert(schema.organization).values({
+            id: organizationId,
+            name: organizationName,
+            slug: createOrganizationSlug(organizationName, createdUser.id),
+            logo: null,
+            createdAt: now,
+            metadata: JSON.stringify({
+              kind: 'personal_workspace',
+            }),
+          })
+
+          await db.insert(schema.member).values({
+            id: crypto.randomUUID(),
+            organizationId,
+            userId: createdUser.id,
+            role: 'org_creator',
+            createdAt: now,
+          })
+
+          await db
+            .update(schema.session)
+            .set({
+              activeOrganizationId: organizationId,
+            })
+            .where(
+              and(
+                eq(schema.session.userId, createdUser.id),
+                isNull(schema.session.activeOrganizationId),
+              ),
+            )
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          const firstMembership = await db.query.member.findFirst({
+            columns: {
+              organizationId: true,
+            },
+            where: (member, { eq }) => eq(member.userId, session.userId),
+            orderBy: (member, { asc }) => asc(member.createdAt),
+          })
+
+          return {
+            data: {
+              ...session,
+              activeOrganizationId:
+                session.activeOrganizationId ??
+                firstMembership?.organizationId ??
+                null,
+            },
+          }
+        },
+      },
+    },
+  },
   // socialProviders: {
   //   google: {
   //     clientId: env.GOOGLE_CLIENT_ID,
@@ -152,7 +355,14 @@ const authConfig = {
 
 export const auth = betterAuth(authConfig)
 
+export type AppSessionUser = typeof auth.$Infer.Session.user
+export type AppSession = typeof auth.$Infer.Session.session
+export type AppMember = typeof schema.member.$inferSelect
+
 export type AuthType = {
-  user: typeof auth.$Infer.Session.user | null
-  session: typeof auth.$Infer.Session.session | null
+  user: AppSessionUser | null
+  session: AppSession | null
+  activeMember: AppMember | null
+  activeOrganizationId: string | null
+  requestActor: RequestActor | null
 }

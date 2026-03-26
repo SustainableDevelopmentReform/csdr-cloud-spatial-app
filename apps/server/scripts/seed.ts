@@ -78,7 +78,7 @@ async function main() {
       name: initialUserName,
       emailVerified: true,
       createdAt: new Date(),
-      role: 'admin',
+      role: 'super_admin',
       banned: false,
       banReason: null,
       banExpires: null,
@@ -110,10 +110,23 @@ async function main() {
 
   console.log(`Account ID: ${account[0]!.id}`)
 
+  await db
+    .insert(schema.member)
+    .values({
+      id: 'default-organization-super-admin',
+      organizationId: defaultOrg[0]!.id,
+      userId: superAdmin[0]!.id,
+      role: 'org_admin',
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing()
+
   const indicatorCategory = await db
     .insert(schema.indicatorCategory)
     .values({
       id: 'forest',
+      organizationId: defaultOrg[0]!.id,
+      createdByUserId: superAdmin[0]!.id,
       name: 'Forest Data',
       description: 'Forest Data',
     })
@@ -126,6 +139,8 @@ async function main() {
     .insert(schema.indicator)
     .values({
       id: 'forest-cover-area',
+      organizationId: defaultOrg[0]!.id,
+      createdByUserId: superAdmin[0]!.id,
       name: 'Forest Land Area',
       categoryId: indicatorCategory[0]!.id,
       description: 'Forest Land Area',
@@ -141,6 +156,8 @@ async function main() {
     .insert(schema.indicator)
     .values({
       id: 'forest-cover-percentage',
+      organizationId: defaultOrg[0]!.id,
+      createdByUserId: superAdmin[0]!.id,
       name: 'Forest Cover Percentage',
       categoryId: indicatorCategory[0]!.id,
       description: 'Forest Cover Percentage',
@@ -156,6 +173,8 @@ async function main() {
     .insert(schema.dataset)
     .values({
       id: 'forest-cover',
+      organizationId: defaultOrg[0]!.id,
+      createdByUserId: superAdmin[0]!.id,
       name: 'Forest Cover',
       description: 'Some Forest Cover Data',
       metadata: '{ "source": "https://example.com" }',
@@ -186,6 +205,8 @@ async function main() {
     .insert(schema.geometries)
     .values({
       id: 'australia-geometries',
+      organizationId: defaultOrg[0]!.id,
+      createdByUserId: superAdmin[0]!.id,
       name: 'Australia Geometries',
       description: 'Australia Geometries',
       metadata: '{ "source": "https://example.com" }',
@@ -274,6 +295,8 @@ async function main() {
     .insert(schema.product)
     .values({
       id: 'forest-cover-product',
+      organizationId: defaultOrg[0]!.id,
+      createdByUserId: superAdmin[0]!.id,
       name: 'Forest Cover Product in Australia',
       timePrecision: 'year',
       datasetId: dataset[0]!.id,

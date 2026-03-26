@@ -7,8 +7,16 @@ import {
   fullDashboardSchema,
   updateDashboardSchema,
 } from '@repo/schemas/crud'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { syncDashboardChartUsages } from '~/lib/chartUsage'
+import { assertDashboardDependenciesPublic } from '~/lib/public-visibility'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildConsoleReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -21,8 +29,8 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dashboard } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -30,7 +38,7 @@ import { parseQuery } from '../utils/query'
 
 export const baseDashboardQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
   },
 } satisfies QueryForTable<'dashboard'>
 
@@ -48,17 +56,21 @@ const dashboardNotFoundError = () =>
     description: "dashboard you're looking for is not found",
   })
 
-const fetchFullDashboard = async (id: string) => {
+const fetchFullDashboard = async (id: string, organizationId: string) => {
   const record = await db.query.dashboard.findFirst({
-    where: (dashboard, { eq }) => eq(dashboard.id, id),
+    where: (dashboard, { and, eq }) =>
+      and(eq(dashboard.id, id), eq(dashboard.organizationId, organizationId)),
     ...fullDashboardQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullDashboardOrThrow = async (id: string) => {
-  const record = await fetchFullDashboard(id)
+const fetchFullDashboardOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const record = await fetchFullDashboard(id, organizationId)
 
   if (!record) {
     throw dashboardNotFoundError()
@@ -106,6 +118,7 @@ const app = createOpenAPIApp()
         {
           defaultOrderBy: desc(dashboard.createdAt),
           searchableColumns: [dashboard.name, dashboard.description],
+          baseWhere: buildConsoleReadScope(c, dashboard.organizationId),
         },
       )
 
@@ -151,7 +164,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDashboardOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'dashboard',
+        resourceId: id,
+        notFoundError: dashboardNotFoundError,
+      })
+      const record = await fetchFullDashboardOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -189,10 +211,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
       const newDashboard = await db.transaction(async (tx) => {
         const [insertedDashboard] = await tx
           .insert(dashboard)
-          .values(createPayload(payload))
+          .values(
+            createOwnedPayload({
+              ...payload,
+              organizationId: activeOrganizationId,
+              createdByUserId: actor.user.id,
+            }),
+          )
           .returning()
 
         if (!insertedDashboard) {
@@ -212,7 +241,10 @@ const app = createOpenAPIApp()
         return insertedDashboard
       })
 
-      const record = await fetchFullDashboardOrThrow(newDashboard.id)
+      const record = await fetchFullDashboardOrThrow(
+        newDashboard.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Dashboard created')
     },
@@ -253,12 +285,31 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dashboard',
+        resourceId: id,
+        notFoundError: dashboardNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        nextVisibility: payload.visibility,
+        ownerUserId: accessRecord.createdByUserId,
+        resource: 'dashboard',
+      })
 
       const record = await db.transaction(async (tx) => {
         const [updatedRecord] = await tx
           .update(dashboard)
           .set(updatePayload(payload))
-          .where(eq(dashboard.id, id))
+          .where(
+            and(
+              eq(dashboard.id, id),
+              eq(dashboard.organizationId, accessRecord.organizationId),
+            ),
+          )
           .returning()
 
         if (!updatedRecord) {
@@ -269,10 +320,17 @@ const app = createOpenAPIApp()
           await syncDashboardChartUsages(tx, updatedRecord.id, payload.content)
         }
 
+        if (updatedRecord.visibility === 'public') {
+          await assertDashboardDependenciesPublic(tx, updatedRecord.id)
+        }
+
         return updatedRecord
       })
 
-      const fullRecord = await fetchFullDashboardOrThrow(record.id)
+      const fullRecord = await fetchFullDashboardOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dashboard updated')
     },
@@ -304,9 +362,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDashboardOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dashboard',
+        resourceId: id,
+        notFoundError: dashboardNotFoundError,
+      })
+      const record = await fetchFullDashboardOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(dashboard).where(eq(dashboard.id, id))
+      await db
+        .delete(dashboard)
+        .where(
+          and(
+            eq(dashboard.id, id),
+            eq(dashboard.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Dashboard deleted')
     },

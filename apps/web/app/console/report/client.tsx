@@ -7,9 +7,11 @@ import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { ReportButton } from './_components/report-button'
 import { useCreateReport, useReportLink, useReports } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const ReportFeature = () => {
   const {
@@ -22,6 +24,7 @@ const ReportFeature = () => {
     isFetchingNextPage,
   } = useReports(undefined, true)
   const createReport = useCreateReport()
+  const { access } = useAccessControl()
 
   const reportLink = useReportLink()
 
@@ -43,6 +46,7 @@ const ReportFeature = () => {
           buttonText="Add Report"
           entityName="Report"
           entityNamePlural="reports"
+          hideTrigger={!canCreateConsoleResource(access, 'report')}
         ></CrudFormDialog>
       </div>
       <div>

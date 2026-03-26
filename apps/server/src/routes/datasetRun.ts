@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
+import { assertResourceWritable } from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -146,6 +147,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: payload.datasetId,
+        notFoundError: datasetRunNotFoundError,
+      })
       const [newDatasetRun] = await db
         .insert(datasetRun)
         .values(createPayload(payload))

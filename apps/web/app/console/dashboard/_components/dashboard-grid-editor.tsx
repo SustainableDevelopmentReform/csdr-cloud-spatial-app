@@ -62,11 +62,16 @@ const cloneContent = (content: DashboardContent): DashboardContent =>
   normalizeContent(content)
 
 type DashboardGridEditorProps = {
+  disabled?: boolean
   value?: DashboardContent
   onChange?: (next: DashboardContent) => void
 }
 
-const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
+const DashboardGridEditor = ({
+  disabled = false,
+  value,
+  onChange,
+}: DashboardGridEditorProps) => {
   const [selectedDataPoint, setSelectedDataPoint] =
     useState<SelectedDataPoint<ProductOutputExportListItem> | null>(null)
   const isControlled = value !== undefined
@@ -79,6 +84,10 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
 
   const updateContent = useCallback(
     (updater: (current: DashboardContent) => DashboardContent) => {
+      if (disabled) {
+        return
+      }
+
       if (isControlled) {
         const next = updater(cloneContent(content))
         onChange?.(normalizeContent(next))
@@ -91,7 +100,7 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
         })
       }
     },
-    [isControlled, content, onChange],
+    [disabled, isControlled, content, onChange],
   )
 
   const handleAddChart = useCallback(
@@ -200,11 +209,13 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <ChartFormDialog
-        buttonText="Add chart"
-        chart={null}
-        onSubmit={handleAddChart}
-      />
+      {!disabled ? (
+        <ChartFormDialog
+          buttonText="Add chart"
+          chart={null}
+          onSubmit={handleAddChart}
+        />
+      ) : null}
 
       {hasCharts ? (
         <GridLayout
@@ -216,6 +227,8 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
           containerPadding={[0, 0]}
           draggableCancel=".grid-item-action"
           draggableHandle=".grid-item-handle"
+          isDraggable={!disabled}
+          isResizable={!disabled}
           onLayoutChange={(nextLayout) => {
             updateContent((prev) => ({
               charts: prev.charts,
@@ -230,41 +243,49 @@ const DashboardGridEditor = ({ value, onChange }: DashboardGridEditorProps) => {
                   <Hand className="h-4 w-4" />
                   <span className="truncate">Drag to reposition...</span>
                   <div className="ml-auto flex items-center gap-2 text-muted-foreground grid-item-action">
-                    <ChartFormDialog
-                      buttonText="Edit chart"
-                      chart={chart}
-                      onSubmit={(nextChart) => handleUpdateChart(id, nextChart)}
-                    />
+                    {!disabled ? (
+                      <ChartFormDialog
+                        buttonText="Edit chart"
+                        chart={chart}
+                        onSubmit={(nextChart) =>
+                          handleUpdateChart(id, nextChart)
+                        }
+                      />
+                    ) : null}
 
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="rounded-full"
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        event.nativeEvent.stopImmediatePropagation()
-                        handleDuplicateChart(id)
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                    {!disabled ? (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="rounded-full"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          event.nativeEvent.stopImmediatePropagation()
+                          handleDuplicateChart(id)
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    ) : null}
 
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="text-destructive focus:text-destructive rounded-full"
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        event.nativeEvent.stopImmediatePropagation()
-                        handleRemoveChart(id)
-                      }}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
+                    {!disabled ? (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive focus:text-destructive rounded-full"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          event.nativeEvent.stopImmediatePropagation()
+                          handleRemoveChart(id)
+                        }}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </div>

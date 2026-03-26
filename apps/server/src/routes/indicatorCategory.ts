@@ -1,5 +1,12 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildConsoleReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -11,22 +18,27 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { indicatorCategory } from '../schemas/db'
-import { baseColumns, QueryForTable } from '../schemas/util'
+import {
+  baseAclColumns,
+  createOwnedPayload,
+  QueryForTable,
+  updatePayload,
+} from '../schemas/util'
 import {
   createIndicatorCategorySchema,
   updateIndicatorCategorySchema,
   indicatorCategorySchema,
 } from '@repo/schemas/crud'
 
-const indicatorCategoryQuery = {
+export const indicatorCategoryQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
     parentId: true,
     displayOrder: true,
   },
   with: {
     parent: {
-      columns: baseColumns,
+      columns: baseAclColumns,
     },
   },
 } satisfies QueryForTable<'indicatorCategory'>
@@ -38,17 +50,27 @@ const indicatorCategoryNotFoundError = () =>
     description: "indicatorCategory you're looking for is not found",
   })
 
-const fetchFullIndicatorCategory = async (id: string) => {
+const fetchFullIndicatorCategory = async (
+  id: string,
+  organizationId: string,
+) => {
   const record = await db.query.indicatorCategory.findFirst({
-    where: (indicatorCategory, { eq }) => eq(indicatorCategory.id, id),
+    where: (indicatorCategory, { and, eq }) =>
+      and(
+        eq(indicatorCategory.id, id),
+        eq(indicatorCategory.organizationId, organizationId),
+      ),
     ...indicatorCategoryQuery,
   })
 
   return record ?? null
 }
 
-const fetchFullIndicatorCategoryOrThrow = async (id: string) => {
-  const record = await fetchFullIndicatorCategory(id)
+const fetchFullIndicatorCategoryOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const record = await fetchFullIndicatorCategory(id, organizationId)
 
   if (!record) {
     throw indicatorCategoryNotFoundError()
@@ -87,14 +109,20 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
+      const scopeWhere = buildConsoleReadScope(
+        c,
+        indicatorCategory.organizationId,
+      )
       const totalCount = await db
         .select({
           count: count(),
         })
         .from(indicatorCategory)
+        .where(scopeWhere)
 
       const data = await db.query.indicatorCategory.findMany({
         ...indicatorCategoryQuery,
+        where: scopeWhere,
         orderBy: desc(indicatorCategory.createdAt),
       })
 
@@ -135,7 +163,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullIndicatorCategoryOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'indicatorCategory',
+        resourceId: id,
+        notFoundError: indicatorCategoryNotFoundError,
+      })
+      const record = await fetchFullIndicatorCategoryOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -177,10 +214,24 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const data = c.req.valid('json')
-      const id = crypto.randomUUID()
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
+      if (data.parentId) {
+        await assertResourceWritable({
+          c,
+          resource: 'indicatorCategory',
+          resourceId: data.parentId,
+          notFoundError: indicatorCategoryNotFoundError,
+        })
+      }
       const [newIndicatorCategory] = await db
         .insert(indicatorCategory)
-        .values({ ...data, id })
+        .values(
+          createOwnedPayload({
+            ...data,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newIndicatorCategory) {
@@ -193,6 +244,7 @@ const app = createOpenAPIApp()
 
       const record = await fetchFullIndicatorCategoryOrThrow(
         newIndicatorCategory.id,
+        activeOrganizationId,
       )
 
       return generateJsonResponse(c, record, 201, 'Indicator category created')
@@ -238,17 +290,49 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const data = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicatorCategory',
+        resourceId: id,
+        notFoundError: indicatorCategoryNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        nextVisibility: data.visibility,
+        ownerUserId: accessRecord.createdByUserId,
+        resource: 'indicatorCategory',
+      })
+
+      if (data.parentId) {
+        await assertResourceWritable({
+          c,
+          resource: 'indicatorCategory',
+          resourceId: data.parentId,
+          notFoundError: indicatorCategoryNotFoundError,
+        })
+      }
+
       const [record] = await db
         .update(indicatorCategory)
-        .set(data)
-        .where(eq(indicatorCategory.id, id))
+        .set(updatePayload(data))
+        .where(
+          and(
+            eq(indicatorCategory.id, id),
+            eq(indicatorCategory.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw indicatorCategoryNotFoundError()
       }
 
-      const fullRecord = await fetchFullIndicatorCategoryOrThrow(record.id)
+      const fullRecord = await fetchFullIndicatorCategoryOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(
         c,
@@ -289,9 +373,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullIndicatorCategoryOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicatorCategory',
+        resourceId: id,
+        notFoundError: indicatorCategoryNotFoundError,
+      })
+      const record = await fetchFullIndicatorCategoryOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(indicatorCategory).where(eq(indicatorCategory.id, id))
+      await db
+        .delete(indicatorCategory)
+        .where(
+          and(
+            eq(indicatorCategory.id, id),
+            eq(indicatorCategory.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Indicator category deleted')
     },

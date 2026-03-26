@@ -4,7 +4,25 @@ import { useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import { QueryKey } from '~/utils/apiClient'
-import { User } from '../../../utils/authClient'
+
+const adminUserSchema = z.object({
+  banned: z.boolean().optional(),
+  createdAt: z.union([z.string(), z.date()]).nullable().optional(),
+  email: z.string(),
+  id: z.string(),
+  image: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  role: z.string().nullable().optional(),
+})
+
+const listUsersResponseSchema = z.object({
+  limit: z.number().optional(),
+  offset: z.number().optional(),
+  total: z.number(),
+  users: z.array(adminUserSchema),
+})
+
+export type AdminUser = z.infer<typeof adminUserSchema>
 
 export const userIdSchema = z.object({
   userId: z.string().optional(),
@@ -31,8 +49,9 @@ export const useUser = (id?: string) => {
         throw res.error
       }
 
-      // Note we have to add type hint here due to better-auth type issues
-      return res.data.users[0] as User | null
+      const parsed = listUsersResponseSchema.parse(res.data)
+
+      return parsed.users[0] ?? null
     },
   })
 }
@@ -62,13 +81,7 @@ export const useUsers = () => {
         throw res.error
       }
 
-      // Note we have to add type hint here due to better-auth type issues
-      return res.data as {
-        users: User[]
-        total: number
-        limit: number | undefined
-        offset: number | undefined
-      }
+      return listUsersResponseSchema.parse(res.data)
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {

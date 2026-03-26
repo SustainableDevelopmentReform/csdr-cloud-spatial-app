@@ -10,6 +10,13 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/ui/components/ui/select'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { cn } from '@repo/ui/lib/utils'
@@ -39,6 +46,7 @@ export interface CrudFormProps<
   actions?: CrudFormAction[]
   children?: React.ReactNode | React.ReactNode[]
   onSuccess?: () => void
+  readOnly?: boolean
   successMessage: string
 }
 
@@ -50,6 +58,7 @@ export const CrudForm = <
   deleteMutation,
   actions: actionsProp,
   children,
+  readOnly = false,
   entityName,
   entityNamePlural,
   readOnlyFields = ['id', 'metadata'],
@@ -61,10 +70,15 @@ export const CrudForm = <
   // Warn on navigation when the form has unsaved changes
   useUnsavedChangesWarning(form.formState.isDirty)
 
+  type CrudField = keyof Data | 'visibility'
+
   // Helper function to get field label
-  const getFieldLabel = (field: keyof Data): string => {
+  const getFieldLabel = (field: CrudField): string => {
     if (fieldLabels) {
-      const label = fieldLabels[field as keyof typeof fieldLabels]
+      const label =
+        field === 'visibility'
+          ? undefined
+          : fieldLabels[field as keyof typeof fieldLabels]
       if (label) return label
     }
     // Convert field name to title case
@@ -75,17 +89,17 @@ export const CrudForm = <
   }
 
   // Helper function to check if field should be shown
-  const shouldShowField = (field: keyof Data): boolean => {
+  const shouldShowField = (field: CrudField): boolean => {
     return !hiddenFields?.includes(field)
   }
 
   // Helper function to check if field is read-only
-  const isReadOnlyField = (field: keyof Data): boolean => {
-    return !!readOnlyFields?.includes(field)
+  const isReadOnlyField = (field: CrudField): boolean => {
+    return readOnly || !!readOnlyFields?.includes(field)
   }
 
   const deleteAction: CrudFormAction | undefined = useMemo(() => {
-    if (!deleteMutation) return undefined
+    if (readOnly || !deleteMutation) return undefined
     return {
       title: `Delete ${entityName}`,
       description: `Permanently remove the ${entityName?.toLowerCase()}, including all dependents.`,
@@ -112,13 +126,15 @@ export const CrudForm = <
         <form
           className="grid gap-3 border-b border-gray-200 pb-8"
           onSubmit={form.handleSubmit((formData) => {
-            mutation.mutate(formData, {
-              onSuccess: () => {
-                form.reset(formData)
-                toast.success(successMessage)
-                onSuccess?.()
-              },
-            })
+            if (!readOnly) {
+              mutation.mutate(formData, {
+                onSuccess: () => {
+                  form.reset(formData)
+                  toast.success(successMessage)
+                  onSuccess?.()
+                },
+              })
+            }
           })}
         >
           {shouldShowField('id') && isReadOnlyField('id') && (
@@ -234,13 +250,45 @@ export const CrudForm = <
             />
           )}
 
+          {shouldShowField('visibility') && (
+            <FormField
+              control={form.control}
+              name={'visibility' as Path<Data>}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{getFieldLabel('visibility')}</FormLabel>
+                  <Select
+                    value={
+                      typeof field.value === 'string' ? field.value : undefined
+                    }
+                    onValueChange={field.onChange}
+                    disabled={isReadOnlyField('visibility')}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select visibility" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="private">Private</SelectItem>
+                      <SelectItem value="public">Public</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           {children}
 
-          <div>
-            <Button className="mt-4" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Loading...' : 'Save'}
-            </Button>
-          </div>
+          {!readOnly ? (
+            <div>
+              <Button className="mt-4" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Loading...' : 'Save'}
+              </Button>
+            </div>
+          ) : null}
         </form>
       </Form>
 

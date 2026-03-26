@@ -7,7 +7,12 @@ import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
+import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
+import {
+  canEditConsoleResource,
+  getCreatedByUserId,
+} from '../../../../utils/access-control'
 import { DetailCard } from '../../_components/detail-cards'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
@@ -26,6 +31,12 @@ const GeometriesDetails = () => {
   const updateGeometries = useUpdateGeometries()
   const deleteGeometries = useDeleteGeometries(undefined, GEOMETRIES_BASE_PATH)
   const geometriesRunsLink = useGeometriesRunsLink()
+  const { access } = useAccessControl()
+  const canEdit = canEditConsoleResource({
+    access,
+    resource: 'geometries',
+    createdByUserId: getCreatedByUserId(geometries),
+  })
 
   const form = useForm({
     resolver: zodResolver(updateGeometriesSchema),
@@ -75,6 +86,7 @@ const GeometriesDetails = () => {
         deleteMutation={deleteGeometries}
         entityName="Geometries"
         entityNamePlural="geometries sets"
+        readOnly={!canEdit}
         successMessage="Updated Geometries"
       />
     </div>

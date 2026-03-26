@@ -23,6 +23,7 @@ import { z } from 'zod'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { StatusMessage } from '../../../components/status-message'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
@@ -37,6 +38,7 @@ import {
   useIndicatorLink,
   useIndicators,
 } from './_hooks'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 function validateExpression(expression: string | undefined): string | null {
   if (!expression || expression.trim() === '') {
@@ -155,6 +157,7 @@ const IndicatorFeature = () => {
   } = useIndicators(undefined, true)
   const createIndicator = useCreateMeasuredIndicator()
   const createDerivedIndicator = useCreateDerivedIndicator()
+  const { access } = useAccessControl()
   const indicatorLink = useIndicatorLink()
   const selectedCategoryIds = useMemo(
     () => normalizeFilterValues(query?.categoryId),
@@ -205,6 +208,7 @@ const IndicatorFeature = () => {
             buttonText="Add Indicator"
             entityName="Indicator"
             entityNamePlural="indicators"
+            hideTrigger={!canCreateConsoleResource(access, 'indicator')}
           >
             <FormField
               control={indicatorForm.control}
@@ -244,6 +248,7 @@ const IndicatorFeature = () => {
             buttonText="Add Derived Indicator"
             entityName="Derived Indicator"
             entityNamePlural="derived indicators"
+            hideTrigger={!canCreateConsoleResource(access, 'indicator')}
           >
             <FormField
               control={derivedIndicatorForm.control}

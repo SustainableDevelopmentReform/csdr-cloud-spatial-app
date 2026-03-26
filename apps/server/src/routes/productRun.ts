@@ -29,6 +29,7 @@ import {
   ensureAssignedDerivedIndicatorNotUsedByCharts,
   ensureProductRunNotUsedByCharts,
 } from '~/lib/chartUsage'
+import { assertResourceWritable } from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -308,7 +309,12 @@ const app = createOpenAPIApp()
       description: 'List outputs for a product run.',
       method: 'get',
       path: '/:id/outputs',
-      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:productOutput',
+          targetResource: 'productRun',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         query: productOutputQuerySchema,
@@ -397,7 +403,12 @@ const app = createOpenAPIApp()
       description: 'Export outputs for a product run.',
       method: 'get',
       path: '/:id/outputs/export',
-      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:productOutput',
+          targetResource: 'productRun',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         query: productOutputExportQuerySchema,
@@ -543,6 +554,28 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: payload.productId,
+        notFoundError: productRunNotFoundError,
+      })
+      if (payload.datasetRunId) {
+        await assertResourceWritable({
+          c,
+          resource: 'datasetRun',
+          resourceId: payload.datasetRunId,
+          notFoundError: productRunNotFoundError,
+        })
+      }
+      if (payload.geometriesRunId) {
+        await assertResourceWritable({
+          c,
+          resource: 'geometriesRun',
+          resourceId: payload.geometriesRunId,
+          notFoundError: productRunNotFoundError,
+        })
+      }
       const [newProductRun] = await db
         .insert(productRun)
         .values(createPayload(payload))

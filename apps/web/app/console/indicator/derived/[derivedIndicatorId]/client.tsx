@@ -14,7 +14,12 @@ import { Textarea } from '@repo/ui/components/ui/textarea'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import {
+  canEditConsoleResource,
+  getCreatedByUserId,
+} from '../../../../../utils/access-control'
 import { IndicatorButton } from '../../_components/indicator-button'
 import { IndicatorCategorySelect } from '../../_components/indicator-category-select'
 import { IndicatorProductUsageCard } from '../../_components/indicator-product-usage-card'
@@ -32,6 +37,7 @@ const IndicatorDetails = () => {
     undefined,
     INDICATORS_BASE_PATH,
   )
+  const { access } = useAccessControl()
 
   const form = useForm({
     resolver: zodResolver(updateDerivedIndicatorSchema),
@@ -42,6 +48,11 @@ const IndicatorDetails = () => {
       form.reset(derivedIndicator)
     }
   }, [derivedIndicator, form])
+  const canEdit = canEditConsoleResource({
+    access,
+    resource: 'indicator',
+    createdByUserId: getCreatedByUserId(derivedIndicator),
+  })
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
@@ -56,6 +67,7 @@ const IndicatorDetails = () => {
         deleteMutation={deleteIndicator}
         entityName="Derived Indicator"
         entityNamePlural="derived indicators"
+        readOnly={!canEdit}
         successMessage="Updated Derived Indicator"
       >
         <FormField
@@ -65,7 +77,7 @@ const IndicatorDetails = () => {
             <FormItem>
               <FormLabel>Units</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} disabled={!canEdit} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -81,6 +93,7 @@ const IndicatorDetails = () => {
                 <FormControl>
                   <IndicatorCategorySelect
                     value={field.value}
+                    disabled={!canEdit}
                     onChange={(value) => field.onChange(value?.id ?? null)}
                   />
                 </FormControl>

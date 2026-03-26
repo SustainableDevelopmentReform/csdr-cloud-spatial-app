@@ -83,7 +83,10 @@ export type IntegrationTestContext = IntegrationTestModules & {
   createSessionHeaders: (options?: {
     email?: string
     name?: string
-    role?: 'admin'
+    role?: 'admin' | 'super_admin'
+    organizationId?: string
+    organizationRole?: 'org_viewer' | 'org_creator' | 'org_admin'
+    twoFactorEnabled?: boolean
   }) => Promise<Headers>
 }
 
@@ -206,11 +209,19 @@ const seedBaseData = async (db: DbModule['db']) => {
     emailVerified: true,
     createdAt: now,
     updatedAt: now,
-    role: 'admin',
+    role: 'super_admin',
     banned: false,
     banReason: null,
     banExpires: null,
     twoFactorEnabled: false,
+  })
+
+  await db.insert(schema.member).values({
+    id: 'seed-admin-member',
+    organizationId: seededIds.organization,
+    userId: seededIds.adminUser,
+    role: 'org_admin',
+    createdAt: now,
   })
 
   await db.insert(schema.account).values({
@@ -232,6 +243,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     name: 'Forest Data',
     description: 'Forest Data',
     metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     createdAt: now,
     updatedAt: now,
     parentId: null,
@@ -246,6 +260,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     unit: 'm^2',
     displayOrder: 1,
     metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     createdAt: now,
     updatedAt: now,
   })
@@ -259,6 +276,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     displayOrder: 2,
     expression: '$1 * 2',
     metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     createdAt: now,
     updatedAt: now,
   })
@@ -273,6 +293,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     name: 'Forest Cover',
     description: 'Some Forest Cover Data',
     metadata: { source: 'https://example.com/datasets/forest-cover' },
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     createdAt: now,
     updatedAt: now,
     sourceUrl: 'https://example.com/datasets/forest-cover',
@@ -308,6 +331,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     name: 'Australia Geometries',
     description: 'Australia Geometries',
     metadata: { source: 'https://example.com/geometries/australia' },
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     createdAt: now,
     updatedAt: now,
     sourceUrl: 'https://example.com/geometries/australia',
@@ -397,6 +423,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     name: 'Forest Cover Product in Australia',
     description: 'Forest Cover Product in Australia',
     metadata: { source: 'https://example.com/products/forest-cover' },
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     createdAt: now,
     updatedAt: now,
     timePrecision: 'year',
@@ -514,6 +543,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     name: 'Forest Cover Report',
     description: 'Seeded report for integration tests',
     metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     content: {
       type: 'doc',
       content: [
@@ -537,6 +569,9 @@ const seedBaseData = async (db: DbModule['db']) => {
     name: 'Forest Cover Dashboard',
     description: 'Seeded dashboard for integration tests',
     metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
     content: {
       charts: {},
       layout: [],
@@ -669,17 +704,57 @@ export const setupIsolatedTestFile = async (
       })()
       const email =
         options?.email ?? `${randomUUID().replaceAll('-', '')}@example.com`
+      const shouldEnableTwoFactor =
+        options?.twoFactorEnabled ??
+        (options?.role === 'admin' || options?.role === 'super_admin')
       const savedUser = await helpers.saveUser(
         helpers.createUser({
           email,
           name: options?.name ?? 'Test User',
+          twoFactorEnabled: shouldEnableTwoFactor,
         }),
       )
+
+      const organizationId = options?.organizationId ?? seededIds.organization
+
+      if (organizationId !== seededIds.organization) {
+        await db.insert(schema.organization).values({
+          id: organizationId,
+          slug: organizationId,
+          name: `${options?.name ?? 'Test User'} Workspace`,
+          createdAt: new Date(),
+          metadata: '{}',
+        })
+      }
+
+      await db.insert(schema.member).values({
+        id: `member-${savedUser.id}`,
+        organizationId,
+        userId: savedUser.id,
+        role: options?.organizationRole ?? 'org_viewer',
+        createdAt: new Date(),
+      })
 
       if (options?.role === 'admin') {
         await db
           .update(schema.user)
-          .set({ role: 'admin' })
+          .set({
+            role: 'super_admin',
+            twoFactorEnabled: shouldEnableTwoFactor,
+          })
+          .where(eq(schema.user.id, savedUser.id))
+      } else if (options?.role === 'super_admin') {
+        await db
+          .update(schema.user)
+          .set({
+            role: 'super_admin',
+            twoFactorEnabled: shouldEnableTwoFactor,
+          })
+          .where(eq(schema.user.id, savedUser.id))
+      } else if (options?.twoFactorEnabled !== undefined) {
+        await db
+          .update(schema.user)
+          .set({ twoFactorEnabled: options.twoFactorEnabled })
           .where(eq(schema.user.id, savedUser.id))
       }
 
@@ -687,7 +762,17 @@ export const setupIsolatedTestFile = async (
         userId: savedUser.id,
       })
 
-      return new Headers(headers)
+      await db
+        .update(schema.session)
+        .set({
+          activeOrganizationId: organizationId,
+        })
+        .where(eq(schema.session.userId, savedUser.id))
+
+      const scopedHeaders = new Headers(headers)
+      scopedHeaders.set('x-csdr-active-organization-id', organizationId)
+
+      return scopedHeaders
     },
   }
 }

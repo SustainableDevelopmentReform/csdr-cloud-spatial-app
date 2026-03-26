@@ -15,9 +15,11 @@ import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { DatasetButton } from './_components/dataset-button'
 import { useCreateDataset, useDatasetLink, useDatasets } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const DatasetFeature = () => {
   const {
@@ -30,6 +32,7 @@ const DatasetFeature = () => {
     isFetchingNextPage,
   } = useDatasets(undefined, true)
   const createDataset = useCreateDataset()
+  const { access } = useAccessControl()
 
   const datasetLink = useDatasetLink()
 
@@ -51,6 +54,7 @@ const DatasetFeature = () => {
           buttonText="Add Dataset"
           entityName="Dataset"
           entityNamePlural="datasets"
+          hideTrigger={!canCreateConsoleResource(access, 'dataset')}
         >
           <FormField
             control={form.control}

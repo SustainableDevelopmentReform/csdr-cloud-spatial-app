@@ -1,6 +1,10 @@
 'use client'
 
-import { reportQuerySchema } from '@repo/schemas/crud'
+import {
+  createReportSchema,
+  reportQuerySchema,
+  updateReportSchema,
+} from '@repo/schemas/crud'
 import {
   useInfiniteQuery,
   useMutation,
@@ -26,13 +30,9 @@ export type ReportDetail = NonNullable<
   InferResponseType<Client['api']['v0']['report'][':id']['$get'], 200>['data']
 >
 
-export type UpdateReportPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['report'][':id']['$patch']>['json']
->
+export type UpdateReportPayload = z.infer<typeof updateReportSchema>
 
-export type CreateReportPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['report']['$post']>['json']
->
+export type CreateReportPayload = z.infer<typeof createReportSchema>
 
 const reportParamsSchema = z.object({
   reportId: z.string().optional(),

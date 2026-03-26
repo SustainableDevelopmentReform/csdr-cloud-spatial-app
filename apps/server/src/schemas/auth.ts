@@ -44,7 +44,10 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     impersonatedBy: text('impersonated_by'),
-    activeOrganizationId: text('active_organization_id'),
+    activeOrganizationId: text('active_organization_id').references(
+      () => organization.id,
+      { onDelete: 'set null' },
+    ),
   },
   (table) => [index('session_userId_idx').on(table.userId)],
 )
@@ -161,7 +164,7 @@ export const member = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    role: text('role').default('member').notNull(),
+    role: text('role').default('org_viewer').notNull(),
     createdAt: timestamp('created_at').notNull(),
   },
   (table) => [
@@ -178,7 +181,7 @@ export const invitation = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
-    role: text('role'),
+    role: text('role').default('org_viewer').notNull(),
     status: text('status').default('pending').notNull(),
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

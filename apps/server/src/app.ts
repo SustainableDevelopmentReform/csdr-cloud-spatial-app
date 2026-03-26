@@ -17,8 +17,10 @@ import { generateJsonResponse } from './lib/response'
 import {
   enforceAuthRateLimit,
   getAuthRequestBody,
+  persistAuthAuditLog,
   logTwoFactorRouteResult,
 } from './lib/auth-security'
+import { loadRequestActor } from './lib/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
 import dataset from './routes/dataset'
@@ -33,6 +35,8 @@ import indicator from './routes/indicator'
 import indicatorCategory from './routes/indicatorCategory'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
+import logs from './routes/logs'
+import publicRoutes from './routes/public'
 
 const isProduction = env.NODE_ENV === 'production'
 
@@ -60,11 +64,23 @@ app.use('*', async (c, next) => {
   if (!session) {
     c.set('user', null)
     c.set('session', null)
+    c.set('activeMember', null)
+    c.set('activeOrganizationId', null)
+    c.set('requestActor', null)
     return next()
   }
 
+  const actor = await loadRequestActor({
+    headers: c.req.raw.headers,
+    user: session.user,
+    session: session.session,
+  })
+
   c.set('user', session.user)
   c.set('session', session.session)
+  c.set('activeMember', actor?.activeMember ?? null)
+  c.set('activeOrganizationId', actor?.activeOrganizationId ?? null)
+  c.set('requestActor', actor)
 
   return next()
 })
@@ -82,6 +98,13 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
   logTwoFactorRouteResult({
     request: c.req.raw,
     response,
+    session: user ? { user } : null,
+  })
+
+  await persistAuthAuditLog({
+    request: c.req.raw,
+    response,
+    body,
     session: user ? { user } : null,
   })
 
@@ -103,6 +126,8 @@ const v0ApiBase = app
   .route('/indicator-category', indicatorCategory)
   .route('/report', report)
   .route('/dashboard', dashboard)
+  .route('/logs', logs)
+  .route('/public', publicRoutes)
 
 v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',

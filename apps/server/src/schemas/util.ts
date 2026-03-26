@@ -37,6 +37,17 @@ export const baseColumns = {
   updatedAt: true,
 } as const
 
+export const aclColumns = {
+  organizationId: true,
+  createdByUserId: true,
+  visibility: true,
+} as const
+
+export const baseAclColumns = {
+  ...baseColumns,
+  ...aclColumns,
+} as const
+
 export const baseRunColumns = {
   ...baseColumns,
   imageCode: true,
@@ -57,6 +68,21 @@ export const createPayload = <T extends { name?: string; id?: string }>(
   id: data.id || crypto.randomUUID(),
   createdAt: new Date(),
   updatedAt: new Date(),
+})
+
+export const createOwnedPayload = <
+  T extends {
+    id?: string
+    name?: string
+    organizationId: string
+    createdByUserId: string
+    visibility?: 'private' | 'public'
+  },
+>(
+  data: T,
+) => ({
+  ...createPayload(data),
+  visibility: data.visibility ?? 'private',
 })
 
 export const updatePayload = <T extends object>(data: T) => ({

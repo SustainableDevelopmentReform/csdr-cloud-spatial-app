@@ -5,7 +5,12 @@ import { updateIndicatorSchema } from '@repo/schemas/crud'
 import { useEffect } from 'react'
 import { Path, useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import {
+  canEditConsoleResource,
+  getCreatedByUserId,
+} from '../../../../../utils/access-control'
 import {
   useDeleteMeasuredIndicator,
   useUpdateMeasuredIndicator,
@@ -29,6 +34,7 @@ const IndicatorDetails = () => {
     undefined,
     INDICATORS_BASE_PATH,
   )
+  const { access } = useAccessControl()
 
   const form = useForm({
     resolver: zodResolver(updateIndicatorSchema),
@@ -39,6 +45,11 @@ const IndicatorDetails = () => {
       form.reset(indicator)
     }
   }, [indicator, form])
+  const canEdit = canEditConsoleResource({
+    access,
+    resource: 'indicator',
+    createdByUserId: getCreatedByUserId(indicator),
+  })
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
@@ -53,6 +64,7 @@ const IndicatorDetails = () => {
         deleteMutation={deleteIndicator}
         entityName="Indicator"
         entityNamePlural="indicators"
+        readOnly={!canEdit}
         successMessage="Updated Indicator"
       >
         <FormField
@@ -62,7 +74,7 @@ const IndicatorDetails = () => {
             <FormItem>
               <FormLabel>Units</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} disabled={!canEdit} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -78,6 +90,7 @@ const IndicatorDetails = () => {
                 <FormControl>
                   <IndicatorCategorySelect
                     value={field.value}
+                    disabled={!canEdit}
                     onChange={(value) => field.onChange(value?.id ?? null)}
                   />
                 </FormControl>

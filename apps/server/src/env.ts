@@ -47,6 +47,19 @@ export const env = createEnv({
       .optional()
       .default('false')
       .transform((val) => val === 'true'),
+    ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
+    ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID: z
+      .string()
+      .optional()
+      .default('default-organization'),
+    ACCESS_CONTROL_BOOTSTRAP_USER_ID: z
+      .string()
+      .optional()
+      .default('super-admin'),
     BETTER_AUTH_SECRET: z
       .string()
       .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters long'),
@@ -83,6 +96,12 @@ export const env = createEnv({
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
     AUTH_REQUIRE_EMAIL_VERIFICATION:
       process.env.AUTH_REQUIRE_EMAIL_VERIFICATION,
+    ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC:
+      process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC,
+    ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID:
+      process.env.ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID,
+    ACCESS_CONTROL_BOOTSTRAP_USER_ID:
+      process.env.ACCESS_CONTROL_BOOTSTRAP_USER_ID,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
   },
 })

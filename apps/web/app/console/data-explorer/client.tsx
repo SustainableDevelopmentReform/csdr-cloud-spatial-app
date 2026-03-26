@@ -4,14 +4,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createDashboardSchema } from '@repo/schemas/crud'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { useUnsavedChangesWarning } from '../../../hooks/useUnsavedChangesWarning'
 import DashboardGridEditor, {
   createEmptyDashboardContent,
 } from '../dashboard/_components/dashboard-grid-editor'
 import { useCreateDashboard } from '../dashboard/_hooks'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const DataExplorerFeature = () => {
   const createDashboard = useCreateDashboard()
+  const { access } = useAccessControl()
   const form = useForm({
     resolver: zodResolver(createDashboardSchema),
     defaultValues: {
@@ -29,9 +32,11 @@ const DataExplorerFeature = () => {
         buttonText="Save as Dashboard"
         entityName="Dashboard"
         entityNamePlural="dashboards"
+        hideTrigger={!canCreateConsoleResource(access, 'dashboard')}
         hiddenFields={['content', 'metadata']}
       />
       <DashboardGridEditor
+        disabled={!canCreateConsoleResource(access, 'dashboard')}
         value={form.watch('content')}
         onChange={(next) =>
           form.setValue('content', next, {

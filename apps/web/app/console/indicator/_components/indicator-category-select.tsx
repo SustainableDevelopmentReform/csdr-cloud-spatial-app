@@ -15,6 +15,7 @@ type IndicatorCategorySelectProps =
   | {
       value: string[]
       onChange: (categories: MultiValue<IndicatorCategoryListItem>) => void
+      disabled?: boolean
       isMulti: true
       isClearable?: boolean
       placeholder?: string
@@ -22,6 +23,7 @@ type IndicatorCategorySelectProps =
   | {
       value: string | null | undefined
       onChange: (category: SingleValue<IndicatorCategoryListItem>) => void
+      disabled?: boolean
       isMulti?: false
       isClearable?: boolean
       placeholder?: string
@@ -66,6 +68,7 @@ export const IndicatorCategorySelect = (
         placeholder={placeholder ?? 'Filter by category'}
         isClearable={isClearable}
         isMulti
+        isDisabled={props.disabled}
       />
     )
   }
@@ -89,6 +92,7 @@ export const IndicatorCategorySelect = (
         )
       }}
       isClearable={isClearable}
+      isDisabled={props.disabled}
     />
   )
 }

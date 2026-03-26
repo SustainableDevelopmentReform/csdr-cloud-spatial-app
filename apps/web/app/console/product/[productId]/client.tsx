@@ -8,7 +8,12 @@ import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../components/form/crud-form-action'
+import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { PRODUCTS_BASE_PATH } from '../../../../lib/paths'
+import {
+  canEditConsoleResource,
+  getCreatedByUserId,
+} from '../../../../utils/access-control'
 import { DetailCard } from '../../_components/detail-cards'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
@@ -26,16 +31,25 @@ const ProductDetails = () => {
   const updateProduct = useUpdateProduct()
   const deleteProduct = useDeleteProduct(undefined, PRODUCTS_BASE_PATH)
   const productRunsLink = useProductRunsLink()
+  const { access } = useAccessControl()
+  const canEdit = canEditConsoleResource({
+    access,
+    resource: 'product',
+    createdByUserId: getCreatedByUserId(product),
+  })
 
   const formActions: CrudFormAction[] = useMemo(
-    () => [
-      {
-        title: 'Refresh',
-        description: 'Refresh the product main run summary',
-        component: <RefreshProductSummary run={product?.mainRun} />,
-      },
-    ],
-    [product?.mainRun],
+    () =>
+      canEdit
+        ? [
+            {
+              title: 'Refresh',
+              description: 'Refresh the product main run summary',
+              component: <RefreshProductSummary run={product?.mainRun} />,
+            },
+          ]
+        : [],
+    [canEdit, product?.mainRun],
   )
 
   const form = useForm({
@@ -88,6 +102,7 @@ const ProductDetails = () => {
           entityName="Product"
           entityNamePlural="products"
           actions={formActions}
+          readOnly={!canEdit}
           successMessage="Updated Product"
         />
       )}

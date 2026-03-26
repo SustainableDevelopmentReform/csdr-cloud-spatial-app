@@ -22,6 +22,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { SearchInput } from '../../../components/table/search-input'
 import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
@@ -36,6 +37,7 @@ import {
   useProductLink,
   useProducts,
 } from './_hooks'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const columnHelper = createColumnHelper<ProductListItem>()
 
@@ -108,6 +110,7 @@ const ProductFeature = () => {
   } = useProducts(undefined, true)
   const productLink = useProductLink()
   const createProduct = useCreateProduct()
+  const { access } = useAccessControl()
   const selectedDatasetIds = useMemo(
     () => normalizeFilterValues(query?.datasetId),
     [query?.datasetId],
@@ -140,6 +143,7 @@ const ProductFeature = () => {
           entityName="Product"
           entityNamePlural="Products"
           buttonText="Add Product"
+          hideTrigger={!canCreateConsoleResource(access, 'product')}
         >
           <FormField
             control={form.control}
