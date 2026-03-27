@@ -25,6 +25,11 @@ import {
   SQL,
 } from 'drizzle-orm'
 import { evaluate } from 'mathjs'
+import {
+  ensureAssignedDerivedIndicatorNotUsedByCharts,
+  ensureProductRunNotUsedByCharts,
+  fetchChartUsageCounts,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -253,7 +258,13 @@ const fetchFullProductRun = async (id: string) => {
     ...fullProductRunQuery,
   })
 
-  return record ? parseFullProductRun(record) : null
+  if (!record) {
+    return null
+  }
+
+  const usageCounts = await fetchChartUsageCounts({ type: 'product-run', id })
+
+  return parseFullProductRun({ ...record, ...usageCounts })
 }
 
 const fetchFullProductRunOrThrow = async (id: string) => {
@@ -749,9 +760,7 @@ const app = createOpenAPIApp()
             },
           },
         },
-        400: jsonErrorResponse(
-          'Cannot delete derived indicator that exists in output summary',
-        ),
+        400: jsonErrorResponse('Cannot delete derived indicator'),
         401: jsonErrorResponse('Unauthorized'),
         404: jsonErrorResponse(
           'Product run or assigned derived indicator not found',
@@ -806,6 +815,11 @@ const app = createOpenAPIApp()
         })
       }
 
+      await ensureAssignedDerivedIndicatorNotUsedByCharts(
+        id,
+        derivedIndicatorId,
+      )
+
       // Delete the assigned derived indicator (dependencies will cascade)
       await db
         .delete(productRunAssignedDerivedIndicator)
@@ -852,6 +866,7 @@ const app = createOpenAPIApp()
             },
           },
         },
+        400: jsonErrorResponse('Cannot delete product run'),
         401: jsonErrorResponse('Unauthorized'),
         404: jsonErrorResponse('Product run not found'),
         422: validationErrorResponse,
@@ -861,6 +876,8 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const record = await fetchFullProductRunOrThrow(id)
+
+      await ensureProductRunNotUsedByCharts(id)
 
       await db.delete(productRun).where(eq(productRun.id, id))
 

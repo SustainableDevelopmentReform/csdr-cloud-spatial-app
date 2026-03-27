@@ -7,7 +7,11 @@ import {
   fullDashboardSchema,
   updateDashboardSchema,
 } from '@repo/schemas/crud'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
+import {
+  buildDashboardUsageFilters,
+  syncDashboardChartUsages,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -99,14 +103,15 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { meta, query } = await parseQuery(
-        dashboard,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(dashboard.createdAt),
-          searchableColumns: [dashboard.name, dashboard.description],
-        },
-      )
+      const queryParams = c.req.valid('query')
+      const usageFilters = buildDashboardUsageFilters(queryParams)
+      const baseWhere =
+        usageFilters.length > 0 ? and(...usageFilters) : undefined
+      const { meta, query } = await parseQuery(dashboard, queryParams, {
+        defaultOrderBy: desc(dashboard.createdAt),
+        searchableColumns: [dashboard.name, dashboard.description],
+        baseWhere,
+      })
 
       const data = await db.query.dashboard.findMany({
         ...baseDashboardQuery,
@@ -188,18 +193,28 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
-      const [newDashboard] = await db
-        .insert(dashboard)
-        .values(createPayload(payload))
-        .returning()
+      const newDashboard = await db.transaction(async (tx) => {
+        const [insertedDashboard] = await tx
+          .insert(dashboard)
+          .values(createPayload(payload))
+          .returning()
 
-      if (!newDashboard) {
-        throw new ServerError({
-          statusCode: 500,
-          message: 'Failed to create dashboard',
-          description: 'Dashboard insert did not return a record',
-        })
-      }
+        if (!insertedDashboard) {
+          throw new ServerError({
+            statusCode: 500,
+            message: 'Failed to create dashboard',
+            description: 'Dashboard insert did not return a record',
+          })
+        }
+
+        await syncDashboardChartUsages(
+          tx,
+          insertedDashboard.id,
+          payload.content,
+        )
+
+        return insertedDashboard
+      })
 
       const record = await fetchFullDashboardOrThrow(newDashboard.id)
 
@@ -243,15 +258,23 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
 
-      const [record] = await db
-        .update(dashboard)
-        .set(updatePayload(payload))
-        .where(eq(dashboard.id, id))
-        .returning()
+      const record = await db.transaction(async (tx) => {
+        const [updatedRecord] = await tx
+          .update(dashboard)
+          .set(updatePayload(payload))
+          .where(eq(dashboard.id, id))
+          .returning()
 
-      if (!record) {
-        throw dashboardNotFoundError()
-      }
+        if (!updatedRecord) {
+          throw dashboardNotFoundError()
+        }
+
+        if (payload.content) {
+          await syncDashboardChartUsages(tx, updatedRecord.id, payload.content)
+        }
+
+        return updatedRecord
+      })
 
       const fullRecord = await fetchFullDashboardOrThrow(record.id)
 

@@ -467,6 +467,9 @@ importers:
       '@observablehq/plot':
         specifier: ^0.6.17
         version: 0.6.17
+      '@repo/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
@@ -541,6 +544,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.2
+      vitest:
+        specifier: ^3.0.6
+        version: 3.0.6(@types/node@22.9.0)(sass@1.93.2)
 
   packages/typescript-config: {}
 

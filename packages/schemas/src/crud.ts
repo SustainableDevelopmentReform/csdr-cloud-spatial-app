@@ -1,6 +1,7 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema, WKBSchema } from './geojson'
 import type { MultiPolygon } from 'geojson'
+import { chartConfigurationSchema } from './chart'
 
 const fileSchema = z.instanceof(File).openapi('FileSchema', {
   title: 'File',
@@ -86,6 +87,8 @@ export const baseMeasuredIndicatorSchema = baseResourceSchema
 export const fullMeasuredIndicatorSchema = baseMeasuredIndicatorSchema
   .extend({
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('MeasuredIndicatorSchemaFull')
 
@@ -120,6 +123,8 @@ export const fullDerivedIndicatorSchema = baseDerivedIndicatorSchema
   .extend({
     indicators: z.array(baseMeasuredIndicatorSchema),
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('DerivedIndicatorSchemaFull')
 
@@ -169,6 +174,8 @@ export const baseDatasetRunSchema = baseRunResourceSchema
 export const fullDatasetRunSchema = baseDatasetRunSchema
   .extend({
     productRunCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('DatasetRunFull')
 
@@ -184,6 +191,8 @@ export const fullDatasetSchema = baseDatasetSchema
   .extend({
     runCount: z.number().int(),
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
     mainRun: baseDatasetRunSchema.nullable(),
   })
   .openapi('DatasetFull')
@@ -222,6 +231,8 @@ export const fullGeometriesRunSchema = baseGeometriesRunSchema
   .extend({
     productRunCount: z.number().int(),
     outputCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
     bounds: z.object({
       minX: z.number(),
       minY: z.number(),
@@ -243,6 +254,8 @@ export const fullGeometriesSchema = baseGeometriesSchema
   .extend({
     runCount: z.number().int(),
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
     mainRun: baseGeometriesRunSchema.nullable(),
   })
   .openapi('GeometriesFull')
@@ -422,6 +435,8 @@ export const fullProductRunSchema = baseProductRunSchema
     datasetRun: baseDatasetRunSchema.nullable(),
     geometriesRun: baseGeometriesRunSchema.nullable(),
     outputSummary: fullProductRunOutputSummarySchema,
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('ProductRunFull')
 
@@ -438,20 +453,33 @@ export const baseProductSchema = baseResourceSchema
 export const fullProductSchema = baseProductSchema
   .extend({
     dataset: fullDatasetSchema
-      .omit({ runCount: true, productCount: true })
+      .omit({
+        runCount: true,
+        productCount: true,
+        reportCount: true,
+        dashboardCount: true,
+      })
       .nullable(),
     geometries: fullGeometriesSchema
       .omit({
         runCount: true,
         productCount: true,
+        reportCount: true,
+        dashboardCount: true,
       })
       .nullable(),
-    mainRun: fullProductRunSchema.nullable(),
+    mainRun: fullProductRunSchema
+      .omit({ reportCount: true, dashboardCount: true })
+      .nullable(),
     runCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('ProductFull')
 
 export const productQuerySchema = baseQuerySchema.extend({
+  productIds: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeProductIds: z.union([z.string(), z.array(z.string())]).optional(),
   datasetId: z.union([z.string(), z.array(z.string())]).optional(),
   geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
   indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
@@ -608,39 +636,67 @@ export const importProductOutputsSchema = z.object({
 /* REPORT RESOURCE SCHEMAS */
 
 export const baseReportSchema = baseResourceSchema.openapi('ReportSchemaBase')
+export const reportStoredContentSchema = z
+  .record(z.string(), z.unknown())
+  .openapi('ReportStoredContentSchema', {
+    type: 'object',
+    additionalProperties: true,
+    description:
+      'Opaque report document payload. It is currently stored as Tiptap JSON, but clients should treat the structure as an implementation detail.',
+  })
+
 export const fullReportSchema = baseReportSchema
-  .extend({ content: z.any() })
+  .extend({ content: reportStoredContentSchema.nullable() })
   .openapi('ReportSchemaFull')
 
-export const reportQuerySchema = baseQuerySchema
+export const reportQuerySchema = baseQuerySchema.extend({
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
+  productId: z.union([z.string(), z.array(z.string())]).optional(),
+  productRunId: z.string().optional(),
+  datasetId: z.union([z.string(), z.array(z.string())]).optional(),
+  datasetRunId: z.string().optional(),
+  geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
+  geometriesRunId: z.string().optional(),
+})
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
-  content: z.any(),
+  content: reportStoredContentSchema.nullable(),
 })
 
 /* DASHBOARD RESOURCE SCHEMAS */
-const gridLayoutItemSchema = z.object({
-  i: z.string(),
-  x: z.number(),
-  y: z.number(),
-  w: z.number(),
-  h: z.number(),
-  minH: z.number().optional(),
-  minW: z.number().optional(),
-  maxH: z.number().optional(),
-  maxW: z.number().optional(),
-  static: z.boolean().optional(),
-  isDraggable: z.boolean().optional(),
-  isResizable: z.boolean().optional(),
-  moved: z.boolean().optional(),
-})
+export const gridLayoutItemSchema = z
+  .object({
+    i: z.string(),
+    x: z.number(),
+    y: z.number(),
+    w: z.number(),
+    h: z.number(),
+    minH: z.number().optional(),
+    minW: z.number().optional(),
+    maxH: z.number().optional(),
+    maxW: z.number().optional(),
+    static: z.boolean().optional(),
+    isDraggable: z.boolean().optional(),
+    isResizable: z.boolean().optional(),
+    moved: z.boolean().optional(),
+  })
+  .openapi('DashboardGridLayoutItemSchema', {
+    description: 'Layout item for a dashboard chart card.',
+  })
 
 export const dashboardLayoutSchema = z.array(gridLayoutItemSchema)
 
-export const dashboardContentSchema = z.object({
-  charts: z.record(z.string(), z.any()),
-  layout: dashboardLayoutSchema,
-})
+export const dashboardContentSchema = z
+  .object({
+    charts: z.record(z.string(), chartConfigurationSchema),
+    layout: dashboardLayoutSchema,
+  })
+  .openapi('DashboardContentSchema', {
+    description:
+      'Typed dashboard content. Each chart card uses the shared persisted chart schema.',
+  })
+
+export type DashboardContent = z.infer<typeof dashboardContentSchema>
 
 export const baseDashboardSchema = baseResourceSchema.openapi(
   'DashboardSchemaBase',
@@ -652,7 +708,15 @@ export const fullDashboardSchema = baseDashboardSchema
   })
   .openapi('DashboardSchemaFull')
 
-export const dashboardQuerySchema = baseQuerySchema
+export const dashboardQuerySchema = baseQuerySchema.extend({
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
+  productId: z.union([z.string(), z.array(z.string())]).optional(),
+  productRunId: z.string().optional(),
+  datasetId: z.union([z.string(), z.array(z.string())]).optional(),
+  datasetRunId: z.string().optional(),
+  geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
+  geometriesRunId: z.string().optional(),
+})
 export const createDashboardSchema = baseCreateResourceSchema.extend({
   content: dashboardContentSchema,
 })

@@ -14,12 +14,14 @@
   "scripts": {
     "lint": "eslint .",
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json --watch"
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test:unit": "vitest run"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^3.0.6"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

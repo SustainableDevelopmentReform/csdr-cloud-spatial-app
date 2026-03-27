@@ -11,12 +11,14 @@ export const GeometriesRunSelect = ({
   value,
   geometriesId,
   onChange,
+  title,
   disabled,
   isClearable,
 }: {
   value: string | null | undefined
   geometriesId: string | null | undefined
   onChange: (geometriesRun: GeometriesRunListItem | null) => void
+  title?: string
   disabled?: boolean
   isClearable?: boolean
 }) => {
@@ -32,7 +34,7 @@ export const GeometriesRunSelect = ({
   const { data: selectedGeometriesRun } = useGeometriesRun(value ?? undefined)
 
   return (
-    <FieldGroup title="Select Geometries Run" disabled={disabled}>
+    <FieldGroup title={title ?? 'Select Geometries Run'} disabled={disabled}>
       <SelectWithSearch
         options={geometriesRuns?.data}
         value={selectedGeometriesRun ?? null}

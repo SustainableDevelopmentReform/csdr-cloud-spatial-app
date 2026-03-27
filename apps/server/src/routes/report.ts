@@ -4,9 +4,15 @@ import {
   createReportSchema,
   fullReportSchema,
   reportQuerySchema,
+  reportStoredContentSchema,
   updateReportSchema,
 } from '@repo/schemas/crud'
-import { desc, eq } from 'drizzle-orm'
+import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
+import { and, desc, eq } from 'drizzle-orm'
+import {
+  buildReportUsageFilters,
+  syncReportChartUsages,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -43,6 +49,59 @@ const reportNotFoundError = () =>
     description: "report you're looking for is not found",
   })
 
+const mapValidationIssues = (
+  issues: {
+    path: PropertyKey[]
+    message: string
+    code: string
+  }[],
+) =>
+  issues.map((issue) => ({
+    path:
+      issue.path
+        .map((part) => (typeof part === 'symbol' ? String(part) : part))
+        .join('.') || '(root)',
+    message: issue.message,
+    code: issue.code,
+  }))
+
+const parseStoredReportContentOrThrow = (content: unknown) => {
+  if (content === null) return null
+
+  const result = reportTiptapDocumentSchema.safeParse(content)
+
+  if (!result.success) {
+    throw new ServerError({
+      statusCode: 500,
+      message: 'Failed to get report',
+      description: 'Stored report content is invalid',
+      data: {
+        issues: mapValidationIssues(result.error.issues),
+      },
+    })
+  }
+
+  return result.data
+}
+
+const validateReportContentOrThrow = (content: unknown) => {
+  if (content === null) return null
+
+  const result = reportTiptapDocumentSchema.safeParse(content)
+
+  if (!result.success) {
+    throw new ServerError({
+      statusCode: 422,
+      message: 'Validation Error',
+      data: {
+        issues: mapValidationIssues(result.error.issues),
+      },
+    })
+  }
+
+  return result.data
+}
+
 const fetchFullReport = async (id: string) => {
   const record = await db.query.report.findFirst({
     where: (report, { eq }) => eq(report.id, id),
@@ -59,7 +118,12 @@ const fetchFullReportOrThrow = async (id: string) => {
     throw reportNotFoundError()
   }
 
-  return record
+  return {
+    ...record,
+    content: parseStoredReportContentOrThrow(
+      reportStoredContentSchema.nullable().parse(record.content),
+    ),
+  }
 }
 
 const app = createOpenAPIApp()
@@ -93,9 +157,14 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { meta, query } = await parseQuery(report, c.req.valid('query'), {
+      const queryParams = c.req.valid('query')
+      const usageFilters = buildReportUsageFilters(queryParams)
+      const baseWhere =
+        usageFilters.length > 0 ? and(...usageFilters) : undefined
+      const { meta, query } = await parseQuery(report, queryParams, {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
+        baseWhere,
       })
 
       const data = await db.query.report.findMany({
@@ -239,15 +308,27 @@ const app = createOpenAPIApp()
         ...payload,
       }
 
-      const [record] = await db
-        .update(report)
-        .set(updatePayload(data))
-        .where(eq(report.id, id))
-        .returning()
-
-      if (!record) {
-        throw reportNotFoundError()
+      if ('content' in payload) {
+        data.content = validateReportContentOrThrow(payload.content)
       }
+
+      const record = await db.transaction(async (tx) => {
+        const [updatedRecord] = await tx
+          .update(report)
+          .set(updatePayload(data))
+          .where(eq(report.id, id))
+          .returning()
+
+        if (!updatedRecord) {
+          throw reportNotFoundError()
+        }
+
+        if ('content' in data) {
+          await syncReportChartUsages(tx, updatedRecord.id, data.content)
+        }
+
+        return updatedRecord
+      })
 
       const fullRecord = await fetchFullReportOrThrow(record.id)
 

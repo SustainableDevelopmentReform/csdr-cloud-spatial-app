@@ -69,9 +69,14 @@ function getColor(
   index: number,
   scheme?: CategoricalColorScheme,
   overrides?: Record<string, string>,
-  seriesKey?: string,
+  seriesKey?: string | string[],
 ) {
-  if (seriesKey && overrides?.[seriesKey]) return overrides[seriesKey]
+  if (seriesKey) {
+    const lookupKeys = Array.isArray(seriesKey) ? seriesKey : [seriesKey]
+    for (const key of lookupKeys) {
+      if (overrides?.[key]) return overrides[key]
+    }
+  }
   const palette = getScheme(scheme)
   return palette[index % palette.length]!
 }
@@ -148,6 +153,11 @@ function toStringKey(value: unknown): string {
   return String(value ?? '')
 }
 
+function toSeriesKey(value: unknown): string {
+  const key = toStringKey(value)
+  return key === '' ? 'Value' : key
+}
+
 /**
  * Pivots flat records into the wide-format Recharts expects for cartesian
  * charts (line, area, bar).
@@ -174,7 +184,7 @@ function pivotData(
 
   for (const item of data) {
     const xKey = toStringKey(field(item, x))
-    const groupValue = String(field(item, groupBy) ?? 'Value')
+    const groupValue = toSeriesKey(field(item, groupBy))
     const yValue = numericField(item, y)
 
     seriesSet.add(groupValue)
@@ -235,21 +245,21 @@ function prepareDonutSlices(
   // same group share a colour (e.g. all "Carbon" slices are the same hue).
   const groupIndex = new Map<string, number>()
   for (const item of data) {
-    const grp = String(field(item, groupBy) ?? 'Value')
+    const grp = toSeriesKey(field(item, groupBy))
     if (!groupIndex.has(grp)) {
       groupIndex.set(grp, groupIndex.size)
     }
   }
 
   return data.map((item, index) => {
-    const grp = String(field(item, groupBy) ?? 'Value')
+    const grp = toSeriesKey(field(item, groupBy))
     // When x === groupBy (e.g. both 'timePoint') just use the formatted value;
     // otherwise combine group + x for a unique label.
     const name =
       x === groupBy ? fmtX(field(item, x)) : `${grp} — ${fmtX(field(item, x))}`
     // Use the formatted label as the override key when x === groupBy so the
     // colour-override UI (which shows formatted names) matches.
-    const colorKey = x === groupBy ? fmtX(field(item, groupBy)) : grp
+    const colorKey = x === groupBy ? [fmtX(field(item, groupBy)), grp] : grp
     return {
       name,
       value: numericField(item, y),
@@ -273,7 +283,7 @@ function groupBySeries<T extends BasePlotRecord>(
   const groups = new Map<string, T[]>()
 
   for (const item of data) {
-    const key = String(field(item, groupBy) ?? 'Value')
+    const key = toSeriesKey(field(item, groupBy))
     if (!groups.has(key)) {
       groups.set(key, [])
     }
@@ -300,12 +310,14 @@ function buildChartConfig(
   seriesKeys: string[],
   scheme?: CategoricalColorScheme,
   overrides?: Record<string, string>,
+  getSeriesLabel: (seriesKey: string) => string = (seriesKey) => seriesKey,
 ): ChartConfig {
   const config: ChartConfig = {}
   seriesKeys.forEach((key, index) => {
+    const label = getSeriesLabel(key)
     config[key] = {
-      label: key,
-      color: getColor(index, scheme, overrides, key),
+      label,
+      color: getColor(index, scheme, overrides, [label, key]),
     }
   })
   return config
@@ -395,6 +407,11 @@ export function PlotChart<T extends BasePlotRecord>({
       ),
     [appearance?.decimalPlaces, appearance?.compactNumbers],
   )
+  const formatSeriesKey = useCallback(
+    (seriesKey: string) =>
+      groupBy === 'timePoint' ? formatXAxis(seriesKey) : seriesKey,
+    [formatXAxis, groupBy],
+  )
 
   // Y-axis domain
   const yDomain = useMemo<
@@ -441,8 +458,8 @@ export function PlotChart<T extends BasePlotRecord>({
   // Build dynamic ChartConfig
   const chartConfig = useMemo(() => {
     if (type === 'donut') return buildDonutConfig(donutSlices)
-    return buildChartConfig(seriesKeys, scheme, overrides)
-  }, [seriesKeys, donutSlices, type, scheme, overrides])
+    return buildChartConfig(seriesKeys, scheme, overrides, formatSeriesKey)
+  }, [seriesKeys, donutSlices, type, scheme, overrides, formatSeriesKey])
 
   // Direct color lookup — avoids CSS custom-property indirection entirely
   const colorOf = useCallback(
@@ -450,6 +467,13 @@ export function PlotChart<T extends BasePlotRecord>({
       return chartConfig[key]?.color ?? '#000'
     },
     [chartConfig],
+  )
+  const labelOf = useCallback(
+    (key: string): string => {
+      const label = chartConfig[key]?.label
+      return typeof label === 'string' ? label : formatSeriesKey(key)
+    },
+    [chartConfig, formatSeriesKey],
   )
 
   // Legend element (shared across chart types)
@@ -479,7 +503,7 @@ export function PlotChart<T extends BasePlotRecord>({
         data.find(
           (item) =>
             toStringKey(field(item, x)) === target &&
-            String(field(item, groupBy) ?? 'Value') === seriesName,
+            toSeriesKey(field(item, groupBy)) === seriesName,
         ) ?? null
       )
     },
@@ -611,12 +635,12 @@ export function PlotChart<T extends BasePlotRecord>({
             tickMargin={8}
           />
           {legendElement}
-          {scatterGroups.map(({ seriesKey, seriesData }, index) => (
+          {scatterGroups.map(({ seriesKey, seriesData }) => (
             <Scatter
               key={seriesKey}
-              name={seriesKey}
+              name={labelOf(seriesKey)}
               data={seriesData}
-              fill={getColor(index, scheme, overrides, seriesKey)}
+              fill={colorOf(seriesKey)}
               isAnimationActive={false}
               onClick={(
                 _point: Record<string, unknown>,
@@ -731,14 +755,15 @@ export function PlotChart<T extends BasePlotRecord>({
     const colorIndex = new Map<string, number>()
     const ranked = (data as Record<string, unknown>[])
       .map((item) => {
-        const rawKey = String(field(item, groupBy) ?? 'Value')
+        const rawKey = toSeriesKey(field(item, groupBy))
+        const displayKey = formatSeriesKey(rawKey)
         if (!colorIndex.has(rawKey)) colorIndex.set(rawKey, colorIndex.size)
         const idx = colorIndex.get(rawKey)!
         return {
-          name: groupBy === x ? formatXAxis(field(item, groupBy)) : rawKey,
+          name: displayKey,
           rawKey,
           value: numericField(item, y),
-          fill: getColor(idx, scheme, overrides, rawKey),
+          fill: getColor(idx, scheme, overrides, [displayKey, rawKey]),
           _original: item,
         }
       })

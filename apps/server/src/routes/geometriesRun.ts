@@ -10,6 +10,7 @@ import {
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, notInArray, sql, SQL } from 'drizzle-orm'
+import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -171,9 +172,10 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await fetchBaseGeometriesRunOrThrow(id)
 
-      const [outputCount, productRunCount] = await Promise.all([
+      const [outputCount, productRunCount, usageCounts] = await Promise.all([
         db.$count(geometryOutput, eq(geometryOutput.geometriesRunId, id)),
         db.$count(productRun, eq(productRun.geometriesRunId, id)),
+        fetchChartUsageCounts({ type: 'geometries-run', id }),
       ])
 
       const [bounds] = await db
@@ -196,7 +198,7 @@ const app = createOpenAPIApp()
 
       return generateJsonResponse(
         c,
-        { ...record, bounds, outputCount, productRunCount },
+        { ...record, bounds, outputCount, productRunCount, ...usageCounts },
         200,
       )
     },

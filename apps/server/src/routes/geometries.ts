@@ -9,6 +9,7 @@ import {
   updateGeometriesSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -62,12 +63,13 @@ const fetchFullGeometries = async (id: string) => {
     return null
   }
 
-  const [runCount, productCount] = await Promise.all([
+  const [runCount, productCount, usageCounts] = await Promise.all([
     db.$count(geometriesRun, eq(geometriesRun.geometriesId, id)),
     db.$count(product, eq(product.geometriesId, id)),
+    fetchChartUsageCounts({ type: 'geometries', id }),
   ])
 
-  return { ...record, runCount, productCount }
+  return { ...record, runCount, productCount, ...usageCounts }
 }
 
 const fetchFullGeometriesOrThrow = async (id: string) => {
@@ -181,7 +183,8 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
-      description: 'List geometries runs for a geometries resource.',
+      description:
+        'List geometries runs for a geometries resource, or across geometries using "*".',
       method: 'get',
       path: '/:id/runs',
       middleware: [authMiddleware({ permission: 'read:productRun' })],
@@ -191,7 +194,8 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Successfully listed geometries runs.',
+          description:
+            'Successfully listed geometries runs for a geometries resource or across geometries using "*".',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -211,13 +215,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const geometriesId = id === '*' ? undefined : id
       const { meta, query } = await parseQuery(
         geometriesRun,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(geometriesRun.createdAt),
           searchableColumns: [geometriesRun.name, geometriesRun.description],
-          baseWhere: eq(geometriesRun.geometriesId, id),
+          baseWhere: geometriesId
+            ? eq(geometriesRun.geometriesId, geometriesId)
+            : undefined,
         },
       )
 

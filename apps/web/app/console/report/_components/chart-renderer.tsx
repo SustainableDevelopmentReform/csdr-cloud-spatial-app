@@ -38,6 +38,24 @@ const UnsupportedChart = ({ type }: { type: string }) => (
   </div>
 )
 
+export const getPlotChartGroupBy = ({
+  geometryOutputIds,
+  indicatorIds,
+  timePoints,
+}: Pick<
+  PlotChartConfiguration,
+  'geometryOutputIds' | 'indicatorIds' | 'timePoints'
+>) => {
+  const geoMulti = !geometryOutputIds || geometryOutputIds.length > 1
+  const indMulti = !indicatorIds || indicatorIds.length > 1
+  const timeMulti = !timePoints || timePoints.length > 1
+
+  if (geoMulti) return 'geometryOutputName' as const
+  if (indMulti) return 'indicatorName' as const
+  if (timeMulti) return 'timePoint' as const
+  return 'indicatorName' as const
+}
+
 const PlotContainer = ({
   chart,
   config,
@@ -60,18 +78,7 @@ const PlotContainer = ({
   // series dimension; the other must be fixed to a single value so that every
   // chart element maps 1:1 to a product output.
   const groupBy = useMemo(() => {
-    const geoMulti =
-      !chart.geometryOutputIds || chart.geometryOutputIds.length > 1
-    const indMulti = !chart.indicatorIds || chart.indicatorIds.length > 1
-    const timeMulti = !chart.timePoints || chart.timePoints.length > 1
-
-    if (geoMulti) return 'geometryOutputName' as const
-    if (indMulti) return 'indicatorName' as const
-    // For donut/ranked-bar sliced by time: both ind & geo are single but time
-    // is multi → group by time so each slice/bar is a different time point.
-    if (timeMulti) return 'timePoint' as const
-    // All single — fall back to indicator (only one series, doesn't matter)
-    return 'indicatorName' as const
+    return getPlotChartGroupBy(chart)
   }, [chart.geometryOutputIds, chart.indicatorIds, chart.timePoints])
 
   return (

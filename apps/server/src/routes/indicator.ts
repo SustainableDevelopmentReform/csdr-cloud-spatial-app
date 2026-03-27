@@ -21,6 +21,11 @@ import {
   notInArray,
   or,
 } from 'drizzle-orm'
+import {
+  ensureDerivedIndicatorNotUsedByCharts,
+  ensureMeasuredIndicatorNotUsedByCharts,
+  fetchChartUsageCounts,
+} from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -108,16 +113,21 @@ export const parseFullMeasuredIndicator = <
   }
 }
 const fetchFullMeasuredIndicator = async (id: string) => {
-  const [indicatorRecord, productCount] = await Promise.all([
+  const [indicatorRecord, productCount, usageCounts] = await Promise.all([
     db.query.indicator.findFirst({
       where: (indicator, { eq }) => eq(indicator.id, id),
       ...fullMeasuredIndicatorQuery,
     }),
     fetchProductUsageCount(id),
+    fetchChartUsageCounts({ type: 'indicator', id }),
   ])
 
   return indicatorRecord
-    ? { ...parseFullMeasuredIndicator(indicatorRecord), productCount }
+    ? {
+        ...parseFullMeasuredIndicator(indicatorRecord),
+        productCount,
+        ...usageCounts,
+      }
     : null
 }
 
@@ -150,16 +160,23 @@ export const parseFullDerivedIndicator = <
 }
 
 const fetchFullDerivedIndicator = async (id: string) => {
-  const [derivedIndicatorRecord, productCount] = await Promise.all([
-    db.query.derivedIndicator.findFirst({
-      where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
-      ...fullDerivedIndicatorQuery,
-    }),
-    fetchProductUsageCount(id),
-  ])
+  const [derivedIndicatorRecord, productCount, usageCounts] = await Promise.all(
+    [
+      db.query.derivedIndicator.findFirst({
+        where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
+        ...fullDerivedIndicatorQuery,
+      }),
+      fetchProductUsageCount(id),
+      fetchChartUsageCounts({ type: 'derived-indicator', id }),
+    ],
+  )
 
   return derivedIndicatorRecord
-    ? { ...parseFullDerivedIndicator(derivedIndicatorRecord), productCount }
+    ? {
+        ...parseFullDerivedIndicator(derivedIndicatorRecord),
+        productCount,
+        ...usageCounts,
+      }
     : null
 }
 export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
@@ -748,6 +765,7 @@ const app = createOpenAPIApp()
             },
           },
         },
+        400: jsonErrorResponse('Cannot delete measured indicator'),
         401: jsonErrorResponse('Unauthorized'),
         404: jsonErrorResponse('Measured indicator not found'),
         422: validationErrorResponse,
@@ -757,6 +775,8 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const record = await fetchFullMeasuredIndicatorOrThrow(id)
+
+      await ensureMeasuredIndicatorNotUsedByCharts(id)
 
       await db.delete(indicator).where(eq(indicator.id, id))
 
@@ -782,6 +802,7 @@ const app = createOpenAPIApp()
             },
           },
         },
+        400: jsonErrorResponse('Cannot delete derived indicator'),
         401: jsonErrorResponse('Unauthorized'),
         404: jsonErrorResponse('Derived indicator not found'),
         422: validationErrorResponse,
@@ -791,6 +812,8 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const record = await fetchFullDerivedIndicatorOrThrow(id)
+
+      await ensureDerivedIndicatorNotUsedByCharts(id)
 
       await db.delete(derivedIndicator).where(eq(derivedIndicator.id, id))
 

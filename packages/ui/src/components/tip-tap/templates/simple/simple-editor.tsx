@@ -11,14 +11,10 @@ import * as React from 'react'
 
 // --- Tiptap Core Extensions ---
 import DragHandle from '@tiptap/extension-drag-handle-react'
-import { Highlight } from '@tiptap/extension-highlight'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { Subscript } from '@tiptap/extension-subscript'
-import { Superscript } from '@tiptap/extension-superscript'
-import { TextAlign } from '@tiptap/extension-text-align'
-import { Typography } from '@tiptap/extension-typography'
+import '@tiptap/extension-text-align'
+import { getReportTiptapExtensions } from '@repo/ui/components/tip-tap/lib/report-tiptap'
 import { Selection } from '@tiptap/extensions'
-import { StarterKit } from '@tiptap/starter-kit'
+import '@tiptap/starter-kit'
 
 // --- UI Primitives ---
 import { Button } from '@repo/ui/components/tip-tap/ui-primitive/button'
@@ -203,23 +199,13 @@ export function SimpleEditor({
   const toolbarRef = React.useRef<HTMLDivElement>(null)
 
   const extensions = React.useMemo(() => {
-    const baseExtensions: Extensions = [
-      StarterKit.configure({
-        horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
-        },
+    return [
+      ...getReportTiptapExtensions({
+        chartNodeExtension: ChartNode.configure({
+          formBuilder: chartFormBuilder,
+        }),
+        horizontalRuleExtension: HorizontalRule,
       }),
-      HorizontalRule,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Highlight.configure({ multicolor: true }),
-      // Image,
-      Typography,
-      Superscript,
-      Subscript,
       Selection,
       // ImageUploadNode.configure({
       //   accept: 'image/*',
@@ -228,17 +214,7 @@ export function SimpleEditor({
       //   upload: handleImageUpload,
       //   onError: (error) => console.error('Upload failed:', error),
       // }),
-    ]
-
-    if (chartFormBuilder) {
-      baseExtensions.push(
-        ChartNode.configure({
-          formBuilder: chartFormBuilder,
-        }),
-      )
-    }
-
-    return baseExtensions
+    ] satisfies Extensions
   }, [chartFormBuilder])
 
   const editor = useEditor({

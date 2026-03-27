@@ -1,23 +1,21 @@
+import {
+  chartNodeCoreExtension,
+  getDefaultChartNodeAttributes,
+  type ChartNodeAttributes,
+  type ChartNodeCoreOptions,
+} from './chart-node-core'
 import type { NodeType } from '@tiptap/pm/model'
-import { mergeAttributes, Node, ReactNodeViewRenderer } from '@tiptap/react'
+import { ReactNodeViewRenderer } from '@tiptap/react'
 
 import { ChartNodeView } from './chart-node'
-import { ChartFormBuilder, ChartNodeAttributes } from './chart-node-shared'
+import { ChartFormBuilder } from './chart-node-shared'
 
-export type ChartNodeOptions = {
+export type ChartNodeOptions = ChartNodeCoreOptions & {
   /**
    * Node type name used when serialising content.
    * @default 'chart'
    */
   type?: string | NodeType
-  /**
-   * Generates default attributes used when inserting a new chart node.
-   */
-  getDefaultAttributes: () => ChartNodeAttributes
-  /**
-   * HTML attributes applied to the rendered element.
-   */
-  HTMLAttributes: Record<string, unknown>
   /**
    * Builder responsible for rendering charts and edit controls.
    */
@@ -37,57 +35,15 @@ declare module '@tiptap/react' {
   }
 }
 
-export const ChartNode = Node.create<ChartNodeOptions>({
-  name: 'chart',
-
-  group: 'block',
-
-  atom: true,
-
-  draggable: true,
-
-  selectable: true,
-
-  isolating: true,
-
-  defining: true,
-
+export const ChartNode = chartNodeCoreExtension.extend<ChartNodeOptions>({
   addOptions() {
+    const parentOptions = this.parent?.()
     return {
-      type: 'chart',
-      getDefaultAttributes: () => ({
-        chart: null,
-        height: null,
-      }),
-      HTMLAttributes: {},
+      ...parentOptions,
+      HTMLAttributes: parentOptions?.HTMLAttributes ?? {},
+      getDefaultAttributes: getDefaultChartNodeAttributes,
       formBuilder: undefined,
     }
-  },
-
-  addAttributes() {
-    return {
-      chart: {
-        default: this.options.getDefaultAttributes().chart,
-      },
-      height: {
-        default: this.options.getDefaultAttributes().height ?? null,
-      },
-    }
-  },
-
-  parseHTML() {
-    return [{ tag: 'div[data-type="chart"]' }]
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    const rest = Object.fromEntries(
-      Object.entries(HTMLAttributes).filter(([key]) => key !== 'chart'),
-    )
-    return [
-      'div',
-      mergeAttributes({ 'data-type': 'chart' }, rest),
-      ['div', { 'data-node-placeholder': 'chart' }],
-    ]
   },
 
   addNodeView() {

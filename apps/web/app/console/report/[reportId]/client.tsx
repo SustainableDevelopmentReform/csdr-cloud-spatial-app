@@ -54,7 +54,9 @@ const ReportDetails = () => {
                 shouldTouch: true,
               })
             }}
-            content={report.content}
+            content={
+              report.content as Parameters<typeof SimpleEditor>[0]['content']
+            }
             chartFormBuilder={formBuilder}
           />
         )}
