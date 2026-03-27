@@ -8,6 +8,9 @@
       ],
       "@repo/plot/*": [
         "./src/*"
+      ],
+      "@repo/schemas/*": [
+        "../schemas/src/*"
       ]
     }
   },

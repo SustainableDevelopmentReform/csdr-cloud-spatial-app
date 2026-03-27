@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "sh -c 'port=\"${WEB_PORT:-3000}\"; PORT=\"$port\" exec next dev --port \"$port\"'",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

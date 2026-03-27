@@ -34,6 +34,7 @@ const DatasetRunDetails = () => {
   const productRunsLink = useProductRunsLink()
 
   const setDatasetMainRun = useSetDatasetMainRun(datasetRun)
+  const isMainRun = datasetRun?.id === datasetRun?.dataset.mainRunId
 
   const formActions: CrudFormAction[] = useMemo(
     () => [
@@ -43,10 +44,10 @@ const DatasetRunDetails = () => {
         buttonVariant: 'default',
         buttonTitle: 'Set as Main Run',
         mutation: setDatasetMainRun,
-        disabled: datasetRun?.id === datasetRun?.dataset.mainRunId,
+        disabled: isMainRun,
       },
     ],
-    [setDatasetMainRun],
+    [isMainRun, setDatasetMainRun],
   )
 
   const form = useForm({

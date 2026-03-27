@@ -10,7 +10,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
@@ -26,8 +26,6 @@ import {
   useGeometriesRunLink,
   useGeometriesRuns,
 } from '../../_hooks'
-
-const columnHelper = createColumnHelper<GeometriesRunListItem>()
 
 const GeometriesRunFeature = () => {
   const {
@@ -67,7 +65,7 @@ const GeometriesRunFeature = () => {
     if (geometries) {
       form.setValue('geometriesId', geometries.id)
     }
-  }, [geometries])
+  }, [form, geometries])
 
   return (
     <div>

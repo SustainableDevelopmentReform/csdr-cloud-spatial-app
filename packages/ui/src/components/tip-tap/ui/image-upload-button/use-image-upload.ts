@@ -176,7 +176,7 @@ export function useImageUpload(config?: UseImageUploadConfig) {
 
   useHotkeys(
     IMAGE_UPLOAD_SHORTCUT_KEY,
-    (event) => {
+    (event: KeyboardEvent) => {
       event.preventDefault()
       handleImage()
     },

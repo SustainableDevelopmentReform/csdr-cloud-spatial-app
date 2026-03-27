@@ -255,30 +255,27 @@ const GeometriesMapViewer = ({
     fetchGeometryOutputsToZoomTo,
   )
 
-  const {
-    data: pmtilesHeader,
-    isLoading: isLoadingPmtilesHeader,
-    error: pmtilesHeaderError,
-  } = useQuery<PMTilesHeader | null>({
-    queryKey: ['pmtiles-header', geometriesRun?.dataPmtilesUrl],
-    queryFn: async () => {
-      let pmtilesUrl = geometriesRun?.dataPmtilesUrl
+  const { data: pmtilesHeader, isLoading: isLoadingPmtilesHeader } =
+    useQuery<PMTilesHeader | null>({
+      queryKey: ['pmtiles-header', geometriesRun?.dataPmtilesUrl],
+      queryFn: async () => {
+        let pmtilesUrl = geometriesRun?.dataPmtilesUrl
 
-      if (!pmtilesUrl) return null
+        if (!pmtilesUrl) return null
 
-      if (pmtilesUrl.startsWith('s3://')) {
-        // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
-        const s3Url = pmtilesUrl.replace('s3://', '')
-        const [bucket, ...pathParts] = s3Url.split('/')
-        const path = pathParts.join('/')
-        pmtilesUrl = `https://${bucket}.s3.amazonaws.com/${path}`
-      }
+        if (pmtilesUrl.startsWith('s3://')) {
+          // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
+          const s3Url = pmtilesUrl.replace('s3://', '')
+          const [bucket, ...pathParts] = s3Url.split('/')
+          const path = pathParts.join('/')
+          pmtilesUrl = `https://${bucket}.s3.amazonaws.com/${path}`
+        }
 
-      const p = new PMTiles(pmtilesUrl)
-      return p.getHeader()
-    },
-    enabled: !!geometriesRun?.dataPmtilesUrl,
-  })
+        const p = new PMTiles(pmtilesUrl)
+        return p.getHeader()
+      },
+      enabled: !!geometriesRun?.dataPmtilesUrl,
+    })
 
   const mapBounds = useMemo(() => {
     // If appearance has a complete explicit bounding box, use it as override
@@ -509,7 +506,6 @@ const GeometriesMapViewer = ({
 
   useEffect(() => {
     if (mapRef.current && mapBounds) {
-      console.log('fitBounds', mapBounds)
       mapRef.current.fitBounds(mapBounds, { padding: 20 })
     }
   }, [mapBounds])

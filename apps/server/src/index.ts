@@ -8,6 +8,6 @@ serve(
     port: env.PORT,
   },
   () => {
-    console.log(`Server is running on http://localhost:${env.PORT}`)
+    console.info(`Server is running on http://localhost:${env.PORT}`)
   },
 )

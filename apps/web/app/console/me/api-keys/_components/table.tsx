@@ -9,11 +9,29 @@ import { DeleteAlertDialog } from '../../../../../components/form/delete-alert-d
 import Table from '../../../../../components/table/table'
 import { ApiKey, useDeleteApiKey } from '../../_hooks'
 
-interface UsersTableProps {
+interface ApiKeysTableProps {
   data: ApiKey[]
 }
 
 const columnHelper = createColumnHelper<ApiKey>()
+
+const DeleteApiKeyButton = ({ apiKeyId }: { apiKeyId: string }) => {
+  const deleteApiKey = useDeleteApiKey(apiKeyId)
+
+  return (
+    <DeleteAlertDialog
+      buttonVariant="destructive"
+      buttonTitle="Delete API Key"
+      confirmDialog={{
+        title: 'Delete API Key',
+        description:
+          'Are you absolutely sure you want to delete this API key? This action cannot be undone.',
+        buttonCancelTitle: 'Cancel',
+      }}
+      mutation={deleteApiKey}
+    />
+  )
+}
 
 const columns = [
   columnHelper.accessor('name', {
@@ -57,26 +75,13 @@ const columns = [
     id: 'action',
     header: () => <span></span>,
     cell: (info) => {
-      const deleteApiKey = useDeleteApiKey(info.row.original.id)
-      return (
-        <DeleteAlertDialog
-          buttonVariant="destructive"
-          buttonTitle="Delete API Key"
-          confirmDialog={{
-            title: 'Delete API Key',
-            description:
-              'Are you absolutely sure you want to delete this API key? This action cannot be undone.',
-            buttonCancelTitle: 'Cancel',
-          }}
-          mutation={deleteApiKey}
-        />
-      )
+      return <DeleteApiKeyButton apiKeyId={info.row.original.id} />
     },
     size: 80,
   }),
 ]
 
-const UsersTable: React.FC<UsersTableProps> = ({ data }) => {
+const ApiKeysTable: React.FC<ApiKeysTableProps> = ({ data }) => {
   const table = useReactTable({
     data,
     columns,
@@ -86,4 +91,4 @@ const UsersTable: React.FC<UsersTableProps> = ({ data }) => {
   return <Table table={table} />
 }
 
-export default UsersTable
+export default ApiKeysTable

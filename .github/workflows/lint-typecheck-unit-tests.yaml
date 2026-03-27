@@ -2,6 +2,7 @@ name: Lint, typecheck and unit tests
 
 on:
   push:
+  pull_request:
 
 jobs:
   lint-typecheck-unit-tests:
@@ -27,5 +28,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint, typecheck and test:unit
-        run: pnpm turbo lint typecheck test:unit
+      - name: Validate
+        run: pnpm validate
