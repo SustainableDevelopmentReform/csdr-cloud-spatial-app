@@ -6,6 +6,9 @@
     "paths": {
       "~/*": [
         "./src/*"
+      ],
+      "@repo/schemas/*": [
+        "../../packages/schemas/src/*"
       ]
     },
     "module": "ESNext",
