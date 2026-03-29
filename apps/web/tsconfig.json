@@ -12,15 +12,6 @@
       "@repo/ui/*": [
         "../../packages/ui/src/*"
       ],
-      "@repo/plot": [
-        "../../packages/plot/src/index.tsx"
-      ],
-      "@repo/plot/*": [
-        "../../packages/plot/src/*"
-      ],
-      "@repo/schemas/*": [
-        "../../packages/schemas/src/*"
-      ],
       "~/*": [
         "./*"
       ]

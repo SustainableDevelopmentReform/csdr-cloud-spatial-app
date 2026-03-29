@@ -5,15 +5,6 @@
     "paths": {
       "@repo/ui/*": [
         "./src/*"
-      ],
-      "@repo/plot": [
-        "../plot/src/index.tsx"
-      ],
-      "@repo/plot/*": [
-        "../plot/src/*"
-      ],
-      "@repo/schemas/*": [
-        "../schemas/src/*"
       ]
     }
   },
