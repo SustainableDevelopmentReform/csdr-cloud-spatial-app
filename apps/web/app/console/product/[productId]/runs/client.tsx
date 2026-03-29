@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createProductRunSchema } from '@repo/schemas/crud'
 import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
@@ -26,8 +26,6 @@ import {
   useProductRuns,
 } from '../../_hooks'
 
-const columnHelper = createColumnHelper<ProductRunListItem>()
-
 const ProductRunFeature = () => {
   const {
     data,
@@ -44,6 +42,8 @@ const ProductRunFeature = () => {
   const productRunOutputsLink = useProductRunOutputsLink()
 
   const { data: product } = useProduct()
+  const dataset = product?.dataset
+  const geometries = product?.geometries
 
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
@@ -76,7 +76,7 @@ const ProductRunFeature = () => {
         },
       },
     ] satisfies ColumnDef<ProductRunListItem>[]
-  }, [])
+  }, [productRunOutputsLink])
 
   const form = useForm({
     resolver: zodResolver(createProductRunSchema),
@@ -86,7 +86,7 @@ const ProductRunFeature = () => {
     if (product) {
       form.setValue('productId', product.id)
     }
-  }, [product])
+  }, [form, product])
 
   return (
     <div>
@@ -105,14 +105,14 @@ const ProductRunFeature = () => {
             entityName="Product Run"
             entityNamePlural="product runs"
           >
-            {product.dataset && (
+            {dataset && (
               <FormField
                 control={form.control}
                 name="datasetRunId"
                 render={({ field }) => (
                   <FormItem>
                     <DatasetRunSelect
-                      datasetId={product.dataset!.id}
+                      datasetId={dataset.id}
                       value={field.value}
                       onChange={(nextValue) =>
                         field.onChange(nextValue?.id ?? null)
@@ -124,14 +124,14 @@ const ProductRunFeature = () => {
                 )}
               />
             )}
-            {product.geometries && (
+            {geometries && (
               <FormField
                 control={form.control}
                 name="geometriesRunId"
                 render={({ field }) => (
                   <FormItem>
                     <GeometriesRunSelect
-                      geometriesId={product.geometries!.id}
+                      geometriesId={geometries.id}
                       value={field.value}
                       onChange={(nextValue) =>
                         field.onChange(nextValue?.id ?? null)

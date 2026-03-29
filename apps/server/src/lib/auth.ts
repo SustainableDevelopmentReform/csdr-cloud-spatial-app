@@ -58,12 +58,25 @@ const plugins = [
 
 const authBaseUrl = env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL
 
+function logAuthMessage(level: string, message: string): void {
+  switch (level) {
+    case 'error':
+      console.error(message)
+      return
+    case 'warn':
+      console.warn(message)
+      return
+    default:
+      console.info(message)
+  }
+}
+
 const authConfig = {
   logger: {
     level: 'info',
     disabled: false,
     log: (level, message) => {
-      console.log(level, message)
+      logAuthMessage(level, message)
     },
   },
   appName: 'CSDR Cloud Spatial',

@@ -73,13 +73,7 @@ const PlotContainer = ({
     timePoint: chart.timePoints,
   })
 
-  // Derive the groupBy dimension from the chart CONFIG — not by inspecting the
-  // data.  The dimension with multiple selections (or undefined = "all") is the
-  // series dimension; the other must be fixed to a single value so that every
-  // chart element maps 1:1 to a product output.
-  const groupBy = useMemo(() => {
-    return getPlotChartGroupBy(chart)
-  }, [chart.geometryOutputIds, chart.indicatorIds, chart.timePoints])
+  const groupBy = getPlotChartGroupBy(chart)
 
   return (
     <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
@@ -124,6 +118,8 @@ const MapContainer = ({
   className?: string
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
+  void config
+
   const { data: productRun } = useProductRun(chart.productRunId)
   const { data: geometriesRun } = useGeometriesRun(
     productRun?.geometriesRun?.id,
@@ -226,7 +222,20 @@ const KpiContainer = ({
     )
   }
 
-  const dataPoint = outputs[0]!
+  const dataPoint = outputs[0]
+
+  if (!dataPoint) {
+    return (
+      <div
+        className={cn(
+          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
+          className,
+        )}
+      >
+        No value for selected filters.
+      </div>
+    )
+  }
   const contextParts = [
     dataPoint.indicatorName ?? 'Indicator',
     dataPoint.geometryOutputName ?? 'Geometry',

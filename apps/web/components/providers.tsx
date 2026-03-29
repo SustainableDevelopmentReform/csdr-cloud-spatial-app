@@ -11,25 +11,58 @@ import {
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { createContext, useContext } from 'react'
 
-function handleError(data: any) {
-  if ('statusCode' in data) {
-    // const err = data as InstanceType<typeof ServerError>['response']
-    const err = data as any
-    toast.error(err.message, {
-      description: err.description,
+type ServerErrorLike = {
+  statusCode: number
+  message: string
+  description?: string | null
+}
+
+type BetterAuthErrorLike = Error & {
+  error: {
+    message: string
+  }
+}
+
+function isServerErrorLike(value: unknown): value is ServerErrorLike {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'statusCode' in value &&
+    typeof value.statusCode === 'number' &&
+    'message' in value &&
+    typeof value.message === 'string'
+  )
+}
+
+function isBetterAuthErrorLike(value: Error): value is BetterAuthErrorLike {
+  return (
+    'error' in value &&
+    typeof value.error === 'object' &&
+    value.error !== null &&
+    'message' in value.error &&
+    typeof value.error.message === 'string'
+  )
+}
+
+function isMessageOnlyObject(value: unknown): value is { message: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'message' in value &&
+    typeof value.message === 'string'
+  )
+}
+
+function handleError(data: unknown): void {
+  if (isServerErrorLike(data)) {
+    toast.error(data.message, {
+      description: data.description ?? undefined,
     })
     return
   }
 
   if (data instanceof Error) {
-    // Handle better-auth error
-    if (
-      'error' in data &&
-      typeof data.error === 'object' &&
-      data.error &&
-      'message' in data.error &&
-      typeof data.error.message === 'string'
-    ) {
+    if (isBetterAuthErrorLike(data)) {
       toast.error(data.message, {
         description: data.error.message,
       })
@@ -46,15 +79,8 @@ function handleError(data: any) {
     return
   }
 
-  // If object with message string
-  if (
-    typeof data === 'object' &&
-    data &&
-    'message' in data &&
-    typeof data.message === 'string'
-  ) {
+  if (isMessageOnlyObject(data)) {
     toast.error(data.message)
-    return
   }
 }
 

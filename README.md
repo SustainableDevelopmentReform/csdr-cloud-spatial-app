@@ -1,128 +1,123 @@
-# 🌏 CSDR Cloud Spatial App
+# CSDR Cloud Spatial App
 
-This repository is based on https://github.com/azharalifauzi/omnigate/ (MIT License - see LICENSE file)
+This repository contains the CSDR Cloud Spatial platform: a web console and API for managing spatial datasets, geometries, derived products, dashboards, and reports.
 
-## 🛠️ Getting Started
+The codebase started from [Omnigate](https://github.com/azharalifauzi/omnigate) and has since been adapted for the CSDR domain.
+
+## What It Does
+
+The platform is built around a spatial reporting workflow:
+
+- `dataset` records source data that can be processed
+- `geometries` records spatial boundaries that outputs can be mapped onto
+- `product` combines a dataset with a geometry collection
+- `*_run` resources capture concrete processing runs
+- `geometry_output` and `product_output` store the shapes and computed values that drive reports and dashboards
+
+Contributor-facing architecture notes live in [docs/architecture.md](./docs/architecture.md).
+
+## Monorepo Layout
+
+```text
+apps/
+  web/       Next.js App Router frontend
+  server/    Hono API, Better Auth, Drizzle/PostGIS, integration tests
+packages/
+  schemas/   Shared Zod schemas and domain contracts
+  plot/      Shared charting helpers
+  ui/        Shared React UI components
+  eslint-config/
+  typescript-config/
+docs/
+  architecture.md
+  development-workflow.md
+  DEPLOYMENT.md
+```
+
+## Local Setup
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20+)
-- [pnpm](https://pnpm.io/)
-- [PostgreSQL](https://www.postgresql.org/) (v17)
+- Node.js 20.17+
+- pnpm 9.12.0
+- Docker with Compose support
 
-### Installation
+### From Clone To Running App
 
 ```bash
-# Clone this repo
-git clone https://github.com/azharalifauzi/csdr-cloud-spatial-app
+git clone https://github.com/SustainableDevelopmentReform/csdr-cloud-spatial-app.git
 cd csdr-cloud-spatial-app
-
-# Instal packages
 pnpm install
-
-# Copy environment and set values for all of them
 cp .env.example.local .env
-```
-
-### Setting local development environment
-
-Start up postgres and mailpit containers with docker compose:
-
-```bash
-docker-compose -f docker-compose-dev.yml up -d
-```
-
-**Note** Mailpit is used to catch auth emails locally (for password reset, etc.) - you can see the emails in the browser at `http://localhost:8025`.
-
-For fresh local DBs, the dev container enables PostgreSQL `pg_trgm` during
-initialization. If your DB container already exists, recreate it or enable the
-extension manually before applying migrations that depend on trigram indexes.
-
-**Important**: before run `pnpm seed` you have to set values for `INITIAL_USER_NAME`, `INITIAL_USER_EMAIL`, and `INITIAL_USER_PASSWORD` inside `.env` file.
-
-- This will default to `csdr-admin`, `admin@example.com`, and `admin@123`
-
-```bash
-# Migrate DB
+docker compose -f docker-compose-dev.yml up -d
 pnpm migrate
-
-# Seed DB
 pnpm seed
-```
-
-### Development
-
-Run the app with:
-
-```bash
 pnpm dev
 ```
 
-### Production Build
+Local services:
+
+- Web app: `http://localhost:3000`
+- API server: `http://localhost:4000`
+- Mailpit UI: `http://localhost:8025`
+- PostGIS: `localhost:5431`
+
+The example environment file already contains sensible local defaults, including the seed user:
+
+- email: `admin@example.com`
+- password: `admin@123`
+
+If you change the initial user settings, update `INITIAL_USER_EMAIL`, `INITIAL_USER_NAME`, and `INITIAL_USER_PASSWORD` in `.env` before running `pnpm seed`.
+
+## Common Commands
+
+Use the root scripts unless you are intentionally working on one package only.
 
 ```bash
-pnpm build
-```
-
-### Testing
-
-**Important**: Before running the tests, you need to create another database to avoid losing data.
-
-```bash
+pnpm dev
+pnpm lint
+pnpm typecheck
 pnpm test:unit
-```
-
-## 📦 Deployment
-
-Full deployment docs are available in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-
-## 💽 Database (Drizzle)
-
-Drizzle schema is located in [`apps/server/src/schemas` folder](./apps/server/src/schemas)
-
-To generate a new migration, run:
-
-```bash
-pnpm create:migration
-```
-
-To run the migration, run:
-
-```bash
+pnpm turbo lint typecheck test:unit
 pnpm migrate
-```
-
-To start Drizzle Studio, run:
-
-```bash
-pnpm drizzle-studio
-```
-
-To seed the database, run:
-
-```bash
 pnpm seed
 ```
 
-### Updating Better Auth DB Schema
+`pnpm turbo lint typecheck test:unit` is the main contributor contract and runs the same lint, typecheck, and unit-test sequence that CI runs.
 
-Note: generate the auth schema with the current Better Auth CLI wrapper.
+Focused package commands are still available when needed:
 
 ```bash
-cd apps/server
-npx auth@latest generate --output src/schemas/auth.ts --config src/lib/auth.ts
+pnpm --filter web dev
+pnpm --filter @repo/server dev
+pnpm --filter @repo/server test:unit
 ```
 
-Then follow the instructions in the terminal to generate and run the migration...
+Backend tests require Docker because the server suite uses Testcontainers. See [docs/development-workflow.md](./docs/development-workflow.md) for the full validation and testing notes.
 
-## Reset DB local
+## Docs
 
-If your local DB has become a mess or the schema needs to be updated to the latest you can do this:
+- [docs/architecture.md](./docs/architecture.md)
+- [docs/development-workflow.md](./docs/development-workflow.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [SECURITY.md](./SECURITY.md)
+- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 
-1. Delete container running DB locally
-2. Run `docker-compose -f docker-compose-dev.yml up -d`
-3. Run `pnpm i`
-4. Run `pnpm migrate`
-5. Run `pnpm seed`
+## Known Rough Edges
 
-Now your local DB is the latest version and has a clean start of data.
+- The frontend is still inconsistent in places. Expect a mix of older patterns and newer cleanup work.
+- There is no frontend test suite yet. Validation coverage is currently strongest in the shared schemas package and the backend integration tests.
+- This is a best-effort public cleanup pass, not a full open-source program launch. Some internal assumptions and rough edges are documented rather than fully removed.
+
+## Database And Auth Utilities
+
+Root commands for common backend maintenance:
+
+```bash
+pnpm create:migration
+pnpm migrate
+pnpm drizzle-studio
+pnpm seed
+```
+
+The Better Auth schema is generated inside `apps/server`. If you need to regenerate it manually, run the command documented in [docs/development-workflow.md](./docs/development-workflow.md) and follow it with a migration.

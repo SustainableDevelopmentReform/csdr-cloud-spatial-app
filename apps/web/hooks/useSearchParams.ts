@@ -8,31 +8,35 @@ import { useCallback, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { getSearchParams } from '../utils/browser'
 
-export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
-  schema: T,
-  override?: Partial<z.infer<T>>,
-  useSearchParams?: boolean,
+export const useQueryWithSearchParams = <
+  Schema extends z.ZodObject<z.ZodRawShape>,
+>(
+  schema: Schema,
+  override?: Partial<z.infer<Schema>>,
+  syncWithUrl: boolean = false,
 ) => {
   const router = useRouter()
-
-  // If useSearchParams is true, use the search params from the URL
-  // Otherwise, use the local query state
   const searchParams = useSearchParamsNext()
   const [localQueryState, setLocalQueryState] = useState<
     Record<string, unknown>
   >({})
 
   const parsedResult = useMemo(() => {
-    const params = useSearchParams
+    const params = syncWithUrl
       ? (() => {
           const next: Record<string, string | string[]> = {}
-          if (!searchParams) return next
+          if (!searchParams) {
+            return next
+          }
 
           const uniqueKeys = new Set(searchParams.keys())
           for (const key of uniqueKeys) {
             const values = searchParams.getAll(key)
             if (values.length === 1) {
-              next[key] = values[0]!
+              const onlyValue = values[0]
+              if (typeof onlyValue === 'string') {
+                next[key] = onlyValue
+              }
             } else if (values.length > 1) {
               next[key] = values
             }
@@ -46,33 +50,36 @@ export const useQueryWithSearchParams = <T extends z.ZodObject<any>>(
       ...params,
       ...override,
     })
-  }, [schema, searchParams, override, localQueryState, useSearchParams])
+  }, [schema, searchParams, override, localQueryState, syncWithUrl])
 
   const setSearchParams = useCallback(
-    (params: Partial<z.infer<T>>, replace = false) => {
-      const newParams = {
-        ...(replace ? {} : parsedResult.data),
+    (params: Partial<z.infer<Schema>>, replace = false) => {
+      const nextParams: Record<string, unknown> = {
+        ...(replace ? {} : (parsedResult.data ?? {})),
         ...params,
       }
 
-      // Delete empty search params
-      Object.keys(newParams).forEach((key) => {
-        const value = newParams[key]
+      Object.keys(nextParams).forEach((key) => {
+        const value = nextParams[key]
         if (
           value === '' ||
           value === undefined ||
           value === null ||
           (Array.isArray(value) && value.length === 0)
         ) {
-          delete newParams[key]
+          delete nextParams[key]
         }
       })
 
-      const searchParams = getSearchParams(newParams)
-      if (useSearchParams) router.push(`?${searchParams}`)
-      else setLocalQueryState(newParams)
+      const nextSearchParams = getSearchParams(nextParams)
+      if (syncWithUrl) {
+        router.push(`?${nextSearchParams}`)
+        return
+      }
+
+      setLocalQueryState(nextParams)
     },
-    [parsedResult.data, router, useSearchParams],
+    [parsedResult.data, router, syncWithUrl],
   )
 
   return {

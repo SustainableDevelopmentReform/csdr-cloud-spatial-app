@@ -57,8 +57,10 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
       : queryOptions,
   )
 
-  const selectedGeometriesIds =
-    props.isMulti === true ? (props.value ?? []) : []
+  const selectedGeometriesIds = useMemo(
+    () => (props.isMulti === true ? (props.value ?? []) : []),
+    [props.isMulti, props.value],
+  )
   const hasSelectedGeometries = selectedGeometriesIds.length > 0
   const {
     data: selectedGeometriesQuery,
