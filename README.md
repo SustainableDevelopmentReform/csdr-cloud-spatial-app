@@ -78,12 +78,12 @@ pnpm dev
 pnpm lint
 pnpm typecheck
 pnpm test:unit
-pnpm validate
+pnpm turbo lint typecheck test:unit
 pnpm migrate
 pnpm seed
 ```
 
-`pnpm validate` is the main contributor contract and runs the same lint, typecheck, and unit-test sequence that CI runs.
+`pnpm turbo lint typecheck test:unit` is the main contributor contract and runs the same lint, typecheck, and unit-test sequence that CI runs.
 
 Focused package commands are still available when needed:
 

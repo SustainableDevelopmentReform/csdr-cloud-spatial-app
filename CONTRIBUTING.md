@@ -22,7 +22,7 @@ See [docs/development-workflow.md](./docs/development-workflow.md) for the full 
 Run the root validation contract before opening a PR:
 
 ```bash
-pnpm validate
+pnpm turbo lint typecheck test:unit
 ```
 
 That command runs linting, typechecking, and unit/integration tests from the repo root.

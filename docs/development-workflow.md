@@ -30,16 +30,16 @@ Use the root scripts by default.
 pnpm lint
 pnpm typecheck
 pnpm test:unit
-pnpm validate
+pnpm turbo lint typecheck test:unit
 ```
 
-`pnpm validate` is the canonical validation command. It runs:
+`pnpm turbo lint typecheck test:unit` is the canonical validation command. It runs:
 
 1. `pnpm lint`
 2. `pnpm typecheck`
 3. `pnpm test:unit`
 
-CI uses the same `pnpm validate` contract.
+CI uses the same validation contract.
 
 ## When To Use Package Commands
 
@@ -72,7 +72,7 @@ pnpm lint
 pnpm typecheck
 ```
 
-But the full contributor contract remains `pnpm validate` in a container-enabled environment.
+But the full contributor contract remains `pnpm turbo lint typecheck test:unit` in a container-enabled environment.
 
 ## Database Workflow
 
