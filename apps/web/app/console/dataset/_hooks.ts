@@ -43,6 +43,11 @@ export type DatasetRunDetail = NonNullable<
 export type UpdateDatasetPayload = NonNullable<
   InferRequestType<Client['api']['v0']['dataset'][':id']['$patch']>['json']
 >
+export type UpdateDatasetVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['dataset'][':id']['visibility']['$patch']
+  >['json']
+>
 export type UpdateDatasetRunPayload = NonNullable<
   InferRequestType<Client['api']['v0']['dataset-run'][':id']['$patch']>['json']
 >
@@ -287,6 +292,27 @@ export const useUpdateDataset = (_datasetId?: string) => {
     mutationFn: async (payload: UpdateDatasetPayload) => {
       if (!datasetId) return
       const res = client.api.v0.dataset[':id'].$patch({
+        param: { id: datasetId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: datasetQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useUpdateDatasetVisibility = (_datasetId?: string) => {
+  const { datasetId } = useDatasetParams(_datasetId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateDatasetVisibilityPayload) => {
+      if (!datasetId) return
+      const res = client.api.v0.dataset[':id'].visibility.$patch({
         param: { id: datasetId },
         json: payload,
       })

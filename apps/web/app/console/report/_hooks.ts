@@ -32,6 +32,11 @@ export type ReportDetail = NonNullable<
 >
 
 export type UpdateReportPayload = z.infer<typeof updateReportSchema>
+export type UpdateReportVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['report'][':id']['visibility']['$patch']
+  >['json']
+>
 
 export type CreateReportPayload = z.infer<typeof createReportSchema>
 
@@ -153,6 +158,28 @@ export const useUpdateReport = (_reportId?: string) => {
     mutationFn: async (payload: UpdateReportPayload) => {
       if (!reportId) return
       const res = client.api.v0.report[':id'].$patch({
+        param: { id: reportId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: reportQueryKeys.all,
+      })
+      await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const useUpdateReportVisibility = (_reportId?: string) => {
+  const { reportId } = useReportParams(_reportId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateReportVisibilityPayload) => {
+      if (!reportId) return
+      const res = client.api.v0.report[':id'].visibility.$patch({
         param: { id: reportId },
         json: payload,
       })

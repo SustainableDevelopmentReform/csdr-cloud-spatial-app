@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, exists, inArray, notInArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -33,6 +33,7 @@ import {
   datasetRunQuerySchema,
   fullDatasetSchema,
   updateDatasetSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { baseDatasetRunQuery } from './datasetRun'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
@@ -261,18 +262,16 @@ const app = createOpenAPIApp()
           searchableColumns: [datasetRun.name, datasetRun.description],
           baseWhere: datasetId
             ? eq(datasetRun.datasetId, datasetId)
-            : exists(
+            : inArray(
+                datasetRun.datasetId,
                 db
                   .select({ id: dataset.id })
                   .from(dataset)
                   .where(
-                    and(
-                      eq(dataset.id, datasetRun.datasetId),
-                      buildConsoleReadScope(
-                        c,
-                        dataset.organizationId,
-                        dataset.visibility,
-                      ),
+                    buildConsoleReadScope(
+                      c,
+                      dataset.organizationId,
+                      dataset.visibility,
                     ),
                   ),
               ),
@@ -397,19 +396,11 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'dataset',
         resourceId: id,
         notFoundError: datasetNotFoundError,
-      })
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'dataset',
       })
 
       const [record] = await db
@@ -433,6 +424,87 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dataset updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update dataset visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated dataset visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullDatasetSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update dataset visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(dataset)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(dataset.id, id),
+            eq(dataset.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw datasetNotFoundError()
+      }
+
+      const fullRecord = await fetchFullDatasetOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Dataset visibility updated',
+      )
     },
   )
   .openapi(

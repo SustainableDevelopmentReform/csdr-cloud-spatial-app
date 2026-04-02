@@ -2,8 +2,9 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateIndicatorSchema } from '@repo/schemas/crud'
-import { useEffect } from 'react'
-import { Path, useForm } from 'react-hook-form'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
@@ -15,6 +16,7 @@ import {
 import {
   useDeleteMeasuredIndicator,
   useUpdateMeasuredIndicator,
+  useUpdateMeasuredIndicatorVisibility,
   useMeasuredIndicator,
 } from '../../_hooks'
 import {
@@ -31,6 +33,7 @@ import { IndicatorProductUsageCard } from '../../_components/indicator-product-u
 const IndicatorDetails = () => {
   const { data: indicator } = useMeasuredIndicator()
   const updateIndicator = useUpdateMeasuredIndicator()
+  const updateIndicatorVisibility = useUpdateMeasuredIndicatorVisibility()
   const deleteIndicator = useDeleteMeasuredIndicator(
     undefined,
     INDICATORS_BASE_PATH,
@@ -52,6 +55,21 @@ const IndicatorDetails = () => {
     createdByUserId: getCreatedByUserId(indicator),
   })
 
+  const formActions = useMemo(() => {
+    if (!indicator) {
+      return []
+    }
+
+    const visibilityAction = createResourceVisibilityAction({
+      access,
+      mutation: updateIndicatorVisibility,
+      successMessage: 'Indicator visibility updated',
+      visibility: indicator.visibility,
+    })
+
+    return visibilityAction ? [visibilityAction] : []
+  }, [access, indicator, updateIndicatorVisibility])
+
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="flex flex-col gap-4">
@@ -71,6 +89,7 @@ const IndicatorDetails = () => {
         form={form}
         mutation={updateIndicator}
         deleteMutation={deleteIndicator}
+        actions={formActions}
         entityName="Indicator"
         entityNamePlural="indicators"
         readOnly={!canEdit}

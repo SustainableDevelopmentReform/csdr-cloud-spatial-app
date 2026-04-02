@@ -6,13 +6,14 @@ import {
   dashboardQuerySchema,
   fullDashboardSchema,
   updateDashboardSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq } from 'drizzle-orm'
 import {
   buildDashboardUsageFilters,
   syncDashboardChartUsages,
 } from '~/lib/chartUsage'
-import { assertDashboardDependenciesPublic } from '~/lib/public-visibility'
+import { assertDashboardDependenciesExternallyVisible } from '~/lib/public-visibility'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -301,19 +302,11 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'dashboard',
         resourceId: id,
         notFoundError: dashboardNotFoundError,
-      })
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'dashboard',
       })
 
       const record = await db.transaction(async (tx) => {
@@ -336,8 +329,12 @@ const app = createOpenAPIApp()
           await syncDashboardChartUsages(tx, updatedRecord.id, payload.content)
         }
 
-        if (updatedRecord.visibility === 'public') {
-          await assertDashboardDependenciesPublic(tx, updatedRecord.id)
+        if (updatedRecord.visibility !== 'private') {
+          await assertDashboardDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+          )
         }
 
         return updatedRecord
@@ -349,6 +346,95 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dashboard updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update dashboard visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:dashboard' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated dashboard visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullDashboardSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dashboard not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update dashboard visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dashboard',
+        resourceId: id,
+        notFoundError: dashboardNotFoundError,
+      })
+
+      const record = await db.transaction(async (tx) => {
+        assertCanSetVisibility({
+          actor,
+          currentVisibility: accessRecord.visibility,
+          nextVisibility: payload.visibility,
+        })
+
+        const [updatedRecord] = await tx
+          .update(dashboard)
+          .set(updatePayload(payload))
+          .where(
+            and(
+              eq(dashboard.id, id),
+              eq(dashboard.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
+
+        if (!updatedRecord) {
+          throw dashboardNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertDashboardDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+          )
+        }
+
+        return updatedRecord
+      })
+
+      const fullRecord = await fetchFullDashboardOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Dashboard visibility updated',
+      )
     },
   )
 

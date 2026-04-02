@@ -10,6 +10,7 @@ import {
   indicatorQuerySchema,
   updateDerivedIndicatorSchema,
   updateIndicatorSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import {
   and,
@@ -35,7 +36,7 @@ import {
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
-import { assertDerivedIndicatorDependenciesPublic } from '~/lib/public-visibility'
+import { assertDerivedIndicatorDependenciesExternallyVisible } from '~/lib/public-visibility'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -766,7 +767,6 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'indicator',
@@ -788,13 +788,6 @@ const app = createOpenAPIApp()
           notFoundError: indicatorNotFoundError,
         })
       }
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'indicator',
-      })
 
       const [record] = await db
         .update(indicator)
@@ -821,6 +814,85 @@ const app = createOpenAPIApp()
         fullRecord,
         200,
         'Measured indicator updated',
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update measured indicator visibility.',
+      method: 'patch',
+      path: '/measured/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:indicator' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated a measured indicator visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(baseMeasuredIndicatorSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Measured indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to update measured indicator visibility',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        notFoundError: indicatorNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(indicator)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(indicator.id, id),
+            eq(indicator.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw indicatorNotFoundError()
+      }
+
+      const fullRecord = await fetchFullMeasuredIndicatorOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Measured indicator visibility updated',
       )
     },
   )
@@ -865,7 +937,6 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'derivedIndicator',
@@ -888,13 +959,6 @@ const app = createOpenAPIApp()
         })
       }
 
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'derivedIndicator',
-      })
-
       const [record] = await db.transaction(async (tx) => {
         const [updatedRecord] = await tx
           .update(derivedIndicator)
@@ -911,8 +975,12 @@ const app = createOpenAPIApp()
           throw derivedIndicatorNotFoundError()
         }
 
-        if (updatedRecord.visibility === 'public') {
-          await assertDerivedIndicatorDependenciesPublic(tx, updatedRecord.id)
+        if (updatedRecord.visibility !== 'private') {
+          await assertDerivedIndicatorDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+          )
         }
 
         return [updatedRecord]
@@ -932,6 +1000,100 @@ const app = createOpenAPIApp()
         fullRecord,
         200,
         'Derived indicator updated',
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update a derived indicator visibility.',
+      method: 'patch',
+      path: '/derived/:id/visibility',
+      middleware: [
+        authMiddleware({
+          permission: 'write:indicator',
+          targetResource: 'derivedIndicator',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated a derived indicator visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullDerivedIndicatorSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Derived indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update derived indicator visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        notFoundError: derivedIndicatorNotFoundError,
+      })
+
+      const record = await db.transaction(async (tx) => {
+        assertCanSetVisibility({
+          actor,
+          currentVisibility: accessRecord.visibility,
+          nextVisibility: payload.visibility,
+        })
+
+        const [updatedRecord] = await tx
+          .update(derivedIndicator)
+          .set(updatePayload(payload))
+          .where(
+            and(
+              eq(derivedIndicator.id, id),
+              eq(derivedIndicator.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
+
+        if (!updatedRecord) {
+          throw derivedIndicatorNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertDerivedIndicatorDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+          )
+        }
+
+        return updatedRecord
+      })
+
+      const fullRecord = await fetchFullDerivedIndicatorOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Derived indicator visibility updated',
       )
     },
   )

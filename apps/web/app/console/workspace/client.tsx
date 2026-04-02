@@ -26,6 +26,7 @@ import {
   useWorkspaceInvitations,
   useWorkspaceMembers,
 } from './_hooks'
+import { Badge } from '@repo/ui/components/ui/badge'
 
 const slugify = (value: string): string =>
   value
@@ -74,6 +75,13 @@ const WorkspacePageClient = () => {
         <h1 className="mb-2 text-3xl font-medium">Workspace</h1>
         <p className="text-sm text-gray-600">
           {activeOrganization.data?.name ?? 'Select an organization to manage.'}
+          {activeOrganization.data?.id && (
+            <>
+              <Badge variant="outline" className="text-gray-500 font-mono ml-2">
+                {activeOrganization.data?.id}
+              </Badge>
+            </>
+          )}
         </p>
       </div>
 

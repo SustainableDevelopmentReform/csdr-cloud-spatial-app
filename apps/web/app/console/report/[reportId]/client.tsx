@@ -6,6 +6,7 @@ import { updateReportSchema } from '@repo/schemas/crud'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { REPORTS_BASE_PATH } from '../../../../lib/paths'
@@ -16,11 +17,17 @@ import {
 import { ProductOutputExportListItem } from '../../product/_hooks'
 import { ChartSelectedItem } from '../_components/chart-selected-item'
 import { reportChartFormBuilder } from '../_components/report-chart-editor'
-import { useDeleteReport, useReport, useUpdateReport } from '../_hooks'
+import {
+  useDeleteReport,
+  useReport,
+  useUpdateReport,
+  useUpdateReportVisibility,
+} from '../_hooks'
 
 const ReportDetails = () => {
   const { data: report } = useReport()
   const updateReport = useUpdateReport()
+  const updateReportVisibility = useUpdateReportVisibility()
   const deleteReport = useDeleteReport(undefined, REPORTS_BASE_PATH)
   const { access } = useAccessControl()
 
@@ -47,12 +54,28 @@ const ReportDetails = () => {
     createdByUserId: getCreatedByUserId(report),
   })
 
+  const formActions = useMemo(() => {
+    if (!report) {
+      return []
+    }
+
+    const visibilityAction = createResourceVisibilityAction({
+      access,
+      mutation: updateReportVisibility,
+      successMessage: 'Report visibility updated',
+      visibility: report.visibility,
+    })
+
+    return visibilityAction ? [visibilityAction] : []
+  }, [access, report, updateReportVisibility])
+
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col relative">
       <CrudForm
         form={form}
         mutation={updateReport}
         deleteMutation={deleteReport}
+        actions={formActions}
         entityName="Report"
         entityNamePlural="reports"
         readOnly={!canEdit}

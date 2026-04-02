@@ -6,6 +6,7 @@ import {
   reportQuerySchema,
   reportStoredContentSchema,
   updateReportSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
 import { and, desc, eq } from 'drizzle-orm'
@@ -13,7 +14,7 @@ import {
   buildReportUsageFilters,
   syncReportChartUsages,
 } from '~/lib/chartUsage'
-import { assertReportDependenciesPublic } from '~/lib/public-visibility'
+import { assertReportDependenciesExternallyVisible } from '~/lib/public-visibility'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -341,7 +342,6 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'report',
@@ -355,13 +355,6 @@ const app = createOpenAPIApp()
       if ('content' in payload) {
         data.content = validateReportContentOrThrow(payload.content)
       }
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'report',
-      })
 
       const record = await db.transaction(async (tx) => {
         const [updatedRecord] = await tx
@@ -383,8 +376,12 @@ const app = createOpenAPIApp()
           await syncReportChartUsages(tx, updatedRecord.id, data.content)
         }
 
-        if (updatedRecord.visibility === 'public') {
-          await assertReportDependenciesPublic(tx, updatedRecord.id)
+        if (updatedRecord.visibility !== 'private') {
+          await assertReportDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+          )
         }
 
         return updatedRecord
@@ -396,6 +393,95 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Report updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update report visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:report' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated report visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullReportSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Report not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update report visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'report',
+        resourceId: id,
+        notFoundError: reportNotFoundError,
+      })
+
+      const record = await db.transaction(async (tx) => {
+        assertCanSetVisibility({
+          actor,
+          currentVisibility: accessRecord.visibility,
+          nextVisibility: payload.visibility,
+        })
+
+        const [updatedRecord] = await tx
+          .update(report)
+          .set(updatePayload(payload))
+          .where(
+            and(
+              eq(report.id, id),
+              eq(report.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
+
+        if (!updatedRecord) {
+          throw reportNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertReportDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+          )
+        }
+
+        return updatedRecord
+      })
+
+      const fullRecord = await fetchFullReportOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Report visibility updated',
+      )
     },
   )
 

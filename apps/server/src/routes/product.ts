@@ -7,6 +7,7 @@ import {
   productQuerySchema,
   productRunQuerySchema,
   updateProductSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import {
   and,
@@ -354,18 +355,16 @@ const app = createOpenAPIApp()
         productId ? eq(productRun.productId, id) : undefined,
         productId
           ? undefined
-          : exists(
+          : inArray(
+              productRun.productId,
               db
                 .select({ id: product.id })
                 .from(product)
                 .where(
-                  and(
-                    eq(product.id, productRun.productId),
-                    buildConsoleReadScope(
-                      c,
-                      product.organizationId,
-                      product.visibility,
-                    ),
+                  buildConsoleReadScope(
+                    c,
+                    product.organizationId,
+                    product.visibility,
                   ),
                 ),
             ),
@@ -515,19 +514,11 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'product',
         resourceId: id,
         notFoundError: productNotFoundError,
-      })
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'product',
       })
 
       const [record] = await db
@@ -551,6 +542,83 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Product updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update product visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated product visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update product visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(product)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(product.id, id),
+            eq(product.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw productNotFoundError()
+      }
+
+      const fullRecord = await fetchFullProductOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Product visibility updated',
+      )
     },
   )
 

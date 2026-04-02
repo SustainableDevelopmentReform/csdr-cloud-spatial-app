@@ -27,7 +27,7 @@ export const baseResourceSchema = baseIdResourceSchema.extend({
   updatedAt: z.iso.datetime(),
 })
 
-export const visibilitySchema = z.enum(['private', 'public'])
+export const visibilitySchema = z.enum(['private', 'public', 'global'])
 
 export const baseAclResourceSchema = baseResourceSchema.extend({
   organizationId: z.string(),
@@ -81,8 +81,8 @@ export const baseUpdateResourceSchema = z.object({
   description: z.string().nullable().optional(),
 })
 
-export const baseUpdateAclResourceSchema = baseUpdateResourceSchema.extend({
-  visibility: visibilitySchema.optional(),
+export const updateVisibilitySchema = z.object({
+  visibility: visibilitySchema,
 })
 
 /* INDICATOR RESOURCE SCHEMAS */
@@ -118,7 +118,7 @@ export const createIndicatorSchema = baseCreateResourceSchema.extend({
   displayOrder: z.number().optional(),
 })
 
-export const updateIndicatorSchema = baseUpdateAclResourceSchema.extend({
+export const updateIndicatorSchema = baseUpdateResourceSchema.extend({
   unit: z.string().optional(),
   categoryId: z.string().nullable().optional(),
   displayOrder: z.number().nullable().optional(),
@@ -171,12 +171,10 @@ export const createIndicatorCategorySchema = baseCreateResourceSchema.extend({
   displayOrder: z.number().optional(),
 })
 
-export const updateIndicatorCategorySchema = baseUpdateAclResourceSchema.extend(
-  {
-    parentId: z.string().optional(),
-    displayOrder: z.number().optional(),
-  },
-)
+export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
+  parentId: z.string().optional(),
+  displayOrder: z.number().optional(),
+})
 
 /* DATASET RESOURCE SCHEMAS */
 export const baseDatasetRunSchema = baseRunResourceSchema
@@ -221,7 +219,7 @@ export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceMetadataUrl: z.string().optional(),
 })
 
-export const updateDatasetSchema = baseUpdateAclResourceSchema.extend({
+export const updateDatasetSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
@@ -284,7 +282,7 @@ export const createGeometriesSchema = baseCreateResourceSchema.extend({
   sourceMetadataUrl: z.string().optional(),
 })
 
-export const updateGeometriesSchema = baseUpdateAclResourceSchema.extend({
+export const updateGeometriesSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
@@ -506,7 +504,7 @@ export const createProductSchema = baseCreateResourceSchema.extend({
   timePrecision: z.enum(['hour', 'day', 'month', 'year']),
 })
 
-export const updateProductSchema = baseUpdateAclResourceSchema.extend({
+export const updateProductSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
   timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
 })
@@ -674,7 +672,7 @@ export const reportQuerySchema = baseQuerySchema.extend({
   geometriesRunId: z.string().optional(),
 })
 export const createReportSchema = baseCreateResourceSchema
-export const updateReportSchema = baseUpdateAclResourceSchema.extend({
+export const updateReportSchema = baseUpdateResourceSchema.extend({
   content: reportStoredContentSchema.nullable().optional(),
 })
 
@@ -735,6 +733,6 @@ export const dashboardQuerySchema = baseQuerySchema.extend({
 export const createDashboardSchema = baseCreateResourceSchema.extend({
   content: dashboardContentSchema,
 })
-export const updateDashboardSchema = baseUpdateAclResourceSchema.extend({
+export const updateDashboardSchema = baseUpdateResourceSchema.extend({
   content: dashboardContentSchema.optional(),
 })

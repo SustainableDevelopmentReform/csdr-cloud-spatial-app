@@ -38,6 +38,11 @@ export type CreateDashboardPayload = NonNullable<
 export type UpdateDashboardPayload = NonNullable<
   InferRequestType<Client['api']['v0']['dashboard'][':id']['$patch']>['json']
 >
+export type UpdateDashboardVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['dashboard'][':id']['visibility']['$patch']
+  >['json']
+>
 
 const dashboardParamsSchema = z.object({
   dashboardId: z.string().optional(),
@@ -151,6 +156,27 @@ export const useUpdateDashboard = (_dashboardId?: string) => {
     mutationFn: async (payload: UpdateDashboardPayload) => {
       if (!dashboardId) return
       const res = client.api.v0.dashboard[':id'].$patch({
+        param: { id: dashboardId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+      await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const useUpdateDashboardVisibility = (_dashboardId?: string) => {
+  const { dashboardId } = useDashboardParams(_dashboardId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+
+  return useMutation({
+    mutationFn: async (payload: UpdateDashboardVisibilityPayload) => {
+      if (!dashboardId) return
+      const res = client.api.v0.dashboard[':id'].visibility.$patch({
         param: { id: dashboardId },
         json: payload,
       })

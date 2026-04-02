@@ -32,6 +32,7 @@ const baseColumns = {
 export const resourceVisibilityEnum = pgEnum('resource_visibility', [
   'private',
   'public',
+  'global',
 ])
 
 const topLevelAclColumns = {

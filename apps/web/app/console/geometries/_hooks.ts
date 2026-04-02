@@ -76,6 +76,11 @@ export type GeometryOutputDetail = NonNullable<
 export type UpdateGeometriesPayload = NonNullable<
   InferRequestType<Client['api']['v0']['geometries'][':id']['$patch']>['json']
 >
+export type UpdateGeometriesVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['geometries'][':id']['visibility']['$patch']
+  >['json']
+>
 
 export type UpdateGeometriesRunPayload = NonNullable<
   InferRequestType<
@@ -601,6 +606,27 @@ export const useUpdateGeometries = (_geometriesId?: string) => {
     mutationFn: async (payload: UpdateGeometriesPayload) => {
       if (!geometriesId) return
       const res = client.api.v0.geometries[':id'].$patch({
+        param: { id: geometriesId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: geometriesQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useUpdateGeometriesVisibility = (_geometriesId?: string) => {
+  const { geometriesId } = useGeometriesParams(_geometriesId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateGeometriesVisibilityPayload) => {
+      if (!geometriesId) return
+      const res = client.api.v0.geometries[':id'].visibility.$patch({
         param: { id: geometriesId },
         json: payload,
       })

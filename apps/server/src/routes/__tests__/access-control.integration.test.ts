@@ -522,7 +522,9 @@ describe('access control integration', () => {
     const blockedPublishJson = await expectJsonResponse<{
       dependencies: { resourceType: string; id: string }[]
     }>(
-      await createAppClient(superAdminHeaders).api.v0.report[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.report[':id'][
+        'visibility'
+      ].$patch({
         param: {
           id: reportJson.data.id,
         },
@@ -534,7 +536,7 @@ describe('access control integration', () => {
         status: 400,
         message: 'Cannot make report public',
         description:
-          'This resource depends on private upstream data. Make every dependency public first.',
+          'This resource depends on private upstream data. Make every dependency public or global first.',
       },
     )
 
@@ -545,7 +547,9 @@ describe('access control integration', () => {
     ).toBe(true)
 
     await expectJsonResponse(
-      await createAppClient(creatorHeaders).api.v0.report[':id'].$patch({
+      await createAppClient(creatorHeaders).api.v0.report[':id'][
+        'visibility'
+      ].$patch({
         param: {
           id: reportJson.data.id,
         },
@@ -556,41 +560,59 @@ describe('access control integration', () => {
       {
         status: 403,
         message: 'User is not authorized',
-        description: 'Only super admins can make this resource public.',
+        description:
+          'Only org admins or super admins can change resource visibility.',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(orgAdminHeaders).api.v0.dataset[':id'].$patch({
+      await createAppClient(orgAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.dataset },
         json: {
           visibility: 'public',
         },
       }),
       {
-        status: 403,
-        message: 'User is not authorized',
-        description: 'Only super admins can make this resource public.',
+        status: 200,
+        message: 'Dataset visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(orgAdminHeaders).api.v0.dashboard[':id'].$patch({
+      await createAppClient(orgAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'private',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.dashboard[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.dashboard },
         json: {
           visibility: 'public',
         },
       }),
       {
-        status: 403,
-        message: 'User is not authorized',
-        description: 'Only super admins can make this resource public.',
+        status: 200,
+        message: 'Dashboard visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(orgAdminHeaders).api.v0.indicator.derived[
-        ':id'
+      await createAppClient(orgAdminHeaders).api.v0.indicator.derived[':id'][
+        'visibility'
       ].$patch({
         param: { id: seededIds.derivedIndicator },
         json: {
@@ -598,16 +620,17 @@ describe('access control integration', () => {
         },
       }),
       {
-        status: 403,
-        message: 'User is not authorized',
-        description: 'Only super admins can make this resource public.',
+        status: 400,
+        message: 'Cannot make derivedIndicator public',
+        description:
+          'This resource depends on private upstream data. Make every dependency public or global first.',
       },
     )
 
     await expectJsonResponse(
       await createAppClient(superAdminHeaders).api.v0['indicator-category'][
         ':id'
-      ].$patch({
+      ]['visibility'].$patch({
         param: { id: seededIds.indicatorCategory },
         json: {
           visibility: 'public',
@@ -615,13 +638,13 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Indicator category updated',
+        message: 'Indicator category visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.indicator.measured[
-        ':id'
+      await createAppClient(superAdminHeaders).api.v0.indicator.measured[':id'][
+        'visibility'
       ].$patch({
         param: { id: seededIds.indicator },
         json: {
@@ -630,12 +653,61 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Measured indicator updated',
+        message: 'Measured indicator visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.dataset[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'global',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description: 'Only super admins can change global visibility.',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'private',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description: 'Only super admins can change global visibility.',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.dataset },
         json: {
           visibility: 'public',
@@ -643,12 +715,14 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Dataset updated',
+        message: 'Dataset visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.geometries[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.geometries[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.geometries },
         json: {
           visibility: 'public',
@@ -656,12 +730,14 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Geometries updated',
+        message: 'Geometries visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.product[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.product[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.product },
         json: {
           visibility: 'public',
@@ -669,13 +745,13 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Product updated',
+        message: 'Product visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.indicator.derived[
-        ':id'
+      await createAppClient(superAdminHeaders).api.v0.indicator.derived[':id'][
+        'visibility'
       ].$patch({
         param: { id: seededIds.derivedIndicator },
         json: {
@@ -684,12 +760,14 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Derived indicator updated',
+        message: 'Derived indicator visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.dashboard[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.dashboard[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.dashboard },
         json: {
           visibility: 'public',
@@ -697,27 +775,31 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Dashboard updated',
+        message: 'Dashboard visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.report[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.report[':id'][
+        'visibility'
+      ].$patch({
         param: {
           id: reportJson.data.id,
         },
         json: {
-          visibility: 'public',
+          visibility: 'global',
         },
       }),
       {
         status: 200,
-        message: 'Report updated',
+        message: 'Report visibility updated',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(creatorHeaders).api.v0.report[':id'].$patch({
+      await createAppClient(creatorHeaders).api.v0.report[':id'][
+        'visibility'
+      ].$patch({
         param: {
           id: seededIds.report,
         },
@@ -755,7 +837,6 @@ describe('access control integration', () => {
       },
     )
 
-    const orgAdminAuth = createTestAuthClient(orgAdminHeaders)
     const invitationResponse = await app.request(
       '/api/auth/organization/invite-member',
       {
@@ -1033,7 +1114,7 @@ describe('access control integration', () => {
     ).toBe(false)
   })
 
-  it('shows globally public resources in authenticated reads regardless of the active organization', async () => {
+  it('lists only global resources across organizations while still allowing direct reads of public resources', async () => {
     const multiOrgHeaders = await createSessionHeaders({
       email: 'cross-org-public@example.com',
       organizationRole: 'org_viewer',
@@ -1081,7 +1162,9 @@ describe('access control integration', () => {
     })
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.dataset[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.dataset },
         json: {
           visibility: 'public',
@@ -1089,7 +1172,7 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Dataset updated',
+        message: 'Dataset visibility updated',
       },
     )
 
@@ -1127,7 +1210,7 @@ describe('access control integration', () => {
     ).toBe(true)
     expect(
       secondOrgList.data.data.some((entry) => entry.id === seededIds.dataset),
-    ).toBe(true)
+    ).toBe(false)
 
     const publicDatasetJson = await expectJsonResponse<{ id: string }>(
       await createAppClient(switchedHeaders).api.v0.dataset[':id'].$get({
@@ -1164,11 +1247,92 @@ describe('access control integration', () => {
         (entry) => entry.id === seededIds.datasetRun,
       ),
     ).toBe(true)
+
+    const wildcardRunJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await createAppClient(switchedHeaders).api.v0.dataset[':id']['runs'].$get(
+        {
+          param: {
+            id: '*',
+          },
+          query: {},
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      wildcardRunJson.data.data.some(
+        (entry) => entry.id === seededIds.datasetRun,
+      ),
+    ).toBe(false)
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'global',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+
+    const secondOrgGlobalList = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await createAppClient(switchedHeaders).api.v0.dataset.$get({
+        query: {},
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      secondOrgGlobalList.data.data.some(
+        (entry) => entry.id === seededIds.dataset,
+      ),
+    ).toBe(true)
+
+    const wildcardGlobalRunJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await createAppClient(switchedHeaders).api.v0.dataset[':id']['runs'].$get(
+        {
+          param: {
+            id: '*',
+          },
+          query: {},
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      wildcardGlobalRunJson.data.data.some(
+        (entry) => entry.id === seededIds.datasetRun,
+      ),
+    ).toBe(true)
   })
 
-  it('serves explorer-visible public resources anonymously and keeps the public namespace read-only', async () => {
+  it('serves public details but lists only global resources anonymously and keeps the public namespace read-only', async () => {
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0.dataset[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
         param: { id: seededIds.dataset },
         json: {
           visibility: 'public',
@@ -1176,7 +1340,7 @@ describe('access control integration', () => {
       }),
       {
         status: 200,
-        message: 'Dataset updated',
+        message: 'Dataset visibility updated',
       },
     )
 
@@ -1206,6 +1370,36 @@ describe('access control integration', () => {
     )
     expect(
       publicListJson.data.data.some((entry) => entry.id === seededIds.dataset),
+    ).toBe(false)
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'global',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+
+    const globalListJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await createAppClient().api.v0.public.dataset.$get({
+        query: {},
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    expect(
+      globalListJson.data.data.some((entry) => entry.id === seededIds.dataset),
     ).toBe(true)
 
     const writeResponse = await app.request('/api/v0/public/dataset', {

@@ -40,6 +40,12 @@ import organization from './routes/organization'
 import publicRoutes from './routes/public'
 
 const isProduction = env.NODE_ENV === 'production'
+const apiKeyOrganizationDocs = [
+  'Use `x-api-key` header to authenticate requests.',
+  'API keys authenticate as the owning user and are not tied to a single organization.',
+  'For users who belong to multiple organizations, set `x-csdr-active-organization-id` on each request to select the organization context.',
+  "If no organization header is sent, the server falls back to the persisted active organization on the auth session, then to the user's first membership.",
+].join('\n\n')
 
 const app = createOpenAPIApp<{ Variables: AuthType }>({
   strict: false,
@@ -135,6 +141,7 @@ v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',
   in: 'header',
   name: 'x-api-key',
+  description: apiKeyOrganizationDocs,
 })
 
 // TODO: add better auth responses here (eg 429 rate limit)
@@ -172,7 +179,8 @@ const v0ApiRoutes = v0ApiBase
       version: '0.0.1',
       title: 'CSDR Cloud Spatial API',
       description:
-        'This is the API for the CSDR Cloud Spatial platform. Current is 0.0.1 alpha - expect breaking changes.',
+        'This is the API for the CSDR Cloud Spatial platform. Current is 0.0.1 alpha - expect breaking changes.\n\n## API keys and organization context\n\n' +
+        apiKeyOrganizationDocs,
     },
     servers: [
       {

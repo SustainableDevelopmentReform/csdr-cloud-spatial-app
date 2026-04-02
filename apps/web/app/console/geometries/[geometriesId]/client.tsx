@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { updateGeometriesSchema } from '@repo/schemas/crud'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
@@ -24,12 +25,14 @@ import {
   useGeometries,
   useGeometriesRunsLink,
   useUpdateGeometries,
+  useUpdateGeometriesVisibility,
 } from '../_hooks'
 
 const GeometriesDetails = () => {
   const { data: geometries } = useGeometries()
   const productsLink = useProductsLink()
   const updateGeometries = useUpdateGeometries()
+  const updateGeometriesVisibility = useUpdateGeometriesVisibility()
   const deleteGeometries = useDeleteGeometries(undefined, GEOMETRIES_BASE_PATH)
   const geometriesRunsLink = useGeometriesRunsLink()
   const { access } = useAccessControl()
@@ -48,6 +51,21 @@ const GeometriesDetails = () => {
       form.reset(geometries)
     }
   }, [geometries, form])
+
+  const formActions = useMemo(() => {
+    if (!geometries) {
+      return []
+    }
+
+    const visibilityAction = createResourceVisibilityAction({
+      access,
+      mutation: updateGeometriesVisibility,
+      successMessage: 'Geometries visibility updated',
+      visibility: geometries.visibility,
+    })
+
+    return visibilityAction ? [visibilityAction] : []
+  }, [access, geometries, updateGeometriesVisibility])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
@@ -93,6 +111,7 @@ const GeometriesDetails = () => {
         form={form}
         mutation={updateGeometries}
         deleteMutation={deleteGeometries}
+        actions={formActions}
         entityName="Geometries"
         entityNamePlural="geometries sets"
         readOnly={!canEdit}

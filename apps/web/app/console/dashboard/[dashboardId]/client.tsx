@@ -5,6 +5,7 @@ import type { DashboardContent } from '@repo/schemas/crud'
 import { updateDashboardSchema } from '@repo/schemas/crud'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
@@ -15,11 +16,17 @@ import {
 import DashboardGridEditor, {
   createEmptyDashboardContent,
 } from '../_components/dashboard-grid-editor'
-import { useDashboard, useDeleteDashboard, useUpdateDashboard } from '../_hooks'
+import {
+  useDashboard,
+  useDeleteDashboard,
+  useUpdateDashboard,
+  useUpdateDashboardVisibility,
+} from '../_hooks'
 
 const DashboardDetails = () => {
   const { data: dashboard } = useDashboard()
   const updateDashboard = useUpdateDashboard()
+  const updateDashboardVisibility = useUpdateDashboardVisibility()
   const deleteDashboard = useDeleteDashboard(undefined, DASHBOARDS_BASE_PATH)
   const { access } = useAccessControl()
 
@@ -45,12 +52,28 @@ const DashboardDetails = () => {
     createdByUserId: getCreatedByUserId(dashboard),
   })
 
+  const formActions = useMemo(() => {
+    if (!dashboard) {
+      return []
+    }
+
+    const visibilityAction = createResourceVisibilityAction({
+      access,
+      mutation: updateDashboardVisibility,
+      successMessage: 'Dashboard visibility updated',
+      visibility: dashboard.visibility,
+    })
+
+    return visibilityAction ? [visibilityAction] : []
+  }, [access, dashboard, updateDashboardVisibility])
+
   return (
     <div className="max-w-full gap-8 flex flex-col">
       <CrudForm
         form={form}
         mutation={updateDashboard}
         deleteMutation={deleteDashboard}
+        actions={formActions}
         entityName="Dashboard"
         entityNamePlural="dashboards"
         hiddenFields={['metadata', 'content']}

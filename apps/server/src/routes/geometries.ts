@@ -7,8 +7,9 @@ import {
   geometriesQuerySchema,
   geometriesRunQuerySchema,
   updateGeometriesSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, exists, inArray, notInArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -262,18 +263,16 @@ const app = createOpenAPIApp()
           searchableColumns: [geometriesRun.name, geometriesRun.description],
           baseWhere: geometriesId
             ? eq(geometriesRun.geometriesId, geometriesId)
-            : exists(
+            : inArray(
+                geometriesRun.geometriesId,
                 db
                   .select({ id: geometries.id })
                   .from(geometries)
                   .where(
-                    and(
-                      eq(geometries.id, geometriesRun.geometriesId),
-                      buildConsoleReadScope(
-                        c,
-                        geometries.organizationId,
-                        geometries.visibility,
-                      ),
+                    buildConsoleReadScope(
+                      c,
+                      geometries.organizationId,
+                      geometries.visibility,
                     ),
                   ),
               ),
@@ -392,19 +391,11 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'geometries',
         resourceId: id,
         notFoundError: geometriesNotFoundError,
-      })
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: payload.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'geometries',
       })
 
       const [record] = await db
@@ -428,6 +419,83 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Geometries updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update geometries visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:geometries' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated geometries visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullGeometriesSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update geometries visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        notFoundError: geometriesNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(geometries)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(geometries.id, id),
+            eq(geometries.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw geometriesNotFoundError()
+      }
+
+      const fullRecord = await fetchFullGeometriesOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Geometries visibility updated',
+      )
     },
   )
 

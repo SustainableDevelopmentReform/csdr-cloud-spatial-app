@@ -76,7 +76,7 @@ export const createOwnedPayload = <
     name?: string
     organizationId: string
     createdByUserId: string
-    visibility?: 'private' | 'public'
+    visibility?: 'private' | 'public' | 'global'
   },
 >(
   data: T,

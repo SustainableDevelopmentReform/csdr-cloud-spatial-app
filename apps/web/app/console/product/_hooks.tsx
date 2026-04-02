@@ -86,6 +86,11 @@ export type ProductOutputDetail = NonNullable<
 export type UpdateProductPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product'][':id']['$patch']>['json']
 >
+export type UpdateProductVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['product'][':id']['visibility']['$patch']
+  >['json']
+>
 export type UpdateProductRunPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product-run'][':id']['$patch']>['json']
 >
@@ -693,6 +698,27 @@ export const useUpdateProduct = (_productId?: string) => {
     mutationFn: async (payload: UpdateProductPayload) => {
       if (!productId) return
       const res = client.api.v0.product[':id'].$patch({
+        param: { id: productId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useUpdateProductVisibility = (_productId?: string) => {
+  const { productId } = useProductParams(_productId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateProductVisibilityPayload) => {
+      if (!productId) return
+      const res = client.api.v0.product[':id'].visibility.$patch({
         param: { id: productId },
         json: payload,
       })

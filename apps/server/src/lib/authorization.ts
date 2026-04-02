@@ -186,6 +186,10 @@ const ensureExplorerAccessEnabled = (actor: RequestActor | null): void => {
   })
 }
 
+const isExternallyReadableVisibility = (visibility: AppVisibility): boolean => {
+  return visibility !== 'private'
+}
+
 export const buildConsoleReadScope = (
   c: AppContext,
   organizationIdColumn: AnyColumn,
@@ -195,7 +199,7 @@ export const buildConsoleReadScope = (
   const activeOrganizationId = requireActiveOrganization(actor)
   const scopedWhere = or(
     eq(organizationIdColumn, activeOrganizationId),
-    eq(visibilityColumn, 'public'),
+    eq(visibilityColumn, 'global'),
   )
 
   if (!scopedWhere) {
@@ -215,7 +219,7 @@ export const buildExplorerReadScope = (
   if (actor?.activeOrganizationId) {
     const scopedWhere = or(
       eq(organizationIdColumn, actor.activeOrganizationId),
-      eq(visibilityColumn, 'public'),
+      eq(visibilityColumn, 'global'),
     )
 
     if (!scopedWhere) {
@@ -227,7 +231,7 @@ export const buildExplorerReadScope = (
 
   ensureExplorerAccessEnabled(actor)
 
-  return eq(visibilityColumn, 'public')
+  return eq(visibilityColumn, 'global')
 }
 
 export const requireOwnedInsertContext = (
@@ -287,11 +291,10 @@ export const assertCanAccessLogs = (actor: RequestActor): void => {
 
 export const assertCanSetVisibility = (options: {
   actor: RequestActor
-  nextVisibility: AppVisibility | undefined
-  ownerUserId?: string | null
-  resource: TopLevelAclResourceType
+  currentVisibility: AppVisibility
+  nextVisibility: AppVisibility
 }): void => {
-  if (options.nextVisibility !== 'public') {
+  if (options.currentVisibility === options.nextVisibility) {
     return
   }
 
@@ -299,7 +302,18 @@ export const assertCanSetVisibility = (options: {
     return
   }
 
-  throw unauthorizedError('Only super admins can make this resource public.')
+  if (options.actor.organizationRole !== 'org_admin') {
+    throw unauthorizedError(
+      'Only org admins or super admins can change resource visibility.',
+    )
+  }
+
+  if (
+    options.currentVisibility === 'global' ||
+    options.nextVisibility === 'global'
+  ) {
+    throw unauthorizedError('Only super admins can change global visibility.')
+  }
 }
 
 const readTopLevelAccessRecord = async (
@@ -471,13 +485,13 @@ const canReadInConsole = (
   accessRecord: AccessRecord,
 ): boolean =>
   actor.activeOrganizationId === accessRecord.organizationId ||
-  accessRecord.visibility === 'public'
+  isExternallyReadableVisibility(accessRecord.visibility)
 
 const canReadInExplorer = (
   actor: RequestActor | null,
   accessRecord: AccessRecord,
 ): boolean => {
-  if (accessRecord.visibility === 'public') {
+  if (isExternallyReadableVisibility(accessRecord.visibility)) {
     return true
   }
 

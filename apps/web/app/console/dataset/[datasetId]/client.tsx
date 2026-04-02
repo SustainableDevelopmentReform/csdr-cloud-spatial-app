@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { updateDatasetSchema } from '@repo/schemas/crud'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { DATASETS_BASE_PATH } from '../../../../lib/paths'
@@ -23,12 +24,14 @@ import {
   useDatasetRunsLink,
   useDeleteDataset,
   useUpdateDataset,
+  useUpdateDatasetVisibility,
 } from '../_hooks'
 
 const DatasetDetails = () => {
   const { data: dataset } = useDataset()
   const productsLink = useProductsLink()
   const updateDataset = useUpdateDataset()
+  const updateDatasetVisibility = useUpdateDatasetVisibility()
   const deleteDataset = useDeleteDataset(undefined, DATASETS_BASE_PATH)
   const datasetRunsLink = useDatasetRunsLink()
   const { access } = useAccessControl()
@@ -47,6 +50,21 @@ const DatasetDetails = () => {
       form.reset(dataset)
     }
   }, [dataset, form])
+
+  const formActions = useMemo(() => {
+    if (!dataset) {
+      return []
+    }
+
+    const visibilityAction = createResourceVisibilityAction({
+      access,
+      mutation: updateDatasetVisibility,
+      successMessage: 'Dataset visibility updated',
+      visibility: dataset.visibility,
+    })
+
+    return visibilityAction ? [visibilityAction] : []
+  }, [access, dataset, updateDatasetVisibility])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
@@ -87,6 +105,7 @@ const DatasetDetails = () => {
         form={form}
         mutation={updateDataset}
         deleteMutation={deleteDataset}
+        actions={formActions}
         entityName="Dataset"
         entityNamePlural="datasets"
         readOnly={!canEdit}

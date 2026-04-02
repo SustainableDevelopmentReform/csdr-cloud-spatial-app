@@ -10,13 +10,6 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/ui/components/ui/select'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { cn } from '@repo/ui/lib/utils'
@@ -24,7 +17,6 @@ import { UseMutationResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
-import { useAccessControl } from '~/hooks/useAccessControl'
 import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning'
 import { CrudFormAction, FormAction } from './crud-form-action'
 
@@ -61,7 +53,6 @@ export const CrudForm = <
   children,
   readOnly = false,
   entityName,
-  entityNamePlural,
   readOnlyFields = ['id', 'metadata'],
   hiddenFields,
   fieldLabels,
@@ -70,18 +61,13 @@ export const CrudForm = <
 }: CrudFormProps<Data>) => {
   // Warn on navigation when the form has unsaved changes
   useUnsavedChangesWarning(form.formState.isDirty)
-  const { access } = useAccessControl()
 
-  type CrudField = keyof Data | 'visibility'
-  const canPublishPublicly = access.isSuperAdmin
+  type CrudField = keyof Data
 
   // Helper function to get field label
   const getFieldLabel = (field: CrudField): string => {
     if (fieldLabels) {
-      const label =
-        field === 'visibility'
-          ? undefined
-          : fieldLabels[field as keyof typeof fieldLabels]
+      const label = fieldLabels[field as keyof typeof fieldLabels]
       if (label) return label
     }
     // Convert field name to title case
@@ -115,7 +101,7 @@ export const CrudForm = <
         buttonCancelTitle: 'Cancel',
       },
     }
-  }, [entityName, deleteMutation, form])
+  }, [deleteMutation, entityName, form, readOnly])
 
   const actions = useMemo(() => {
     return [...(actionsProp ?? []), deleteAction ?? undefined]
@@ -250,49 +236,6 @@ export const CrudForm = <
                   <FormMessage />
                 </FormItem>
               )}
-            />
-          )}
-
-          {shouldShowField('visibility') && (
-            <FormField
-              control={form.control}
-              name={'visibility' as Path<Data>}
-              render={({ field }) => {
-                const visibilityValue =
-                  typeof field.value === 'string'
-                    ? field.value
-                    : canPublishPublicly
-                      ? undefined
-                      : 'private'
-                const canShowPublicOption =
-                  canPublishPublicly || field.value === 'public'
-
-                return (
-                  <FormItem>
-                    <FormLabel>{getFieldLabel('visibility')}</FormLabel>
-                    <Select
-                      value={visibilityValue}
-                      onValueChange={field.onChange}
-                      disabled={
-                        isReadOnlyField('visibility') || !canPublishPublicly
-                      }
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select visibility" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="private">Private</SelectItem>
-                        {canShowPublicOption ? (
-                          <SelectItem value="public">Public</SelectItem>
-                        ) : null}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )
-              }}
             />
           )}
 

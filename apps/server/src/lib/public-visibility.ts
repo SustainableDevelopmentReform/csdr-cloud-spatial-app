@@ -1,8 +1,9 @@
-import { eq } from 'drizzle-orm'
+import type { AppVisibility } from './access-control'
 import { ServerError } from './error'
 import { db } from './db'
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type ExternallyVisibleVisibility = Exclude<AppVisibility, 'private'>
 
 type DependencyIssue = {
   id: string
@@ -14,7 +15,7 @@ type DependencyIssue = {
     | 'indicator'
     | 'derivedIndicator'
     | 'indicatorCategory'
-  visibility: 'private' | 'public'
+  visibility: AppVisibility
 }
 
 const toIssueKey = (issue: DependencyIssue) =>
@@ -24,7 +25,7 @@ const appendIssue = (
   issueMap: Map<string, DependencyIssue>,
   issue: DependencyIssue | null,
 ) => {
-  if (!issue || issue.visibility === 'public') {
+  if (!issue || issue.visibility !== 'private') {
     return
   }
 
@@ -33,13 +34,14 @@ const appendIssue = (
 
 const throwDependencyError = (
   resourceType: 'dashboard' | 'report' | 'derivedIndicator',
+  targetVisibility: ExternallyVisibleVisibility,
   issues: DependencyIssue[],
 ) => {
   throw new ServerError({
     statusCode: 400,
-    message: `Cannot make ${resourceType} public`,
+    message: `Cannot make ${resourceType} ${targetVisibility}`,
     description:
-      'This resource depends on private upstream data. Make every dependency public first.',
+      'This resource depends on private upstream data. Make every dependency public or global first.',
     data: {
       dependencies: issues.map((issue) => ({
         id: issue.id,
@@ -57,47 +59,47 @@ const collectUsageDependencyIssues = (
       product: {
         id: string
         name: string
-        visibility: 'private' | 'public'
+        visibility: AppVisibility
         dataset: {
           id: string
           name: string
-          visibility: 'private' | 'public'
+          visibility: AppVisibility
         } | null
         geometries: {
           id: string
           name: string
-          visibility: 'private' | 'public'
+          visibility: AppVisibility
         } | null
       } | null
     } | null
     indicator: {
       id: string
       name: string
-      visibility: 'private' | 'public'
+      visibility: AppVisibility
       category: {
         id: string
         name: string
-        visibility: 'private' | 'public'
+        visibility: AppVisibility
       } | null
     } | null
     derivedIndicator: {
       id: string
       name: string
-      visibility: 'private' | 'public'
+      visibility: AppVisibility
       category: {
         id: string
         name: string
-        visibility: 'private' | 'public'
+        visibility: AppVisibility
       } | null
       indicators: {
         indicator: {
           id: string
           name: string
-          visibility: 'private' | 'public'
+          visibility: AppVisibility
           category: {
             id: string
             name: string
-            visibility: 'private' | 'public'
+            visibility: AppVisibility
           } | null
         } | null
       }[]
@@ -219,9 +221,10 @@ const collectUsageDependencyIssues = (
   return Array.from(issues.values())
 }
 
-export const assertDerivedIndicatorDependenciesPublic = async (
+export const assertDerivedIndicatorDependenciesExternallyVisible = async (
   tx: DbTransaction,
   derivedIndicatorId: string,
+  targetVisibility: ExternallyVisibleVisibility,
 ): Promise<void> => {
   const record = await tx.query.derivedIndicator.findFirst({
     where: (table, { eq }) => eq(table.id, derivedIndicatorId),
@@ -306,13 +309,14 @@ export const assertDerivedIndicatorDependenciesPublic = async (
   const dependencyIssues = Array.from(issues.values())
 
   if (dependencyIssues.length > 0) {
-    throwDependencyError('derivedIndicator', dependencyIssues)
+    throwDependencyError('derivedIndicator', targetVisibility, dependencyIssues)
   }
 }
 
-export const assertReportDependenciesPublic = async (
+export const assertReportDependenciesExternallyVisible = async (
   tx: DbTransaction,
   reportId: string,
+  targetVisibility: ExternallyVisibleVisibility,
 ): Promise<void> => {
   const usages = await tx.query.reportIndicatorUsage.findMany({
     where: (table, { eq }) => eq(table.reportId, reportId),
@@ -402,13 +406,14 @@ export const assertReportDependenciesPublic = async (
   const dependencyIssues = collectUsageDependencyIssues(usages)
 
   if (dependencyIssues.length > 0) {
-    throwDependencyError('report', dependencyIssues)
+    throwDependencyError('report', targetVisibility, dependencyIssues)
   }
 }
 
-export const assertDashboardDependenciesPublic = async (
+export const assertDashboardDependenciesExternallyVisible = async (
   tx: DbTransaction,
   dashboardId: string,
+  targetVisibility: ExternallyVisibleVisibility,
 ): Promise<void> => {
   const usages = await tx.query.dashboardIndicatorUsage.findMany({
     where: (table, { eq }) => eq(table.dashboardId, dashboardId),
@@ -498,6 +503,6 @@ export const assertDashboardDependenciesPublic = async (
   const dependencyIssues = collectUsageDependencyIssues(usages)
 
   if (dependencyIssues.length > 0) {
-    throwDependencyError('dashboard', dependencyIssues)
+    throwDependencyError('dashboard', targetVisibility, dependencyIssues)
   }
 }

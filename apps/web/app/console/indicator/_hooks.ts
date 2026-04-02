@@ -50,10 +50,20 @@ export type UpdateMeasuredIndicatorPayload = NonNullable<
     Client['api']['v0']['indicator']['measured'][':id']['$patch']
   >['json']
 >
+export type UpdateMeasuredIndicatorVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['measured'][':id']['visibility']['$patch']
+  >['json']
+>
 
 export type UpdateDerivedIndicatorPayload = NonNullable<
   InferRequestType<
     Client['api']['v0']['indicator']['derived'][':id']['$patch']
+  >['json']
+>
+export type UpdateDerivedIndicatorVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['derived'][':id']['visibility']['$patch']
   >['json']
 >
 
@@ -373,6 +383,27 @@ export const useUpdateMeasuredIndicator = (_indicatorId?: string) => {
   })
 }
 
+export const useUpdateMeasuredIndicatorVisibility = (_indicatorId?: string) => {
+  const { measuredIndicatorId } = useIndicatorParams(_indicatorId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateMeasuredIndicatorVisibilityPayload) => {
+      if (!measuredIndicatorId) return
+      const res = client.api.v0.indicator.measured[':id'].visibility.$patch({
+        param: { id: measuredIndicatorId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: indicatorQueryKeys.all,
+      })
+    },
+  })
+}
+
 export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
   const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
   const queryClient = useQueryClient()
@@ -381,6 +412,27 @@ export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
     mutationFn: async (payload: UpdateDerivedIndicatorPayload) => {
       if (!derivedIndicatorId) return
       const res = client.api.v0.indicator.derived[':id'].$patch({
+        param: { id: derivedIndicatorId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: indicatorQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const useUpdateDerivedIndicatorVisibility = (_indicatorId?: string) => {
+  const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateDerivedIndicatorVisibilityPayload) => {
+      if (!derivedIndicatorId) return
+      const res = client.api.v0.indicator.derived[':id'].visibility.$patch({
         param: { id: derivedIndicatorId },
         json: payload,
       })

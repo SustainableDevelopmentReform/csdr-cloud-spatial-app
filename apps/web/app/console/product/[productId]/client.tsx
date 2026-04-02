@@ -6,6 +6,7 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../components/form/crud-form-action'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
@@ -25,11 +26,13 @@ import {
   useProduct,
   useProductRunsLink,
   useUpdateProduct,
+  useUpdateProductVisibility,
 } from '../_hooks'
 
 const ProductDetails = () => {
   const { data: product } = useProduct()
   const updateProduct = useUpdateProduct()
+  const updateProductVisibility = useUpdateProductVisibility()
   const deleteProduct = useDeleteProduct(undefined, PRODUCTS_BASE_PATH)
   const productRunsLink = useProductRunsLink()
   const { access } = useAccessControl()
@@ -39,19 +42,32 @@ const ProductDetails = () => {
     createdByUserId: getCreatedByUserId(product),
   })
 
-  const formActions: CrudFormAction[] = useMemo(
-    () =>
-      canEdit
-        ? [
-            {
-              title: 'Refresh',
-              description: 'Refresh the product main run summary',
-              component: <RefreshProductSummary run={product?.mainRun} />,
-            },
-          ]
-        : [],
-    [canEdit, product?.mainRun],
-  )
+  const formActions: CrudFormAction[] = useMemo(() => {
+    const actions: CrudFormAction[] = []
+
+    if (canEdit) {
+      actions.push({
+        title: 'Refresh',
+        description: 'Refresh the product main run summary',
+        component: <RefreshProductSummary run={product?.mainRun} />,
+      })
+    }
+
+    if (product) {
+      const visibilityAction = createResourceVisibilityAction({
+        access,
+        mutation: updateProductVisibility,
+        successMessage: 'Product visibility updated',
+        visibility: product.visibility,
+      })
+
+      if (visibilityAction) {
+        actions.push(visibilityAction)
+      }
+    }
+
+    return actions
+  }, [access, canEdit, product, updateProductVisibility])
 
   const form = useForm({
     resolver: zodResolver(updateProductSchema),

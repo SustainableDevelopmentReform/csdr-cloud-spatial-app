@@ -26,8 +26,9 @@ import {
 } from '../schemas/util'
 import {
   createIndicatorCategorySchema,
-  updateIndicatorCategorySchema,
   indicatorCategorySchema,
+  updateIndicatorCategorySchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 
 export const indicatorCategoryQuery = {
@@ -291,19 +292,11 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const data = c.req.valid('json')
-      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'indicatorCategory',
         resourceId: id,
         notFoundError: indicatorCategoryNotFoundError,
-      })
-
-      assertCanSetVisibility({
-        actor,
-        nextVisibility: data.visibility,
-        ownerUserId: accessRecord.createdByUserId,
-        resource: 'indicatorCategory',
       })
 
       if (data.parentId) {
@@ -340,6 +333,89 @@ const app = createOpenAPIApp()
         fullRecord,
         200,
         'Indicator category updated',
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update indicator category visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [
+        authMiddleware({
+          permission: 'write:indicatorCategory',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated indicator category visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(indicatorCategorySchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Indicator category not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to update indicator category visibility',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicatorCategory',
+        resourceId: id,
+        notFoundError: indicatorCategoryNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(indicatorCategory)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(indicatorCategory.id, id),
+            eq(indicatorCategory.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw indicatorCategoryNotFoundError()
+      }
+
+      const fullRecord = await fetchFullIndicatorCategoryOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Indicator category visibility updated',
       )
     },
   )

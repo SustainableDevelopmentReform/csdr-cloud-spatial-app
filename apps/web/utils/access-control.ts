@@ -1,3 +1,4 @@
+import { visibilitySchema } from '@repo/schemas/crud'
 import { z } from 'zod'
 
 export const organizationRoleSchema = z.enum([
@@ -42,6 +43,8 @@ export type SessionAccess = {
   userId: string | null
 }
 
+export type ResourceVisibility = z.infer<typeof visibilitySchema>
+
 export type ConsoleResource =
   | 'dashboard'
   | 'dataset'
@@ -63,6 +66,9 @@ const globalUserRoleLabels: Record<GlobalUserRole, string> = {
   super_admin: 'Super admin',
   user: 'User',
 }
+
+const allVisibilityOptions: ResourceVisibility[] = [...visibilitySchema.options]
+const orgAdminVisibilityOptions: ResourceVisibility[] = ['private', 'public']
 
 export const buildSessionAccess = (input: {
   activeMember: ActiveMember | null
@@ -158,13 +164,67 @@ export const formatGlobalUserRole = (
 }
 
 export const formatVisibility = (
-  visibility: 'private' | 'public' | null | undefined,
+  visibility: ResourceVisibility | null | undefined,
 ): string => {
-  if (!visibility) {
-    return 'Private'
+  switch (visibility) {
+    case 'global':
+      return 'Global'
+    case 'public':
+      return 'Public'
+    case 'private':
+    case null:
+    case undefined:
+      return 'Private'
+    default: {
+      const exhaustiveCheck: never = visibility
+      return exhaustiveCheck
+    }
+  }
+}
+
+export const getConsoleResourceVisibilityOptions = (
+  access: SessionAccess,
+  currentVisibility: ResourceVisibility,
+): ResourceVisibility[] => {
+  if (access.isSuperAdmin) {
+    return allVisibilityOptions
   }
 
-  return visibility === 'public' ? 'Public' : 'Private'
+  if (!access.isOrgAdmin) {
+    return []
+  }
+
+  if (currentVisibility === 'global') {
+    return ['global']
+  }
+
+  return orgAdminVisibilityOptions
+}
+
+export const canChangeConsoleResourceVisibility = (
+  access: SessionAccess,
+  currentVisibility: ResourceVisibility,
+): boolean => {
+  if (access.isSuperAdmin) {
+    return true
+  }
+
+  return access.isOrgAdmin && currentVisibility !== 'global'
+}
+
+export const getConsoleResourceVisibilityDescription = (
+  access: SessionAccess,
+  currentVisibility: ResourceVisibility,
+): string => {
+  if (access.isSuperAdmin) {
+    return 'Private keeps the resource inside its organization. Public makes it readable to anyone. Global also lists it in every organization and the public explorer.'
+  }
+
+  if (access.isOrgAdmin && currentVisibility !== 'global') {
+    return 'Private keeps the resource inside its organization. Public makes it readable to anyone.'
+  }
+
+  return 'This resource is global. Only super admins can change global visibility.'
 }
 
 export const getCreatedByUserId = (resource: unknown): string | undefined => {
