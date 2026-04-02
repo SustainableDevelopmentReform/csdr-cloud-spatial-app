@@ -72,8 +72,8 @@ export const buildSessionAccess = (input: {
     role?: string | null
   } | null
 }): SessionAccess => {
-  const organizationRole = input.activeMember?.role ?? null
   const isSuperAdmin = input.user?.role === 'super_admin'
+  const organizationRole = input.activeMember?.role ?? null
 
   return {
     userId: input.user?.id ?? null,

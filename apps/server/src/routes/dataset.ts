@@ -127,7 +127,7 @@ const app = createOpenAPIApp()
       const datasetIdsArray = normalizeFilterValues(datasetIds)
       const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
       const baseWhere = and(
-        buildConsoleReadScope(c, dataset.organizationId),
+        buildConsoleReadScope(c, dataset.organizationId, dataset.visibility),
         datasetIdsArray.length > 0
           ? inArray(dataset.id, datasetIdsArray)
           : undefined,

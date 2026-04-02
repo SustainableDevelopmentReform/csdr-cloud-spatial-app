@@ -163,7 +163,7 @@ const app = createOpenAPIApp()
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
       const baseWhere = and(
-        buildConsoleReadScope(c, product.organizationId),
+        buildConsoleReadScope(c, product.organizationId, product.visibility),
         datasetIds.length > 0
           ? inArray(product.datasetId, datasetIds)
           : undefined,

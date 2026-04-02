@@ -279,7 +279,11 @@ const app = createOpenAPIApp()
         normalizeFilterValues(excludeIndicatorIds)
       const categoryIdsArray = normalizeFilterValues(categoryId)
       const measuredBaseWhere = and(
-        buildConsoleReadScope(c, indicator.organizationId),
+        buildConsoleReadScope(
+          c,
+          indicator.organizationId,
+          indicator.visibility,
+        ),
         indicatorIdsArray.length > 0
           ? inArray(indicator.id, indicatorIdsArray)
           : undefined,
@@ -291,7 +295,11 @@ const app = createOpenAPIApp()
           : undefined,
       )
       const derivedBaseWhere = and(
-        buildConsoleReadScope(c, derivedIndicator.organizationId),
+        buildConsoleReadScope(
+          c,
+          derivedIndicator.organizationId,
+          derivedIndicator.visibility,
+        ),
         indicatorIdsArray.length > 0
           ? inArray(derivedIndicator.id, indicatorIdsArray)
           : undefined,

@@ -1,6 +1,8 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { useConfig } from '~/components/providers'
 import { useAuthClient } from './useAuthClient'
 import {
   activeMemberSchema,
@@ -10,15 +12,49 @@ import {
 import { z } from 'zod'
 
 export const useAccessControl = () => {
+  const { apiBaseUrl } = useConfig()
   const authClient = useAuthClient()
   const session = authClient.useSession()
   const activeMember = authClient.useActiveMember()
   const activeOrganization = authClient.useActiveOrganization()
   const organizations = authClient.useListOrganizations()
+  const isSuperAdmin = session.data?.user?.role === 'super_admin'
   const organizationsSchema = useMemo(
     () => z.array(organizationSummarySchema),
     [],
   )
+  const superAdminOrganizationSchema = useMemo(
+    () =>
+      organizationSummarySchema.extend({
+        createdAt: z.string(),
+        memberCount: z.number().int(),
+      }),
+    [],
+  )
+  const superAdminOrganizationsQuery = useQuery({
+    queryKey: ['access-control', 'organizations', 'super-admin'],
+    enabled: isSuperAdmin,
+    queryFn: async () => {
+      const response = await fetch(`${apiBaseUrl}/api/v0/organization`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to load organizations')
+      }
+
+      const payload = await response.json()
+      const parsed = z
+        .object({
+          data: z.array(superAdminOrganizationSchema),
+        })
+        .parse(payload)
+
+      return parsed.data.map((currentOrganization) =>
+        organizationSummarySchema.parse(currentOrganization),
+      )
+    },
+  })
 
   const parsedActiveMember = useMemo(() => {
     const parsed = activeMemberSchema.safeParse(activeMember.data)
@@ -31,9 +67,18 @@ export const useAccessControl = () => {
   }, [activeOrganization.data])
 
   const parsedOrganizations = useMemo(() => {
+    if (isSuperAdmin) {
+      return superAdminOrganizationsQuery.data ?? []
+    }
+
     const parsed = organizationsSchema.safeParse(organizations.data)
     return parsed.success ? parsed.data : []
-  }, [organizations.data, organizationsSchema])
+  }, [
+    isSuperAdmin,
+    organizations.data,
+    organizationsSchema,
+    superAdminOrganizationsQuery.data,
+  ])
 
   const access = useMemo(
     () =>
@@ -55,10 +100,15 @@ export const useAccessControl = () => {
       ...activeOrganization,
       data: parsedActiveOrganization,
     },
-    organizations: {
-      ...organizations,
-      data: parsedOrganizations,
-    },
+    organizations: isSuperAdmin
+      ? {
+          ...superAdminOrganizationsQuery,
+          data: parsedOrganizations,
+        }
+      : {
+          ...organizations,
+          data: parsedOrganizations,
+        },
     session,
   }
 }

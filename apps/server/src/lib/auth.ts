@@ -21,6 +21,7 @@ import {
   parseOrganizationRoles,
 } from './access-control'
 import {
+  sendOrganizationInvitationEmail,
   sendResetPasswordEmail,
   sendTwoFactorOTPEmail,
   sendVerificationEmail,
@@ -145,6 +146,19 @@ const plugins = [
     creatorRole: 'org_creator',
     ac: appOrganizationAccessControl,
     roles: appOrganizationRoles,
+    sendInvitationEmail: async (data) => {
+      const acceptUrl = new URL(`/accept-invitation/${data.id}`, env.APP_URL)
+
+      await sendOrganizationInvitationEmail({
+        acceptUrl: acceptUrl.toString(),
+        email: data.email,
+        invitationId: data.id,
+        inviterEmail: data.inviter.user.email,
+        inviterName: data.inviter.user.name,
+        organizationName: data.organization.name,
+        role: Array.isArray(data.role) ? data.role.join(', ') : data.role,
+      })
+    },
     organizationHooks: {
       beforeAddMember: async ({ member }) => {
         const firstRole = parseOrganizationRoles(member.role)[0] ?? 'org_viewer'

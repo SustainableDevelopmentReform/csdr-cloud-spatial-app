@@ -84,6 +84,7 @@ const DatasetRunDetails = () => {
         entityName="Dataset Run"
         entityNamePlural="dataset runs"
         actions={formActions}
+        hiddenFields={['visibility']}
         successMessage="Updated Dataset Run"
       >
         <CrudFormRunFields form={form} readOnlyFields={'all'} />

@@ -25,7 +25,7 @@ const FRONTEND_ORIGIN = 'http://localhost:3000'
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../drizzle/', import.meta.url))
 
 export const seededIds = {
-  organization: 'default-organization',
+  organization: 'csdr',
   adminUser: 'seed-admin',
   indicatorCategory: 'forest',
   indicator: 'forest-cover-area',
@@ -194,13 +194,16 @@ const seedBaseData = async (db: DbModule['db']) => {
   const timePoint2021 = new Date('2021-01-01T00:00:00.000Z')
   const timePoint2022 = new Date('2022-01-01T00:00:00.000Z')
 
-  await db.insert(schema.organization).values({
-    id: seededIds.organization,
-    slug: 'default-organization',
-    name: 'Default Organization',
-    createdAt: now,
-    metadata: '{}',
-  })
+  await db
+    .insert(schema.organization)
+    .values({
+      id: seededIds.organization,
+      slug: 'csdr',
+      name: 'CSDR',
+      createdAt: now,
+      metadata: '{}',
+    })
+    .onConflictDoNothing()
 
   await db.insert(schema.user).values({
     id: seededIds.adminUser,

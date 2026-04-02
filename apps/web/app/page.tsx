@@ -2,7 +2,6 @@ import { Button } from '@repo/ui/components/ui/button'
 import { match } from 'ts-pattern'
 import Link from '~/components/link'
 import { getUserServerSession } from '~/utils/getUserServerSession'
-import { PUBLIC_EXPLORER_BASE_PATH } from '~/lib/paths'
 import { SignOutButton } from '../components/sign-out-button'
 import { redirect } from 'next/navigation'
 
@@ -30,9 +29,6 @@ export default async function Page() {
               .otherwise(() => (
                 <SignOutButton />
               ))}
-          </Button>
-          <Button className="px-8" variant="outline" asChild>
-            <Link href={PUBLIC_EXPLORER_BASE_PATH}>Public Explorer</Link>
           </Button>
         </div>
       </section>

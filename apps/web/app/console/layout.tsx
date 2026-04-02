@@ -5,12 +5,11 @@ import {
   DASHBOARDS_BASE_PATH,
   DATASETS_BASE_PATH,
   GEOMETRIES_BASE_PATH,
-  LOGS_BASE_PATH,
   PRODUCTS_BASE_PATH,
-  PUBLIC_EXPLORER_BASE_PATH,
   REPORTS_BASE_PATH,
   USERS_BASE_PATH,
   INDICATORS_BASE_PATH,
+  LOGS_BASE_PATH,
   WORKSPACE_BASE_PATH,
 } from '../../lib/paths'
 import { getUserServerSession } from '../../utils/getUserServerSession'
@@ -19,6 +18,7 @@ import {
   canManageWorkspace,
   canViewLogs,
 } from '../../utils/access-control'
+import { OrgSwitcher } from './_components/org-switcher'
 import { UserDropdown } from './_components/user-dropdown'
 
 const SIDEBAR_CONFIG = [
@@ -83,12 +83,6 @@ const SIDEBAR_CONFIG = [
     show: (_isSuperAdmin: boolean, _canManage: boolean, canReadLogs: boolean) =>
       canReadLogs,
   },
-  {
-    text: 'Public Explorer',
-    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
-    href: PUBLIC_EXPLORER_BASE_PATH,
-    show: () => true,
-  },
 ]
 
 const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
@@ -102,34 +96,25 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
   return (
     <>
       <main>
-        <nav className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-gray-200 bg-white/90 px-10 backdrop-blur">
+        <nav className="flex items-center justify-between px-10 h-20 top-0 left-0 right-0">
           <Link
             href="/console"
-            className="block text-2xl font-mono font-semibold"
+            className="text-2xl font-mono font-semibold block"
           >
             CSDR Cloud Spatial App
           </Link>
-          <UserDropdown />
-        </nav>
-        <aside className="fixed bottom-0 left-0 top-20 w-64 border-r border-gray-200 bg-gray-50/60 px-8 py-6">
-          <div className="mb-6 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-            <div className="text-xs uppercase tracking-[0.25em] text-gray-500">
-              Active Workspace
-            </div>
-            <div className="mt-2 text-lg font-medium">
-              {session.activeOrganization?.name ?? 'No workspace selected'}
-            </div>
-            <div className="mt-1 text-sm text-gray-500">
-              {access.organizationRole?.replace('org_', '').replace('_', ' ') ??
-                'No active role'}
-            </div>
+          <div className="flex items-center gap-4">
+            <OrgSwitcher />
+            <UserDropdown />
           </div>
-          <div className="grid gap-2">
+        </nav>
+        <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">
+          <div className="grid gap-3">
             {SIDEBAR_CONFIG.map(({ href, text, show, icon }) =>
               show(access.isSuperAdmin, canManage, canReadLogs) ? (
                 <Link
                   key={href}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white hover:text-gray-950 data-[active=true]:bg-white data-[active=true]:text-gray-950 data-[active=true]:shadow-sm"
+                  className="text-lg hover:underline data-[active=true]:underline"
                   href={href}
                 >
                   <div className="flex items-center gap-2">
@@ -141,7 +126,7 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
             )}
           </div>
         </aside>
-        <div className="fixed bottom-0 left-64 right-0 top-20 overflow-auto px-10 py-6">
+        <div className="fixed top-20 left-60 bottom-0 right-0 overflow-auto py-6 px-10">
           {children}
         </div>
       </main>

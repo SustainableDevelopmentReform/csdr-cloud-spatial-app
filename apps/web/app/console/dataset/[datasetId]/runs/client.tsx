@@ -63,6 +63,7 @@ const DatasetRunFeature = () => {
           buttonText="Add Dataset Run"
           entityName="Dataset Run"
           entityNamePlural="dataset runs"
+          hiddenFields={['visibility']}
         >
           <CrudFormRunFields form={form} />
         </CrudFormDialog>

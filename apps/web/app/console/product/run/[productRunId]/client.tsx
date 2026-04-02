@@ -123,6 +123,7 @@ const ProductRunDetails = () => {
           entityName="Product Run"
           entityNamePlural="product runs"
           actions={formActions}
+          hiddenFields={['visibility']}
           successMessage="Updated Product Run"
         >
           <CrudFormRunFields form={form} readOnlyFields={'all'} />

@@ -55,7 +55,7 @@ export const env = createEnv({
     ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID: z
       .string()
       .optional()
-      .default('default-organization'),
+      .default('csdr'),
     ACCESS_CONTROL_BOOTSTRAP_USER_ID: z
       .string()
       .optional()

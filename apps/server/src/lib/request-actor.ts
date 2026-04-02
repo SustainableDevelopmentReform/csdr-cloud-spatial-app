@@ -71,14 +71,26 @@ export const loadRequestActor = async (input: {
     persistedSession?.activeOrganizationId ??
     null
 
+  const isSuperAdmin = isSuperAdminRole(user.role)
+  const requestedMembership =
+    requestedActiveOrganizationId === null
+      ? null
+      : (memberships.find(
+          (member) => member.organizationId === requestedActiveOrganizationId,
+        ) ?? null)
   const fallbackMembership = memberships[0] ?? null
   const activeMember =
-    memberships.find(
-      (member) => member.organizationId === requestedActiveOrganizationId,
-    ) ?? fallbackMembership
-
-  const activeOrganizationId =
-    requestedActiveOrganizationId ?? activeMember?.organizationId ?? null
+    requestedActiveOrganizationId === null
+      ? fallbackMembership
+      : isSuperAdmin
+        ? requestedMembership
+        : (requestedMembership ?? fallbackMembership)
+  const activeOrganizationId = isSuperAdmin
+    ? (requestedActiveOrganizationId ?? activeMember?.organizationId ?? null)
+    : (activeMember?.organizationId ?? null)
+  const organizationRole = getHighestOrganizationRole(
+    activeMember?.role ?? null,
+  )
 
   return {
     user,
@@ -86,8 +98,8 @@ export const loadRequestActor = async (input: {
     memberships,
     activeMember,
     activeOrganizationId,
-    organizationRole: getHighestOrganizationRole(activeMember?.role ?? null),
-    isSuperAdmin: isSuperAdminRole(user.role),
+    organizationRole,
+    isSuperAdmin,
     twoFactorEnabled: persistedUser?.twoFactorEnabled === true,
   }
 }
@@ -122,22 +134,6 @@ export const requireOrganizationMembership = (
   actor: RequestActor,
   organizationId: string,
 ): AppMember => {
-  if (actor.isSuperAdmin) {
-    if (
-      actor.activeMember &&
-      actor.activeMember.organizationId === organizationId
-    ) {
-      return actor.activeMember
-    }
-
-    throw new ServerError({
-      statusCode: 403,
-      message: 'User is not authorized',
-      description:
-        'Super admins must select the target organization as active before performing this action.',
-    })
-  }
-
   const membership = actor.memberships.find(
     (member) => member.organizationId === organizationId,
   )

@@ -166,7 +166,11 @@ const app = createOpenAPIApp()
       const { meta, query } = await parseQuery(report, c.req.valid('query'), {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
-        baseWhere: buildConsoleReadScope(c, report.organizationId),
+        baseWhere: buildConsoleReadScope(
+          c,
+          report.organizationId,
+          report.visibility,
+        ),
       })
 
       const data = await db.query.report.findMany({

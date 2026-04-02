@@ -112,6 +112,7 @@ const app = createOpenAPIApp()
       const scopeWhere = buildConsoleReadScope(
         c,
         indicatorCategory.organizationId,
+        indicatorCategory.visibility,
       )
       const totalCount = await db
         .select({

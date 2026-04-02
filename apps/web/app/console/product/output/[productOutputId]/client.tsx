@@ -103,6 +103,7 @@ const ProductRunDetails = () => {
         mutation={updateProductOutput}
         entityName="Product Output"
         entityNamePlural="product outputs"
+        hiddenFields={['visibility']}
         successMessage="Updated Product Output"
       />
     </div>

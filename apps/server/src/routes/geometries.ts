@@ -127,7 +127,11 @@ const app = createOpenAPIApp()
       const excludeGeometriesIdsArray =
         normalizeFilterValues(excludeGeometriesIds)
       const baseWhere = and(
-        buildConsoleReadScope(c, geometries.organizationId),
+        buildConsoleReadScope(
+          c,
+          geometries.organizationId,
+          geometries.visibility,
+        ),
         geometriesIdsArray.length > 0
           ? inArray(geometries.id, geometriesIdsArray)
           : undefined,

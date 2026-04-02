@@ -36,6 +36,7 @@ import indicatorCategory from './routes/indicatorCategory'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
 import logs from './routes/logs'
+import organization from './routes/organization'
 import publicRoutes from './routes/public'
 
 const isProduction = env.NODE_ENV === 'production'
@@ -124,6 +125,7 @@ const v0ApiBase = app
   .route('/product-output', productOutput)
   .route('/indicator', indicator)
   .route('/indicator-category', indicatorCategory)
+  .route('/organization', organization)
   .route('/report', report)
   .route('/dashboard', dashboard)
   .route('/logs', logs)

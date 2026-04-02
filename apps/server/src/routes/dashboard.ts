@@ -118,7 +118,11 @@ const app = createOpenAPIApp()
         {
           defaultOrderBy: desc(dashboard.createdAt),
           searchableColumns: [dashboard.name, dashboard.description],
-          baseWhere: buildConsoleReadScope(c, dashboard.organizationId),
+          baseWhere: buildConsoleReadScope(
+            c,
+            dashboard.organizationId,
+            dashboard.visibility,
+          ),
         },
       )
 

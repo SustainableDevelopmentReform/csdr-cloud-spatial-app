@@ -86,6 +86,7 @@ const GeometriesRunDetails = () => {
         mutation={updateGeometryOutput}
         entityName="Geometry Output"
         entityNamePlural="Geometry Outputs"
+        hiddenFields={['visibility']}
         readOnlyFields={['id', 'metadata', 'name']}
         successMessage="Updated Geometry Output"
       >

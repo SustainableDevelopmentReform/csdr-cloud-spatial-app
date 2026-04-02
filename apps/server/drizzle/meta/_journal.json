@@ -211,6 +211,13 @@
       "when": 1774435800000,
       "tag": "0029_solid_access_control",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1774522500000,
+      "tag": "0030_csdr_default_org",
+      "breakpoints": true
     }
   ]
 }

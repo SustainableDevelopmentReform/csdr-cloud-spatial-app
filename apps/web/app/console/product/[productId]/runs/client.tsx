@@ -104,6 +104,7 @@ const ProductRunFeature = () => {
             buttonText="Add Product Run"
             entityName="Product Run"
             entityNamePlural="product runs"
+            hiddenFields={['visibility']}
           >
             {product.dataset && (
               <FormField

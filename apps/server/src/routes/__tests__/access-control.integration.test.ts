@@ -2,7 +2,14 @@ process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC = 'true'
 
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { dataset, invitation, member, organization, user } from '~/schemas/db'
+import {
+  dataset,
+  invitation,
+  member,
+  organization,
+  session,
+  user,
+} from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import { expectJsonResponse } from './test-helpers'
 
@@ -96,6 +103,345 @@ describe('access control integration', () => {
     )
   })
 
+  it('allows only super admins to create organizations without creating a super-admin membership', async () => {
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.organization.$post({
+        json: {
+          name: 'Blocked Organization',
+          slug: 'blocked-organization',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+
+    const createdOrganization = await expectJsonResponse<{
+      id: string
+      memberCount: number
+      name: string
+      slug: string
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization.$post({
+        json: {
+          name: 'Managed Organization',
+          slug: 'managed-organization',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Organization created',
+      },
+    )
+
+    expect(createdOrganization.data.memberCount).toBe(0)
+
+    const superAdminUser = await db.query.user.findFirst({
+      where: eq(user.email, 'super-admin@example.com'),
+    })
+
+    const createdMembership = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, createdOrganization.data.id),
+          eq(table.userId, requireValue(superAdminUser?.id, 'super admin id')),
+        ),
+    })
+
+    expect(createdMembership).toBeUndefined()
+
+    const organizationList = await expectJsonResponse<
+      {
+        id: string
+        name: string
+        slug: string
+      }[]
+    >(await createAppClient(superAdminHeaders).api.v0.organization.$get(), {
+      status: 200,
+      message: 'OK',
+    })
+
+    expect(
+      organizationList.data.some(
+        (currentOrganization) =>
+          currentOrganization.slug === 'managed-organization',
+      ),
+    ).toBe(true)
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.organization.$get(),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+  })
+
+  it('lets super admins list all organizations and activate an organization they do not already belong to', async () => {
+    const superAdminAuth = createTestAuthClient(superAdminHeaders)
+    const superAdminSession = await superAdminAuth.client.getSession()
+    expect(superAdminSession.error).toBeNull()
+
+    const detachedOrganizationId = 'detached-organization'
+    await db.insert(organization).values({
+      id: detachedOrganizationId,
+      slug: detachedOrganizationId,
+      name: 'Detached Organization',
+      createdAt: new Date('2025-02-01T00:00:00.000Z'),
+      metadata: '{}',
+    })
+
+    const superAdminUser = await db.query.user.findFirst({
+      where: eq(user.email, 'super-admin@example.com'),
+    })
+    expect(superAdminUser).toBeDefined()
+
+    const existingDetachedMembership = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, detachedOrganizationId),
+          eq(table.userId, requireValue(superAdminUser?.id, 'super admin id')),
+        ),
+    })
+    expect(existingDetachedMembership).toBeUndefined()
+
+    const organizationList = await expectJsonResponse<
+      {
+        id: string
+        slug: string
+      }[]
+    >(await createAppClient(superAdminHeaders).api.v0.organization.$get(), {
+      status: 200,
+      message: 'OK',
+    })
+    expect(
+      organizationList.data.some(
+        (currentOrganization) =>
+          currentOrganization.id === detachedOrganizationId,
+      ),
+    ).toBe(true)
+
+    await expectJsonResponse(
+      await app.request('/api/v0/organization/active', {
+        method: 'POST',
+        headers: createAuthPostHeaders(superAdminHeaders),
+        body: JSON.stringify({
+          organizationId: detachedOrganizationId,
+        }),
+      }),
+      {
+        status: 200,
+        message: 'Active organization updated',
+      },
+    )
+
+    const createdDetachedMembership = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, detachedOrganizationId),
+          eq(table.userId, requireValue(superAdminUser?.id, 'super admin id')),
+        ),
+    })
+    expect(createdDetachedMembership).toBeUndefined()
+
+    const persistedSession = await db.query.session.findFirst({
+      where: eq(
+        session.id,
+        requireValue(
+          superAdminSession.data?.session.id,
+          'super admin session id',
+        ),
+      ),
+    })
+    expect(persistedSession?.activeOrganizationId).toBe(detachedOrganizationId)
+  })
+
+  it('lets super admins manage members and invitations in any organization without explicit membership', async () => {
+    const detachedOrganizationId = 'super-admin-managed-organization'
+    await db.insert(organization).values({
+      id: detachedOrganizationId,
+      slug: detachedOrganizationId,
+      name: 'Super Admin Managed Organization',
+      createdAt: new Date('2025-02-01T00:00:00.000Z'),
+      metadata: '{}',
+    })
+
+    const superAdminUser = await db.query.user.findFirst({
+      where: eq(user.email, 'super-admin@example.com'),
+    })
+    expect(superAdminUser).toBeDefined()
+
+    const superAdminMembership = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, detachedOrganizationId),
+          eq(table.userId, requireValue(superAdminUser?.id, 'super admin id')),
+        ),
+    })
+    expect(superAdminMembership).toBeUndefined()
+
+    const detachedMemberHeaders = await createSessionHeaders({
+      email: 'detached-member@example.com',
+    })
+    const detachedMemberSession = await createTestAuthClient(
+      detachedMemberHeaders,
+    ).client.getSession()
+    expect(detachedMemberSession.error).toBeNull()
+
+    const detachedMemberId = requireValue(
+      detachedMemberSession.data?.user.id,
+      'detached member user id',
+    )
+
+    await db.insert(member).values({
+      id: 'super-admin-managed-member',
+      organizationId: detachedOrganizationId,
+      userId: detachedMemberId,
+      role: 'org_viewer',
+      createdAt: new Date('2025-02-02T00:00:00.000Z'),
+    })
+
+    const listedMembers = await expectJsonResponse<{
+      members: {
+        id: string
+        organizationId: string
+        role: string
+        userId: string
+      }[]
+      total: number
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization.members.$get(
+        {
+          query: {
+            organizationId: detachedOrganizationId,
+          },
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(listedMembers.data.total).toBe(1)
+    expect(listedMembers.data.members[0]?.userId).toBe(detachedMemberId)
+
+    const updatedMember = await expectJsonResponse<{
+      id: string
+      role: string
+      userId: string
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization[
+        'member-role'
+      ].$post({
+        json: {
+          memberId: requireValue(
+            listedMembers.data.members[0]?.id,
+            'detached member id',
+          ),
+          organizationId: detachedOrganizationId,
+          role: 'org_creator',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Member role updated',
+      },
+    )
+
+    expect(updatedMember.data.role).toBe('org_creator')
+
+    const persistedDetachedMember = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, detachedOrganizationId),
+          eq(table.userId, detachedMemberId),
+        ),
+    })
+    expect(persistedDetachedMember?.role).toBe('org_creator')
+
+    const createdInvitation = await expectJsonResponse<{
+      id: string
+      email: string
+      organizationId: string
+      role: string
+      status: string
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization.invite.$post(
+        {
+          json: {
+            email: 'detached-invitee@example.com',
+            organizationId: detachedOrganizationId,
+            role: 'org_viewer',
+          },
+        },
+      ),
+      {
+        status: 201,
+        message: 'Invitation created',
+      },
+    )
+
+    expect(createdInvitation.data.organizationId).toBe(detachedOrganizationId)
+    expect(createdInvitation.data.status).toBe('pending')
+
+    const listedInvitations = await expectJsonResponse<
+      {
+        id: string
+        email: string
+        organizationId: string
+      }[]
+    >(
+      await createAppClient(
+        superAdminHeaders,
+      ).api.v0.organization.invitations.$get({
+        query: {
+          organizationId: detachedOrganizationId,
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      listedInvitations.data.some(
+        (currentInvitation) =>
+          currentInvitation.id === createdInvitation.data.id &&
+          currentInvitation.organizationId === detachedOrganizationId,
+      ),
+    ).toBe(true)
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.organization[
+        'remove-member'
+      ].$post({
+        json: {
+          memberIdOrEmail: requireValue(
+            listedMembers.data.members[0]?.id,
+            'detached member id',
+          ),
+          organizationId: detachedOrganizationId,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Member removed',
+      },
+    )
+
+    const removedDetachedMember = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, detachedOrganizationId),
+          eq(table.userId, detachedMemberId),
+        ),
+    })
+    expect(removedDetachedMember).toBeUndefined()
+  })
+
   it('enforces the role matrix, visibility transitions, and public dependency validation', async () => {
     await expectJsonResponse(
       await createAppClient(creatorHeaders).api.v0.dataset.$post({
@@ -170,7 +516,7 @@ describe('access control integration', () => {
     const blockedPublishJson = await expectJsonResponse<{
       dependencies: { resourceType: string; id: string }[]
     }>(
-      await createAppClient(creatorHeaders).api.v0.report[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.report[':id'].$patch({
         param: {
           id: reportJson.data.id,
         },
@@ -193,8 +539,54 @@ describe('access control integration', () => {
     ).toBe(true)
 
     await expectJsonResponse(
+      await createAppClient(creatorHeaders).api.v0.report[':id'].$patch({
+        param: {
+          id: reportJson.data.id,
+        },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description: 'Only super admins can make this resource public.',
+      },
+    )
+
+    await expectJsonResponse(
       await createAppClient(orgAdminHeaders).api.v0.dataset[':id'].$patch({
         param: { id: seededIds.dataset },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description: 'Only super admins can make this resource public.',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.dashboard[':id'].$patch({
+        param: { id: seededIds.dashboard },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description: 'Only super admins can make this resource public.',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.indicator.derived[
+        ':id'
+      ].$patch({
+        param: { id: seededIds.derivedIndicator },
         json: {
           visibility: 'public',
         },
@@ -276,7 +668,35 @@ describe('access control integration', () => {
     )
 
     await expectJsonResponse(
-      await createAppClient(creatorHeaders).api.v0.report[':id'].$patch({
+      await createAppClient(superAdminHeaders).api.v0.indicator.derived[
+        ':id'
+      ].$patch({
+        param: { id: seededIds.derivedIndicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Derived indicator updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dashboard[':id'].$patch({
+        param: { id: seededIds.dashboard },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dashboard updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.report[':id'].$patch({
         param: {
           id: reportJson.data.id,
         },
@@ -605,6 +1025,139 @@ describe('access control integration', () => {
         (entry) => entry.id === seededIds.dataset,
       ),
     ).toBe(false)
+  })
+
+  it('shows globally public resources in authenticated reads regardless of the active organization', async () => {
+    const multiOrgHeaders = await createSessionHeaders({
+      email: 'cross-org-public@example.com',
+      organizationRole: 'org_viewer',
+    })
+
+    const secondOrganizationId = 'public-second-organization'
+    await db.insert(organization).values({
+      id: secondOrganizationId,
+      slug: secondOrganizationId,
+      name: 'Public Second Organization',
+      createdAt: new Date('2025-01-02T00:00:00.000Z'),
+      metadata: '{}',
+    })
+
+    const authClient = createTestAuthClient(multiOrgHeaders)
+    const multiOrgSession = await authClient.client.getSession()
+    expect(multiOrgSession.error).toBeNull()
+
+    const multiOrgUserId = requireValue(
+      multiOrgSession.data?.user.id,
+      'cross-org public user id',
+    )
+
+    await db.insert(member).values({
+      id: 'cross-org-public-member',
+      organizationId: secondOrganizationId,
+      userId: multiOrgUserId,
+      role: 'org_viewer',
+      createdAt: new Date('2025-01-03T00:00:00.000Z'),
+    })
+
+    await db.insert(dataset).values({
+      id: 'public-second-org-dataset',
+      name: 'Public Second Org Dataset',
+      description: 'Visible only inside the second org',
+      metadata: null,
+      organizationId: secondOrganizationId,
+      createdByUserId: multiOrgUserId,
+      visibility: 'private',
+      createdAt: new Date('2025-01-03T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-03T00:00:00.000Z'),
+      sourceUrl: null,
+      sourceMetadataUrl: null,
+      mainRunId: null,
+    })
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset updated',
+      },
+    )
+
+    const switchResponse = await app.request(
+      '/api/auth/organization/set-active',
+      {
+        method: 'POST',
+        headers: createAuthPostHeaders(multiOrgHeaders),
+        body: JSON.stringify({
+          organizationId: secondOrganizationId,
+        }),
+      },
+    )
+    expect(switchResponse.status).toBe(200)
+
+    const switchedHeaders = new Headers(multiOrgHeaders)
+    switchedHeaders.delete('x-csdr-active-organization-id')
+
+    const secondOrgList = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await createAppClient(switchedHeaders).api.v0.dataset.$get({
+        query: {},
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      secondOrgList.data.data.some(
+        (entry) => entry.id === 'public-second-org-dataset',
+      ),
+    ).toBe(true)
+    expect(
+      secondOrgList.data.data.some((entry) => entry.id === seededIds.dataset),
+    ).toBe(true)
+
+    const publicDatasetJson = await expectJsonResponse<{ id: string }>(
+      await createAppClient(switchedHeaders).api.v0.dataset[':id'].$get({
+        param: {
+          id: seededIds.dataset,
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    expect(publicDatasetJson.data.id).toBe(seededIds.dataset)
+
+    const publicRunJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await createAppClient(switchedHeaders).api.v0.dataset[':id']['runs'].$get(
+        {
+          param: {
+            id: seededIds.dataset,
+          },
+          query: {},
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      publicRunJson.data.data.some(
+        (entry) => entry.id === seededIds.datasetRun,
+      ),
+    ).toBe(true)
   })
 
   it('serves explorer-visible public resources anonymously and keeps the public namespace read-only', async () => {

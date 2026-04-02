@@ -49,26 +49,26 @@ async function main() {
   let defaultOrg = await db
     .select()
     .from(schema.organization)
-    .where(eq(schema.organization.id, 'default-organization'))
+    .where(eq(schema.organization.id, 'csdr'))
 
   if (defaultOrg.length > 0) {
-    console.log('Default Organization already seeded, exiting...')
+    console.log('CSDR organization already seeded, exiting...')
     process.exit(0)
   }
 
   defaultOrg = await db
     .insert(schema.organization)
     .values({
-      id: 'default-organization',
-      slug: 'default-organization',
-      name: 'Default Organization',
+      id: 'csdr',
+      slug: 'csdr',
+      name: 'CSDR',
       createdAt: new Date(),
       metadata: '{}',
     })
     .onConflictDoNothing()
     .returning()
 
-  console.log(`Default Organization ID: ${defaultOrg[0]!.id}`)
+  console.log(`CSDR organization ID: ${defaultOrg[0]!.id}`)
 
   const superAdmin = await db
     .insert(schema.user)
@@ -113,7 +113,7 @@ async function main() {
   await db
     .insert(schema.member)
     .values({
-      id: 'default-organization-super-admin',
+      id: 'csdr-super-admin',
       organizationId: defaultOrg[0]!.id,
       userId: superAdmin[0]!.id,
       role: 'org_admin',

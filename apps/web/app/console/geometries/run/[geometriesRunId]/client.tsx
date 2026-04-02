@@ -107,6 +107,7 @@ const GeometriesRunDetails = () => {
         entityName="Geometries Run"
         entityNamePlural="geometries runs"
         actions={formActions}
+        hiddenFields={['visibility']}
         successMessage="Updated Geometries Run"
       >
         <CrudFormRunFields form={form} readOnlyFields={'all'} />

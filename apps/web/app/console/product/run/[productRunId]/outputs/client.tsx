@@ -210,6 +210,7 @@ const ProductOutputFeature = () => {
             buttonText="Add Product Output"
             entityName="Product Output"
             entityNamePlural="product outputs"
+            hiddenFields={['visibility']}
           >
             <FormField
               control={form.control}

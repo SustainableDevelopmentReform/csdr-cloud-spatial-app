@@ -79,6 +79,7 @@ const GeometryOutputFeature = () => {
             buttonText="Add Geometry Output"
             entityName="Geometry Output"
             entityNamePlural="geometry outputs"
+            hiddenFields={['visibility']}
           >
             <FormField
               control={form.control}

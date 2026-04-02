@@ -24,6 +24,7 @@ import { UseMutationResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
+import { useAccessControl } from '~/hooks/useAccessControl'
 import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning'
 import { CrudFormAction, FormAction } from './crud-form-action'
 
@@ -69,8 +70,10 @@ export const CrudForm = <
 }: CrudFormProps<Data>) => {
   // Warn on navigation when the form has unsaved changes
   useUnsavedChangesWarning(form.formState.isDirty)
+  const { access } = useAccessControl()
 
   type CrudField = keyof Data | 'visibility'
+  const canPublishPublicly = access.isSuperAdmin
 
   // Helper function to get field label
   const getFieldLabel = (field: CrudField): string => {
@@ -254,29 +257,42 @@ export const CrudForm = <
             <FormField
               control={form.control}
               name={'visibility' as Path<Data>}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{getFieldLabel('visibility')}</FormLabel>
-                  <Select
-                    value={
-                      typeof field.value === 'string' ? field.value : undefined
-                    }
-                    onValueChange={field.onChange}
-                    disabled={isReadOnlyField('visibility')}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select visibility" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="public">Public</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const visibilityValue =
+                  typeof field.value === 'string'
+                    ? field.value
+                    : canPublishPublicly
+                      ? undefined
+                      : 'private'
+                const canShowPublicOption =
+                  canPublishPublicly || field.value === 'public'
+
+                return (
+                  <FormItem>
+                    <FormLabel>{getFieldLabel('visibility')}</FormLabel>
+                    <Select
+                      value={visibilityValue}
+                      onValueChange={field.onChange}
+                      disabled={
+                        isReadOnlyField('visibility') || !canPublishPublicly
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="private">Private</SelectItem>
+                        {canShowPublicOption ? (
+                          <SelectItem value="public">Public</SelectItem>
+                        ) : null}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
           )}
 

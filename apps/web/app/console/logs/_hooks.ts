@@ -43,8 +43,10 @@ export type LogEntry = z.infer<typeof logEntrySchema>
 export type LogListResponse = z.infer<typeof logListResponseSchema>
 
 const logQueryKeys = {
-  audit: (query: LogPageQuery | undefined) => ['logs', 'audit', query] as const,
-  read: (query: LogPageQuery | undefined) => ['logs', 'read', query] as const,
+  audit: (organizationId: string | null, query: LogPageQuery | undefined) =>
+    ['logs', 'audit', organizationId, query] as const,
+  read: (organizationId: string | null, query: LogPageQuery | undefined) =>
+    ['logs', 'read', organizationId, query] as const,
 }
 
 const readErrorMessage = async (response: Response) => {
@@ -108,13 +110,14 @@ const requestLogEndpoint = async (options: {
 }
 
 export const useAuditLogs = (
+  organizationId: string | null,
   query: LogPageQuery | undefined,
   enabled = true,
 ) => {
   const { apiBaseUrl } = useConfig()
 
   return useQuery({
-    queryKey: logQueryKeys.audit(query),
+    queryKey: logQueryKeys.audit(organizationId, query),
     queryFn: () =>
       requestLogEndpoint({
         apiBaseUrl,
@@ -126,13 +129,14 @@ export const useAuditLogs = (
 }
 
 export const useReadLogs = (
+  organizationId: string | null,
   query: LogPageQuery | undefined,
   enabled = true,
 ) => {
   const { apiBaseUrl } = useConfig()
 
   return useQuery({
-    queryKey: logQueryKeys.read(query),
+    queryKey: logQueryKeys.read(organizationId, query),
     queryFn: () =>
       requestLogEndpoint({
         apiBaseUrl,

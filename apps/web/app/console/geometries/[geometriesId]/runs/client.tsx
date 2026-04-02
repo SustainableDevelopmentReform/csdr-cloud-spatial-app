@@ -80,6 +80,7 @@ const GeometriesRunFeature = () => {
           buttonText="Add Geometries Run"
           entityName="Geometries Run"
           entityNamePlural="geometries runs"
+          hiddenFields={['visibility']}
         >
           <CrudFormRunFields form={form} />
           <FormField

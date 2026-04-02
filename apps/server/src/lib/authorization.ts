@@ -65,21 +65,6 @@ const logResourceTypes = new Set<PermissionResourceType>([
   'readLog',
 ])
 
-const superAdminPublicVisibilityResourceTypes =
-  new Set<TopLevelAclResourceType>([
-    'dataset',
-    'geometries',
-    'product',
-    'indicatorCategory',
-    'indicator',
-  ])
-
-const orgAdminPublicVisibilityResourceTypes = new Set<TopLevelAclResourceType>([
-  'report',
-  'dashboard',
-  'derivedIndicator',
-])
-
 const permissionResourceByName = new Map<string, PermissionResourceType>(
   permissionResourceTypes.map((resourceType) => [resourceType, resourceType]),
 )
@@ -204,11 +189,20 @@ const ensureExplorerAccessEnabled = (actor: RequestActor | null): void => {
 export const buildConsoleReadScope = (
   c: AppContext,
   organizationIdColumn: AnyColumn,
+  visibilityColumn: AnyColumn,
 ): SQL => {
   const actor = requireAuthenticatedActor(getRequestActor(c))
   const activeOrganizationId = requireActiveOrganization(actor)
+  const scopedWhere = or(
+    eq(organizationIdColumn, activeOrganizationId),
+    eq(visibilityColumn, 'public'),
+  )
 
-  return eq(organizationIdColumn, activeOrganizationId)
+  if (!scopedWhere) {
+    throw new Error('Failed to build console scope')
+  }
+
+  return scopedWhere
 }
 
 export const buildExplorerReadScope = (
@@ -305,26 +299,7 @@ export const assertCanSetVisibility = (options: {
     return
   }
 
-  if (superAdminPublicVisibilityResourceTypes.has(options.resource)) {
-    throw unauthorizedError('Only super admins can make this resource public.')
-  }
-
-  if (
-    orgAdminPublicVisibilityResourceTypes.has(options.resource) &&
-    options.actor.organizationRole === 'org_admin'
-  ) {
-    return
-  }
-
-  if (
-    options.actor.organizationRole === 'org_creator' &&
-    (options.resource === 'report' || options.resource === 'dashboard') &&
-    options.ownerUserId === options.actor.user.id
-  ) {
-    return
-  }
-
-  throw unauthorizedError('Your role cannot make this resource public.')
+  throw unauthorizedError('Only super admins can make this resource public.')
 }
 
 const readTopLevelAccessRecord = async (
@@ -494,7 +469,9 @@ export const readAccessRecord = async (
 const canReadInConsole = (
   actor: RequestActor,
   accessRecord: AccessRecord,
-): boolean => actor.activeOrganizationId === accessRecord.organizationId
+): boolean =>
+  actor.activeOrganizationId === accessRecord.organizationId ||
+  accessRecord.visibility === 'public'
 
 const canReadInExplorer = (
   actor: RequestActor | null,
