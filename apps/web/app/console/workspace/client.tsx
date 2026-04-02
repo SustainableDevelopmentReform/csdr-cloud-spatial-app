@@ -19,6 +19,7 @@ import {
 } from '~/utils/access-control'
 import {
   useAdminOrganizations,
+  useCancelWorkspaceInvitation,
   useCreateOrganization,
   useInviteWorkspaceMember,
   useRemoveWorkspaceMember,
@@ -54,6 +55,10 @@ const WorkspacePageClient = () => {
     activeOrganizationId,
     access.isSuperAdmin,
   )
+  const cancelInvitation = useCancelWorkspaceInvitation(
+    activeOrganizationId,
+    access.isSuperAdmin,
+  )
   const updateMemberRole = useUpdateWorkspaceMemberRole(
     activeOrganizationId,
     access.isSuperAdmin,
@@ -68,6 +73,10 @@ const WorkspacePageClient = () => {
     useState<z.infer<typeof organizationRoleSchema>>('org_viewer')
   const [organizationName, setOrganizationName] = useState('')
   const [organizationSlug, setOrganizationSlug] = useState('')
+  const pendingInvitations =
+    invitations.data?.filter(
+      (invitation) => invitation.status.toLowerCase() === 'pending',
+    ) ?? []
 
   return (
     <div className="max-w-6xl">
@@ -349,7 +358,7 @@ const WorkspacePageClient = () => {
           </div>
         ) : invitations.isLoading ? (
           <div className="text-sm text-gray-500">Loading invitations...</div>
-        ) : invitations.data?.length ? (
+        ) : pendingInvitations.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -358,10 +367,11 @@ const WorkspacePageClient = () => {
                   <th className="px-3 py-2 font-medium">Role</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Expires</th>
+                  <th className="px-3 py-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
-                {invitations.data.map((invitation) => (
+                {pendingInvitations.map((invitation) => (
                   <tr key={invitation.id} className="border-b border-gray-100">
                     <td className="px-3 py-2">{invitation.email}</td>
                     <td className="px-3 py-2">
@@ -370,6 +380,28 @@ const WorkspacePageClient = () => {
                     <td className="px-3 py-2">{invitation.status}</td>
                     <td className="px-3 py-2">
                       {new Date(invitation.expiresAt).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={cancelInvitation.isPending}
+                        onClick={() => {
+                          cancelInvitation.mutate(
+                            { invitationId: invitation.id },
+                            {
+                              onSuccess: () => {
+                                toast.success('Invitation removed')
+                              },
+                              onError: (error) => {
+                                toast.error(error.message)
+                              },
+                            },
+                          )
+                        }}
+                      >
+                        Remove
+                      </Button>
                     </td>
                   </tr>
                 ))}

@@ -103,6 +103,11 @@ const removeWorkspaceMemberSchema = z.object({
   organizationId: z.string().min(1).optional(),
 })
 
+const cancelWorkspaceInvitationSchema = z.object({
+  invitationId: z.string().min(1),
+  organizationId: z.string().min(1).optional(),
+})
+
 const ORGANIZATION_INVITATION_EXPIRY_MS = 1000 * 60 * 60 * 48
 
 const requireSuperAdmin = (
@@ -344,7 +349,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const actor = requireSuperAdmin(c)
+      requireSuperAdmin(c)
       const payload = c.req.valid('json')
       const normalizedName = payload.name.trim()
       const normalizedSlug = payload.slug.trim()
@@ -528,6 +533,107 @@ const app = createOpenAPIApp()
           role: organizationRoleSchema.parse(currentInvitation.role),
         })),
         200,
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/cancel-invitation',
+      description:
+        'Cancel an invitation in a target organization as a super admin.',
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: cancelWorkspaceInvitationSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Invitation canceled.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(workspaceInvitationSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('Forbidden'),
+        404: jsonErrorResponse('Invitation not found'),
+      },
+    }),
+    async (c) => {
+      const actor = requireSuperAdmin(c)
+      const payload = c.req.valid('json')
+      const managedOrganizationId = await resolveSuperAdminOrganizationId({
+        actor,
+        organizationId: payload.organizationId,
+      })
+      const existingInvitation = await db.query.invitation.findFirst({
+        columns: {
+          createdAt: true,
+          email: true,
+          expiresAt: true,
+          id: true,
+          inviterId: true,
+          organizationId: true,
+          role: true,
+          status: true,
+        },
+        where: (table, { and, eq }) =>
+          and(
+            eq(table.id, payload.invitationId),
+            eq(table.organizationId, managedOrganizationId),
+          ),
+      })
+
+      if (!existingInvitation) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Invitation not found',
+        })
+      }
+
+      const updatedInvitations = await db
+        .update(invitation)
+        .set({
+          status: 'canceled',
+        })
+        .where(eq(invitation.id, existingInvitation.id))
+        .returning({
+          createdAt: invitation.createdAt,
+          email: invitation.email,
+          expiresAt: invitation.expiresAt,
+          id: invitation.id,
+          inviterId: invitation.inviterId,
+          organizationId: invitation.organizationId,
+          role: invitation.role,
+          status: invitation.status,
+        })
+
+      const updatedInvitation = updatedInvitations[0]
+
+      if (!updatedInvitation) {
+        throw new ServerError({
+          statusCode: 404,
+          message: 'Invitation not found',
+        })
+      }
+
+      return generateJsonResponse(
+        c,
+        {
+          ...updatedInvitation,
+          createdAt: updatedInvitation.createdAt.toISOString(),
+          expiresAt: updatedInvitation.expiresAt.toISOString(),
+          role: organizationRoleSchema.parse(updatedInvitation.role),
+        },
+        200,
+        'Invitation canceled',
       )
     },
   )

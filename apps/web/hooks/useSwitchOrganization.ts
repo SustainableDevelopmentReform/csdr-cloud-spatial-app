@@ -49,6 +49,7 @@ export const useSwitchOrganization = (
 ): UseMutationResult<void, Error, string> => {
   const { apiBaseUrl } = useConfig()
   const authClient = useAuthClient()
+  const session = authClient.useSession()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -67,13 +68,7 @@ export const useSwitchOrganization = (
         }
       }
 
-      const sessionResponse = await authClient.getSession()
-
-      if (sessionResponse.error) {
-        throw new Error(
-          sessionResponse.error.message ?? 'Failed to refresh session',
-        )
-      }
+      await session.refetch()
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries()

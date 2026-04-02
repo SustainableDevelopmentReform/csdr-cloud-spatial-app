@@ -273,6 +273,45 @@ export const useInviteWorkspaceMember = (
   })
 }
 
+export const useCancelWorkspaceInvitation = (
+  organizationId: string | null,
+  isSuperAdmin = false,
+) => {
+  const { apiBaseUrl } = useConfig()
+  const authClient = useAuthClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: { invitationId: string }) => {
+      if (isSuperAdmin) {
+        await requestApiEndpoint({
+          apiBaseUrl,
+          method: 'POST',
+          path: '/api/v0/organization/cancel-invitation',
+          schema: invitationSchema,
+          body:
+            organizationId === null
+              ? payload
+              : {
+                  ...payload,
+                  organizationId,
+                },
+        })
+        return
+      }
+
+      unwrapAuthClientResponse(
+        await authClient.organization.cancelInvitation(payload),
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspace', 'invitations'],
+      })
+    },
+  })
+}
+
 export const useCreateOrganization = () => {
   const { apiBaseUrl } = useConfig()
   const queryClient = useQueryClient()

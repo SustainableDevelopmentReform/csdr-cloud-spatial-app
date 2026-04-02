@@ -420,6 +420,34 @@ describe('access control integration', () => {
       ),
     ).toBe(true)
 
+    const canceledInvitation = await expectJsonResponse<{
+      id: string
+      organizationId: string
+      status: string
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization[
+        'cancel-invitation'
+      ].$post({
+        json: {
+          invitationId: createdInvitation.data.id,
+          organizationId: detachedOrganizationId,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Invitation canceled',
+      },
+    )
+
+    expect(canceledInvitation.data.id).toBe(createdInvitation.data.id)
+    expect(canceledInvitation.data.organizationId).toBe(detachedOrganizationId)
+    expect(canceledInvitation.data.status).toBe('canceled')
+
+    const persistedCanceledInvitation = await db.query.invitation.findFirst({
+      where: eq(invitation.id, createdInvitation.data.id),
+    })
+    expect(persistedCanceledInvitation?.status).toBe('canceled')
+
     await expectJsonResponse(
       await createAppClient(superAdminHeaders).api.v0.organization[
         'remove-member'

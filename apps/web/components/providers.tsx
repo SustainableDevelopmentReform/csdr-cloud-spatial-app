@@ -9,7 +9,8 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
+import { createAuthClient, type AuthClient } from '~/utils/authClient'
 
 type ServerErrorLike = {
   statusCode: number
@@ -106,6 +107,8 @@ export const ConfigContext = createContext<{
   apiBaseUrl: '',
 })
 
+export const AuthClientContext = createContext<AuthClient | null>(null)
+
 export const useConfig = () => {
   return useContext(ConfigContext)
 }
@@ -117,14 +120,18 @@ interface Props {
 }
 
 const Providers: React.FC<Props> = ({ children, appUrl, apiBaseUrl }) => {
+  const authClient = useMemo(() => createAuthClient(apiBaseUrl), [apiBaseUrl])
+
   return (
     <ConfigContext.Provider value={{ appUrl, apiBaseUrl }}>
-      <NuqsAdapter>
-        <QueryClientProvider client={queryClient}>
-          {children}
-          <Toaster />
-        </QueryClientProvider>
-      </NuqsAdapter>
+      <AuthClientContext.Provider value={authClient}>
+        <NuqsAdapter>
+          <QueryClientProvider client={queryClient}>
+            {children}
+            <Toaster />
+          </QueryClientProvider>
+        </NuqsAdapter>
+      </AuthClientContext.Provider>
     </ConfigContext.Provider>
   )
 }
