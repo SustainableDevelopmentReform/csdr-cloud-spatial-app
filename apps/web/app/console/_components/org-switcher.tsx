@@ -1,6 +1,5 @@
 'use client'
 
-import { toast } from '@repo/ui/components/ui/sonner'
 import {
   Select,
   SelectContent,
@@ -10,16 +9,13 @@ import {
 } from '@repo/ui/components/ui/select'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { useConfig } from '../../../components/providers'
 import { useAccessControl } from '../../../hooks/useAccessControl'
-import { useAuthClient } from '../../../hooks/useAuthClient'
+import { useSwitchOrganization } from '../../../hooks/useSwitchOrganization'
 
 export const OrgSwitcher = () => {
-  const { apiBaseUrl } = useConfig()
-  const authClient = useAuthClient()
   const router = useRouter()
-  const { access, activeOrganization, organizations, session } =
-    useAccessControl()
+  const { access, activeOrganization, organizations } = useAccessControl()
+  const switchOrganization = useSwitchOrganization(access.isSuperAdmin)
   const [isPending, startTransition] = useTransition()
 
   const organizationsData = organizations.data ?? []
@@ -32,59 +28,15 @@ export const OrgSwitcher = () => {
     <div className="flex items-center gap-3">
       <span className="text-sm text-gray-500">Organization</span>
       <Select
-        disabled={isPending}
+        disabled={isPending || switchOrganization.isPending}
         value={activeOrganization.data?.id}
         onValueChange={(organizationId) => {
-          const switchOrganization = access.isSuperAdmin
-            ? fetch(`${apiBaseUrl}/api/v0/organization/active`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                  'content-type': 'application/json',
-                },
-                body: JSON.stringify({
-                  organizationId,
-                }),
-              }).then(async (response) => {
-                if (response.ok) {
-                  return null
-                }
-
-                const payload = await response.json().catch(() => null)
-                const message =
-                  payload &&
-                  typeof payload === 'object' &&
-                  'message' in payload &&
-                  typeof payload.message === 'string'
-                    ? payload.message
-                    : 'Failed to switch organization'
-
-                return {
-                  error: {
-                    message,
-                  },
-                }
+          switchOrganization.mutate(organizationId, {
+            onSuccess: () => {
+              startTransition(() => {
+                router.refresh()
               })
-            : authClient.organization.setActive({
-                organizationId,
-              })
-
-          void switchOrganization.then((response) => {
-            if (response?.error) {
-              toast.error(
-                response.error.message ?? 'Failed to switch organization',
-              )
-              return
-            }
-
-            startTransition(() => {
-              void Promise.all([
-                activeOrganization.refetch(),
-                organizations.refetch(),
-                session.refetch(),
-              ])
-              router.refresh()
-            })
+            },
           })
         }}
       >

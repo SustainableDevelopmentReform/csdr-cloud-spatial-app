@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { z } from 'zod'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from './useAuthClient'
 import {
@@ -9,76 +10,166 @@ import {
   buildSessionAccess,
   organizationSummarySchema,
 } from '~/utils/access-control'
-import { z } from 'zod'
+
+const organizationListSchema = z.array(organizationSummarySchema)
+const superAdminOrganizationSchema = organizationSummarySchema.extend({
+  createdAt: z.string(),
+  memberCount: z.number().int(),
+})
+const superAdminOrganizationListResponseSchema = z.object({
+  data: z.array(superAdminOrganizationSchema),
+})
+
+const fetchAuthEndpoint = async (
+  apiBaseUrl: string,
+  path: string,
+): Promise<unknown | null> => {
+  const response = await fetch(`${apiBaseUrl}/api/auth${path}`, {
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  return response.json()
+}
+
+const fetchSuperAdminOrganizations = async (
+  apiBaseUrl: string,
+): Promise<z.infer<typeof organizationListSchema>> => {
+  const response = await fetch(`${apiBaseUrl}/api/v0/organization`, {
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to load organizations')
+  }
+
+  const payload = await response.json()
+  const parsed = superAdminOrganizationListResponseSchema.safeParse(payload)
+
+  if (!parsed.success) {
+    throw new Error('Failed to parse organizations')
+  }
+
+  return parsed.data.data.map((organization) =>
+    organizationSummarySchema.parse(organization),
+  )
+}
 
 export const useAccessControl = () => {
   const { apiBaseUrl } = useConfig()
   const authClient = useAuthClient()
   const session = authClient.useSession()
-  const activeMember = authClient.useActiveMember()
-  const activeOrganization = authClient.useActiveOrganization()
-  const organizations = authClient.useListOrganizations()
   const isSuperAdmin = session.data?.user?.role === 'super_admin'
-  const organizationsSchema = useMemo(
-    () => z.array(organizationSummarySchema),
-    [],
-  )
-  const superAdminOrganizationSchema = useMemo(
-    () =>
-      organizationSummarySchema.extend({
-        createdAt: z.string(),
-        memberCount: z.number().int(),
-      }),
-    [],
-  )
-  const superAdminOrganizationsQuery = useQuery({
-    queryKey: ['access-control', 'organizations', 'super-admin'],
-    enabled: isSuperAdmin,
+  const isAuthenticated =
+    session.data?.user !== null && session.data?.user !== undefined
+
+  const activeMemberQuery = useQuery({
+    queryKey: [
+      'access-control',
+      'active-member',
+      session.data?.session.activeOrganizationId ?? null,
+    ],
+    enabled: isAuthenticated && !isSuperAdmin,
     queryFn: async () => {
-      const response = await fetch(`${apiBaseUrl}/api/v0/organization`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to load organizations')
-      }
-
-      const payload = await response.json()
-      const parsed = z
-        .object({
-          data: z.array(superAdminOrganizationSchema),
-        })
-        .parse(payload)
-
-      return parsed.data.map((currentOrganization) =>
-        organizationSummarySchema.parse(currentOrganization),
+      const payload = await fetchAuthEndpoint(
+        apiBaseUrl,
+        '/organization/get-active-member',
       )
+      const parsed = activeMemberSchema.safeParse(payload)
+
+      return parsed.success ? parsed.data : null
     },
   })
 
+  const activeOrganizationQuery = useQuery({
+    queryKey: [
+      'access-control',
+      'active-organization',
+      session.data?.session.activeOrganizationId ?? null,
+    ],
+    enabled: isAuthenticated && !isSuperAdmin,
+    queryFn: async () => {
+      const payload = await fetchAuthEndpoint(
+        apiBaseUrl,
+        '/organization/get-full-organization',
+      )
+      const parsed = organizationSummarySchema.safeParse(payload)
+
+      return parsed.success ? parsed.data : null
+    },
+  })
+
+  const organizationListQuery = useQuery({
+    queryKey: ['access-control', 'organizations', 'member'],
+    enabled: isAuthenticated && !isSuperAdmin,
+    queryFn: async () => {
+      const payload = await fetchAuthEndpoint(apiBaseUrl, '/organization/list')
+      const parsed = organizationListSchema.safeParse(payload)
+
+      return parsed.success ? parsed.data : []
+    },
+  })
+
+  const superAdminOrganizationsQuery = useQuery({
+    queryKey: ['access-control', 'organizations', 'super-admin'],
+    enabled: isAuthenticated && isSuperAdmin,
+    queryFn: async () => fetchSuperAdminOrganizations(apiBaseUrl),
+  })
+
   const parsedActiveMember = useMemo(() => {
-    const parsed = activeMemberSchema.safeParse(activeMember.data)
-    return parsed.success ? parsed.data : null
-  }, [activeMember.data])
+    if (isSuperAdmin) {
+      return null
+    }
+
+    return activeMemberQuery.data ?? null
+  }, [activeMemberQuery.data, isSuperAdmin])
 
   const parsedActiveOrganization = useMemo(() => {
-    const parsed = organizationSummarySchema.safeParse(activeOrganization.data)
-    return parsed.success ? parsed.data : null
-  }, [activeOrganization.data])
+    if (!isSuperAdmin) {
+      return activeOrganizationQuery.data ?? null
+    }
+
+    const activeOrganizationId = session.data?.session.activeOrganizationId
+
+    if (!activeOrganizationId) {
+      return null
+    }
+
+    return (
+      (superAdminOrganizationsQuery.data ?? []).find(
+        (organization) => organization.id === activeOrganizationId,
+      ) ?? null
+    )
+  }, [
+    activeOrganizationQuery.data,
+    isSuperAdmin,
+    session.data?.session.activeOrganizationId,
+    superAdminOrganizationsQuery.data,
+  ])
 
   const parsedOrganizations = useMemo(() => {
     if (isSuperAdmin) {
       return superAdminOrganizationsQuery.data ?? []
     }
 
-    const parsed = organizationsSchema.safeParse(organizations.data)
-    return parsed.success ? parsed.data : []
+    return organizationListQuery.data ?? []
   }, [
     isSuperAdmin,
-    organizations.data,
-    organizationsSchema,
+    organizationListQuery.data,
     superAdminOrganizationsQuery.data,
   ])
+
+  const refetchSuperAdminOrganizationState = async () => {
+    const [, organizationResult] = await Promise.all([
+      session.refetch(),
+      superAdminOrganizationsQuery.refetch(),
+    ])
+
+    return organizationResult
+  }
 
   const access = useMemo(
     () =>
@@ -92,21 +183,33 @@ export const useAccessControl = () => {
 
   return {
     access,
-    activeMember: {
-      ...activeMember,
-      data: parsedActiveMember,
-    },
-    activeOrganization: {
-      ...activeOrganization,
-      data: parsedActiveOrganization,
-    },
+    activeMember: isSuperAdmin
+      ? {
+          ...superAdminOrganizationsQuery,
+          data: null,
+          refetch: refetchSuperAdminOrganizationState,
+        }
+      : {
+          ...activeMemberQuery,
+          data: parsedActiveMember,
+        },
+    activeOrganization: isSuperAdmin
+      ? {
+          ...superAdminOrganizationsQuery,
+          data: parsedActiveOrganization,
+          refetch: refetchSuperAdminOrganizationState,
+        }
+      : {
+          ...activeOrganizationQuery,
+          data: parsedActiveOrganization,
+        },
     organizations: isSuperAdmin
       ? {
           ...superAdminOrganizationsQuery,
           data: parsedOrganizations,
         }
       : {
-          ...organizations,
+          ...organizationListQuery,
           data: parsedOrganizations,
         },
     session,

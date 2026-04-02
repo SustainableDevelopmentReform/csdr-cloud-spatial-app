@@ -255,6 +255,12 @@ describe('access control integration', () => {
       ),
     })
     expect(persistedSession?.activeOrganizationId).toBe(detachedOrganizationId)
+
+    const refreshedSession = await superAdminAuth.client.getSession()
+    expect(refreshedSession.error).toBeNull()
+    expect(refreshedSession.data?.session.activeOrganizationId).toBe(
+      detachedOrganizationId,
+    )
   })
 
   it('lets super admins manage members and invitations in any organization without explicit membership', async () => {

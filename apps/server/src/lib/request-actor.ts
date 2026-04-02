@@ -6,6 +6,7 @@ import {
 } from './access-control'
 import { db } from './db'
 import { ServerError } from './error'
+import { env } from '~/env'
 
 const ACTIVE_ORGANIZATION_HEADERS = [
   'x-csdr-active-organization-id',
@@ -152,12 +153,21 @@ export const requireMfaIfNeeded = (actor: RequestActor): void => {
   const mfaRequired =
     actor.isSuperAdmin || actor.organizationRole === 'org_admin'
 
-  if (mfaRequired && !actor.twoFactorEnabled) {
-    throw new ServerError({
-      statusCode: 403,
-      message: 'Two-factor authentication is required',
-      description:
-        'Enable two-factor authentication before performing this action.',
-    })
+  if (!mfaRequired || actor.twoFactorEnabled) {
+    return
   }
+
+  if (env.NODE_ENV === 'development') {
+    console.warn(
+      `MFA requirement bypassed in development mode for user ${actor.user.id} with global role ${actor.user.role ?? 'user'}, organization role ${actor.organizationRole ?? 'none'}, and active organization ${actor.activeOrganizationId ?? 'none'}.`,
+    )
+    return
+  }
+
+  throw new ServerError({
+    statusCode: 403,
+    message: 'Two-factor authentication is required',
+    description:
+      'Enable two-factor authentication before performing this action.',
+  })
 }

@@ -48,6 +48,18 @@ export const getUserServerSession = async () => {
         },
       },
     })
+    const user = res.data?.user ?? null
+    const session = res.data?.session ?? null
+
+    if (user?.role === 'super_admin') {
+      return {
+        user,
+        session,
+        activeMember: null,
+        activeOrganization: null,
+        organizations: [],
+      }
+    }
 
     const [activeMemberJson, activeOrganizationJson, organizationsJson] =
       await Promise.all([
@@ -63,8 +75,8 @@ export const getUserServerSession = async () => {
       organizationListSchema.safeParse(organizationsJson)
 
     return {
-      user: res.data?.user ?? null,
-      session: res.data?.session ?? null,
+      user,
+      session,
       activeMember: activeMemberResult.success ? activeMemberResult.data : null,
       activeOrganization: activeOrganizationResult.success
         ? activeOrganizationResult.data

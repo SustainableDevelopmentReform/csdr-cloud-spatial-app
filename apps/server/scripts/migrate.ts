@@ -17,6 +17,15 @@ async function main(): Promise<void> {
   await client.connect()
 
   try {
+    await client.query(
+      `SELECT set_config('csdr.access_control_bootstrap_organization_id', $1, false)`,
+      [env.ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID],
+    )
+    await client.query(
+      `SELECT set_config('csdr.access_control_bootstrap_user_id', $1, false)`,
+      [env.ACCESS_CONTROL_BOOTSTRAP_USER_ID],
+    )
+
     const db = drizzle(client, { schema })
     await migrate(db, { migrationsFolder: './drizzle' })
     console.info('Database migrations completed.')
