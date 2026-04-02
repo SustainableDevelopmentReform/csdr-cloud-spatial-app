@@ -3,37 +3,70 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateProductOutputSchema } from '@repo/schemas/crud'
 import { bbox } from '@turf/turf'
-import { Layer, Map, Source } from '@vis.gl/react-maplibre'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import type { FeatureCollection, Geometry } from 'geojson'
+import { Layer, Source } from '@vis.gl/react-maplibre'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
-import { useGeometryOutputLink } from '../../../geometries/_hooks'
+import { MapViewer } from '../../../geometries/_components/map-viewer'
 import { DerivedIndicatorSummaryCard } from '../../_components/derived-indicator-summary-card'
 import { ProductOutputDependenciesCard } from '../../_components/product-output-dependencies-card'
 import { ProductOutputDerivedDependenciesCard } from '../../_components/product-output-derived-dependencies-card'
 import { ProductOutputSummaryCard } from '../../_components/product-output-summary-card'
-import { useProductOutput, useUpdateProductOutput } from '../../_hooks'
+import {
+  type ProductOutputDetail,
+  useProductOutput,
+  useUpdateProductOutput,
+} from '../../_hooks'
+
+function toFeatureProperties(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null
+  }
+
+  return Object.fromEntries(Object.entries(value))
+}
+
+function createGeometryFeatureCollection(
+  productOutput: ProductOutputDetail | null | undefined,
+): FeatureCollection<Geometry, Record<string, unknown> | null> | null {
+  const geometryOutput = productOutput?.geometryOutput
+
+  if (!geometryOutput?.geometry) {
+    return null
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: geometryOutput.geometry,
+        properties: toFeatureProperties(geometryOutput.properties),
+      },
+    ],
+  }
+}
 
 const ProductRunDetails = () => {
   const { data: productOutput } = useProductOutput()
   const updateProductOutput = useUpdateProductOutput()
-  const geometryOutputLink = useGeometryOutputLink()
 
-  const geometry = useMemo(() => {
-    return (
-      productOutput?.geometryOutput?.geometry ?? {
-        type: 'FeatureCollection',
-        features: [],
-      }
-    )
-  }, [productOutput?.geometryOutput?.geometry])
+  const geometryData = useMemo(
+    () => createGeometryFeatureCollection(productOutput),
+    [productOutput],
+  )
 
-  const geometryBbox = useMemo(() => {
-    return productOutput?.geometryOutput?.geometry
-      ? bbox(productOutput?.geometryOutput?.geometry as any)
-      : undefined
-  }, [productOutput?.geometryOutput?.geometry])
+  const geometryBbox = useMemo<
+    [number, number, number, number] | undefined
+  >(() => {
+    if (!geometryData) {
+      return undefined
+    }
+
+    const [minLon, minLat, maxLon, maxLat] = bbox(geometryData)
+    return [minLon, minLat, maxLon, maxLat]
+  }, [geometryData])
 
   const form = useForm({
     resolver: zodResolver(updateProductOutputSchema),
@@ -47,17 +80,15 @@ const ProductRunDetails = () => {
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="rounded-lg overflow-hidden">
-        {geometryBbox && (
-          <Map
+      <div className="rounded-lg overflow-hidden h-96">
+        {geometryBbox && geometryData && (
+          <MapViewer
             initialViewState={{
-              bounds: geometryBbox as [number, number, number, number],
+              bounds: geometryBbox,
               fitBoundsOptions: { padding: 100 },
             }}
-            style={{ width: '100%', height: '400px' }}
-            mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
           >
-            <Source id="geojson" type="geojson" data={geometry as any} />
+            <Source id="geojson" type="geojson" data={geometryData} />
             <Layer
               id="geojson-line"
               source="geojson"
@@ -76,7 +107,7 @@ const ProductRunDetails = () => {
                 'fill-opacity': 0.2,
               }}
             />
-          </Map>
+          </MapViewer>
         )}
       </div>
 
@@ -90,6 +121,7 @@ const ProductRunDetails = () => {
           {productOutput?.dependencyProductOutputs.map(
             (dependencyProductOutput) => (
               <ProductOutputDerivedDependenciesCard
+                key={dependencyProductOutput.id}
                 productOutput={dependencyProductOutput}
                 parentProductOutput={productOutput}
               />

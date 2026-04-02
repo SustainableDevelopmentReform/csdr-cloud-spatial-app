@@ -48,7 +48,7 @@ export const logger = () =>
 
     const ip = c.req.header('x-real-ip') || 'anon'
 
-    console.log(LogPrefix.Incoming, method, path, ip)
+    console.info(LogPrefix.Incoming, method, path, ip)
 
     const start = Date.now()
 
@@ -59,7 +59,7 @@ export const logger = () =>
     const statusKey = ((c.res.status / 100) | 0) as keyof typeof COLOR_STATUS
     const colorStatus = COLOR_STATUS[statusKey] || 'green'
 
-    console.log(
+    console.info(
       LogPrefix.Outgoing,
       method,
       path,

@@ -1,32 +1,28 @@
 import type { Env } from 'hono'
-import {
-  OpenAPIHono,
-  type OpenAPIHonoOptions,
-  z,
-  type Hook,
-} from '@hono/zod-openapi'
+import { OpenAPIHono, type OpenAPIHonoOptions, z } from '@hono/zod-openapi'
 import type { AuthType } from './auth'
 import { generateJsonResponse } from './response'
 
-const defaultValidationHook: Hook<any, any, any, Response | undefined> = (
-  result,
-  c,
-) => {
-  if (!result.success) {
-    const issues = result.error.issues.map((issue) => ({
-      path: issue.path.join('.') || '(root)',
-      message: issue.message,
-      code: issue.code,
-    }))
+function createDefaultValidationHook<E extends Env>(): NonNullable<
+  OpenAPIHonoOptions<E>['defaultHook']
+> {
+  return (result, c) => {
+    if (!result.success) {
+      const issues = result.error.issues.map((issue) => ({
+        path: issue.path.join('.') || '(root)',
+        message: issue.message,
+        code: issue.code,
+      }))
 
-    return generateJsonResponse(
-      c,
-      {
-        issues,
-      },
-      422,
-      'Validation Error',
-    )
+      return generateJsonResponse(
+        c,
+        {
+          issues,
+        },
+        422,
+        'Validation Error',
+      )
+    }
   }
 }
 
@@ -131,7 +127,6 @@ export const jsonErrorResponse = (
 
 type CreateAppOptions<E extends Env> = OpenAPIHonoOptions<E> & {
   strict?: boolean
-  router?: any
 }
 
 type AppEnv = {
@@ -143,5 +138,5 @@ export const createOpenAPIApp = <E extends Env = AppEnv>(
 ) =>
   new OpenAPIHono<E>({
     ...options,
-    defaultHook: options.defaultHook ?? defaultValidationHook,
+    defaultHook: options.defaultHook ?? createDefaultValidationHook<E>(),
   })

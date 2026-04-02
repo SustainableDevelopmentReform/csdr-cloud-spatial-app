@@ -7,6 +7,7 @@ import { Path, useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import {
   canEditConsoleResource,
   getCreatedByUserId,
@@ -56,6 +57,14 @@ const IndicatorDetails = () => {
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <IndicatorProductUsageCard indicator={indicator} />
+          {indicator && (
+            <ResourceUsageDetailCards
+              reportCount={indicator.reportCount}
+              dashboardCount={indicator.dashboardCount}
+              reportQuery={{ indicatorId: indicator.id }}
+              dashboardQuery={{ indicatorId: indicator.id }}
+            />
+          )}
         </div>
       </div>
       <CrudForm

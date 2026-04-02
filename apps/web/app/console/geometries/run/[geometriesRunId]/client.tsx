@@ -12,6 +12,7 @@ import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import { DetailCard } from '../../../_components/detail-cards'
+import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { useProductRunsLink } from '../../../product/_hooks'
 import GeometriesMapViewer from '../../_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
@@ -75,7 +76,7 @@ const GeometriesRunDetails = () => {
         <GeometriesMapViewer geometriesRun={geometriesRun} className="h-96" />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <GeometriesRunSummaryCard run={geometriesRun} />
-          <div className="grid grid-cols-1 grid-rows-3 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {geometriesRun && (
               <DetailCard
                 title={`${geometriesRun?.outputCount} ${pluralize(geometriesRun?.outputCount, 'output', 'outputs')}`}
@@ -94,6 +95,14 @@ const GeometriesRunDetails = () => {
                   geometriesRunId: geometriesRun?.id,
                 })}
                 actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {geometriesRun && (
+              <ResourceUsageDetailCards
+                reportCount={geometriesRun.reportCount}
+                dashboardCount={geometriesRun.dashboardCount}
+                reportQuery={{ geometriesRunId: geometriesRun.id }}
+                dashboardQuery={{ geometriesRunId: geometriesRun.id }}
               />
             )}
           </div>

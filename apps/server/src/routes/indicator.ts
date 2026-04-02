@@ -24,6 +24,7 @@ import {
 import {
   ensureDerivedIndicatorNotUsedByCharts,
   ensureMeasuredIndicatorNotUsedByCharts,
+  fetchChartUsageCounts,
 } from '~/lib/chartUsage'
 import {
   assertCanSetVisibility,
@@ -124,17 +125,22 @@ const fetchFullMeasuredIndicator = async (
   id: string,
   organizationId: string,
 ) => {
-  const [indicatorRecord, productCount] = await Promise.all([
+  const [indicatorRecord, productCount, usageCounts] = await Promise.all([
     db.query.indicator.findFirst({
       where: (indicator, { and, eq }) =>
         and(eq(indicator.id, id), eq(indicator.organizationId, organizationId)),
       ...fullMeasuredIndicatorQuery,
     }),
     fetchProductUsageCount(id),
+    fetchChartUsageCounts({ type: 'indicator', id }),
   ])
 
   return indicatorRecord
-    ? { ...parseFullMeasuredIndicator(indicatorRecord), productCount }
+    ? {
+        ...parseFullMeasuredIndicator(indicatorRecord),
+        productCount,
+        ...usageCounts,
+      }
     : null
 }
 
@@ -170,20 +176,27 @@ const fetchFullDerivedIndicator = async (
   id: string,
   organizationId: string,
 ) => {
-  const [derivedIndicatorRecord, productCount] = await Promise.all([
-    db.query.derivedIndicator.findFirst({
-      where: (derivedIndicator, { and, eq }) =>
-        and(
-          eq(derivedIndicator.id, id),
-          eq(derivedIndicator.organizationId, organizationId),
-        ),
-      ...fullDerivedIndicatorQuery,
-    }),
-    fetchProductUsageCount(id),
-  ])
+  const [derivedIndicatorRecord, productCount, usageCounts] = await Promise.all(
+    [
+      db.query.derivedIndicator.findFirst({
+        where: (derivedIndicator, { and, eq }) =>
+          and(
+            eq(derivedIndicator.id, id),
+            eq(derivedIndicator.organizationId, organizationId),
+          ),
+        ...fullDerivedIndicatorQuery,
+      }),
+      fetchProductUsageCount(id),
+      fetchChartUsageCounts({ type: 'derived-indicator', id }),
+    ],
+  )
 
   return derivedIndicatorRecord
-    ? { ...parseFullDerivedIndicator(derivedIndicatorRecord), productCount }
+    ? {
+        ...parseFullDerivedIndicator(derivedIndicatorRecord),
+        productCount,
+        ...usageCounts,
+      }
     : null
 }
 export const fetchFullDerivedIndicatorOrThrow = async (

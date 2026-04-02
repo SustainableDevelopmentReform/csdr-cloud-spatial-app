@@ -8,7 +8,16 @@ import {
   productRunQuerySchema,
   updateProductSchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, exists, inArray, or, sql } from 'drizzle-orm'
+import {
+  and,
+  desc,
+  eq,
+  exists,
+  inArray,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -16,6 +25,7 @@ import {
   buildConsoleReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
+import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -111,12 +121,20 @@ const fetchFullProduct = async (id: string, organizationId: string) => {
     return null
   }
 
-  const runCount = await db.$count(productRun, eq(productRun.productId, id))
+  const [runCount, usageCounts] = await Promise.all([
+    db.$count(productRun, eq(productRun.productId, id)),
+    fetchChartUsageCounts({ type: 'product', id }),
+  ])
 
-  return record ? parseFullProduct({ ...record, runCount }) : null
+  return record
+    ? parseFullProduct({ ...record, runCount, ...usageCounts })
+    : null
 }
 
-const fetchFullProductOrThrow = async (id: string, organizationId: string) => {
+export const fetchFullProductOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
   const fullProduct = await fetchFullProduct(id, organizationId)
 
   if (!fullProduct) {
@@ -157,13 +175,27 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { datasetId, geometriesId, indicatorId, hasRun } =
-        c.req.valid('query')
+      const {
+        productIds,
+        excludeProductIds,
+        datasetId,
+        geometriesId,
+        indicatorId,
+        hasRun,
+      } = c.req.valid('query')
+      const productIdsArray = normalizeFilterValues(productIds)
+      const excludeProductIdsArray = normalizeFilterValues(excludeProductIds)
       const datasetIds = normalizeFilterValues(datasetId)
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
       const baseWhere = and(
         buildConsoleReadScope(c, product.organizationId, product.visibility),
+        productIdsArray.length > 0
+          ? inArray(product.id, productIdsArray)
+          : undefined,
+        excludeProductIdsArray.length > 0
+          ? notInArray(product.id, excludeProductIdsArray)
+          : undefined,
         datasetIds.length > 0
           ? inArray(product.datasetId, datasetIds)
           : undefined,
@@ -278,7 +310,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
-          targetResource: 'product',
+          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -320,6 +352,23 @@ const app = createOpenAPIApp()
       const { datasetRunId, geometriesRunId } = c.req.valid('query')
       const baseWhere = and(
         productId ? eq(productRun.productId, id) : undefined,
+        productId
+          ? undefined
+          : exists(
+              db
+                .select({ id: product.id })
+                .from(product)
+                .where(
+                  and(
+                    eq(product.id, productRun.productId),
+                    buildConsoleReadScope(
+                      c,
+                      product.organizationId,
+                      product.visibility,
+                    ),
+                  ),
+                ),
+            ),
         datasetRunId ? eq(productRun.datasetRunId, datasetRunId) : undefined,
         geometriesRunId
           ? eq(productRun.geometriesRunId, geometriesRunId)

@@ -14,6 +14,7 @@ import {
   getCreatedByUserId,
 } from '../../../../utils/access-control'
 import { DetailCard } from '../../_components/detail-cards'
+import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import GeometriesMapViewer from '../_components/geometries-map-viewer'
@@ -57,7 +58,7 @@ const GeometriesDetails = () => {
         />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <GeometriesRunSummaryCard run={geometries?.mainRun} mainRun />
-          <div className="grid grid-cols-1 grid-rows-3 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {geometries && (
               <DetailCard
                 title={`${geometries?.runCount} ${pluralize(geometries?.runCount, 'run', 'runs')}`}
@@ -77,6 +78,14 @@ const GeometriesDetails = () => {
               />
             )}
             {geometries && <SourcesCard resource={geometries} />}
+            {geometries && (
+              <ResourceUsageDetailCards
+                reportCount={geometries.reportCount}
+                dashboardCount={geometries.dashboardCount}
+                reportQuery={{ geometriesId: geometries.id }}
+                dashboardQuery={{ geometriesId: geometries.id }}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -11,7 +11,7 @@ import {
 } from '@repo/ui/components/ui/form'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { cn } from '@repo/ui/lib/utils'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../../../../components/form/crud-form-dialog'
@@ -23,13 +23,10 @@ import { GeometryOutputButton } from '../../../_components/geometry-output-butto
 import {
   GeometryOutputListItem,
   useCreateGeometryOutput,
-  useGeometriesLink,
   useGeometriesRun,
   useGeometryOutputLink,
   useGeometryOutputs,
 } from '../../../_hooks'
-
-const columnHelper = createColumnHelper<GeometryOutputListItem>()
 
 const GeometryOutputFeature = () => {
   const {
@@ -44,16 +41,12 @@ const GeometryOutputFeature = () => {
   const createGeometryOutput = useCreateGeometryOutput()
   const { data: geometriesRun } = useGeometriesRun()
   const geometryOutputLink = useGeometryOutputLink()
-  const geometriesLink = useGeometriesLink()
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'name'] as const
   }, [])
 
-  const columns = useMemo(
-    () => [] as ColumnDef<GeometryOutputListItem>[],
-    [geometriesLink],
-  )
+  const columns = useMemo(() => [] as ColumnDef<GeometryOutputListItem>[], [])
 
   const form = useForm({
     resolver: zodResolver(createGeometryOutputSchema),
@@ -63,7 +56,7 @@ const GeometryOutputFeature = () => {
     if (geometriesRun) {
       form.setValue('geometriesRunId', geometriesRun.id)
     }
-  }, [geometriesRun])
+  }, [form, geometriesRun])
 
   return (
     <div>

@@ -17,6 +17,7 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { DASHBOARDS_BASE_PATH } from '../../../lib/paths'
+import { invalidateChartUsageDependencyQueries } from '../_utils/chart-usage-invalidation'
 
 export type DashboardListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['dashboard']['$get'], 200>['data']
@@ -134,8 +135,9 @@ export const useCreateDashboard = () => {
       })
       await unwrapResponse(res, 201)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+      await invalidateChartUsageDependencyQueries(queryClient)
     },
   })
 }
@@ -154,8 +156,9 @@ export const useUpdateDashboard = (_dashboardId?: string) => {
       })
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+      await invalidateChartUsageDependencyQueries(queryClient)
     },
   })
 }
@@ -177,13 +180,14 @@ export const useDeleteDashboard = (
       })
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       if (dashboardId) {
         queryClient.removeQueries({
           queryKey: dashboardQueryKeys.detail(dashboardId),
         })
       }
-      queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+      await invalidateChartUsageDependencyQueries(queryClient)
       if (redirect) {
         router.push(redirect)
       }

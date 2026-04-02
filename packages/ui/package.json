@@ -21,7 +21,8 @@
   },
   "scripts": {
     "ui": "pnpm dlx shadcn@latest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "react": "^19"

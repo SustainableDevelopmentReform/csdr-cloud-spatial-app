@@ -99,6 +99,8 @@ export const baseMeasuredIndicatorSchema = baseAclResourceSchema
 export const fullMeasuredIndicatorSchema = baseMeasuredIndicatorSchema
   .extend({
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('MeasuredIndicatorSchemaFull')
 
@@ -133,6 +135,8 @@ export const fullDerivedIndicatorSchema = baseDerivedIndicatorSchema
   .extend({
     indicators: z.array(baseMeasuredIndicatorSchema),
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('DerivedIndicatorSchemaFull')
 
@@ -184,6 +188,8 @@ export const baseDatasetRunSchema = baseRunResourceSchema
 export const fullDatasetRunSchema = baseDatasetRunSchema
   .extend({
     productRunCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('DatasetRunFull')
 
@@ -199,6 +205,8 @@ export const fullDatasetSchema = baseDatasetSchema
   .extend({
     runCount: z.number().int(),
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
     mainRun: baseDatasetRunSchema.nullable(),
   })
   .openapi('DatasetFull')
@@ -237,6 +245,8 @@ export const fullGeometriesRunSchema = baseGeometriesRunSchema
   .extend({
     productRunCount: z.number().int(),
     outputCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
     bounds: z.object({
       minX: z.number(),
       minY: z.number(),
@@ -258,6 +268,8 @@ export const fullGeometriesSchema = baseGeometriesSchema
   .extend({
     runCount: z.number().int(),
     productCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
     mainRun: baseGeometriesRunSchema.nullable(),
   })
   .openapi('GeometriesFull')
@@ -437,6 +449,8 @@ export const fullProductRunSchema = baseProductRunSchema
     datasetRun: baseDatasetRunSchema.nullable(),
     geometriesRun: baseGeometriesRunSchema.nullable(),
     outputSummary: fullProductRunOutputSummarySchema,
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('ProductRunFull')
 
@@ -453,20 +467,33 @@ export const baseProductSchema = baseAclResourceSchema
 export const fullProductSchema = baseProductSchema
   .extend({
     dataset: fullDatasetSchema
-      .omit({ runCount: true, productCount: true })
+      .omit({
+        runCount: true,
+        productCount: true,
+        reportCount: true,
+        dashboardCount: true,
+      })
       .nullable(),
     geometries: fullGeometriesSchema
       .omit({
         runCount: true,
         productCount: true,
+        reportCount: true,
+        dashboardCount: true,
       })
       .nullable(),
-    mainRun: fullProductRunSchema.nullable(),
+    mainRun: fullProductRunSchema
+      .omit({ reportCount: true, dashboardCount: true })
+      .nullable(),
     runCount: z.number().int(),
+    reportCount: z.number().int(),
+    dashboardCount: z.number().int(),
   })
   .openapi('ProductFull')
 
 export const productQuerySchema = baseQuerySchema.extend({
+  productIds: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeProductIds: z.union([z.string(), z.array(z.string())]).optional(),
   datasetId: z.union([z.string(), z.array(z.string())]).optional(),
   geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
   indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
@@ -637,7 +664,15 @@ export const fullReportSchema = baseReportSchema
   .extend({ content: reportStoredContentSchema.nullable() })
   .openapi('ReportSchemaFull')
 
-export const reportQuerySchema = baseQuerySchema
+export const reportQuerySchema = baseQuerySchema.extend({
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
+  productId: z.union([z.string(), z.array(z.string())]).optional(),
+  productRunId: z.string().optional(),
+  datasetId: z.union([z.string(), z.array(z.string())]).optional(),
+  datasetRunId: z.string().optional(),
+  geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
+  geometriesRunId: z.string().optional(),
+})
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateAclResourceSchema.extend({
   content: reportStoredContentSchema.nullable().optional(),
@@ -688,7 +723,15 @@ export const fullDashboardSchema = baseDashboardSchema
   })
   .openapi('DashboardSchemaFull')
 
-export const dashboardQuerySchema = baseQuerySchema
+export const dashboardQuerySchema = baseQuerySchema.extend({
+  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
+  productId: z.union([z.string(), z.array(z.string())]).optional(),
+  productRunId: z.string().optional(),
+  datasetId: z.union([z.string(), z.array(z.string())]).optional(),
+  datasetRunId: z.string().optional(),
+  geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
+  geometriesRunId: z.string().optional(),
+})
 export const createDashboardSchema = baseCreateResourceSchema.extend({
   content: dashboardContentSchema,
 })

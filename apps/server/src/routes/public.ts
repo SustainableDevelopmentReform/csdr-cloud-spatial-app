@@ -53,10 +53,8 @@ import { generateJsonResponse } from '~/lib/response'
 import {
   dashboard,
   dataset,
-  datasetRun,
   derivedIndicator,
   geometries,
-  geometriesRun,
   indicator,
   indicatorCategory,
   product,
@@ -66,8 +64,8 @@ import {
 } from '~/schemas/db'
 import { normalizeFilterValues, parseQuery } from '~/utils/query'
 import { baseDashboardQuery, fullDashboardQuery } from './dashboard'
-import { baseDatasetQuery, fullDatasetQuery } from './dataset'
-import { baseGeometriesQuery, fullGeometriesQuery } from './geometries'
+import { baseDatasetQuery, fetchFullDatasetOrThrow } from './dataset'
+import { baseGeometriesQuery, fetchFullGeometriesOrThrow } from './geometries'
 import { indicatorCategoryQuery } from './indicatorCategory'
 import {
   baseDerivedIndicatorQuery,
@@ -79,9 +77,8 @@ import {
 } from './indicator'
 import {
   baseProductQuery,
-  fullProductQuery,
+  fetchFullProductOrThrow,
   parseBaseProduct,
-  parseFullProduct,
 } from './product'
 import { baseReportQuery, fullReportQuery } from './report'
 import { dashboardContentSchema } from '@repo/schemas/crud'
@@ -151,80 +148,6 @@ const derivedIndicatorNotFoundError = () =>
     message: 'Failed to get derived indicator',
     description: "derived indicator you're looking for is not found",
   })
-
-const fetchPublicDatasetOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
-  const record = await db.query.dataset.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.id, id), eq(table.organizationId, organizationId)),
-    ...fullDatasetQuery,
-  })
-
-  if (!record) {
-    throw datasetNotFoundError()
-  }
-
-  const [runCount, productCount] = await Promise.all([
-    db.$count(datasetRun, eq(datasetRun.datasetId, id)),
-    db.$count(product, eq(product.datasetId, id)),
-  ])
-
-  return {
-    ...record,
-    runCount,
-    productCount,
-  }
-}
-
-const fetchPublicGeometriesOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
-  const record = await db.query.geometries.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.id, id), eq(table.organizationId, organizationId)),
-    ...fullGeometriesQuery,
-  })
-
-  if (!record) {
-    throw geometriesNotFoundError()
-  }
-
-  const [runCount, productCount] = await Promise.all([
-    db.$count(geometriesRun, eq(geometriesRun.geometriesId, id)),
-    db.$count(product, eq(product.geometriesId, id)),
-  ])
-
-  return {
-    ...record,
-    runCount,
-    productCount,
-  }
-}
-
-const fetchPublicProductOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
-  const record = await db.query.product.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.id, id), eq(table.organizationId, organizationId)),
-    ...fullProductQuery,
-  })
-
-  if (!record) {
-    throw productNotFoundError()
-  }
-
-  const runCount = await db.$count(productRun, eq(productRun.productId, id))
-
-  return parseFullProduct({
-    ...record,
-    runCount,
-  })
-}
 
 const fetchPublicReportOrThrow = async (id: string, organizationId: string) => {
   const record = await db.query.report.findFirst({
@@ -372,7 +295,7 @@ const datasetPublic = createOpenAPIApp()
 
       return generateJsonResponse(
         c,
-        await fetchPublicDatasetOrThrow(id, accessRecord.organizationId),
+        await fetchFullDatasetOrThrow(id, accessRecord.organizationId),
         200,
       )
     },
@@ -479,7 +402,7 @@ const geometriesPublic = createOpenAPIApp()
 
       return generateJsonResponse(
         c,
-        await fetchPublicGeometriesOrThrow(id, accessRecord.organizationId),
+        await fetchFullGeometriesOrThrow(id, accessRecord.organizationId),
         200,
       )
     },
@@ -619,7 +542,7 @@ const productPublic = createOpenAPIApp()
 
       return generateJsonResponse(
         c,
-        await fetchPublicProductOrThrow(id, accessRecord.organizationId),
+        await fetchFullProductOrThrow(id, accessRecord.organizationId),
         200,
       )
     },

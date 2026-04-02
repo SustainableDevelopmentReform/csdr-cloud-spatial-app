@@ -8,7 +8,10 @@ import {
   updateDashboardSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq } from 'drizzle-orm'
-import { syncDashboardChartUsages } from '~/lib/chartUsage'
+import {
+  buildDashboardUsageFilters,
+  syncDashboardChartUsages,
+} from '~/lib/chartUsage'
 import { assertDashboardDependenciesPublic } from '~/lib/public-visibility'
 import {
   assertCanSetVisibility,
@@ -112,19 +115,28 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { meta, query } = await parseQuery(
-        dashboard,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(dashboard.createdAt),
-          searchableColumns: [dashboard.name, dashboard.description],
-          baseWhere: buildConsoleReadScope(
-            c,
-            dashboard.organizationId,
-            dashboard.visibility,
-          ),
-        },
-      )
+      const queryParams = c.req.valid('query')
+      const usageFilters = buildDashboardUsageFilters(queryParams)
+      const baseWhere =
+        usageFilters.length > 0
+          ? and(
+              buildConsoleReadScope(
+                c,
+                dashboard.organizationId,
+                dashboard.visibility,
+              ),
+              ...usageFilters,
+            )
+          : buildConsoleReadScope(
+              c,
+              dashboard.organizationId,
+              dashboard.visibility,
+            )
+      const { meta, query } = await parseQuery(dashboard, queryParams, {
+        defaultOrderBy: desc(dashboard.createdAt),
+        searchableColumns: [dashboard.name, dashboard.description],
+        baseWhere,
+      })
 
       const data = await db.query.dashboard.findMany({
         ...baseDashboardQuery,

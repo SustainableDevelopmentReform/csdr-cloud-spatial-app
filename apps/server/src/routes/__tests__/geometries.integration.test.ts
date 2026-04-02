@@ -24,7 +24,78 @@ beforeEach(async () => {
 })
 
 describe('geometries route', () => {
+  const createUsageArtifacts = async () => {
+    const reportJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Geometries usage report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportJson.data.id },
+        json: {
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'chart',
+                attrs: {
+                  chart: {
+                    type: 'plot',
+                    subType: 'line',
+                    productRunId: seededIds.productRun,
+                    indicatorIds: [seededIds.indicator],
+                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                    timePoints: ['2021-01-01T00:00:00.000Z'],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.dashboard.$post({
+        json: {
+          name: 'Geometries usage dashboard',
+          content: {
+            charts: {
+              primary: {
+                type: 'plot',
+                subType: 'line',
+                productRunId: seededIds.productRun,
+                indicatorIds: [seededIds.indicator],
+                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                timePoints: ['2021-01-01T00:00:00.000Z'],
+              },
+            },
+            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+          },
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard created',
+      },
+    )
+  }
+
   it('returns read responses with expected messages', async () => {
+    await createUsageArtifacts()
+
     await expectJsonResponse(
       await createAppClient().api.v0.geometries.$get({ query: {} }),
       {
@@ -51,6 +122,8 @@ describe('geometries route', () => {
       mainRun: { id: string } | null
       runCount: number
       productCount: number
+      reportCount: number
+      dashboardCount: number
     }>(
       await memberClient.api.v0.geometries[':id'].$get({
         param: { id: seededIds.geometries },
@@ -64,6 +137,8 @@ describe('geometries route', () => {
     expect(detailJson.data.mainRun?.id).toBe(seededIds.geometriesRun)
     expect(detailJson.data.runCount).toBe(1)
     expect(detailJson.data.productCount).toBe(1)
+    expect(detailJson.data.reportCount).toBe(1)
+    expect(detailJson.data.dashboardCount).toBe(1)
 
     const runsJson = await expectJsonResponse<{
       data: { id: string }[]

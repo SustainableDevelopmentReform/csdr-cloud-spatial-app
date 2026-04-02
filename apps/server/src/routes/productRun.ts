@@ -28,6 +28,7 @@ import { evaluate } from 'mathjs'
 import {
   ensureAssignedDerivedIndicatorNotUsedByCharts,
   ensureProductRunNotUsedByCharts,
+  fetchChartUsageCounts,
 } from '~/lib/chartUsage'
 import { assertResourceWritable } from '~/lib/authorization'
 import { db } from '~/lib/db'
@@ -258,7 +259,13 @@ const fetchFullProductRun = async (id: string) => {
     ...fullProductRunQuery,
   })
 
-  return record ? parseFullProductRun(record) : null
+  if (!record) {
+    return null
+  }
+
+  const usageCounts = await fetchChartUsageCounts({ type: 'product-run', id })
+
+  return parseFullProductRun({ ...record, ...usageCounts })
 }
 
 const fetchFullProductRunOrThrow = async (id: string) => {

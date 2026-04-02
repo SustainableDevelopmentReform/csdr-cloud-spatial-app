@@ -10,6 +10,7 @@ import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import { DetailCard } from '../../../_components/detail-cards'
+import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { DatasetRunSummaryCard } from '../../../dataset/_components/dataset-run-summary-card'
 import {
   useDatasetRun,
@@ -33,6 +34,7 @@ const DatasetRunDetails = () => {
   const productRunsLink = useProductRunsLink()
 
   const setDatasetMainRun = useSetDatasetMainRun(datasetRun)
+  const isMainRun = datasetRun?.id === datasetRun?.dataset.mainRunId
 
   const formActions: CrudFormAction[] = useMemo(
     () => [
@@ -42,10 +44,10 @@ const DatasetRunDetails = () => {
         buttonVariant: 'default',
         buttonTitle: 'Set as Main Run',
         mutation: setDatasetMainRun,
-        disabled: datasetRun?.id === datasetRun?.dataset.mainRunId,
+        disabled: isMainRun,
       },
     ],
-    [setDatasetMainRun],
+    [isMainRun, setDatasetMainRun],
   )
 
   const form = useForm({
@@ -62,7 +64,7 @@ const DatasetRunDetails = () => {
     <div className="w-[800px] max-w-full gap-8 flex flex-col">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DatasetRunSummaryCard run={datasetRun} />
-        <div className="grid grid-cols-1 grid-rows-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {datasetRun && (
             <DetailCard
               title={`${datasetRun?.productRunCount} ${pluralize(datasetRun?.productRunCount, 'product run', 'product runs')}`}
@@ -72,6 +74,14 @@ const DatasetRunDetails = () => {
                 datasetRunId: datasetRun?.id,
               })}
               actionIcon={<ArrowUpRightIcon />}
+            />
+          )}
+          {datasetRun && (
+            <ResourceUsageDetailCards
+              reportCount={datasetRun.reportCount}
+              dashboardCount={datasetRun.dashboardCount}
+              reportQuery={{ datasetRunId: datasetRun.id }}
+              dashboardQuery={{ datasetRunId: datasetRun.id }}
             />
           )}
         </div>

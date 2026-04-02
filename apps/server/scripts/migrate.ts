@@ -4,7 +4,7 @@ import * as schema from '~/schemas/db'
 import pg from 'pg'
 import { env } from '../src/env'
 
-async function main() {
+async function main(): Promise<void> {
   const client = new pg.Client({
     ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     host: env.DATABASE_HOST,
@@ -13,14 +13,16 @@ async function main() {
     password: env.DATABASE_PASSWORD,
     database: env.DATABASE_NAME,
   })
-  console.log('Connect to DB')
+
   await client.connect()
-  const db = drizzle(client, { schema })
-  console.log('Start migration')
-  await migrate(db, { migrationsFolder: './drizzle' })
-  console.log('Migration end')
-  await client.end()
-  console.log('Connection closed')
+
+  try {
+    const db = drizzle(client, { schema })
+    await migrate(db, { migrationsFolder: './drizzle' })
+    console.info('Database migrations completed.')
+  } finally {
+    await client.end()
+  }
 }
 
-main()
+void main()

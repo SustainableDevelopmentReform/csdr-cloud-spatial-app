@@ -21,6 +21,7 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { REPORTS_BASE_PATH } from '../../../lib/paths'
+import { invalidateChartUsageDependencyQueries } from '../_utils/chart-usage-invalidation'
 
 export type ReportListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['report']['$get'], 200>['data']
@@ -135,10 +136,11 @@ export const useCreateReport = () => {
       })
       await unwrapResponse(res, 201)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: reportQueryKeys.all,
       })
+      await invalidateChartUsageDependencyQueries(queryClient)
     },
   })
 }
@@ -156,10 +158,11 @@ export const useUpdateReport = (_reportId?: string) => {
       })
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: reportQueryKeys.all,
       })
+      await invalidateChartUsageDependencyQueries(queryClient)
     },
   })
 }
@@ -183,15 +186,16 @@ export const useDeleteReport = (
 
       return await unwrapResponse(res)
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       if (reportId) {
         queryClient.removeQueries({
           queryKey: reportQueryKeys.detail(reportId),
         })
       }
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: reportQueryKeys.all,
       })
+      await invalidateChartUsageDependencyQueries(queryClient)
       if (redirect) {
         router.push(redirect)
       }

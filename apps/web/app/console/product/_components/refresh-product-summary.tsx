@@ -1,11 +1,15 @@
 import { Button } from '@repo/ui/components/ui/button'
-import { ProductRunDetail, useRefreshProductRunSummary } from '../_hooks'
+import {
+  ProductDetail,
+  ProductRunDetail,
+  useRefreshProductRunSummary,
+} from '../_hooks'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 
 export const RefreshProductSummary = ({
   run,
 }: {
-  run?: ProductRunDetail | null
+  run?: ProductRunDetail | ProductDetail['mainRun'] | null
 }) => {
   const refreshProductSummary = useRefreshProductRunSummary(run)
   return (

@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
 import { assertResourceWritable } from '~/lib/authorization'
+import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -58,14 +59,15 @@ const fetchFullDatasetRun = async (id: string) => {
     return null
   }
 
-  const productRunCount = await db.$count(
-    productRun,
-    eq(productRun.datasetRunId, id),
-  )
+  const [productRunCount, usageCounts] = await Promise.all([
+    db.$count(productRun, eq(productRun.datasetRunId, id)),
+    fetchChartUsageCounts({ type: 'dataset-run', id }),
+  ])
 
   return {
     ...results,
     productRunCount,
+    ...usageCounts,
   }
 }
 

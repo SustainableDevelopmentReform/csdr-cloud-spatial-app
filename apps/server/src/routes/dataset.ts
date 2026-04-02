@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, desc, eq, exists, inArray, notInArray } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -7,6 +7,7 @@ import {
   buildConsoleReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
+import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -70,15 +71,19 @@ const fetchFullDataset = async (id: string, organizationId: string) => {
     return null
   }
 
-  const [runCount, productCount] = await Promise.all([
+  const [runCount, productCount, usageCounts] = await Promise.all([
     db.$count(datasetRun, eq(datasetRun.datasetId, id)),
     db.$count(product, eq(product.datasetId, id)),
+    fetchChartUsageCounts({ type: 'dataset', id }),
   ])
 
-  return { ...record, runCount, productCount }
+  return { ...record, runCount, productCount, ...usageCounts }
 }
 
-const fetchFullDatasetOrThrow = async (id: string, organizationId: string) => {
+export const fetchFullDatasetOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
   const fullDataset = await fetchFullDataset(id, organizationId)
 
   if (!fullDataset) {
@@ -200,13 +205,14 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
-      description: 'List dataset runs for a dataset with pagination metadata.',
+      description:
+        'List dataset runs for a dataset, or across datasets using "*".',
       method: 'get',
       path: '/:id/runs',
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
-          targetResource: 'dataset',
+          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -217,7 +223,8 @@ const app = createOpenAPIApp()
       },
       responses: {
         200: {
-          description: 'Successfully listed dataset runs.',
+          description:
+            'Successfully listed dataset runs for a dataset or across datasets using "*".',
           content: {
             'application/json': {
               schema: createResponseSchema(
@@ -237,19 +244,38 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      await assertResourceReadable({
-        c,
-        resource: 'dataset',
-        resourceId: id,
-        notFoundError: datasetNotFoundError,
-      })
+      const datasetId = id === '*' ? undefined : id
+      if (datasetId) {
+        await assertResourceReadable({
+          c,
+          resource: 'dataset',
+          resourceId: datasetId,
+          notFoundError: datasetNotFoundError,
+        })
+      }
       const { meta, query } = await parseQuery(
         datasetRun,
         c.req.valid('query'),
         {
           defaultOrderBy: desc(datasetRun.createdAt),
           searchableColumns: [datasetRun.name, datasetRun.description],
-          baseWhere: eq(datasetRun.datasetId, id),
+          baseWhere: datasetId
+            ? eq(datasetRun.datasetId, datasetId)
+            : exists(
+                db
+                  .select({ id: dataset.id })
+                  .from(dataset)
+                  .where(
+                    and(
+                      eq(dataset.id, datasetRun.datasetId),
+                      buildConsoleReadScope(
+                        c,
+                        dataset.organizationId,
+                        dataset.visibility,
+                      ),
+                    ),
+                  ),
+              ),
         },
       )
 

@@ -9,7 +9,10 @@ import {
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
 import { and, desc, eq } from 'drizzle-orm'
-import { syncReportChartUsages } from '~/lib/chartUsage'
+import {
+  buildReportUsageFilters,
+  syncReportChartUsages,
+} from '~/lib/chartUsage'
 import { assertReportDependenciesPublic } from '~/lib/public-visibility'
 import {
   assertCanSetVisibility,
@@ -163,14 +166,23 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { meta, query } = await parseQuery(report, c.req.valid('query'), {
+      const queryParams = c.req.valid('query')
+      const usageFilters = buildReportUsageFilters(queryParams)
+      const baseWhere =
+        usageFilters.length > 0
+          ? and(
+              buildConsoleReadScope(
+                c,
+                report.organizationId,
+                report.visibility,
+              ),
+              ...usageFilters,
+            )
+          : buildConsoleReadScope(c, report.organizationId, report.visibility)
+      const { meta, query } = await parseQuery(report, queryParams, {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
-        baseWhere: buildConsoleReadScope(
-          c,
-          report.organizationId,
-          report.visibility,
-        ),
+        baseWhere,
       })
 
       const data = await db.query.report.findMany({

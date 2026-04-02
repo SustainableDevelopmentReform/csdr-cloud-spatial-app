@@ -24,12 +24,12 @@ function askUser(promptText: string): Promise<string> {
   })
 }
 
-;(async function main() {
+async function main(): Promise<void> {
   if (
     process.env.AUTH_USE_TESTCONTAINERS === 'true' ||
     process.env.CI === 'true'
   ) {
-    console.log('Proceeding with tests...')
+    console.info('Proceeding with tests...')
     return
   }
 
@@ -39,10 +39,12 @@ function askUser(promptText: string): Promise<string> {
     )
 
     if (!['yes', 'y'].includes(answer.toLowerCase().trim())) {
-      console.log('Aborting tests.')
-      process.exit(1) // Exit with failure
+      console.info('Aborting tests.')
+      process.exit(1)
     }
   }
 
-  console.log('Proceeding with tests...')
-})()
+  console.info('Proceeding with tests...')
+}
+
+void main()
