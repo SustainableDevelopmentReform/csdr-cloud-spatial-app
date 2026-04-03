@@ -2,7 +2,7 @@
 
 This repository contains the CSDR Cloud Spatial platform: a web console and API for managing spatial datasets, geometries, derived products, dashboards, and reports.
 
-The codebase started from [Omnigate](https://github.com/azharalifauzi/omnigate) and has since been adapted for the CSDR domain.
+The codebase started as a fork of [Omnigate](https://github.com/azharalifauzi/omnigate) and has since been substantially rewritten for the CSDR domain.
 
 ## What It Does
 
@@ -102,6 +102,15 @@ Backend tests require Docker because the server suite uses Testcontainers. See [
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [SECURITY.md](./SECURITY.md)
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+
+## License and Attribution
+
+This repository is licensed under Apache-2.0 (see [LICENSE](./LICENSE)).
+
+Because this project originated as a fork of Omnigate, the `LICENSE` file also
+retains the original MIT attribution notice for any upstream-derived portions.
+The current codebase has diverged significantly and is now primarily
+CSDR-specific.
 
 ## Known Rough Edges
 
