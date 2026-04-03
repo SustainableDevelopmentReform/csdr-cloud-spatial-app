@@ -1,6 +1,9 @@
 import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
 
+const defaultAnonymousPublicAccess =
+  process.env.NODE_ENV === 'production' ? 'false' : 'true'
+
 export const env = createEnv({
   shared: {
     NODE_ENV: z
@@ -50,7 +53,7 @@ export const env = createEnv({
     ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC: z
       .string()
       .optional()
-      .default('false')
+      .default(defaultAnonymousPublicAccess)
       .transform((val) => val === 'true'),
     ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID: z
       .string()

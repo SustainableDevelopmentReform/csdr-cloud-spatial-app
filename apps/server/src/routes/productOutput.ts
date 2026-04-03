@@ -266,7 +266,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a product output.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      middleware: [
+        authMiddleware({ permission: 'read:productOutput', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },

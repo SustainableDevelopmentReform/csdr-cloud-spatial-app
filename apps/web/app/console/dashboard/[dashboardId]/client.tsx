@@ -11,6 +11,7 @@ import {
   type VisibilityImpactDialogState,
   VisibilityImpactDialog,
 } from '~/app/console/_components/resource-visibility-action'
+import { ResourcePageState } from '../../_components/resource-page-state'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
@@ -30,7 +31,8 @@ import {
 } from '../_hooks'
 
 const DashboardDetails = () => {
-  const { data: dashboard } = useDashboard()
+  const dashboardQuery = useDashboard()
+  const dashboard = dashboardQuery.data
   const updateDashboard = useUpdateDashboard()
   const updateDashboardVisibility = useUpdateDashboardVisibility()
   const previewDashboardVisibility = usePreviewDashboardVisibility()
@@ -62,6 +64,7 @@ const DashboardDetails = () => {
     access,
     resource: 'dashboard',
     createdByUserId: getCreatedByUserId(dashboard),
+    resourceData: dashboard,
   })
 
   const formActions = useMemo(() => {
@@ -73,6 +76,7 @@ const DashboardDetails = () => {
       access,
       mutation: updateDashboardVisibility,
       previewMutation: previewDashboardVisibility,
+      resourceData: dashboard,
       successMessage: 'Dashboard visibility updated',
       visibility: dashboard.visibility,
     })
@@ -81,49 +85,57 @@ const DashboardDetails = () => {
   }, [access, dashboard, previewDashboardVisibility, updateDashboardVisibility])
 
   return (
-    <div className="max-w-full gap-8 flex flex-col">
-      <CrudForm
-        form={form}
-        mutation={updateDashboard}
-        deleteMutation={deleteDashboard}
-        actions={formActions}
-        entityName="Dashboard"
-        entityNamePlural="dashboards"
-        hiddenFields={['metadata', 'content']}
-        onError={(error) => {
-          handleVisibilityImpactError({
-            error,
-            fallbackMessage: 'Failed to update dashboard',
-            setDialogState: setUpdateErrorDialog,
-          })
-        }}
-        readOnly={!canEdit}
-        successMessage="Updated dashboard"
-      >
-        <DashboardGridEditor
-          disabled={!canEdit}
-          value={content}
-          onChange={(next) => {
-            form.setValue('content', next, {
-              shouldDirty: true,
-              shouldTouch: true,
+    <ResourcePageState
+      error={dashboardQuery.error}
+      errorMessage="Failed to load dashboard"
+      isLoading={dashboardQuery.isLoading}
+      loadingMessage="Loading dashboard"
+      notFoundMessage="Dashboard not found"
+    >
+      <div className="max-w-full gap-8 flex flex-col">
+        <CrudForm
+          form={form}
+          mutation={updateDashboard}
+          deleteMutation={deleteDashboard}
+          actions={formActions}
+          entityName="Dashboard"
+          entityNamePlural="dashboards"
+          hiddenFields={['metadata', 'content']}
+          onError={(error) => {
+            handleVisibilityImpactError({
+              error,
+              fallbackMessage: 'Failed to update dashboard',
+              setDialogState: setUpdateErrorDialog,
             })
           }}
+          readOnly={!canEdit}
+          successMessage="Updated dashboard"
+        >
+          <DashboardGridEditor
+            disabled={!canEdit}
+            value={content}
+            onChange={(next) => {
+              form.setValue('content', next, {
+                shouldDirty: true,
+                shouldTouch: true,
+              })
+            }}
+          />
+        </CrudForm>
+        <VisibilityImpactDialog
+          open={updateErrorDialog !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setUpdateErrorDialog(null)
+            }
+          }}
+          title={updateErrorDialog?.title ?? 'Update blocked'}
+          description={updateErrorDialog?.description ?? ''}
+          impact={updateErrorDialog?.impact ?? null}
+          closeLabel="Close"
         />
-      </CrudForm>
-      <VisibilityImpactDialog
-        open={updateErrorDialog !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setUpdateErrorDialog(null)
-          }
-        }}
-        title={updateErrorDialog?.title ?? 'Update blocked'}
-        description={updateErrorDialog?.description ?? ''}
-        impact={updateErrorDialog?.impact ?? null}
-        closeLabel="Close"
-      />
-    </div>
+      </div>
+    </ResourcePageState>
   )
 }
 

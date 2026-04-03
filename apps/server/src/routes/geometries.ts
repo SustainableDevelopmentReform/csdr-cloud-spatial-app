@@ -14,7 +14,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
@@ -108,7 +108,9 @@ const app = createOpenAPIApp()
       description: 'List geometries with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:geometries' })],
+      middleware: [
+        authMiddleware({ permission: 'read:geometries', scope: 'explorer' }),
+      ],
       request: {
         query: geometriesQuerySchema,
       },
@@ -138,7 +140,7 @@ const app = createOpenAPIApp()
       const excludeGeometriesIdsArray =
         normalizeFilterValues(excludeGeometriesIds)
       const baseWhere = and(
-        buildConsoleReadScope(
+        buildExplorerReadScope(
           c,
           geometries.organizationId,
           geometries.visibility,
@@ -180,7 +182,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve geometries by id.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:geometries' })],
+      middleware: [
+        authMiddleware({ permission: 'read:geometries', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -205,6 +209,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'geometries',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: geometriesNotFoundError,
       })
       const record = await fetchFullGeometriesOrThrow(
@@ -224,6 +229,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
+          scope: 'explorer',
           skipResourceCheck: true,
         }),
       ],
@@ -260,6 +266,7 @@ const app = createOpenAPIApp()
           c,
           resource: 'geometries',
           resourceId: geometriesId,
+          scope: 'explorer',
           notFoundError: geometriesNotFoundError,
         })
       }
@@ -277,7 +284,7 @@ const app = createOpenAPIApp()
                   .select({ id: geometries.id })
                   .from(geometries)
                   .where(
-                    buildConsoleReadScope(
+                    buildExplorerReadScope(
                       c,
                       geometries.organizationId,
                       geometries.visibility,

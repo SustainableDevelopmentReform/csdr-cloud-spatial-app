@@ -9,7 +9,9 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { DetailCard } from '../../../_components/detail-cards'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { DatasetButton } from '../../../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../../../dataset/_components/dataset-run-button'
@@ -27,10 +29,17 @@ import {
   useSetProductMainRun,
   useUpdateProductRun,
 } from '../../_hooks'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 
 const ProductRunDetails = () => {
-  const { data: productRun } = useProductRun()
+  const productRunQuery = useProductRun()
+  const productRun = productRunQuery.data
   const updateProductRun = useUpdateProductRun()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: productRun,
+  })
   const productRunsLink = useProductRunsLink()
   const deleteProductRun = useDeleteProductRun(
     undefined,
@@ -75,70 +84,80 @@ const ProductRunDetails = () => {
   }, [productRun, form])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ProductRunSummaryCard run={productRun} />
-        <div className="grid grid-cols-1 gap-4">
-          {productRun && (
-            <DetailCard
-              title={`${productRun?.outputSummary?.outputCount ?? 0} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
-              description="Product Outputs"
-              actionText="Open"
-              actionLink={productRunOutputsLink(productRun)}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {productRun && (
-            <DetailCard
-              title={'Dependencies'}
-              footer={
-                <div className="flex flex-col gap-2">
-                  {productRun?.datasetRun?.dataset && (
-                    <DatasetButton dataset={productRun?.datasetRun?.dataset} />
-                  )}
-                  {productRun?.datasetRun && (
-                    <DatasetRunButton datasetRun={productRun?.datasetRun} />
-                  )}
-                  {productRun?.geometriesRun?.geometries && (
-                    <GeometriesButton
-                      geometries={productRun?.geometriesRun?.geometries}
-                    />
-                  )}
-                  {productRun?.geometriesRun && (
-                    <GeometriesRunButton
-                      geometriesRun={productRun?.geometriesRun}
-                    />
-                  )}
-                </div>
-              }
-            />
-          )}
-          {productRun && (
-            <ResourceUsageDetailCards
-              reportCount={productRun.reportCount}
-              dashboardCount={productRun.dashboardCount}
-              reportQuery={{ productRunId: productRun.id }}
-              dashboardQuery={{ productRunId: productRun.id }}
-            />
-          )}
+    <ResourcePageState
+      error={productRunQuery.error}
+      errorMessage="Failed to load product run"
+      isLoading={productRunQuery.isLoading}
+      loadingMessage="Loading product run"
+      notFoundMessage="Product run not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ProductRunSummaryCard run={productRun} />
+          <div className="grid grid-cols-1 gap-4">
+            {productRun && (
+              <DetailCard
+                title={`${productRun?.outputSummary?.outputCount ?? 0} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
+                description="Product Outputs"
+                actionText="Open"
+                actionLink={productRunOutputsLink(productRun)}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {productRun && (
+              <DetailCard
+                title={'Dependencies'}
+                footer={
+                  <div className="flex flex-col gap-2">
+                    {productRun?.datasetRun?.dataset && (
+                      <DatasetButton
+                        dataset={productRun?.datasetRun?.dataset}
+                      />
+                    )}
+                    {productRun?.datasetRun && (
+                      <DatasetRunButton datasetRun={productRun?.datasetRun} />
+                    )}
+                    {productRun?.geometriesRun?.geometries && (
+                      <GeometriesButton
+                        geometries={productRun?.geometriesRun?.geometries}
+                      />
+                    )}
+                    {productRun?.geometriesRun && (
+                      <GeometriesRunButton
+                        geometriesRun={productRun?.geometriesRun}
+                      />
+                    )}
+                  </div>
+                }
+              />
+            )}
+            {productRun && (
+              <ResourceUsageDetailCards
+                reportCount={productRun.reportCount}
+                dashboardCount={productRun.dashboardCount}
+                reportQuery={{ productRunId: productRun.id }}
+                dashboardQuery={{ productRunId: productRun.id }}
+              />
+            )}
+          </div>
         </div>
+        {productRun && (
+          <CrudForm
+            form={form}
+            mutation={updateProductRun}
+            deleteMutation={deleteProductRun}
+            entityName="Product Run"
+            entityNamePlural="product runs"
+            actions={canEdit ? formActions : []}
+            hiddenFields={['visibility']}
+            readOnly={!canEdit}
+            successMessage="Updated Product Run"
+          >
+            <CrudFormRunFields form={form} readOnlyFields={'all'} />
+          </CrudForm>
+        )}
       </div>
-
-      {productRun && (
-        <CrudForm
-          form={form}
-          mutation={updateProductRun}
-          deleteMutation={deleteProductRun}
-          entityName="Product Run"
-          entityNamePlural="product runs"
-          actions={formActions}
-          hiddenFields={['visibility']}
-          successMessage="Updated Product Run"
-        >
-          <CrudFormRunFields form={form} readOnlyFields={'all'} />
-        </CrudForm>
-      )}
-    </div>
+    </ResourcePageState>
   )
 }
 

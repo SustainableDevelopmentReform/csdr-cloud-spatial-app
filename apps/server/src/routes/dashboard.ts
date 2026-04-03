@@ -22,7 +22,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
@@ -99,7 +99,9 @@ const app = createOpenAPIApp()
       description: 'List dashboards with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:dashboard' })],
+      middleware: [
+        authMiddleware({ permission: 'read:dashboard', scope: 'explorer' }),
+      ],
       request: {
         query: dashboardQuerySchema,
       },
@@ -129,14 +131,14 @@ const app = createOpenAPIApp()
       const baseWhere =
         usageFilters.length > 0
           ? and(
-              buildConsoleReadScope(
+              buildExplorerReadScope(
                 c,
                 dashboard.organizationId,
                 dashboard.visibility,
               ),
               ...usageFilters,
             )
-          : buildConsoleReadScope(
+          : buildExplorerReadScope(
               c,
               dashboard.organizationId,
               dashboard.visibility,
@@ -168,7 +170,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a dashboard.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:dashboard' })],
+      middleware: [
+        authMiddleware({ permission: 'read:dashboard', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -193,6 +197,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'dashboard',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: dashboardNotFoundError,
       })
       const record = await fetchFullDashboardOrThrow(

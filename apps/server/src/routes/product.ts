@@ -23,7 +23,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
@@ -159,7 +159,9 @@ const app = createOpenAPIApp()
       description: 'List products with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:product' })],
+      middleware: [
+        authMiddleware({ permission: 'read:product', scope: 'explorer' }),
+      ],
       request: {
         query: productQuerySchema,
       },
@@ -198,7 +200,7 @@ const app = createOpenAPIApp()
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
       const baseWhere = and(
-        buildConsoleReadScope(c, product.organizationId, product.visibility),
+        buildExplorerReadScope(c, product.organizationId, product.visibility),
         productIdsArray.length > 0
           ? inArray(product.id, productIdsArray)
           : undefined,
@@ -274,7 +276,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a product.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:product' })],
+      middleware: [
+        authMiddleware({ permission: 'read:product', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -299,6 +303,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'product',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: productNotFoundError,
       })
       const record = await fetchFullProductOrThrow(
@@ -319,6 +324,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
+          scope: 'explorer',
           skipResourceCheck: true,
         }),
       ],
@@ -355,6 +361,7 @@ const app = createOpenAPIApp()
           c,
           resource: 'product',
           resourceId: productId,
+          scope: 'explorer',
           notFoundError: productNotFoundError,
         })
       }
@@ -369,7 +376,7 @@ const app = createOpenAPIApp()
                 .select({ id: product.id })
                 .from(product)
                 .where(
-                  buildConsoleReadScope(
+                  buildExplorerReadScope(
                     c,
                     product.organizationId,
                     product.visibility,

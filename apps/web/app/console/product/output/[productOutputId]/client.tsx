@@ -8,7 +8,9 @@ import { Layer, Source } from '@vis.gl/react-maplibre'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { MapViewer } from '../../../geometries/_components/map-viewer'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import { DerivedIndicatorSummaryCard } from '../../_components/derived-indicator-summary-card'
 import { ProductOutputDependenciesCard } from '../../_components/product-output-dependencies-card'
 import { ProductOutputDerivedDependenciesCard } from '../../_components/product-output-derived-dependencies-card'
@@ -18,6 +20,7 @@ import {
   useProductOutput,
   useUpdateProductOutput,
 } from '../../_hooks'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 
 function toFeatureProperties(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -49,8 +52,14 @@ function createGeometryFeatureCollection(
 }
 
 const ProductRunDetails = () => {
-  const { data: productOutput } = useProductOutput()
+  const productOutputQuery = useProductOutput()
+  const productOutput = productOutputQuery.data
   const updateProductOutput = useUpdateProductOutput()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: productOutput,
+  })
 
   const geometryData = useMemo(
     () => createGeometryFeatureCollection(productOutput),
@@ -79,66 +88,75 @@ const ProductRunDetails = () => {
   }, [productOutput, form])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="rounded-lg overflow-hidden h-96">
-        {geometryBbox && geometryData && (
-          <MapViewer
-            initialViewState={{
-              bounds: geometryBbox,
-              fitBoundsOptions: { padding: 100 },
-            }}
-          >
-            <Source id="geojson" type="geojson" data={geometryData} />
-            <Layer
-              id="geojson-line"
-              source="geojson"
-              type="line"
-              paint={{
-                'line-color': 'black',
-                'line-width': 2,
+    <ResourcePageState
+      error={productOutputQuery.error}
+      errorMessage="Failed to load product output"
+      isLoading={productOutputQuery.isLoading}
+      loadingMessage="Loading product output"
+      notFoundMessage="Product output not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="rounded-lg overflow-hidden h-96">
+          {geometryBbox && geometryData && (
+            <MapViewer
+              initialViewState={{
+                bounds: geometryBbox,
+                fitBoundsOptions: { padding: 100 },
               }}
-            />
-            <Layer
-              id="geojson-fill"
-              source="geojson"
-              type="fill"
-              paint={{
-                'fill-color': 'black',
-                'fill-opacity': 0.2,
-              }}
-            />
-          </MapViewer>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 grid-rows-1 gap-4">
-          <ProductOutputSummaryCard productOutput={productOutput} />
-          <ProductOutputDependenciesCard productOutput={productOutput} />
-        </div>
-        <div className="flex flex-col gap-4">
-          <DerivedIndicatorSummaryCard productOutput={productOutput} />
-          {productOutput?.dependencyProductOutputs.map(
-            (dependencyProductOutput) => (
-              <ProductOutputDerivedDependenciesCard
-                key={dependencyProductOutput.id}
-                productOutput={dependencyProductOutput}
-                parentProductOutput={productOutput}
+            >
+              <Source id="geojson" type="geojson" data={geometryData} />
+              <Layer
+                id="geojson-line"
+                source="geojson"
+                type="line"
+                paint={{
+                  'line-color': 'black',
+                  'line-width': 2,
+                }}
               />
-            ),
+              <Layer
+                id="geojson-fill"
+                source="geojson"
+                type="fill"
+                paint={{
+                  'fill-color': 'black',
+                  'fill-opacity': 0.2,
+                }}
+              />
+            </MapViewer>
           )}
         </div>
-      </div>
 
-      <CrudForm
-        form={form}
-        mutation={updateProductOutput}
-        entityName="Product Output"
-        entityNamePlural="product outputs"
-        hiddenFields={['visibility']}
-        successMessage="Updated Product Output"
-      />
-    </div>
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 grid-rows-1 gap-4">
+            <ProductOutputSummaryCard productOutput={productOutput} />
+            <ProductOutputDependenciesCard productOutput={productOutput} />
+          </div>
+          <div className="flex flex-col gap-4">
+            <DerivedIndicatorSummaryCard productOutput={productOutput} />
+            {productOutput?.dependencyProductOutputs.map(
+              (dependencyProductOutput) => (
+                <ProductOutputDerivedDependenciesCard
+                  key={dependencyProductOutput.id}
+                  productOutput={dependencyProductOutput}
+                  parentProductOutput={productOutput}
+                />
+              ),
+            )}
+          </div>
+        </div>
+
+        <CrudForm
+          form={form}
+          mutation={updateProductOutput}
+          entityName="Product Output"
+          entityNamePlural="product outputs"
+          hiddenFields={['visibility']}
+          readOnly={!canEdit}
+          successMessage="Updated Product Output"
+        />
+      </div>
+    </ResourcePageState>
   )
 }
 

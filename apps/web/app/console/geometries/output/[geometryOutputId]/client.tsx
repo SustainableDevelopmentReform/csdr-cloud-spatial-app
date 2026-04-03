@@ -10,13 +10,16 @@ import { Layer, Source } from '@vis.gl/react-maplibre'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { MapViewer } from '../../_components/map-viewer'
 import { GeometryOutputCard } from '../../_components/geometry-output-card'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
   type GeometryOutputDetail,
   useGeometryOutput,
   useUpdateGeometryOutput,
 } from '../../_hooks'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 
 function toFeatureProperties(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -46,8 +49,14 @@ function createGeometryFeatureCollection(
 }
 
 const GeometriesRunDetails = () => {
-  const { data: geometryOutput } = useGeometryOutput()
+  const geometryOutputQuery = useGeometryOutput()
+  const geometryOutput = geometryOutputQuery.data
   const updateGeometryOutput = useUpdateGeometryOutput()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: geometryOutput,
+  })
 
   const geometryData = useMemo(
     () => createGeometryFeatureCollection(geometryOutput),
@@ -76,64 +85,73 @@ const GeometriesRunDetails = () => {
   }, [geometryOutput, form])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="rounded-lg overflow-hidden h-96">
-        {geometryBbox && geometryData && (
-          <MapViewer
-            initialViewState={{
-              bounds: geometryBbox,
-              fitBoundsOptions: { padding: 100 },
-            }}
-          >
-            <Source id="geojson" type="geojson" data={geometryData} />
-            <Layer
-              id="geojson-line"
-              source="geojson"
-              type="line"
-              paint={{
-                'line-color': 'black',
-                'line-width': 2,
+    <ResourcePageState
+      error={geometryOutputQuery.error}
+      errorMessage="Failed to load geometry output"
+      isLoading={geometryOutputQuery.isLoading}
+      loadingMessage="Loading geometry output"
+      notFoundMessage="Geometry output not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="rounded-lg overflow-hidden h-96">
+          {geometryBbox && geometryData && (
+            <MapViewer
+              initialViewState={{
+                bounds: geometryBbox,
+                fitBoundsOptions: { padding: 100 },
               }}
-            />
-            <Layer
-              id="geojson-fill"
-              source="geojson"
-              type="fill"
-              paint={{
-                'fill-color': 'black',
-                'fill-opacity': 0.2,
-              }}
-            />
-          </MapViewer>
-        )}
-      </div>
+            >
+              <Source id="geojson" type="geojson" data={geometryData} />
+              <Layer
+                id="geojson-line"
+                source="geojson"
+                type="line"
+                paint={{
+                  'line-color': 'black',
+                  'line-width': 2,
+                }}
+              />
+              <Layer
+                id="geojson-fill"
+                source="geojson"
+                type="fill"
+                paint={{
+                  'fill-color': 'black',
+                  'fill-opacity': 0.2,
+                }}
+              />
+            </MapViewer>
+          )}
+        </div>
 
-      <div className="grid grid-cols-2 grid-rows-1 gap-4">
-        {geometryOutput && (
-          <GeometryOutputCard geometryOutput={geometryOutput} />
-        )}
-      </div>
+        <div className="grid grid-cols-2 grid-rows-1 gap-4">
+          {geometryOutput && (
+            <GeometryOutputCard geometryOutput={geometryOutput} />
+          )}
+        </div>
 
-      <CrudForm
-        form={form}
-        mutation={updateGeometryOutput}
-        entityName="Geometry Output"
-        entityNamePlural="Geometry Outputs"
-        hiddenFields={['visibility']}
-        readOnlyFields={['id', 'metadata', 'name']}
-        successMessage="Updated Geometry Output"
-      >
-        <FormItem>
-          <FormLabel>Properties</FormLabel>
-          <Textarea
-            className={'font-mono bg-gray-100'}
-            disabled={true}
-            value={JSON.stringify(geometryOutput?.properties, null, 2)}
-          />
-          <FormMessage />
-        </FormItem>
-      </CrudForm>
-    </div>
+        <CrudForm
+          form={form}
+          mutation={updateGeometryOutput}
+          entityName="Geometry Output"
+          entityNamePlural="Geometry Outputs"
+          hiddenFields={['visibility']}
+          readOnly={!canEdit}
+          readOnlyFields={['id', 'metadata', 'name']}
+          successMessage="Updated Geometry Output"
+        >
+          <FormItem>
+            <FormLabel>Properties</FormLabel>
+            <Textarea
+              className={'font-mono bg-gray-100'}
+              disabled={true}
+              value={JSON.stringify(geometryOutput?.properties, null, 2)}
+            />
+            <FormMessage />
+          </FormItem>
+        </CrudForm>
+      </div>
+    </ResourcePageState>
   )
 }
 

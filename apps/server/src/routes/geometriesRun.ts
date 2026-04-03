@@ -150,7 +150,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a geometries run with aggregated metadata.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:geometriesRun' })],
+      middleware: [
+        authMiddleware({ permission: 'read:geometriesRun', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -212,6 +214,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:geometryOutput',
+          scope: 'explorer',
           targetResource: 'geometriesRun',
         }),
       ],
@@ -289,6 +292,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:geometryOutput',
+          scope: 'explorer',
           targetResource: 'geometriesRun',
         }),
       ],
@@ -339,6 +343,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:geometryOutput',
+          scope: 'explorer',
           targetResource: 'geometriesRun',
         }),
       ],

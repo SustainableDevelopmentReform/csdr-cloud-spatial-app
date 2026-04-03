@@ -284,7 +284,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a product run.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      middleware: [
+        authMiddleware({ permission: 'read:productRun', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -319,6 +321,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productOutput',
+          scope: 'explorer',
           targetResource: 'productRun',
         }),
       ],
@@ -413,6 +416,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productOutput',
+          scope: 'explorer',
           targetResource: 'productRun',
         }),
       ],
@@ -659,7 +663,9 @@ const app = createOpenAPIApp()
       description: 'Get assigned derived indicators for a product run.',
       method: 'get',
       path: '/:id/derived-indicators',
-      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      middleware: [
+        authMiddleware({ permission: 'read:productRun', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },

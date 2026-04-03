@@ -1,3 +1,4 @@
+import { Button } from '@repo/ui/components/ui/button'
 import { SquareIcon } from 'lucide-react'
 import React from 'react'
 import Link from '~/components/link'
@@ -92,6 +93,7 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
   const access = buildSessionAccess(session)
   const canManage = canManageWorkspace(access)
   const canReadLogs = canViewLogs(access)
+  const isAuthenticated = session.user !== null
 
   return (
     <>
@@ -104,8 +106,21 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
             CSDR Cloud Spatial App
           </Link>
           <div className="flex items-center gap-4">
-            <OrgSwitcher />
-            <UserDropdown />
+            {isAuthenticated ? (
+              <>
+                <OrgSwitcher />
+                <UserDropdown />
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Button asChild className="px-6">
+                  <Link href="/login">Log in</Link>
+                </Button>
+                <Button asChild variant="outline" className="px-6">
+                  <Link href="/sign-up">Sign up</Link>
+                </Button>
+              </div>
+            )}
           </div>
         </nav>
         <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">

@@ -17,6 +17,7 @@ import {
 } from '../../../../utils/access-control'
 import { DetailCard } from '../../_components/detail-cards'
 import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
+import { ResourcePageState } from '../../_components/resource-page-state'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
@@ -31,7 +32,8 @@ import {
 } from '../_hooks'
 
 const ProductDetails = () => {
-  const { data: product } = useProduct()
+  const productQuery = useProduct()
+  const product = productQuery.data
   const updateProduct = useUpdateProduct()
   const updateProductVisibility = useUpdateProductVisibility()
   const previewProductVisibility = usePreviewProductVisibility()
@@ -42,6 +44,7 @@ const ProductDetails = () => {
     access,
     resource: 'product',
     createdByUserId: getCreatedByUserId(product),
+    resourceData: product,
   })
 
   const formActions: CrudFormAction[] = useMemo(() => {
@@ -60,6 +63,7 @@ const ProductDetails = () => {
         access,
         mutation: updateProductVisibility,
         previewMutation: previewProductVisibility,
+        resourceData: product,
         successMessage: 'Product visibility updated',
         visibility: product.visibility,
       })
@@ -89,58 +93,65 @@ const ProductDetails = () => {
   }, [product, form])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ProductRunSummaryCard run={product?.mainRun} mainRun />
-        <div className="grid grid-cols-1 gap-4">
-          {product && (
-            <DetailCard
-              title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
-              description="Product Runs"
-              actionText="Open"
-              actionLink={productRunsLink(product)}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {product && (
-            <DetailCard
-              title={'Dependencies'}
-              footer={
-                <div className="flex flex-col gap-2">
-                  {product?.dataset && (
-                    <DatasetButton dataset={product.dataset} />
-                  )}
-                  {product?.geometries && (
-                    <GeometriesButton geometries={product.geometries} />
-                  )}
-                </div>
-              }
-            />
-          )}
-          {product && (
-            <ResourceUsageDetailCards
-              reportCount={product.reportCount}
-              dashboardCount={product.dashboardCount}
-              reportQuery={{ productId: product.id }}
-              dashboardQuery={{ productId: product.id }}
-            />
-          )}
+    <ResourcePageState
+      error={productQuery.error}
+      errorMessage="Failed to load product"
+      isLoading={productQuery.isLoading}
+      loadingMessage="Loading product"
+      notFoundMessage="Product not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ProductRunSummaryCard run={product?.mainRun} mainRun />
+          <div className="grid grid-cols-1 gap-4">
+            {product && (
+              <DetailCard
+                title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
+                description="Product Runs"
+                actionText="Open"
+                actionLink={productRunsLink(product)}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {product && (
+              <DetailCard
+                title={'Dependencies'}
+                footer={
+                  <div className="flex flex-col gap-2">
+                    {product?.dataset && (
+                      <DatasetButton dataset={product.dataset} />
+                    )}
+                    {product?.geometries && (
+                      <GeometriesButton geometries={product.geometries} />
+                    )}
+                  </div>
+                }
+              />
+            )}
+            {product && (
+              <ResourceUsageDetailCards
+                reportCount={product.reportCount}
+                dashboardCount={product.dashboardCount}
+                reportQuery={{ productId: product.id }}
+                dashboardQuery={{ productId: product.id }}
+              />
+            )}
+          </div>
         </div>
+        {product && (
+          <CrudForm
+            form={form}
+            mutation={updateProduct}
+            deleteMutation={deleteProduct}
+            entityName="Product"
+            entityNamePlural="products"
+            actions={formActions}
+            readOnly={!canEdit}
+            successMessage="Updated Product"
+          />
+        )}
       </div>
-
-      {product && (
-        <CrudForm
-          form={form}
-          mutation={updateProduct}
-          deleteMutation={deleteProduct}
-          entityName="Product"
-          entityNamePlural="products"
-          actions={formActions}
-          readOnly={!canEdit}
-          successMessage="Updated Product"
-        />
-      )}
-    </div>
+    </ResourcePageState>
   )
 }
 

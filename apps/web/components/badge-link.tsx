@@ -3,10 +3,15 @@ import Link from './link'
 import { ArrowUpRightIcon } from 'lucide-react'
 
 export const BadgeLink = ({
+  adornment,
   children,
   href,
   ...props
-}: { children: React.ReactNode; href: string } & BadgeProps) => {
+}: {
+  adornment?: React.ReactNode
+  children: React.ReactNode
+  href: string
+} & BadgeProps) => {
   return (
     <Link
       href={href}
@@ -14,6 +19,7 @@ export const BadgeLink = ({
     >
       <Badge {...props}>
         {children}
+        {adornment}
         <ArrowUpRightIcon className="size-4" />
       </Badge>
     </Link>

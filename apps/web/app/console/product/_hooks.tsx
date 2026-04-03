@@ -1086,7 +1086,9 @@ export const useProductsLink = () =>
     [],
   )
 
-export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'>
+export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useProductLink = () =>
   useCallback(

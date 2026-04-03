@@ -113,6 +113,15 @@ export type ConsoleResource =
   | 'report'
 
 const collaborativeResources = new Set<ConsoleResource>(['dashboard', 'report'])
+const nestedOrganizationResourceKeys = [
+  'dataset',
+  'datasetRun',
+  'geometries',
+  'geometriesRun',
+  'geometryOutput',
+  'product',
+  'productRun',
+] as const
 
 const organizationRoleLabels: Record<OrganizationRole, string> = {
   org_admin: 'Org admin',
@@ -127,6 +136,62 @@ const globalUserRoleLabels: Record<GlobalUserRole, string> = {
 
 const allVisibilityOptions: ResourceVisibility[] = [...visibilitySchema.options]
 const orgAdminVisibilityOptions: ResourceVisibility[] = ['private', 'public']
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const getRecordProperty = (value: unknown, key: string): unknown => {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  return value[key]
+}
+
+const getStringProperty = (value: unknown, key: string): string | undefined => {
+  const property = getRecordProperty(value, key)
+
+  return typeof property === 'string' ? property : undefined
+}
+
+export const getResourceOrganizationId = (
+  resource: unknown,
+): string | undefined => {
+  if (!isRecord(resource)) {
+    return undefined
+  }
+
+  const organizationId = getStringProperty(resource, 'organizationId')
+
+  if (organizationId) {
+    return organizationId
+  }
+
+  for (const key of nestedOrganizationResourceKeys) {
+    const nestedOrganizationId = getResourceOrganizationId(
+      getRecordProperty(resource, key),
+    )
+
+    if (nestedOrganizationId) {
+      return nestedOrganizationId
+    }
+  }
+
+  return undefined
+}
+
+const belongsToActiveOrganization = (
+  access: SessionAccess,
+  resource: unknown,
+): boolean => {
+  const activeOrganizationId = access.activeOrganization?.id
+  const resourceOrganizationId = getResourceOrganizationId(resource)
+
+  return (
+    typeof activeOrganizationId === 'string' &&
+    resourceOrganizationId === activeOrganizationId
+  )
+}
 
 export const buildSessionAccess = (input: {
   activeMember: ActiveMember | null
@@ -176,14 +241,30 @@ export const canCreateConsoleResource = (
   return access.isOrgAdmin
 }
 
+export const canManageConsoleChildResource = (input: {
+  access: SessionAccess
+  resourceData: unknown
+}): boolean =>
+  input.access.isSuperAdmin ||
+  (input.access.isOrgAdmin &&
+    belongsToActiveOrganization(input.access, input.resourceData))
+
 export const canEditConsoleResource = (input: {
   access: SessionAccess
   createdByUserId?: string | null
   resource: ConsoleResource
+  resourceData: unknown
 }): boolean => {
   if (input.access.isSuperAdmin) {
     return true
   }
+
+  if (!belongsToActiveOrganization(input.access, input.resourceData)) {
+    return false
+  }
+
+  const createdByUserId =
+    input.createdByUserId ?? getCreatedByUserId(input.resourceData)
 
   if (collaborativeResources.has(input.resource)) {
     if (input.access.isOrgAdmin) {
@@ -192,9 +273,9 @@ export const canEditConsoleResource = (input: {
 
     return (
       input.access.isOrgCreator &&
-      input.createdByUserId !== null &&
-      input.createdByUserId !== undefined &&
-      input.createdByUserId === input.access.userId
+      createdByUserId !== null &&
+      createdByUserId !== undefined &&
+      createdByUserId === input.access.userId
     )
   }
 
@@ -240,45 +321,60 @@ export const formatVisibility = (
   }
 }
 
-export const getConsoleResourceVisibilityOptions = (
-  access: SessionAccess,
-  currentVisibility: ResourceVisibility,
-): ResourceVisibility[] => {
-  if (access.isSuperAdmin) {
+export const getConsoleResourceVisibilityOptions = (input: {
+  access: SessionAccess
+  currentVisibility: ResourceVisibility
+  resourceData: unknown
+}): ResourceVisibility[] => {
+  if (input.access.isSuperAdmin) {
     return allVisibilityOptions
   }
 
-  if (!access.isOrgAdmin) {
+  if (!belongsToActiveOrganization(input.access, input.resourceData)) {
     return []
   }
 
-  if (currentVisibility === 'global') {
+  if (!input.access.isOrgAdmin) {
+    return []
+  }
+
+  if (input.currentVisibility === 'global') {
     return ['global']
   }
 
   return orgAdminVisibilityOptions
 }
 
-export const canChangeConsoleResourceVisibility = (
-  access: SessionAccess,
-  currentVisibility: ResourceVisibility,
-): boolean => {
-  if (access.isSuperAdmin) {
+export const canChangeConsoleResourceVisibility = (input: {
+  access: SessionAccess
+  currentVisibility: ResourceVisibility
+  resourceData: unknown
+}): boolean => {
+  if (input.access.isSuperAdmin) {
     return true
   }
 
-  return access.isOrgAdmin && currentVisibility !== 'global'
+  return (
+    input.access.isOrgAdmin &&
+    belongsToActiveOrganization(input.access, input.resourceData) &&
+    input.currentVisibility !== 'global'
+  )
 }
 
-export const getConsoleResourceVisibilityDescription = (
-  access: SessionAccess,
-  currentVisibility: ResourceVisibility,
-): string => {
-  if (access.isSuperAdmin) {
+export const getConsoleResourceVisibilityDescription = (input: {
+  access: SessionAccess
+  currentVisibility: ResourceVisibility
+  resourceData: unknown
+}): string => {
+  if (input.access.isSuperAdmin) {
     return 'Private keeps the resource inside its organization. Public makes it readable to anyone. Global also lists it in every organization and the public explorer.'
   }
 
-  if (access.isOrgAdmin && currentVisibility !== 'global') {
+  if (!belongsToActiveOrganization(input.access, input.resourceData)) {
+    return 'Only the owning organization can change resource visibility.'
+  }
+
+  if (input.access.isOrgAdmin && input.currentVisibility !== 'global') {
     return 'Private keeps the resource inside its organization. Public makes it readable to anyone.'
   }
 

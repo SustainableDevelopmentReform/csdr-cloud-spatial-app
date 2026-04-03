@@ -17,6 +17,7 @@ import { createResourceVisibilityAction } from '~/app/console/_components/resour
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
   canEditConsoleResource,
   getCreatedByUserId,
@@ -35,7 +36,8 @@ import {
 import { ExpressionFieldDescription } from '../../client'
 
 const IndicatorDetails = () => {
-  const { data: derivedIndicator } = useDerivedIndicator()
+  const derivedIndicatorQuery = useDerivedIndicator()
+  const derivedIndicator = derivedIndicatorQuery.data
   const updateIndicator = useUpdateDerivedIndicator()
   const updateIndicatorVisibility = useUpdateDerivedIndicatorVisibility()
   const previewIndicatorVisibility = usePreviewDerivedIndicatorVisibility()
@@ -58,6 +60,7 @@ const IndicatorDetails = () => {
     access,
     resource: 'indicator',
     createdByUserId: getCreatedByUserId(derivedIndicator),
+    resourceData: derivedIndicator,
   })
 
   const formActions = useMemo(() => {
@@ -69,6 +72,7 @@ const IndicatorDetails = () => {
       access,
       mutation: updateIndicatorVisibility,
       previewMutation: previewIndicatorVisibility,
+      resourceData: derivedIndicator,
       successMessage: 'Derived indicator visibility updated',
       visibility: derivedIndicator.visibility,
     })
@@ -82,86 +86,94 @@ const IndicatorDetails = () => {
   ])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <IndicatorProductUsageCard indicator={derivedIndicator} />
-          {derivedIndicator && (
-            <ResourceUsageDetailCards
-              reportCount={derivedIndicator.reportCount}
-              dashboardCount={derivedIndicator.dashboardCount}
-              reportQuery={{ indicatorId: derivedIndicator.id }}
-              dashboardQuery={{ indicatorId: derivedIndicator.id }}
-            />
-          )}
+    <ResourcePageState
+      error={derivedIndicatorQuery.error}
+      errorMessage="Failed to load derived indicator"
+      isLoading={derivedIndicatorQuery.isLoading}
+      loadingMessage="Loading derived indicator"
+      notFoundMessage="Derived indicator not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <IndicatorProductUsageCard indicator={derivedIndicator} />
+            {derivedIndicator && (
+              <ResourceUsageDetailCards
+                reportCount={derivedIndicator.reportCount}
+                dashboardCount={derivedIndicator.dashboardCount}
+                reportQuery={{ indicatorId: derivedIndicator.id }}
+                dashboardQuery={{ indicatorId: derivedIndicator.id }}
+              />
+            )}
+          </div>
         </div>
-      </div>
-      <CrudForm
-        form={form}
-        mutation={updateIndicator}
-        deleteMutation={deleteIndicator}
-        actions={formActions}
-        entityName="Derived Indicator"
-        entityNamePlural="derived indicators"
-        readOnly={!canEdit}
-        successMessage="Updated Derived Indicator"
-      >
-        <FormField
-          control={form.control}
-          name={'unit'}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Units</FormLabel>
-              <FormControl>
-                <Input {...field} disabled={!canEdit} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="categoryId"
-          render={({ field }) => {
-            return (
+        <CrudForm
+          form={form}
+          mutation={updateIndicator}
+          deleteMutation={deleteIndicator}
+          actions={formActions}
+          entityName="Derived Indicator"
+          entityNamePlural="derived indicators"
+          readOnly={!canEdit}
+          successMessage="Updated Derived Indicator"
+        >
+          <FormField
+            control={form.control}
+            name={'unit'}
+            render={({ field }) => (
               <FormItem>
-                <FormLabel>Indicator Category</FormLabel>
+                <FormLabel>Units</FormLabel>
                 <FormControl>
-                  <IndicatorCategorySelect
-                    value={field.value}
-                    disabled={!canEdit}
-                    onChange={(value) => field.onChange(value?.id ?? null)}
-                  />
+                  <Input {...field} disabled={!canEdit} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )
-          }}
-        />
-
-        <FormItem>
-          <FormLabel>Indicators</FormLabel>
-          {derivedIndicator?.indicators.map((indicator) => (
-            <IndicatorButton key={indicator.id} indicator={indicator} />
-          ))}
-          <FormMessage />
-        </FormItem>
-
-        <FormItem>
-          <FormLabel>Expression</FormLabel>
-          <ExpressionFieldDescription
-            indicators={derivedIndicator?.indicators ?? []}
+            )}
           />
-          <FormControl>
-            <Textarea
-              className={'font-mono'}
-              disabled={true}
-              value={derivedIndicator?.expression}
+          <FormField
+            control={form.control}
+            name="categoryId"
+            render={({ field }) => {
+              return (
+                <FormItem>
+                  <FormLabel>Indicator Category</FormLabel>
+                  <FormControl>
+                    <IndicatorCategorySelect
+                      value={field.value}
+                      disabled={!canEdit}
+                      onChange={(value) => field.onChange(value?.id ?? null)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
+          />
+
+          <FormItem>
+            <FormLabel>Indicators</FormLabel>
+            {derivedIndicator?.indicators.map((indicator) => (
+              <IndicatorButton key={indicator.id} indicator={indicator} />
+            ))}
+            <FormMessage />
+          </FormItem>
+
+          <FormItem>
+            <FormLabel>Expression</FormLabel>
+            <ExpressionFieldDescription
+              indicators={derivedIndicator?.indicators ?? []}
             />
-          </FormControl>
-        </FormItem>
-      </CrudForm>
-    </div>
+            <FormControl>
+              <Textarea
+                className={'font-mono'}
+                disabled={true}
+                value={derivedIndicator?.expression}
+              />
+            </FormControl>
+          </FormItem>
+        </CrudForm>
+      </div>
+    </ResourcePageState>
   )
 }
 

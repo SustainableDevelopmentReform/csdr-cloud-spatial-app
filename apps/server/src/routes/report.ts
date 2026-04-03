@@ -23,7 +23,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
@@ -150,7 +150,9 @@ const app = createOpenAPIApp()
       description: 'List reports with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:report' })],
+      middleware: [
+        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+      ],
       request: {
         query: reportQuerySchema,
       },
@@ -180,14 +182,14 @@ const app = createOpenAPIApp()
       const baseWhere =
         usageFilters.length > 0
           ? and(
-              buildConsoleReadScope(
+              buildExplorerReadScope(
                 c,
                 report.organizationId,
                 report.visibility,
               ),
               ...usageFilters,
             )
-          : buildConsoleReadScope(c, report.organizationId, report.visibility)
+          : buildExplorerReadScope(c, report.organizationId, report.visibility)
       const { meta, query } = await parseQuery(report, queryParams, {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
@@ -215,7 +217,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a report.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:report' })],
+      middleware: [
+        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -240,6 +244,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'report',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: reportNotFoundError,
       })
       const record = await fetchFullReportOrThrow(

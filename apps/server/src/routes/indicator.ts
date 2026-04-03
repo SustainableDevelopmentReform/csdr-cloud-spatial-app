@@ -31,7 +31,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
@@ -246,6 +246,7 @@ const tryReadAccessibleIndicator = async (options: {
       c: options.c,
       resource: options.resource,
       resourceId: options.resourceId,
+      scope: 'explorer',
       notFoundError: options.notFoundError,
     })
   } catch (error) {
@@ -291,7 +292,9 @@ const app = createOpenAPIApp()
       description: 'List indicators with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      middleware: [
+        authMiddleware({ permission: 'read:indicator', scope: 'explorer' }),
+      ],
       request: {
         query: indicatorQuerySchema,
       },
@@ -324,7 +327,7 @@ const app = createOpenAPIApp()
         normalizeFilterValues(excludeIndicatorIds)
       const categoryIdsArray = normalizeFilterValues(categoryId)
       const measuredBaseWhere = and(
-        buildConsoleReadScope(
+        buildExplorerReadScope(
           c,
           indicator.organizationId,
           indicator.visibility,
@@ -340,7 +343,7 @@ const app = createOpenAPIApp()
           : undefined,
       )
       const derivedBaseWhere = and(
-        buildConsoleReadScope(
+        buildExplorerReadScope(
           c,
           derivedIndicator.organizationId,
           derivedIndicator.visibility,
@@ -464,6 +467,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:indicator',
+          scope: 'explorer',
           skipResourceCheck: true,
         }),
       ],
@@ -528,7 +532,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a measured indicator.',
       method: 'get',
       path: '/measured/:id',
-      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      middleware: [
+        authMiddleware({ permission: 'read:indicator', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -553,6 +559,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'indicator',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: indicatorNotFoundError,
       })
       const record = await fetchFullMeasuredIndicatorOrThrow(
@@ -572,6 +579,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:indicator',
+          scope: 'explorer',
           skipResourceCheck: true,
           targetResource: 'derivedIndicator',
         }),
@@ -600,6 +608,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'derivedIndicator',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: derivedIndicatorNotFoundError,
       })
       const record = await fetchFullDerivedIndicatorOrThrow(
@@ -726,10 +735,11 @@ const app = createOpenAPIApp()
         })
       }
       for (const indicatorId of indicatorIds) {
-        await assertResourceWritable({
+        await assertResourceReadable({
           c,
           resource: 'indicator',
           resourceId: indicatorId,
+          scope: 'explorer',
           notFoundError: derivedIndicatorNotFoundError,
         })
       }

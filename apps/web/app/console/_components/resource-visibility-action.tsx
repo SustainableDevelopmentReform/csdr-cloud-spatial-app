@@ -66,6 +66,7 @@ type ResourceVisibilityActionProps = {
   access: SessionAccess
   mutation: VisibilityMutation
   previewMutation: VisibilityPreviewMutation
+  resourceData: unknown
   successMessage: string
   visibility: ResourceVisibility
 }
@@ -314,6 +315,7 @@ const ResourceVisibilityAction = ({
   access,
   mutation,
   previewMutation,
+  resourceData,
   successMessage,
   visibility,
 }: ResourceVisibilityActionProps) => {
@@ -326,8 +328,16 @@ const ResourceVisibilityAction = ({
     setNextVisibility(visibility)
   }, [visibility])
 
-  const options = getConsoleResourceVisibilityOptions(access, visibility)
-  const canChange = canChangeConsoleResourceVisibility(access, visibility)
+  const options = getConsoleResourceVisibilityOptions({
+    access,
+    currentVisibility: visibility,
+    resourceData,
+  })
+  const canChange = canChangeConsoleResourceVisibility({
+    access,
+    currentVisibility: visibility,
+    resourceData,
+  })
 
   if (options.length === 0) {
     return null
@@ -421,13 +431,15 @@ export const createResourceVisibilityAction = (input: {
   access: SessionAccess
   mutation: VisibilityMutation
   previewMutation: VisibilityPreviewMutation
+  resourceData: unknown
   successMessage: string
   visibility: ResourceVisibility
 }): CrudFormAction | null => {
-  const options = getConsoleResourceVisibilityOptions(
-    input.access,
-    input.visibility,
-  )
+  const options = getConsoleResourceVisibilityOptions({
+    access: input.access,
+    currentVisibility: input.visibility,
+    resourceData: input.resourceData,
+  })
 
   if (options.length === 0) {
     return null
@@ -435,10 +447,11 @@ export const createResourceVisibilityAction = (input: {
 
   return {
     title: 'Visibility',
-    description: getConsoleResourceVisibilityDescription(
-      input.access,
-      input.visibility,
-    ),
+    description: getConsoleResourceVisibilityDescription({
+      access: input.access,
+      currentVisibility: input.visibility,
+      resourceData: input.resourceData,
+    }),
     component: <ResourceVisibilityAction {...input} />,
   }
 }

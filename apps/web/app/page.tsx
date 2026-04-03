@@ -1,8 +1,6 @@
 import { Button } from '@repo/ui/components/ui/button'
-import { match } from 'ts-pattern'
 import Link from '~/components/link'
 import { getUserServerSession } from '~/utils/getUserServerSession'
-import { SignOutButton } from '../components/sign-out-button'
 import { redirect } from 'next/navigation'
 
 export default async function Page() {
@@ -24,11 +22,13 @@ export default async function Page() {
         </p>
         <div className="flex items-center justify-center gap-4">
           <Button className="px-8" asChild>
-            {match(user)
-              .with(null, () => <Link href="/login">Login</Link>)
-              .otherwise(() => (
-                <SignOutButton />
-              ))}
+            <Link href="/console">Browse</Link>
+          </Button>
+          <Button className="px-8" variant="outline" asChild>
+            <Link href="/login">Log in</Link>
+          </Button>
+          <Button className="px-8" variant="outline" asChild>
+            <Link href="/sign-up">Sign up</Link>
           </Button>
         </div>
       </section>

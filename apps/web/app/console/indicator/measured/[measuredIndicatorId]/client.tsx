@@ -8,6 +8,7 @@ import { createResourceVisibilityAction } from '~/app/console/_components/resour
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import {
   canEditConsoleResource,
@@ -32,7 +33,8 @@ import { IndicatorCategorySelect } from '../../_components/indicator-category-se
 import { IndicatorProductUsageCard } from '../../_components/indicator-product-usage-card'
 
 const IndicatorDetails = () => {
-  const { data: indicator } = useMeasuredIndicator()
+  const indicatorQuery = useMeasuredIndicator()
+  const indicator = indicatorQuery.data
   const updateIndicator = useUpdateMeasuredIndicator()
   const updateIndicatorVisibility = useUpdateMeasuredIndicatorVisibility()
   const previewIndicatorVisibility = usePreviewMeasuredIndicatorVisibility()
@@ -55,6 +57,7 @@ const IndicatorDetails = () => {
     access,
     resource: 'indicator',
     createdByUserId: getCreatedByUserId(indicator),
+    resourceData: indicator,
   })
 
   const formActions = useMemo(() => {
@@ -66,6 +69,7 @@ const IndicatorDetails = () => {
       access,
       mutation: updateIndicatorVisibility,
       previewMutation: previewIndicatorVisibility,
+      resourceData: indicator,
       successMessage: 'Indicator visibility updated',
       visibility: indicator.visibility,
     })
@@ -74,64 +78,72 @@ const IndicatorDetails = () => {
   }, [access, indicator, previewIndicatorVisibility, updateIndicatorVisibility])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <IndicatorProductUsageCard indicator={indicator} />
-          {indicator && (
-            <ResourceUsageDetailCards
-              reportCount={indicator.reportCount}
-              dashboardCount={indicator.dashboardCount}
-              reportQuery={{ indicatorId: indicator.id }}
-              dashboardQuery={{ indicatorId: indicator.id }}
-            />
-          )}
+    <ResourcePageState
+      error={indicatorQuery.error}
+      errorMessage="Failed to load indicator"
+      isLoading={indicatorQuery.isLoading}
+      loadingMessage="Loading indicator"
+      notFoundMessage="Indicator not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <IndicatorProductUsageCard indicator={indicator} />
+            {indicator && (
+              <ResourceUsageDetailCards
+                reportCount={indicator.reportCount}
+                dashboardCount={indicator.dashboardCount}
+                reportQuery={{ indicatorId: indicator.id }}
+                dashboardQuery={{ indicatorId: indicator.id }}
+              />
+            )}
+          </div>
         </div>
-      </div>
-      <CrudForm
-        form={form}
-        mutation={updateIndicator}
-        deleteMutation={deleteIndicator}
-        actions={formActions}
-        entityName="Indicator"
-        entityNamePlural="indicators"
-        readOnly={!canEdit}
-        successMessage="Updated Indicator"
-      >
-        <FormField
-          control={form.control}
-          name={'unit'}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Units</FormLabel>
-              <FormControl>
-                <Input {...field} disabled={!canEdit} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="categoryId"
-          render={({ field }) => {
-            return (
+        <CrudForm
+          form={form}
+          mutation={updateIndicator}
+          deleteMutation={deleteIndicator}
+          actions={formActions}
+          entityName="Indicator"
+          entityNamePlural="indicators"
+          readOnly={!canEdit}
+          successMessage="Updated Indicator"
+        >
+          <FormField
+            control={form.control}
+            name={'unit'}
+            render={({ field }) => (
               <FormItem>
-                <FormLabel>Indicator Category</FormLabel>
+                <FormLabel>Units</FormLabel>
                 <FormControl>
-                  <IndicatorCategorySelect
-                    value={field.value}
-                    disabled={!canEdit}
-                    onChange={(value) => field.onChange(value?.id ?? null)}
-                  />
+                  <Input {...field} disabled={!canEdit} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )
-          }}
-        />
-      </CrudForm>
-    </div>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="categoryId"
+            render={({ field }) => {
+              return (
+                <FormItem>
+                  <FormLabel>Indicator Category</FormLabel>
+                  <FormControl>
+                    <IndicatorCategorySelect
+                      value={field.value}
+                      disabled={!canEdit}
+                      onChange={(value) => field.onChange(value?.id ?? null)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
+          />
+        </CrudForm>
+      </div>
+    </ResourcePageState>
   )
 }
 

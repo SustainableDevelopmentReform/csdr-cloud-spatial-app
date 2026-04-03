@@ -486,7 +486,9 @@ export const useDeleteDatasetRun = (
   })
 }
 
-export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'>
+export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useDatasetsLink = () =>
   useCallback(

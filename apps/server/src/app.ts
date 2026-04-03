@@ -37,7 +37,6 @@ import report from './routes/report'
 import dashboard from './routes/dashboard'
 import logs from './routes/logs'
 import organization from './routes/organization'
-import publicRoutes from './routes/public'
 
 const isProduction = env.NODE_ENV === 'production'
 const apiKeyOrganizationDocs = [
@@ -135,7 +134,6 @@ const v0ApiBase = app
   .route('/report', report)
   .route('/dashboard', dashboard)
   .route('/logs', logs)
-  .route('/public', publicRoutes)
 
 v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',

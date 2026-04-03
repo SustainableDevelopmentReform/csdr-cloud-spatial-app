@@ -1,6 +1,9 @@
 import { createEnv } from '@t3-oss/env-nextjs'
 import { z } from 'zod'
 
+const defaultAnonymousPublicAccess =
+  process.env.NODE_ENV === 'production' ? 'false' : 'true'
+
 export const env = createEnv({
   shared: {
     NODE_ENV: z
@@ -14,7 +17,7 @@ export const env = createEnv({
     ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC: z
       .string()
       .optional()
-      .default('false')
+      .default(defaultAnonymousPublicAccess)
       .transform((val) => val === 'true'),
     DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z
       .string()

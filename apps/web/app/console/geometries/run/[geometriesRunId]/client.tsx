@@ -11,11 +11,14 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { DetailCard } from '../../../_components/detail-cards'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { useProductRunsLink } from '../../../product/_hooks'
 import GeometriesMapViewer from '../../_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import {
   useDeleteGeometriesRun,
   useGeometriesRun,
@@ -26,8 +29,14 @@ import {
 } from '../../_hooks'
 
 const GeometriesRunDetails = () => {
-  const { data: geometriesRun } = useGeometriesRun()
+  const geometriesRunQuery = useGeometriesRun()
+  const geometriesRun = geometriesRunQuery.data
   const updateGeometriesRun = useUpdateGeometriesRun()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: geometriesRun,
+  })
 
   const geometriesRunsLink = useGeometriesRunsLink()
   const deleteGeometriesRun = useDeleteGeometriesRun(
@@ -71,65 +80,73 @@ const GeometriesRunDetails = () => {
   }, [geometriesRun, form])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="flex flex-col gap-4">
-        <GeometriesMapViewer geometriesRun={geometriesRun} className="h-96" />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <GeometriesRunSummaryCard run={geometriesRun} />
-          <div className="grid grid-cols-1 gap-4">
-            {geometriesRun && (
-              <DetailCard
-                title={`${geometriesRun?.outputCount} ${pluralize(geometriesRun?.outputCount, 'output', 'outputs')}`}
-                description="Geometry Outputs"
-                actionText="Open"
-                actionLink={geometryRunOutputsLink(geometriesRun)}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {geometriesRun && (
-              <DetailCard
-                title={`${geometriesRun?.productRunCount} ${pluralize(geometriesRun?.productRunCount, 'product run', 'product runs')}`}
-                description="Used by Products Runs"
-                actionText="Open"
-                actionLink={productRunsLink(null, {
-                  geometriesRunId: geometriesRun?.id,
-                })}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {geometriesRun && (
-              <ResourceUsageDetailCards
-                reportCount={geometriesRun.reportCount}
-                dashboardCount={geometriesRun.dashboardCount}
-                reportQuery={{ geometriesRunId: geometriesRun.id }}
-                dashboardQuery={{ geometriesRunId: geometriesRun.id }}
-              />
-            )}
+    <ResourcePageState
+      error={geometriesRunQuery.error}
+      errorMessage="Failed to load geometries run"
+      isLoading={geometriesRunQuery.isLoading}
+      loadingMessage="Loading geometries run"
+      notFoundMessage="Geometries run not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="flex flex-col gap-4">
+          <GeometriesMapViewer geometriesRun={geometriesRun} className="h-96" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <GeometriesRunSummaryCard run={geometriesRun} />
+            <div className="grid grid-cols-1 gap-4">
+              {geometriesRun && (
+                <DetailCard
+                  title={`${geometriesRun?.outputCount} ${pluralize(geometriesRun?.outputCount, 'output', 'outputs')}`}
+                  description="Geometry Outputs"
+                  actionText="Open"
+                  actionLink={geometryRunOutputsLink(geometriesRun)}
+                  actionIcon={<ArrowUpRightIcon />}
+                />
+              )}
+              {geometriesRun && (
+                <DetailCard
+                  title={`${geometriesRun?.productRunCount} ${pluralize(geometriesRun?.productRunCount, 'product run', 'product runs')}`}
+                  description="Used by Products Runs"
+                  actionText="Open"
+                  actionLink={productRunsLink(null, {
+                    geometriesRunId: geometriesRun?.id,
+                  })}
+                  actionIcon={<ArrowUpRightIcon />}
+                />
+              )}
+              {geometriesRun && (
+                <ResourceUsageDetailCards
+                  reportCount={geometriesRun.reportCount}
+                  dashboardCount={geometriesRun.dashboardCount}
+                  reportQuery={{ geometriesRunId: geometriesRun.id }}
+                  dashboardQuery={{ geometriesRunId: geometriesRun.id }}
+                />
+              )}
+            </div>
           </div>
         </div>
+        <CrudForm
+          form={form}
+          mutation={updateGeometriesRun}
+          deleteMutation={deleteGeometriesRun}
+          entityName="Geometries Run"
+          entityNamePlural="geometries runs"
+          actions={canEdit ? formActions : []}
+          hiddenFields={['visibility']}
+          readOnly={!canEdit}
+          successMessage="Updated Geometries Run"
+        >
+          <CrudFormRunFields form={form} readOnlyFields={'all'} />
+          <FormItem>
+            <FormLabel>Data PMTiles URL</FormLabel>
+            <Input
+              disabled
+              value={geometriesRun?.dataPmtilesUrl ?? ''}
+              className="bg-gray-100"
+            />
+          </FormItem>
+        </CrudForm>
       </div>
-
-      <CrudForm
-        form={form}
-        mutation={updateGeometriesRun}
-        deleteMutation={deleteGeometriesRun}
-        entityName="Geometries Run"
-        entityNamePlural="geometries runs"
-        actions={formActions}
-        hiddenFields={['visibility']}
-        successMessage="Updated Geometries Run"
-      >
-        <CrudFormRunFields form={form} readOnlyFields={'all'} />
-        <FormItem>
-          <FormLabel>Data PMTiles URL</FormLabel>
-          <Input
-            disabled
-            value={geometriesRun?.dataPmtilesUrl ?? ''}
-            className="bg-gray-100"
-          />
-        </FormItem>
-      </CrudForm>
-    </div>
+    </ResourcePageState>
   )
 }
 

@@ -87,7 +87,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a dataset run with aggregated metadata.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:datasetRun' })],
+      middleware: [
+        authMiddleware({ permission: 'read:datasetRun', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },

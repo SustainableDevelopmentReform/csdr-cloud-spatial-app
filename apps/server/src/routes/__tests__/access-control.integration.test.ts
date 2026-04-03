@@ -1642,7 +1642,7 @@ describe('access control integration', () => {
     ).toBe(true)
   })
 
-  it('serves public details but lists only global resources anonymously and keeps the public namespace read-only', async () => {
+  it('serves public details and anonymous global lists from the standard resource routes while keeping writes authenticated', async () => {
     await expectJsonResponse(
       await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
         'visibility'
@@ -1659,7 +1659,7 @@ describe('access control integration', () => {
     )
 
     const publicDetailJson = await expectJsonResponse<{ id: string }>(
-      await createAppClient().api.v0.public.dataset[':id'].$get({
+      await createAppClient().api.v0.dataset[':id'].$get({
         param: {
           id: seededIds.dataset,
         },
@@ -1674,7 +1674,7 @@ describe('access control integration', () => {
     const publicListJson = await expectJsonResponse<{
       data: { id: string }[]
     }>(
-      await createAppClient().api.v0.public.dataset.$get({
+      await createAppClient().api.v0.dataset.$get({
         query: {},
       }),
       {
@@ -1704,7 +1704,7 @@ describe('access control integration', () => {
     const globalListJson = await expectJsonResponse<{
       data: { id: string }[]
     }>(
-      await createAppClient().api.v0.public.dataset.$get({
+      await createAppClient().api.v0.dataset.$get({
         query: {},
       }),
       {
@@ -1716,9 +1716,9 @@ describe('access control integration', () => {
       globalListJson.data.data.some((entry) => entry.id === seededIds.dataset),
     ).toBe(true)
 
-    const writeResponse = await app.request('/api/v0/public/dataset', {
+    const writeResponse = await app.request('/api/v0/dataset', {
       method: 'POST',
     })
-    expect(writeResponse.status).toBe(404)
+    expect(writeResponse.status).toBe(401)
   })
 })

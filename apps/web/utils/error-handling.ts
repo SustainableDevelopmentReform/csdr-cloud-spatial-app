@@ -36,6 +36,19 @@ const getCauseMessage = (cause: unknown): string | undefined => {
   return undefined
 }
 
+export const getServerError = (
+  error: unknown,
+): z.infer<typeof serverErrorSchema> | null => {
+  const parsedError = serverErrorSchema.safeParse(error)
+
+  return parsedError.success ? parsedError.data : null
+}
+
+export const isServerErrorStatus = (
+  error: unknown,
+  statusCode: number,
+): boolean => getServerError(error)?.statusCode === statusCode
+
 export const getUserFacingErrorMessage = (error: unknown): string | null => {
   if (typeof error === 'string') {
     return error

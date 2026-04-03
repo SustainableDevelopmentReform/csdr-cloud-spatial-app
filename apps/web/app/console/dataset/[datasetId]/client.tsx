@@ -16,6 +16,7 @@ import {
 } from '../../../../utils/access-control'
 import { DetailCard } from '../../_components/detail-cards'
 import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
+import { ResourcePageState } from '../../_components/resource-page-state'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import { DatasetRunSummaryCard } from '../_components/dataset-run-summary-card'
@@ -29,7 +30,8 @@ import {
 } from '../_hooks'
 
 const DatasetDetails = () => {
-  const { data: dataset } = useDataset()
+  const datasetQuery = useDataset()
+  const dataset = datasetQuery.data
   const productsLink = useProductsLink()
   const updateDataset = useUpdateDataset()
   const updateDatasetVisibility = useUpdateDatasetVisibility()
@@ -41,6 +43,7 @@ const DatasetDetails = () => {
     access,
     resource: 'dataset',
     createdByUserId: getCreatedByUserId(dataset),
+    resourceData: dataset,
   })
 
   const form = useForm({
@@ -62,6 +65,7 @@ const DatasetDetails = () => {
       access,
       mutation: updateDatasetVisibility,
       previewMutation: previewDatasetVisibility,
+      resourceData: dataset,
       successMessage: 'Dataset visibility updated',
       visibility: dataset.visibility,
     })
@@ -70,51 +74,58 @@ const DatasetDetails = () => {
   }, [access, dataset, previewDatasetVisibility, updateDatasetVisibility])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DatasetRunSummaryCard run={dataset?.mainRun} mainRun />
-        <div className="grid grid-cols-1 gap-4">
-          {dataset && (
-            <DetailCard
-              title={`${dataset?.runCount} ${pluralize(dataset?.runCount, 'run', 'runs')}`}
-              description="Dataset Runs"
-              actionText="Open"
-              actionLink={datasetRunsLink(dataset)}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {dataset && (
-            <DetailCard
-              title={`${dataset?.productCount} ${pluralize(dataset?.productCount, 'product', 'products')}`}
-              description="Products"
-              actionText="Open"
-              actionLink={productsLink({ datasetId: dataset.id })}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {dataset && <SourcesCard resource={dataset} />}
-          {dataset && (
-            <ResourceUsageDetailCards
-              reportCount={dataset.reportCount}
-              dashboardCount={dataset.dashboardCount}
-              reportQuery={{ datasetId: dataset.id }}
-              dashboardQuery={{ datasetId: dataset.id }}
-            />
-          )}
+    <ResourcePageState
+      error={datasetQuery.error}
+      errorMessage="Failed to load dataset"
+      isLoading={datasetQuery.isLoading}
+      loadingMessage="Loading dataset"
+      notFoundMessage="Dataset not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <DatasetRunSummaryCard run={dataset?.mainRun} mainRun />
+          <div className="grid grid-cols-1 gap-4">
+            {dataset && (
+              <DetailCard
+                title={`${dataset?.runCount} ${pluralize(dataset?.runCount, 'run', 'runs')}`}
+                description="Dataset Runs"
+                actionText="Open"
+                actionLink={datasetRunsLink(dataset)}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {dataset && (
+              <DetailCard
+                title={`${dataset?.productCount} ${pluralize(dataset?.productCount, 'product', 'products')}`}
+                description="Products"
+                actionText="Open"
+                actionLink={productsLink({ datasetId: dataset.id })}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {dataset && <SourcesCard resource={dataset} />}
+            {dataset && (
+              <ResourceUsageDetailCards
+                reportCount={dataset.reportCount}
+                dashboardCount={dataset.dashboardCount}
+                reportQuery={{ datasetId: dataset.id }}
+                dashboardQuery={{ datasetId: dataset.id }}
+              />
+            )}
+          </div>
         </div>
+        <CrudForm
+          form={form}
+          mutation={updateDataset}
+          deleteMutation={deleteDataset}
+          actions={formActions}
+          entityName="Dataset"
+          entityNamePlural="datasets"
+          readOnly={!canEdit}
+          successMessage="Updated Dataset"
+        />
       </div>
-
-      <CrudForm
-        form={form}
-        mutation={updateDataset}
-        deleteMutation={deleteDataset}
-        actions={formActions}
-        entityName="Dataset"
-        entityNamePlural="datasets"
-        readOnly={!canEdit}
-        successMessage="Updated Dataset"
-      />
-    </div>
+    </ResourcePageState>
   )
 }
 

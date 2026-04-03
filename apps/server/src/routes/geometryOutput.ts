@@ -248,7 +248,12 @@ const app = createOpenAPIApp()
       description: 'Retrieve a geometry output.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:geometryOutput' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:geometryOutput',
+          scope: 'explorer',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },

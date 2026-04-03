@@ -52,6 +52,7 @@ This is designed for implementation using the existing `better-auth` organizatio
 - `dataset`
 - `geometries`
 - `product`
+- `indicatorCategory`
 - `indicator`
 - `derivedIndicator`
 - `dashboard`
@@ -97,6 +98,7 @@ Examples:
 - A `product` cannot be made `public` or `global` unless its `dataset`, `geometries`, and all measured or derived indicators referenced by its main-run output summary are already `public` or `global`.
 - A `product` also requires a `mainRun` with an output summary before it can be made `public` or `global`.
 - A `derivedIndicator` cannot be made `public` or `global` unless all of its measured-indicator dependencies are already `public` or `global`.
+- An `indicatorCategory` remains a normal top-level ACL resource, but it does not participate in external visibility dependency validation.
 - A `report` or `dashboard` cannot be made `public` or `global` unless all referenced products, datasets, geometries, indicators, and derived indicators are already `public` or `global`.
 - If any upstream dependency is `private`, the request must fail with an error identifying the same-organization private dependencies.
 - The UI should warn before any visibility change and provide links to same-organization dependencies or dependents that need follow-up updates.
@@ -119,7 +121,7 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 #### `org_admin`
 
 - Full read/write on all resources in the organization.
-- Can create/edit/delete `dataset`, `geometries`, `product`, `indicator`, `derivedIndicator`, `dashboard`, `report`.
+- Can create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, `dashboard`, `report`.
 - Can change resource visibility between `private` and `public` (subject to dependency validation where applicable).
 - Cannot move a resource into or out of `global` (requires `super_admin`).
 - Can invite/remove users and assign organization roles.
@@ -128,9 +130,10 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 
 #### `org_creator`
 
-- Can create/edit/delete `dashboard` and `report` in the organization.
+- Can create `dashboard` and `report` in the organization.
+- Can edit/delete only the `dashboard` and `report` resources they created.
 - Read access to all resources in the active organization.
-- Cannot create/edit/delete `dataset`, `geometries`, `product`, `indicator`, `derivedIndicator`, or their child resources.
+- Cannot create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, or their child resources.
 - Cannot change visibility of any resource.
 - Cannot invite/remove users or change organization roles.
 
@@ -215,7 +218,7 @@ Anonymous (unauthenticated) access to public resources is configurable at the pl
 
 ### Public Read Surface
 
-Anonymous/public internet access is read-only.
+Anonymous/public internet access is read-only and uses the same resource endpoints as authenticated reads.
 
 Allowed:
 
@@ -223,7 +226,7 @@ Allowed:
 - Detail views for `public` and `global` top-level resources.
 - Read access to child runs/outputs when parent resource is `public` or `global`.
 - Read access to provenance of `public`/`global` reports and dashboards.
-- Public export/download routes for `public` and `global` resources.
+- Standard export/download routes for `public` and `global` resources.
 
 Not allowed:
 
@@ -260,20 +263,21 @@ Rules:
 
 ## Authorization Rules by Resource Type
 
-| Resource Type    | Visibility States             | org_viewer | org_creator             | org_admin               |
-| ---------------- | ----------------------------- | ---------- | ----------------------- | ----------------------- |
-| dataset          | `private`, `public`, `global` | Read       | Read                    | Create/Edit/Delete/Read |
-| dataset_run      | inherited from dataset        | Read       | Read                    | Create/Edit/Delete/Read |
-| geometries       | `private`, `public`, `global` | Read       | Read                    | Create/Edit/Delete/Read |
-| geometries_run   | inherited                     | Read       | Read                    | Create/Edit/Delete/Read |
-| geometry_output  | inherited                     | Read       | Read                    | Create/Edit/Delete/Read |
-| product          | `private`, `public`, `global` | Read       | Read                    | Create/Edit/Delete/Read |
-| product_run      | inherited from product        | Read       | Read                    | Create/Edit/Delete/Read |
-| product_output   | inherited from product        | Read       | Read                    | Create/Edit/Delete/Read |
-| indicator        | `private`, `public`, `global` | Read       | Read                    | Create/Edit/Delete/Read |
-| derivedIndicator | `private`, `public`, `global` | Read       | Read                    | Create/Edit/Delete/Read |
-| dashboard        | `private`, `public`, `global` | Read       | Create/Edit/Delete/Read | Create/Edit/Delete/Read |
-| report           | `private`, `public`, `global` | Read       | Create/Edit/Delete/Read | Create/Edit/Delete/Read |
+| Resource Type     | Visibility States             | org_viewer | org_creator                     | org_admin               |
+| ----------------- | ----------------------------- | ---------- | ------------------------------- | ----------------------- |
+| dataset           | `private`, `public`, `global` | Read       | Read                            | Create/Edit/Delete/Read |
+| dataset_run       | inherited from dataset        | Read       | Read                            | Create/Edit/Delete/Read |
+| geometries        | `private`, `public`, `global` | Read       | Read                            | Create/Edit/Delete/Read |
+| geometries_run    | inherited                     | Read       | Read                            | Create/Edit/Delete/Read |
+| geometry_output   | inherited                     | Read       | Read                            | Create/Edit/Delete/Read |
+| product           | `private`, `public`, `global` | Read       | Read                            | Create/Edit/Delete/Read |
+| product_run       | inherited from product        | Read       | Read                            | Create/Edit/Delete/Read |
+| product_output    | inherited from product        | Read       | Read                            | Create/Edit/Delete/Read |
+| indicatorCategory | `private`, `public`, `global` | Read       | Read                            | Create/Edit/Delete/Read |
+| indicator         | `private`, `public`, `global` | Read       | Read                            | Create/Edit/Delete/Read |
+| derivedIndicator  | `private`, `public`, `global` | Read       | Read                            | Create/Edit/Delete/Read |
+| dashboard         | `private`, `public`, `global` | Read       | Create/Own Edit/Own Delete/Read | Create/Edit/Delete/Read |
+| report            | `private`, `public`, `global` | Read       | Create/Own Edit/Own Delete/Read | Create/Edit/Delete/Read |
 
 Notes:
 
@@ -335,14 +339,14 @@ Log all read/list/export/download events for all resources, including:
 
 - Backend authorization is the source of truth; frontend checks are convenience only.
 - Every protected API endpoint must enforce:
-  - Authentication (except explicit public routes, when anonymous access is enabled)
+  - Authentication (except standard read endpoints serving `public`/`global` resources when anonymous access is enabled)
   - Organization scope rules
   - Role checks (four-tier: `super_admin`, `org_admin`, `org_creator`, `org_viewer`)
   - Ownership checks (for `org_creator` edit/delete of own resources)
   - Visibility checks
   - Dependency validation (for externally visible products, derived indicators, dashboards, and reports)
 - Authorization evaluation must be deny-by-default.
-- Public endpoints must enforce read-only behavior.
+- Standard resource endpoints must enforce read-only behavior for anonymous access.
 - MFA must be enforced for `super_admin` and `org_admin` before protected operations.
 - Existing global `user.role` can remain for platform-level operations (`super_admin`), but resource authorization must be org-scoped in MVP.
 
@@ -371,9 +375,9 @@ For resources created before org ACL fields exist, migration must:
 1. New signup creates a personal org workspace with email verification and assigns the creator as `org_creator`.
 2. All top-level ACL resources require `organizationId`, `createdByUserId`, and valid visibility (`private`/`public`/`global`).
 3. `org_viewer` cannot create, edit, or delete any resources.
-4. `org_creator` can create/edit/delete only `dashboard` and `report`.
+4. `org_creator` can create `dashboard` and `report`, and can edit/delete only their own dashboards and reports.
 5. `org_creator` cannot change visibility of any resource.
-6. `org_creator` cannot create/edit/delete `dataset`, `geometries`, `product`, `indicator`, `derivedIndicator`, or their child resources.
+6. `org_creator` cannot create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, or their child resources.
 7. `org_admin` can create/edit/delete all resource types within their organization.
 8. `org_admin` can invite/remove users and change roles within their organization.
 9. Only `super_admin` can move a resource into or out of `global`.
@@ -393,7 +397,7 @@ For resources created before org ACL fields exist, migration must:
 23. Audit log captures all write/security/authentication events listed above.
 24. Read log captures all read/list/export/download events (allow + deny) across all resource types.
 25. Log retention/privacy requirements are enforced.
-26. Public routes reject writes and any access to org-management data.
+26. Standard resource routes reject anonymous writes and any access to org-management data.
 
 ## Deferred (Post-MVP)
 

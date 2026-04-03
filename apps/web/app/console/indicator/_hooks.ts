@@ -658,7 +658,9 @@ export const useDeleteIndicatorCategory = (
 export type IndicatorLinkParams = Pick<
   IndicatorListItem,
   'id' | 'name' | 'type'
->
+> & {
+  visibility?: ResourceVisibility | null
+}
 export type IndicatorCategoryLinkParams = Pick<
   IndicatorCategoryListItem,
   'id' | 'name'

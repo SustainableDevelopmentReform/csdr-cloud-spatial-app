@@ -256,7 +256,9 @@ export const useDeleteDashboard = (
   })
 }
 
-export type DashboardLinkParams = Pick<DashboardListItem, 'id' | 'name'>
+export type DashboardLinkParams = Pick<DashboardListItem, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useDashboardsLink = () =>
   useCallback(

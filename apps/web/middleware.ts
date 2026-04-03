@@ -1,8 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { env } from './env'
 
-const isProtectedRoute = (pathname: string) => {
-  return pathname.startsWith('/console')
+const protectedConsolePrefixes = [
+  '/console/logs',
+  '/console/me',
+  '/console/user',
+  '/console/workspace',
+] as const
+
+const isProtectedRoute = (pathname: string): boolean => {
+  return protectedConsolePrefixes.some((prefix) => pathname.startsWith(prefix))
 }
 
 export async function middleware(request: NextRequest) {

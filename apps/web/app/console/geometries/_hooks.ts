@@ -863,7 +863,9 @@ export const useDeleteGeometriesRun = (
   })
 }
 
-export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'>
+export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useAllGeometriesLink = () =>
   useCallback(

@@ -15,6 +15,7 @@ import { canCreateConsoleResource } from '../../../utils/access-control'
 const DataExplorerFeature = () => {
   const createDashboard = useCreateDashboard()
   const { access } = useAccessControl()
+  const canSaveDashboard = canCreateConsoleResource(access, 'dashboard')
   const form = useForm({
     resolver: zodResolver(createDashboardSchema),
     defaultValues: {
@@ -32,11 +33,10 @@ const DataExplorerFeature = () => {
         buttonText="Save as Dashboard"
         entityName="Dashboard"
         entityNamePlural="dashboards"
-        hideTrigger={!canCreateConsoleResource(access, 'dashboard')}
+        hideTrigger={!canSaveDashboard}
         hiddenFields={['content', 'metadata']}
       />
       <DashboardGridEditor
-        disabled={!canCreateConsoleResource(access, 'dashboard')}
         value={form.watch('content')}
         onChange={(next) =>
           form.setValue('content', next, {

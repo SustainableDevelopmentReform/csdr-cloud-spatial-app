@@ -4,7 +4,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
@@ -89,6 +89,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:indicatorCategory',
+          scope: 'explorer',
         }),
       ],
       responses: {
@@ -110,7 +111,7 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const scopeWhere = buildConsoleReadScope(
+      const scopeWhere = buildExplorerReadScope(
         c,
         indicatorCategory.organizationId,
         indicatorCategory.visibility,
@@ -144,7 +145,12 @@ const app = createOpenAPIApp()
       description: 'Get a single indicator category.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:indicatorCategory' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:indicatorCategory',
+          scope: 'explorer',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -169,6 +175,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'indicatorCategory',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: indicatorCategoryNotFoundError,
       })
       const record = await fetchFullIndicatorCategoryOrThrow(

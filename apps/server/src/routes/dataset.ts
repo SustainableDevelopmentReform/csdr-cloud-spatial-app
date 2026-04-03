@@ -4,7 +4,7 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildConsoleReadScope,
+  buildExplorerReadScope,
   requireOwnedInsertContext,
 } from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
@@ -111,6 +111,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:dataset',
+          scope: 'explorer',
         }),
       ],
       request: {
@@ -141,7 +142,7 @@ const app = createOpenAPIApp()
       const datasetIdsArray = normalizeFilterValues(datasetIds)
       const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
       const baseWhere = and(
-        buildConsoleReadScope(c, dataset.organizationId, dataset.visibility),
+        buildExplorerReadScope(c, dataset.organizationId, dataset.visibility),
         datasetIdsArray.length > 0
           ? inArray(dataset.id, datasetIdsArray)
           : undefined,
@@ -175,7 +176,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a dataset by id.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:dataset' })],
+      middleware: [
+        authMiddleware({ permission: 'read:dataset', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({
           id: z.string().min(1),
@@ -202,6 +205,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'dataset',
         resourceId: id,
+        scope: 'explorer',
         notFoundError: datasetNotFoundError,
       })
       const record = await fetchFullDatasetOrThrow(
@@ -221,6 +225,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
+          scope: 'explorer',
           skipResourceCheck: true,
         }),
       ],
@@ -259,6 +264,7 @@ const app = createOpenAPIApp()
           c,
           resource: 'dataset',
           resourceId: datasetId,
+          scope: 'explorer',
           notFoundError: datasetNotFoundError,
         })
       }
@@ -276,7 +282,7 @@ const app = createOpenAPIApp()
                   .select({ id: dataset.id })
                   .from(dataset)
                   .where(
-                    buildConsoleReadScope(
+                    buildExplorerReadScope(
                       c,
                       dataset.organizationId,
                       dataset.visibility,

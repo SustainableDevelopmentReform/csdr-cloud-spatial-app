@@ -5,8 +5,10 @@ import { buildSessionAccess, roleMatches } from '../utils/access-control'
 const PageAuthGuard = async ({
   children,
   roles,
+  allowAnonymous = false,
 }: {
   children: React.ReactNode
+  allowAnonymous?: boolean
   roles?: string[]
 }) => {
   const { user, activeMember, activeOrganization } =
@@ -17,7 +19,15 @@ const PageAuthGuard = async ({
     activeOrganization,
   })
 
-  if (!user || (roles && !roles.some((role) => roleMatches(access, role)))) {
+  if (!user) {
+    if (allowAnonymous) {
+      return children
+    }
+
+    return notFound()
+  }
+
+  if (roles && !roles.some((role) => roleMatches(access, role))) {
     return notFound()
   }
 

@@ -9,9 +9,12 @@ import { useForm } from 'react-hook-form'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { DetailCard } from '../../../_components/detail-cards'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { DatasetRunSummaryCard } from '../../../dataset/_components/dataset-run-summary-card'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import {
   useDatasetRun,
   useDatasetRunsLink,
@@ -22,8 +25,14 @@ import {
 import { useProductRunsLink } from '../../../product/_hooks'
 
 const DatasetRunDetails = () => {
-  const { data: datasetRun } = useDatasetRun()
+  const datasetRunQuery = useDatasetRun()
+  const datasetRun = datasetRunQuery.data
   const updateDatasetRun = useUpdateDatasetRun()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: datasetRun,
+  })
 
   const datasetRunsLink = useDatasetRunsLink()
   const deleteDatasetRun = useDeleteDatasetRun(
@@ -61,45 +70,53 @@ const DatasetRunDetails = () => {
   }, [datasetRun, form])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DatasetRunSummaryCard run={datasetRun} />
-        <div className="grid grid-cols-1 gap-4">
-          {datasetRun && (
-            <DetailCard
-              title={`${datasetRun?.productRunCount} ${pluralize(datasetRun?.productRunCount, 'product run', 'product runs')}`}
-              description="Used by Products Runs"
-              actionText="Open"
-              actionLink={productRunsLink(null, {
-                datasetRunId: datasetRun?.id,
-              })}
-              actionIcon={<ArrowUpRightIcon />}
-            />
-          )}
-          {datasetRun && (
-            <ResourceUsageDetailCards
-              reportCount={datasetRun.reportCount}
-              dashboardCount={datasetRun.dashboardCount}
-              reportQuery={{ datasetRunId: datasetRun.id }}
-              dashboardQuery={{ datasetRunId: datasetRun.id }}
-            />
-          )}
+    <ResourcePageState
+      error={datasetRunQuery.error}
+      errorMessage="Failed to load dataset run"
+      isLoading={datasetRunQuery.isLoading}
+      loadingMessage="Loading dataset run"
+      notFoundMessage="Dataset run not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <DatasetRunSummaryCard run={datasetRun} />
+          <div className="grid grid-cols-1 gap-4">
+            {datasetRun && (
+              <DetailCard
+                title={`${datasetRun?.productRunCount} ${pluralize(datasetRun?.productRunCount, 'product run', 'product runs')}`}
+                description="Used by Products Runs"
+                actionText="Open"
+                actionLink={productRunsLink(null, {
+                  datasetRunId: datasetRun?.id,
+                })}
+                actionIcon={<ArrowUpRightIcon />}
+              />
+            )}
+            {datasetRun && (
+              <ResourceUsageDetailCards
+                reportCount={datasetRun.reportCount}
+                dashboardCount={datasetRun.dashboardCount}
+                reportQuery={{ datasetRunId: datasetRun.id }}
+                dashboardQuery={{ datasetRunId: datasetRun.id }}
+              />
+            )}
+          </div>
         </div>
+        <CrudForm
+          form={form}
+          mutation={updateDatasetRun}
+          deleteMutation={deleteDatasetRun}
+          entityName="Dataset Run"
+          entityNamePlural="dataset runs"
+          actions={canEdit ? formActions : []}
+          hiddenFields={['visibility']}
+          readOnly={!canEdit}
+          successMessage="Updated Dataset Run"
+        >
+          <CrudFormRunFields form={form} readOnlyFields={'all'} />
+        </CrudForm>
       </div>
-
-      <CrudForm
-        form={form}
-        mutation={updateDatasetRun}
-        deleteMutation={deleteDatasetRun}
-        entityName="Dataset Run"
-        entityNamePlural="dataset runs"
-        actions={formActions}
-        hiddenFields={['visibility']}
-        successMessage="Updated Dataset Run"
-      >
-        <CrudFormRunFields form={form} readOnlyFields={'all'} />
-      </CrudForm>
-    </div>
+    </ResourcePageState>
   )
 }
 

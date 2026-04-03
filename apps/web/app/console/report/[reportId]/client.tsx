@@ -12,6 +12,7 @@ import {
   type VisibilityImpactDialogState,
   VisibilityImpactDialog,
 } from '~/app/console/_components/resource-visibility-action'
+import { ResourcePageState } from '../../_components/resource-page-state'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { REPORTS_BASE_PATH } from '../../../../lib/paths'
@@ -31,7 +32,8 @@ import {
 } from '../_hooks'
 
 const ReportDetails = () => {
-  const { data: report } = useReport()
+  const reportQuery = useReport()
+  const report = reportQuery.data
   const updateReport = useUpdateReport()
   const updateReportVisibility = useUpdateReportVisibility()
   const previewReportVisibility = usePreviewReportVisibility()
@@ -66,6 +68,7 @@ const ReportDetails = () => {
     access,
     resource: 'report',
     createdByUserId: getCreatedByUserId(report),
+    resourceData: report,
   })
 
   const formActions = useMemo(() => {
@@ -77,6 +80,7 @@ const ReportDetails = () => {
       access,
       mutation: updateReportVisibility,
       previewMutation: previewReportVisibility,
+      resourceData: report,
       successMessage: 'Report visibility updated',
       visibility: report.visibility,
     })
@@ -85,55 +89,63 @@ const ReportDetails = () => {
   }, [access, previewReportVisibility, report, updateReportVisibility])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col relative">
-      <CrudForm
-        form={form}
-        mutation={updateReport}
-        deleteMutation={deleteReport}
-        actions={formActions}
-        entityName="Report"
-        entityNamePlural="reports"
-        onError={(error) => {
-          handleVisibilityImpactError({
-            error,
-            fallbackMessage: 'Failed to update report',
-            setDialogState: setUpdateErrorDialog,
-          })
-        }}
-        readOnly={!canEdit}
-        successMessage="Updated Report"
-      >
-        {report && (
-          <SimpleEditor
-            onUpdate={(json) => {
-              form.setValue('content', json, {
-                shouldDirty: true,
-                shouldTouch: true,
-              })
-            }}
-            content={reportContent}
-            chartFormBuilder={canEdit ? formBuilder : undefined}
-            editable={canEdit}
-          />
-        )}
-      </CrudForm>
-      <ChartSelectedItem
-        selectedDataPoint={selectedDataPoint}
-        onSelect={setSelectedDataPoint}
-      />
-      <VisibilityImpactDialog
-        open={updateErrorDialog !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setUpdateErrorDialog(null)
-          }
-        }}
-        title={updateErrorDialog?.title ?? 'Update blocked'}
-        description={updateErrorDialog?.description ?? ''}
-        impact={updateErrorDialog?.impact ?? null}
-        closeLabel="Close"
-      />
-    </div>
+    <ResourcePageState
+      error={reportQuery.error}
+      errorMessage="Failed to load report"
+      isLoading={reportQuery.isLoading}
+      loadingMessage="Loading report"
+      notFoundMessage="Report not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col relative">
+        <CrudForm
+          form={form}
+          mutation={updateReport}
+          deleteMutation={deleteReport}
+          actions={formActions}
+          entityName="Report"
+          entityNamePlural="reports"
+          onError={(error) => {
+            handleVisibilityImpactError({
+              error,
+              fallbackMessage: 'Failed to update report',
+              setDialogState: setUpdateErrorDialog,
+            })
+          }}
+          readOnly={!canEdit}
+          successMessage="Updated Report"
+        >
+          {report && (
+            <SimpleEditor
+              onUpdate={(json) => {
+                form.setValue('content', json, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                })
+              }}
+              content={reportContent}
+              chartFormBuilder={canEdit ? formBuilder : undefined}
+              editable={canEdit}
+            />
+          )}
+        </CrudForm>
+        <ChartSelectedItem
+          selectedDataPoint={selectedDataPoint}
+          onSelect={setSelectedDataPoint}
+        />
+        <VisibilityImpactDialog
+          open={updateErrorDialog !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setUpdateErrorDialog(null)
+            }
+          }}
+          title={updateErrorDialog?.title ?? 'Update blocked'}
+          description={updateErrorDialog?.description ?? ''}
+          impact={updateErrorDialog?.impact ?? null}
+          closeLabel="Close"
+        />
+      </div>
+    </ResourcePageState>
   )
 }
 

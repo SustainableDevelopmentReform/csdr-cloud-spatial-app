@@ -16,6 +16,7 @@ import {
 } from '../../../../utils/access-control'
 import { DetailCard } from '../../_components/detail-cards'
 import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
+import { ResourcePageState } from '../../_components/resource-page-state'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import GeometriesMapViewer from '../_components/geometries-map-viewer'
@@ -30,7 +31,8 @@ import {
 } from '../_hooks'
 
 const GeometriesDetails = () => {
-  const { data: geometries } = useGeometries()
+  const geometriesQuery = useGeometries()
+  const geometries = geometriesQuery.data
   const productsLink = useProductsLink()
   const updateGeometries = useUpdateGeometries()
   const updateGeometriesVisibility = useUpdateGeometriesVisibility()
@@ -42,6 +44,7 @@ const GeometriesDetails = () => {
     access,
     resource: 'geometries',
     createdByUserId: getCreatedByUserId(geometries),
+    resourceData: geometries,
   })
 
   const form = useForm({
@@ -63,6 +66,7 @@ const GeometriesDetails = () => {
       access,
       mutation: updateGeometriesVisibility,
       previewMutation: previewGeometriesVisibility,
+      resourceData: geometries,
       successMessage: 'Geometries visibility updated',
       visibility: geometries.visibility,
     })
@@ -76,56 +80,64 @@ const GeometriesDetails = () => {
   ])
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
-      <div className="flex flex-col gap-4">
-        <GeometriesMapViewer
-          geometriesRun={geometries?.mainRun}
-          className="h-96"
-        />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <GeometriesRunSummaryCard run={geometries?.mainRun} mainRun />
-          <div className="grid grid-cols-1 gap-4">
-            {geometries && (
-              <DetailCard
-                title={`${geometries?.runCount} ${pluralize(geometries?.runCount, 'run', 'runs')}`}
-                description="Geometries Runs"
-                actionText="Open"
-                actionLink={geometriesRunsLink(geometries)}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {geometries && (
-              <DetailCard
-                title={`${geometries?.productCount} ${pluralize(geometries?.productCount, 'product', 'products')}`}
-                description="Products"
-                actionText="Open"
-                actionLink={productsLink({ geometriesId: geometries.id })}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {geometries && <SourcesCard resource={geometries} />}
-            {geometries && (
-              <ResourceUsageDetailCards
-                reportCount={geometries.reportCount}
-                dashboardCount={geometries.dashboardCount}
-                reportQuery={{ geometriesId: geometries.id }}
-                dashboardQuery={{ geometriesId: geometries.id }}
-              />
-            )}
+    <ResourcePageState
+      error={geometriesQuery.error}
+      errorMessage="Failed to load geometries"
+      isLoading={geometriesQuery.isLoading}
+      loadingMessage="Loading geometries"
+      notFoundMessage="Geometries not found"
+    >
+      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        <div className="flex flex-col gap-4">
+          <GeometriesMapViewer
+            geometriesRun={geometries?.mainRun}
+            className="h-96"
+          />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <GeometriesRunSummaryCard run={geometries?.mainRun} mainRun />
+            <div className="grid grid-cols-1 gap-4">
+              {geometries && (
+                <DetailCard
+                  title={`${geometries?.runCount} ${pluralize(geometries?.runCount, 'run', 'runs')}`}
+                  description="Geometries Runs"
+                  actionText="Open"
+                  actionLink={geometriesRunsLink(geometries)}
+                  actionIcon={<ArrowUpRightIcon />}
+                />
+              )}
+              {geometries && (
+                <DetailCard
+                  title={`${geometries?.productCount} ${pluralize(geometries?.productCount, 'product', 'products')}`}
+                  description="Products"
+                  actionText="Open"
+                  actionLink={productsLink({ geometriesId: geometries.id })}
+                  actionIcon={<ArrowUpRightIcon />}
+                />
+              )}
+              {geometries && <SourcesCard resource={geometries} />}
+              {geometries && (
+                <ResourceUsageDetailCards
+                  reportCount={geometries.reportCount}
+                  dashboardCount={geometries.dashboardCount}
+                  reportQuery={{ geometriesId: geometries.id }}
+                  dashboardQuery={{ geometriesId: geometries.id }}
+                />
+              )}
+            </div>
           </div>
         </div>
+        <CrudForm
+          form={form}
+          mutation={updateGeometries}
+          deleteMutation={deleteGeometries}
+          actions={formActions}
+          entityName="Geometries"
+          entityNamePlural="geometries sets"
+          readOnly={!canEdit}
+          successMessage="Updated Geometries"
+        />
       </div>
-      <CrudForm
-        form={form}
-        mutation={updateGeometries}
-        deleteMutation={deleteGeometries}
-        actions={formActions}
-        entityName="Geometries"
-        entityNamePlural="geometries sets"
-        readOnly={!canEdit}
-        successMessage="Updated Geometries"
-      />
-    </div>
+    </ResourcePageState>
   )
 }
 

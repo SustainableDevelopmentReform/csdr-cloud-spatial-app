@@ -597,24 +597,6 @@ export const runAuthorizationMiddleware = async (
           resource: parsedPermission.resource,
         })
       }
-
-      if (resourceId && !skipResourceCheck) {
-        if (parsedPermission.action === 'read') {
-          accessRecord = await assertResourceReadable({
-            c,
-            resource: authorizationResource,
-            resourceId,
-            notFoundError: () => buildNotFoundError(authorizationResource),
-          })
-        } else {
-          accessRecord = await assertResourceWritable({
-            c,
-            resource: authorizationResource,
-            resourceId,
-            notFoundError: () => buildNotFoundError(authorizationResource),
-          })
-        }
-      }
     } else if (parsedPermission.action === 'read') {
       ensureExplorerAccessEnabled(actor)
     } else {
@@ -624,6 +606,25 @@ export const runAuthorizationMiddleware = async (
         actor: authenticatedActor,
         resource: parsedPermission.resource,
       })
+    }
+
+    if (resourceId && !skipResourceCheck) {
+      if (parsedPermission.action === 'read') {
+        accessRecord = await assertResourceReadable({
+          c,
+          resource: authorizationResource,
+          resourceId,
+          scope,
+          notFoundError: () => buildNotFoundError(authorizationResource),
+        })
+      } else {
+        accessRecord = await assertResourceWritable({
+          c,
+          resource: authorizationResource,
+          resourceId,
+          notFoundError: () => buildNotFoundError(authorizationResource),
+        })
+      }
     }
 
     await next()
