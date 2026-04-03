@@ -14,7 +14,11 @@ import {
   buildReportUsageFilters,
   syncReportChartUsages,
 } from '~/lib/chartUsage'
-import { assertReportDependenciesExternallyVisible } from '~/lib/public-visibility'
+import {
+  assertReportDependenciesExternallyVisible,
+  getReportVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -57,6 +61,10 @@ const reportNotFoundError = () =>
     message: 'Failed to get report',
     description: "report you're looking for is not found",
   })
+
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
 
 const mapValidationIssues = (
   issues: {
@@ -381,6 +389,7 @@ const app = createOpenAPIApp()
             tx,
             updatedRecord.id,
             updatedRecord.visibility,
+            accessRecord.organizationId,
           )
         }
 
@@ -393,6 +402,60 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Report updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview report visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:report' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed report visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Report not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview report visibility impact'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'report',
+        resourceId: id,
+        notFoundError: reportNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getReportVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
     },
   )
   .openapi(
@@ -465,6 +528,7 @@ const app = createOpenAPIApp()
             tx,
             updatedRecord.id,
             updatedRecord.visibility,
+            accessRecord.organizationId,
           )
         }
 

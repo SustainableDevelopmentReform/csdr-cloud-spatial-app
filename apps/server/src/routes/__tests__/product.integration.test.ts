@@ -173,7 +173,6 @@ describe('product route', () => {
       await memberClient.api.v0.product.$post({
         json: {
           name: 'Forbidden product',
-          timePrecision: 'year',
         },
       }),
       {
@@ -190,7 +189,6 @@ describe('product route', () => {
           description: 'Created in test',
           datasetId: seededIds.dataset,
           geometriesId: seededIds.geometries,
-          timePrecision: 'year',
         },
       }),
       {

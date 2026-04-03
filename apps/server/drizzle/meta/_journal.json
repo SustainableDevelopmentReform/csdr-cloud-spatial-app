@@ -218,6 +218,13 @@
       "when": 1775114217882,
       "tag": "0030_lame_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1775196736464,
+      "tag": "0031_workable_black_widow",
+      "breakpoints": true
     }
   ]
 }

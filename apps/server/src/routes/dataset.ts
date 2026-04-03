@@ -16,6 +16,10 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import {
+  getDatasetVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, product } from '../schemas/db'
@@ -60,6 +64,10 @@ const datasetNotFoundError = () =>
     message: 'Failed to get dataset',
     description: "Dataset you're looking for is not found",
   })
+
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
 
 const fetchFullDataset = async (id: string, organizationId: string) => {
   const record = await db.query.dataset.findFirst({
@@ -424,6 +432,64 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dataset updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview dataset visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed dataset visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview dataset visibility impact'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getDatasetVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
     },
   )
   .openapi(

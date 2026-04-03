@@ -207,6 +207,91 @@ describe('indicator route', () => {
     )
   })
 
+  it('retrieves public indicators via the combined endpoint across organizations', async () => {
+    const otherOrgClient = createAppClient(
+      await createSessionHeaders({
+        email: 'indicator-public-reader@example.com',
+        organizationId: 'other-indicator-organization',
+      }),
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.measured[':id']['visibility'].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.derived[':id']['visibility'].$patch({
+        param: { id: seededIds.derivedIndicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Derived indicator visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await otherOrgClient.api.v0.indicator.measured[':id'].$get({
+        param: { id: seededIds.indicator },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const measuredCombinedJson = await expectJsonResponse<{
+      id: string
+      type: 'measured'
+    }>(
+      await otherOrgClient.api.v0.indicator[':id'].$get({
+        param: { id: seededIds.indicator },
+      }),
+      {
+        status: 200,
+        message: 'Indicator retrieved',
+      },
+    )
+    expect(measuredCombinedJson.data.id).toBe(seededIds.indicator)
+    expect(measuredCombinedJson.data.type).toBe('measured')
+
+    await expectJsonResponse(
+      await otherOrgClient.api.v0.indicator.derived[':id'].$get({
+        param: { id: seededIds.derivedIndicator },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const derivedCombinedJson = await expectJsonResponse<{
+      id: string
+      type: 'derived'
+    }>(
+      await otherOrgClient.api.v0.indicator[':id'].$get({
+        param: { id: seededIds.derivedIndicator },
+      }),
+      {
+        status: 200,
+        message: 'Indicator retrieved',
+      },
+    )
+    expect(derivedCombinedJson.data.id).toBe(seededIds.derivedIndicator)
+    expect(derivedCombinedJson.data.type).toBe('derived')
+  })
+
   it('returns write auth and success messages', async () => {
     await expectJsonResponse(
       await memberClient.api.v0.indicator.measured.$post({

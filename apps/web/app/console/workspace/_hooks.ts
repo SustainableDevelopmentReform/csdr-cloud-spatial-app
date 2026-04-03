@@ -2,8 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { useConfig } from '~/components/providers'
+import { useApiClient } from '~/hooks/useApiClient'
 import { useAuthClient } from '~/hooks/useAuthClient'
+import { unwrapResponse } from '~/utils/apiClient'
 import { organizationRoleSchema } from '~/utils/access-control'
 
 const memberSchema = z.object({
@@ -37,37 +38,12 @@ const invitationSchema = z.object({
 
 const invitationListSchema = z.array(invitationSchema)
 
-const adminOrganizationSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  slug: z.string(),
-  createdAt: z.string(),
-  memberCount: z.number().int(),
-})
-
-const adminOrganizationListSchema = z.array(adminOrganizationSchema)
-
 const workspaceQueryKeys = {
   organizations: ['workspace', 'organizations'] as const,
   invitations: (organizationId: string | null) =>
     ['workspace', 'invitations', organizationId] as const,
   members: (organizationId: string | null) =>
     ['workspace', 'members', organizationId] as const,
-}
-
-const readErrorMessage = async (response: Response) => {
-  const payload = await response.json().catch(() => null)
-
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'message' in payload &&
-    typeof payload.message === 'string'
-  ) {
-    return payload.message
-  }
-
-  return 'Request failed'
 }
 
 const getAuthClientErrorMessage = (
@@ -93,70 +69,25 @@ const unwrapAuthClientResponse = <T>(result: {
   return result.data
 }
 
-const requestApiEndpoint = async <T>(options: {
-  apiBaseUrl: string
-  method?: 'GET' | 'POST'
-  path: string
-  schema: z.ZodSchema<T>
-  body?: Record<string, string>
-  query?: Record<string, string>
-}): Promise<T> => {
-  const requestUrl = new URL(options.path, options.apiBaseUrl)
-
-  if (options.query) {
-    for (const [key, value] of Object.entries(options.query)) {
-      requestUrl.searchParams.set(key, value)
-    }
-  }
-
-  const response = await fetch(requestUrl, {
-    method: options.method ?? 'GET',
-    credentials: 'include',
-    headers:
-      options.body === undefined
-        ? undefined
-        : {
-            'content-type': 'application/json',
-          },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  })
-
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response))
-  }
-
-  const payload = await response.json()
-
-  return z
-    .object({
-      data: options.schema,
-    })
-    .parse(payload).data
-}
-
 export const useWorkspaceMembers = (
   organizationId: string | null,
   enabled = true,
   isSuperAdmin = false,
 ) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const authClient = useAuthClient()
 
   return useQuery({
     queryKey: workspaceQueryKeys.members(organizationId),
     queryFn: async () =>
       isSuperAdmin
-        ? requestApiEndpoint({
-            apiBaseUrl,
-            path: '/api/v0/organization/members',
-            query:
-              organizationId === null
-                ? undefined
-                : {
-                    organizationId,
-                  },
-            schema: membersResponseSchema,
-          })
+        ? (
+            await unwrapResponse(
+              client.api.v0.organization.members.$get({
+                query: organizationId === null ? {} : { organizationId },
+              }),
+            )
+          ).data
         : membersResponseSchema.parse(
             unwrapAuthClientResponse(
               await authClient.organization.listMembers(
@@ -179,24 +110,20 @@ export const useWorkspaceInvitations = (
   enabled = true,
   isSuperAdmin = false,
 ) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const authClient = useAuthClient()
 
   return useQuery({
     queryKey: workspaceQueryKeys.invitations(organizationId),
     queryFn: async () =>
       isSuperAdmin
-        ? requestApiEndpoint({
-            apiBaseUrl,
-            path: '/api/v0/organization/invitations',
-            query:
-              organizationId === null
-                ? undefined
-                : {
-                    organizationId,
-                  },
-            schema: invitationListSchema,
-          })
+        ? (
+            await unwrapResponse(
+              client.api.v0.organization.invitations.$get({
+                query: organizationId === null ? {} : { organizationId },
+              }),
+            )
+          ).data
         : invitationListSchema.parse(
             unwrapAuthClientResponse(
               await authClient.organization.listInvitations(
@@ -215,16 +142,12 @@ export const useWorkspaceInvitations = (
 }
 
 export const useAdminOrganizations = (enabled = true) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
 
   return useQuery({
     queryKey: workspaceQueryKeys.organizations,
-    queryFn: () =>
-      requestApiEndpoint({
-        apiBaseUrl,
-        path: '/api/v0/organization',
-        schema: adminOrganizationListSchema,
-      }),
+    queryFn: async () =>
+      (await unwrapResponse(client.api.v0.organization.$get())).data,
     enabled,
   })
 }
@@ -233,7 +156,7 @@ export const useInviteWorkspaceMember = (
   organizationId: string | null,
   isSuperAdmin = false,
 ) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const authClient = useAuthClient()
   const queryClient = useQueryClient()
 
@@ -243,19 +166,18 @@ export const useInviteWorkspaceMember = (
       role: z.infer<typeof organizationRoleSchema>
     }) => {
       if (isSuperAdmin) {
-        await requestApiEndpoint({
-          apiBaseUrl,
-          method: 'POST',
-          path: '/api/v0/organization/invite',
-          schema: invitationSchema,
-          body:
-            organizationId === null
-              ? payload
-              : {
-                  ...payload,
-                  organizationId,
-                },
-        })
+        await unwrapResponse(
+          client.api.v0.organization.invite.$post({
+            json:
+              organizationId === null
+                ? payload
+                : {
+                    ...payload,
+                    organizationId,
+                  },
+          }),
+          201,
+        )
         return
       }
 
@@ -277,26 +199,28 @@ export const useCancelWorkspaceInvitation = (
   organizationId: string | null,
   isSuperAdmin = false,
 ) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const authClient = useAuthClient()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (payload: { invitationId: string }) => {
       if (isSuperAdmin) {
-        await requestApiEndpoint({
-          apiBaseUrl,
-          method: 'POST',
-          path: '/api/v0/organization/cancel-invitation',
-          schema: invitationSchema,
-          body:
-            organizationId === null
-              ? payload
-              : {
-                  ...payload,
-                  organizationId,
-                },
-        })
+        invitationSchema.parse(
+          (
+            await unwrapResponse(
+              client.api.v0.organization['cancel-invitation'].$post({
+                json:
+                  organizationId === null
+                    ? payload
+                    : {
+                        ...payload,
+                        organizationId,
+                      },
+              }),
+            )
+          ).data,
+        )
         return
       }
 
@@ -313,18 +237,19 @@ export const useCancelWorkspaceInvitation = (
 }
 
 export const useCreateOrganization = () => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: { name: string; slug: string }) =>
-      requestApiEndpoint({
-        apiBaseUrl,
-        method: 'POST',
-        path: '/api/v0/organization',
-        schema: adminOrganizationSchema,
-        body: payload,
-      }),
+    mutationFn: async (payload: { name: string; slug: string }) =>
+      (
+        await unwrapResponse(
+          client.api.v0.organization.$post({
+            json: payload,
+          }),
+          201,
+        )
+      ).data,
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: workspaceQueryKeys.organizations,
@@ -337,7 +262,7 @@ export const useUpdateWorkspaceMemberRole = (
   organizationId: string | null,
   isSuperAdmin = false,
 ) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const authClient = useAuthClient()
   const queryClient = useQueryClient()
 
@@ -347,19 +272,17 @@ export const useUpdateWorkspaceMemberRole = (
       role: z.infer<typeof organizationRoleSchema>
     }) => {
       if (isSuperAdmin) {
-        await requestApiEndpoint({
-          apiBaseUrl,
-          method: 'POST',
-          path: '/api/v0/organization/member-role',
-          schema: memberSchema,
-          body:
-            organizationId === null
-              ? payload
-              : {
-                  ...payload,
-                  organizationId,
-                },
-        })
+        await unwrapResponse(
+          client.api.v0.organization['member-role'].$post({
+            json:
+              organizationId === null
+                ? payload
+                : {
+                    ...payload,
+                    organizationId,
+                  },
+          }),
+        )
         return
       }
 
@@ -381,28 +304,24 @@ export const useRemoveWorkspaceMember = (
   organizationId: string | null,
   isSuperAdmin = false,
 ) => {
-  const { apiBaseUrl } = useConfig()
+  const client = useApiClient()
   const authClient = useAuthClient()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (payload: { memberIdOrEmail: string }) => {
       if (isSuperAdmin) {
-        await requestApiEndpoint({
-          apiBaseUrl,
-          method: 'POST',
-          path: '/api/v0/organization/remove-member',
-          schema: z.object({
-            id: z.string(),
+        await unwrapResponse(
+          client.api.v0.organization['remove-member'].$post({
+            json:
+              organizationId === null
+                ? payload
+                : {
+                    ...payload,
+                    organizationId,
+                  },
           }),
-          body:
-            organizationId === null
-              ? payload
-              : {
-                  ...payload,
-                  organizationId,
-                },
-        })
+        )
         return
       }
 

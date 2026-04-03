@@ -1,7 +1,6 @@
 'use client'
 
-// import { ServerError } from '@repo/server/src/lib/error.js'
-import { toast, Toaster } from '@repo/ui/components/ui/sonner'
+import { Toaster } from '@repo/ui/components/ui/sonner'
 import {
   MutationCache,
   QueryCache,
@@ -11,79 +10,7 @@ import {
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { createContext, useContext, useMemo } from 'react'
 import { createAuthClient, type AuthClient } from '~/utils/authClient'
-
-type ServerErrorLike = {
-  statusCode: number
-  message: string
-  description?: string | null
-}
-
-type BetterAuthErrorLike = Error & {
-  error: {
-    message: string
-  }
-}
-
-function isServerErrorLike(value: unknown): value is ServerErrorLike {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'statusCode' in value &&
-    typeof value.statusCode === 'number' &&
-    'message' in value &&
-    typeof value.message === 'string'
-  )
-}
-
-function isBetterAuthErrorLike(value: Error): value is BetterAuthErrorLike {
-  return (
-    'error' in value &&
-    typeof value.error === 'object' &&
-    value.error !== null &&
-    'message' in value.error &&
-    typeof value.error.message === 'string'
-  )
-}
-
-function isMessageOnlyObject(value: unknown): value is { message: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'message' in value &&
-    typeof value.message === 'string'
-  )
-}
-
-function handleError(data: unknown): void {
-  if (isServerErrorLike(data)) {
-    toast.error(data.message, {
-      description: data.description ?? undefined,
-    })
-    return
-  }
-
-  if (data instanceof Error) {
-    if (isBetterAuthErrorLike(data)) {
-      toast.error(data.message, {
-        description: data.error.message,
-      })
-      return
-    }
-
-    toast.error(data.message, {
-      description: data.cause?.toString() ?? 'Unknown error',
-    })
-  }
-
-  if (typeof data === 'string') {
-    toast.error(data)
-    return
-  }
-
-  if (isMessageOnlyObject(data)) {
-    toast.error(data.message)
-  }
-}
+import { toastError } from '~/utils/error-handling'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,10 +19,18 @@ export const queryClient = new QueryClient({
     },
   },
   queryCache: new QueryCache({
-    onError: handleError,
+    onError: (error) => {
+      toastError(error)
+    },
   }),
   mutationCache: new MutationCache({
-    onError: handleError,
+    onError: (error, _variables, _context, mutation) => {
+      if (mutation.meta?.suppressGlobalErrorToast === true) {
+        return
+      }
+
+      toastError(error)
+    },
   }),
 })
 

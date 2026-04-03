@@ -3,9 +3,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { DashboardContent } from '@repo/schemas/crud'
 import { updateDashboardSchema } from '@repo/schemas/crud'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
+import {
+  createResourceVisibilityAction,
+  handleVisibilityImpactError,
+  type VisibilityImpactDialogState,
+  VisibilityImpactDialog,
+} from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
@@ -19,6 +24,7 @@ import DashboardGridEditor, {
 import {
   useDashboard,
   useDeleteDashboard,
+  usePreviewDashboardVisibility,
   useUpdateDashboard,
   useUpdateDashboardVisibility,
 } from '../_hooks'
@@ -27,23 +33,29 @@ const DashboardDetails = () => {
   const { data: dashboard } = useDashboard()
   const updateDashboard = useUpdateDashboard()
   const updateDashboardVisibility = useUpdateDashboardVisibility()
+  const previewDashboardVisibility = usePreviewDashboardVisibility()
   const deleteDashboard = useDeleteDashboard(undefined, DASHBOARDS_BASE_PATH)
   const { access } = useAccessControl()
+  const [updateErrorDialog, setUpdateErrorDialog] =
+    useState<VisibilityImpactDialogState | null>(null)
 
   const form = useForm({
     resolver: zodResolver(updateDashboardSchema),
   })
+  const isDirty = form.formState.isDirty
 
   const emptyContent = useMemo(() => createEmptyDashboardContent(), [])
 
   useEffect(() => {
-    if (dashboard) {
-      form.reset({
-        ...dashboard,
-        content: dashboard.content ?? emptyContent,
-      })
+    if (!dashboard || isDirty) {
+      return
     }
-  }, [dashboard, form, emptyContent])
+
+    form.reset({
+      ...dashboard,
+      content: dashboard.content ?? emptyContent,
+    })
+  }, [dashboard, emptyContent, form, isDirty])
 
   const content = (form.watch('content') ?? emptyContent) as DashboardContent
   const canEdit = canEditConsoleResource({
@@ -60,12 +72,13 @@ const DashboardDetails = () => {
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateDashboardVisibility,
+      previewMutation: previewDashboardVisibility,
       successMessage: 'Dashboard visibility updated',
       visibility: dashboard.visibility,
     })
 
     return visibilityAction ? [visibilityAction] : []
-  }, [access, dashboard, updateDashboardVisibility])
+  }, [access, dashboard, previewDashboardVisibility, updateDashboardVisibility])
 
   return (
     <div className="max-w-full gap-8 flex flex-col">
@@ -77,6 +90,13 @@ const DashboardDetails = () => {
         entityName="Dashboard"
         entityNamePlural="dashboards"
         hiddenFields={['metadata', 'content']}
+        onError={(error) => {
+          handleVisibilityImpactError({
+            error,
+            fallbackMessage: 'Failed to update dashboard',
+            setDialogState: setUpdateErrorDialog,
+          })
+        }}
         readOnly={!canEdit}
         successMessage="Updated dashboard"
       >
@@ -91,6 +111,18 @@ const DashboardDetails = () => {
           }}
         />
       </CrudForm>
+      <VisibilityImpactDialog
+        open={updateErrorDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setUpdateErrorDialog(null)
+          }
+        }}
+        title={updateErrorDialog?.title ?? 'Update blocked'}
+        description={updateErrorDialog?.description ?? ''}
+        impact={updateErrorDialog?.impact ?? null}
+        closeLabel="Close"
+      />
     </div>
   )
 }

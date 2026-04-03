@@ -454,7 +454,6 @@ export const fullProductRunSchema = baseProductRunSchema
 
 export const baseProductSchema = baseAclResourceSchema
   .extend({
-    timePrecision: z.enum(['hour', 'day', 'month', 'year']),
     mainRunId: z.string().nullable(),
     dataset: baseIdResourceSchema.nullable(),
     geometries: baseIdResourceSchema.nullable(),
@@ -501,12 +500,10 @@ export const productQuerySchema = baseQuerySchema.extend({
 export const createProductSchema = baseCreateResourceSchema.extend({
   datasetId: z.string().optional(),
   geometriesId: z.string().optional(),
-  timePrecision: z.enum(['hour', 'day', 'month', 'year']),
 })
 
 export const updateProductSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
-  timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
 })
 
 export const productRunQuerySchema = baseQuerySchema.extend({

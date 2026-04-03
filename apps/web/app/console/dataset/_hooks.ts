@@ -16,6 +16,10 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { DATASETS_BASE_PATH, DATASETS_RUNS_BASE_PATH } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { getSearchParams } from '../../../utils/browser'
 
 export type DatasetListResponse = NonNullable<
@@ -322,6 +326,34 @@ export const useUpdateDatasetVisibility = (_datasetId?: string) => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
       })
+    },
+  })
+}
+
+export const usePreviewDatasetVisibility = (_datasetId?: string) => {
+  const { datasetId } = useDatasetParams(_datasetId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!datasetId) {
+        return null
+      }
+
+      const res = client.api.v0.dataset[':id']['visibility-impact'].$get({
+        param: {
+          id: datasetId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }

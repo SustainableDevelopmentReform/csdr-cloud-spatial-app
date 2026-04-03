@@ -17,6 +17,10 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { DASHBOARDS_BASE_PATH } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { invalidateChartUsageDependencyQueries } from '../_utils/chart-usage-invalidation'
 
 export type DashboardListResponse = NonNullable<
@@ -153,6 +157,9 @@ export const useUpdateDashboard = (_dashboardId?: string) => {
   const client = useApiClient()
 
   return useMutation({
+    meta: {
+      suppressGlobalErrorToast: true,
+    },
     mutationFn: async (payload: UpdateDashboardPayload) => {
       if (!dashboardId) return
       const res = client.api.v0.dashboard[':id'].$patch({
@@ -185,6 +192,34 @@ export const useUpdateDashboardVisibility = (_dashboardId?: string) => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
       await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const usePreviewDashboardVisibility = (_dashboardId?: string) => {
+  const { dashboardId } = useDashboardParams(_dashboardId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!dashboardId) {
+        return null
+      }
+
+      const res = client.api.v0.dashboard[':id']['visibility-impact'].$get({
+        param: {
+          id: dashboardId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }

@@ -23,6 +23,7 @@ import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
 import { RefreshProductSummary } from '../_components/refresh-product-summary'
 import {
   useDeleteProduct,
+  usePreviewProductVisibility,
   useProduct,
   useProductRunsLink,
   useUpdateProduct,
@@ -33,6 +34,7 @@ const ProductDetails = () => {
   const { data: product } = useProduct()
   const updateProduct = useUpdateProduct()
   const updateProductVisibility = useUpdateProductVisibility()
+  const previewProductVisibility = usePreviewProductVisibility()
   const deleteProduct = useDeleteProduct(undefined, PRODUCTS_BASE_PATH)
   const productRunsLink = useProductRunsLink()
   const { access } = useAccessControl()
@@ -57,6 +59,7 @@ const ProductDetails = () => {
       const visibilityAction = createResourceVisibilityAction({
         access,
         mutation: updateProductVisibility,
+        previewMutation: previewProductVisibility,
         successMessage: 'Product visibility updated',
         visibility: product.visibility,
       })
@@ -67,7 +70,13 @@ const ProductDetails = () => {
     }
 
     return actions
-  }, [access, canEdit, product, updateProductVisibility])
+  }, [
+    access,
+    canEdit,
+    previewProductVisibility,
+    product,
+    updateProductVisibility,
+  ])
 
   const form = useForm({
     resolver: zodResolver(updateProductSchema),

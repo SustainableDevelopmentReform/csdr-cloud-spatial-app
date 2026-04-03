@@ -45,6 +45,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
+import { getUserFacingErrorMessage } from '~/utils/error-handling'
 import { ImportGeometriesRunPayload, useImportGeometryOutputs } from '../_hooks'
 
 type GeojsonSummary = {
@@ -273,19 +274,6 @@ const GeojsonImportForm = ({
     [processFile],
   )
 
-  const getErrorMessage = (error: unknown) => {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'message' in error &&
-      typeof (error as { message?: unknown }).message === 'string'
-    ) {
-      return (error as { message: string }).message
-    }
-
-    return 'Failed to import GeoJSON'
-  }
-
   const onSubmit = form.handleSubmit((values) => {
     if (!values.geojsonFile || !selectedFile) {
       const message = 'Please add a GeoJSON file before importing'
@@ -326,7 +314,8 @@ const GeojsonImportForm = ({
         onCompleted()
       },
       onError: (error) => {
-        const message = getErrorMessage(error)
+        const message =
+          getUserFacingErrorMessage(error) ?? 'Failed to import GeoJSON'
         setDropError(message)
         form.setError('geojsonFile', { message })
         toast.error(message)

@@ -28,6 +28,7 @@ import { IndicatorProductUsageCard } from '../../_components/indicator-product-u
 import {
   useDeleteDerivedIndicator,
   useDerivedIndicator,
+  usePreviewDerivedIndicatorVisibility,
   useUpdateDerivedIndicator,
   useUpdateDerivedIndicatorVisibility,
 } from '../../_hooks'
@@ -37,6 +38,7 @@ const IndicatorDetails = () => {
   const { data: derivedIndicator } = useDerivedIndicator()
   const updateIndicator = useUpdateDerivedIndicator()
   const updateIndicatorVisibility = useUpdateDerivedIndicatorVisibility()
+  const previewIndicatorVisibility = usePreviewDerivedIndicatorVisibility()
   const deleteIndicator = useDeleteDerivedIndicator(
     undefined,
     INDICATORS_BASE_PATH,
@@ -66,12 +68,18 @@ const IndicatorDetails = () => {
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateIndicatorVisibility,
+      previewMutation: previewIndicatorVisibility,
       successMessage: 'Derived indicator visibility updated',
       visibility: derivedIndicator.visibility,
     })
 
     return visibilityAction ? [visibilityAction] : []
-  }, [access, derivedIndicator, updateIndicatorVisibility])
+  }, [
+    access,
+    derivedIndicator,
+    previewIndicatorVisibility,
+    updateIndicatorVisibility,
+  ])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">

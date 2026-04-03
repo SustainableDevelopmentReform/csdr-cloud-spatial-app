@@ -368,7 +368,6 @@ describe('crud schemas', () => {
         organizationId: 'org-1',
         createdByUserId: 'user-1',
         visibility: 'private',
-        timePrecision: 'year',
         mainRunId: null,
         dataset: null,
         geometries: null,

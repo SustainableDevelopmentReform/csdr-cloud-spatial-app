@@ -21,6 +21,10 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { REPORTS_BASE_PATH } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { invalidateChartUsageDependencyQueries } from '../_utils/chart-usage-invalidation'
 
 export type ReportListResponse = NonNullable<
@@ -155,6 +159,9 @@ export const useUpdateReport = (_reportId?: string) => {
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
+    meta: {
+      suppressGlobalErrorToast: true,
+    },
     mutationFn: async (payload: UpdateReportPayload) => {
       if (!reportId) return
       const res = client.api.v0.report[':id'].$patch({
@@ -190,6 +197,34 @@ export const useUpdateReportVisibility = (_reportId?: string) => {
         queryKey: reportQueryKeys.all,
       })
       await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const usePreviewReportVisibility = (_reportId?: string) => {
+  const { reportId } = useReportParams(_reportId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!reportId) {
+        return null
+      }
+
+      const res = client.api.v0.report[':id']['visibility-impact'].$get({
+        param: {
+          id: reportId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }

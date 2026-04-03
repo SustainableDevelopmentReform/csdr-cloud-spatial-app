@@ -13,7 +13,11 @@ import {
   buildDashboardUsageFilters,
   syncDashboardChartUsages,
 } from '~/lib/chartUsage'
-import { assertDashboardDependenciesExternallyVisible } from '~/lib/public-visibility'
+import {
+  assertDashboardDependenciesExternallyVisible,
+  getDashboardVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -59,6 +63,10 @@ const dashboardNotFoundError = () =>
     message: 'Failed to get dashboard',
     description: "dashboard you're looking for is not found",
   })
+
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
 
 const fetchFullDashboard = async (id: string, organizationId: string) => {
   const record = await db.query.dashboard.findFirst({
@@ -334,6 +342,7 @@ const app = createOpenAPIApp()
             tx,
             updatedRecord.id,
             updatedRecord.visibility,
+            accessRecord.organizationId,
           )
         }
 
@@ -346,6 +355,60 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dashboard updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview dashboard visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:dashboard' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed dashboard visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dashboard not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview dashboard visibility impact'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dashboard',
+        resourceId: id,
+        notFoundError: dashboardNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getDashboardVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
     },
   )
   .openapi(
@@ -418,6 +481,7 @@ const app = createOpenAPIApp()
             tx,
             updatedRecord.id,
             updatedRecord.visibility,
+            accessRecord.organizationId,
           )
         }
 

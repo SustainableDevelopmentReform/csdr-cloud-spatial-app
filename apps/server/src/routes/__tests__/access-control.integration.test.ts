@@ -3,7 +3,11 @@ process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC = 'true'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  product,
+  productOutputSummary,
   dataset,
+  report,
+  reportIndicatorUsage,
   invitation,
   member,
   organization,
@@ -564,7 +568,7 @@ describe('access control integration', () => {
         status: 400,
         message: 'Cannot make report public',
         description:
-          'This resource depends on private upstream data. Make every dependency public or global first.',
+          'This resource depends on private upstream data. Make every dependency public first.',
       },
     )
 
@@ -651,22 +655,24 @@ describe('access control integration', () => {
         status: 400,
         message: 'Cannot make derivedIndicator public',
         description:
-          'This resource depends on private upstream data. Make every dependency public or global first.',
+          'This resource depends on private upstream data. Make every dependency public first.',
       },
     )
 
     await expectJsonResponse(
-      await createAppClient(superAdminHeaders).api.v0['indicator-category'][
-        ':id'
-      ]['visibility'].$patch({
-        param: { id: seededIds.indicatorCategory },
+      await createAppClient(superAdminHeaders).api.v0.product[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.product },
         json: {
           visibility: 'public',
         },
       }),
       {
-        status: 200,
-        message: 'Indicator category visibility updated',
+        status: 400,
+        message: 'Cannot make product public',
+        description:
+          'This resource depends on private upstream data. Make every dependency public first.',
       },
     )
 
@@ -842,6 +848,286 @@ describe('access control integration', () => {
           'Org creators can only manage dashboards and reports they created.',
       },
     )
+  })
+
+  it('warns before making upstream dependencies private and redacts cross-org dependents', async () => {
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.geometries[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.geometries },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Geometries visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.indicator.measured[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.product[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.product },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Product visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.report[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.report },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report visibility updated',
+      },
+    )
+
+    await db.insert(reportIndicatorUsage).values({
+      reportId: seededIds.report,
+      productRunId: seededIds.productRun,
+      indicatorId: seededIds.indicator,
+      derivedIndicatorId: null,
+    })
+
+    await db.insert(organization).values({
+      id: 'other-organization',
+      slug: 'other-organization',
+      name: 'Other Organization',
+      createdAt: new Date('2025-03-01T00:00:00.000Z'),
+      metadata: '{}',
+    })
+
+    await db.insert(report).values({
+      id: 'other-report',
+      name: 'Other Org Report',
+      description: null,
+      content: null,
+      metadata: null,
+      createdAt: new Date('2025-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-03-01T00:00:00.000Z'),
+      organizationId: 'other-organization',
+      createdByUserId: seededIds.adminUser,
+      visibility: 'public',
+    })
+
+    await db.insert(reportIndicatorUsage).values({
+      reportId: 'other-report',
+      productRunId: seededIds.productRun,
+      indicatorId: seededIds.indicator,
+      derivedIndicatorId: null,
+    })
+
+    const previewJson = await expectJsonResponse<{
+      canApply: boolean
+      warnings: {
+        resources: { id: string; resourceType: string }[]
+        externalCounts: { count: number; resourceType: string }[]
+      }[]
+    }>(
+      await app.request(
+        `/api/v0/dataset/${seededIds.dataset}/visibility-impact?targetVisibility=private`,
+        {
+          headers: superAdminHeaders,
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(previewJson.data.canApply).toBe(true)
+    expect(
+      previewJson.data.warnings.some((warning) =>
+        warning.resources.some(
+          (resource) =>
+            resource.id === seededIds.product &&
+            resource.resourceType === 'product',
+        ),
+      ),
+    ).toBe(true)
+    expect(
+      previewJson.data.warnings.some((warning) =>
+        warning.resources.some(
+          (resource) =>
+            resource.id === seededIds.report &&
+            resource.resourceType === 'report',
+        ),
+      ),
+    ).toBe(true)
+    expect(
+      previewJson.data.warnings.some((warning) =>
+        warning.resources.some((resource) => resource.id === 'other-report'),
+      ),
+    ).toBe(false)
+    expect(
+      previewJson.data.warnings.some((warning) =>
+        warning.externalCounts.some(
+          (externalCount) =>
+            externalCount.resourceType === 'report' &&
+            externalCount.count === 1,
+        ),
+      ),
+    ).toBe(true)
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'private',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+  })
+
+  it('requires a main run output summary before a product can become public or global', async () => {
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.dataset[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.geometries[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.geometries },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Geometries visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.indicator.measured[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    await db
+      .delete(productOutputSummary)
+      .where(eq(productOutputSummary.productRunId, seededIds.productRun))
+
+    const previewJson = await expectJsonResponse<{
+      canApply: boolean
+      blockingIssues: { code: string }[]
+    }>(
+      await app.request(
+        `/api/v0/product/${seededIds.product}/visibility-impact?targetVisibility=public`,
+        {
+          headers: superAdminHeaders,
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(previewJson.data.canApply).toBe(false)
+    expect(
+      previewJson.data.blockingIssues.some(
+        (issue) => issue.code === 'missing_main_run_output_summary',
+      ),
+    ).toBe(true)
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.product[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.product },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 400,
+        message: 'Cannot make product public',
+        description:
+          'This product needs a main run with an output summary before it can be public.',
+      },
+    )
+
+    const seededProduct = await db.query.product.findFirst({
+      where: eq(product.id, seededIds.product),
+      columns: {
+        mainRunId: true,
+      },
+    })
+
+    expect(seededProduct?.mainRunId).toBe(seededIds.productRun)
   })
 
   it('requires MFA for org admins, enforces the last-admin floor, and exposes org-scoped logs only to admins', async () => {

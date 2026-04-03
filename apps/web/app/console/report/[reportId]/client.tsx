@@ -6,7 +6,12 @@ import { updateReportSchema } from '@repo/schemas/crud'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
+import {
+  createResourceVisibilityAction,
+  handleVisibilityImpactError,
+  type VisibilityImpactDialogState,
+  VisibilityImpactDialog,
+} from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../hooks/useAccessControl'
 import { REPORTS_BASE_PATH } from '../../../../lib/paths'
@@ -19,6 +24,7 @@ import { ChartSelectedItem } from '../_components/chart-selected-item'
 import { reportChartFormBuilder } from '../_components/report-chart-editor'
 import {
   useDeleteReport,
+  usePreviewReportVisibility,
   useReport,
   useUpdateReport,
   useUpdateReportVisibility,
@@ -28,21 +34,29 @@ const ReportDetails = () => {
   const { data: report } = useReport()
   const updateReport = useUpdateReport()
   const updateReportVisibility = useUpdateReportVisibility()
+  const previewReportVisibility = usePreviewReportVisibility()
   const deleteReport = useDeleteReport(undefined, REPORTS_BASE_PATH)
   const { access } = useAccessControl()
 
   const [selectedDataPoint, setSelectedDataPoint] =
     useState<SelectedDataPoint<ProductOutputExportListItem> | null>(null)
+  const [updateErrorDialog, setUpdateErrorDialog] =
+    useState<VisibilityImpactDialogState | null>(null)
 
   const form = useForm({
     resolver: zodResolver(updateReportSchema),
   })
+  const isDirty = form.formState.isDirty
 
   useEffect(() => {
-    if (report) {
-      form.reset(report)
+    if (!report || isDirty) {
+      return
     }
-  }, [report, form])
+
+    form.reset(report)
+  }, [form, isDirty, report])
+
+  const reportContent = form.watch('content') ?? { type: 'doc', content: [] }
 
   const formBuilder = useMemo(
     () => reportChartFormBuilder(setSelectedDataPoint),
@@ -62,12 +76,13 @@ const ReportDetails = () => {
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateReportVisibility,
+      previewMutation: previewReportVisibility,
       successMessage: 'Report visibility updated',
       visibility: report.visibility,
     })
 
     return visibilityAction ? [visibilityAction] : []
-  }, [access, report, updateReportVisibility])
+  }, [access, previewReportVisibility, report, updateReportVisibility])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col relative">
@@ -78,6 +93,13 @@ const ReportDetails = () => {
         actions={formActions}
         entityName="Report"
         entityNamePlural="reports"
+        onError={(error) => {
+          handleVisibilityImpactError({
+            error,
+            fallbackMessage: 'Failed to update report',
+            setDialogState: setUpdateErrorDialog,
+          })
+        }}
         readOnly={!canEdit}
         successMessage="Updated Report"
       >
@@ -89,7 +111,7 @@ const ReportDetails = () => {
                 shouldTouch: true,
               })
             }}
-            content={report.content ?? { type: 'doc', content: [] }}
+            content={reportContent}
             chartFormBuilder={canEdit ? formBuilder : undefined}
             editable={canEdit}
           />
@@ -98,6 +120,18 @@ const ReportDetails = () => {
       <ChartSelectedItem
         selectedDataPoint={selectedDataPoint}
         onSelect={setSelectedDataPoint}
+      />
+      <VisibilityImpactDialog
+        open={updateErrorDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setUpdateErrorDialog(null)
+          }
+        }}
+        title={updateErrorDialog?.title ?? 'Update blocked'}
+        description={updateErrorDialog?.description ?? ''}
+        impact={updateErrorDialog?.impact ?? null}
+        closeLabel="Close"
       />
     </div>
   )

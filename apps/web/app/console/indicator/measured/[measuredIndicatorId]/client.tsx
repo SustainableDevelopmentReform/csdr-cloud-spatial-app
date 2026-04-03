@@ -15,6 +15,7 @@ import {
 } from '../../../../../utils/access-control'
 import {
   useDeleteMeasuredIndicator,
+  usePreviewMeasuredIndicatorVisibility,
   useUpdateMeasuredIndicator,
   useUpdateMeasuredIndicatorVisibility,
   useMeasuredIndicator,
@@ -34,6 +35,7 @@ const IndicatorDetails = () => {
   const { data: indicator } = useMeasuredIndicator()
   const updateIndicator = useUpdateMeasuredIndicator()
   const updateIndicatorVisibility = useUpdateMeasuredIndicatorVisibility()
+  const previewIndicatorVisibility = usePreviewMeasuredIndicatorVisibility()
   const deleteIndicator = useDeleteMeasuredIndicator(
     undefined,
     INDICATORS_BASE_PATH,
@@ -63,12 +65,13 @@ const IndicatorDetails = () => {
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateIndicatorVisibility,
+      previewMutation: previewIndicatorVisibility,
       successMessage: 'Indicator visibility updated',
       visibility: indicator.visibility,
     })
 
     return visibilityAction ? [visibilityAction] : []
-  }, [access, indicator, updateIndicatorVisibility])
+  }, [access, indicator, previewIndicatorVisibility, updateIndicatorVisibility])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">

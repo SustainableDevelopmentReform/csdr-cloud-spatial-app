@@ -19,6 +19,10 @@ import {
   INDICATORS_DERIVED_BASE_PATH,
   INDICATORS_MEASURED_BASE_PATH,
 } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { productQueryKeys, productRunQueryKeys } from '../product/_hooks'
 
 export type IndicatorListResponse = NonNullable<
@@ -404,6 +408,38 @@ export const useUpdateMeasuredIndicatorVisibility = (_indicatorId?: string) => {
   })
 }
 
+export const usePreviewMeasuredIndicatorVisibility = (
+  _indicatorId?: string,
+) => {
+  const { measuredIndicatorId } = useIndicatorParams(_indicatorId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!measuredIndicatorId) {
+        return null
+      }
+
+      const res = client.api.v0.indicator.measured[':id'][
+        'visibility-impact'
+      ].$get({
+        param: {
+          id: measuredIndicatorId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
+    },
+  })
+}
+
 export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
   const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
   const queryClient = useQueryClient()
@@ -442,6 +478,36 @@ export const useUpdateDerivedIndicatorVisibility = (_indicatorId?: string) => {
       queryClient.invalidateQueries({
         queryKey: indicatorQueryKeys.all,
       })
+    },
+  })
+}
+
+export const usePreviewDerivedIndicatorVisibility = (_indicatorId?: string) => {
+  const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!derivedIndicatorId) {
+        return null
+      }
+
+      const res = client.api.v0.indicator.derived[':id'][
+        'visibility-impact'
+      ].$get({
+        param: {
+          id: derivedIndicatorId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }

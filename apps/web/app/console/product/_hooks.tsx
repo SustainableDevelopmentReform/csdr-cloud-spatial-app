@@ -27,6 +27,10 @@ import {
   PRODUCTS_RUNS_BASE_PATH,
   PRODUCTS_RUNS_OUTPUTS_BASE_PATH,
 } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../dataset/_components/dataset-run-button'
 import {
@@ -728,6 +732,34 @@ export const useUpdateProductVisibility = (_productId?: string) => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
       })
+    },
+  })
+}
+
+export const usePreviewProductVisibility = (_productId?: string) => {
+  const { productId } = useProductParams(_productId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!productId) {
+        return null
+      }
+
+      const res = client.api.v0.product[':id']['visibility-impact'].$get({
+        param: {
+          id: productId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }

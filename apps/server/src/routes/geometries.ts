@@ -26,6 +26,10 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import {
+  getGeometriesVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometries, geometriesRun, product } from '../schemas/db'
@@ -60,6 +64,10 @@ const geometriesNotFoundError = () =>
     message: 'Failed to get geometries',
     description: "Geometries you're looking for is not found",
   })
+
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
 
 const fetchFullGeometries = async (id: string, organizationId: string) => {
   const record = await db.query.geometries.findFirst({
@@ -419,6 +427,62 @@ const app = createOpenAPIApp()
       )
 
       return generateJsonResponse(c, fullRecord, 200, 'Geometries updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview geometries visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:geometries' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed geometries visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to preview geometries visibility impact',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        notFoundError: geometriesNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getGeometriesVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
     },
   )
   .openapi(

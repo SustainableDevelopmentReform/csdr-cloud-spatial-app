@@ -45,6 +45,64 @@ export type SessionAccess = {
 
 export type ResourceVisibility = z.infer<typeof visibilitySchema>
 
+export const visibilityImpactResourceTypeSchema = z.enum([
+  'dataset',
+  'geometries',
+  'product',
+  'indicator',
+  'derivedIndicator',
+  'report',
+  'dashboard',
+])
+
+export type VisibilityImpactResourceType = z.infer<
+  typeof visibilityImpactResourceTypeSchema
+>
+
+export const visibilityImpactResourceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  resourceType: visibilityImpactResourceTypeSchema,
+  visibility: visibilitySchema,
+})
+
+export const visibilityImpactExternalCountSchema = z.object({
+  resourceType: visibilityImpactResourceTypeSchema,
+  count: z.number().int().min(1),
+})
+
+export const visibilityImpactCodeSchema = z.enum([
+  'private_upstream_dependencies',
+  'missing_main_run_output_summary',
+  'externally_visible_dependents',
+])
+
+export const visibilityImpactEntrySchema = z.object({
+  code: visibilityImpactCodeSchema,
+  message: z.string(),
+  resources: z.array(visibilityImpactResourceSchema),
+  externalCounts: z.array(visibilityImpactExternalCountSchema),
+})
+
+export const visibilityImpactSchema = z.object({
+  canApply: z.boolean(),
+  blockingIssues: z.array(visibilityImpactEntrySchema),
+  warnings: z.array(visibilityImpactEntrySchema),
+})
+
+export const visibilityImpactResponseSchema = z.object({
+  data: visibilityImpactSchema,
+})
+
+export type VisibilityImpactResource = z.infer<
+  typeof visibilityImpactResourceSchema
+>
+export type VisibilityImpactExternalCount = z.infer<
+  typeof visibilityImpactExternalCountSchema
+>
+export type VisibilityImpactEntry = z.infer<typeof visibilityImpactEntrySchema>
+export type VisibilityImpact = z.infer<typeof visibilityImpactSchema>
+
 export type ConsoleResource =
   | 'dashboard'
   | 'dataset'

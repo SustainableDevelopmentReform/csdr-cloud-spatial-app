@@ -4,21 +4,17 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { z } from 'zod'
 import { useConfig } from '~/components/providers'
+import { useApiClient } from './useApiClient'
 import { useAuthClient } from './useAuthClient'
+import { Client, unwrapResponse } from '~/utils/apiClient'
 import {
   activeMemberSchema,
   buildSessionAccess,
+  OrganizationSummary,
   organizationSummarySchema,
 } from '~/utils/access-control'
 
 const organizationListSchema = z.array(organizationSummarySchema)
-const superAdminOrganizationSchema = organizationSummarySchema.extend({
-  createdAt: z.string(),
-  memberCount: z.number().int(),
-})
-const superAdminOrganizationListResponseSchema = z.object({
-  data: z.array(superAdminOrganizationSchema),
-})
 
 const fetchAuthEndpoint = async (
   apiBaseUrl: string,
@@ -36,30 +32,20 @@ const fetchAuthEndpoint = async (
 }
 
 const fetchSuperAdminOrganizations = async (
-  apiBaseUrl: string,
-): Promise<z.infer<typeof organizationListSchema>> => {
-  const response = await fetch(`${apiBaseUrl}/api/v0/organization`, {
-    credentials: 'include',
-  })
+  client: Client,
+): Promise<OrganizationSummary[]> => {
+  const payload = await unwrapResponse(client.api.v0.organization.$get())
 
-  if (!response.ok) {
-    throw new Error('Failed to load organizations')
-  }
-
-  const payload = await response.json()
-  const parsed = superAdminOrganizationListResponseSchema.safeParse(payload)
-
-  if (!parsed.success) {
-    throw new Error('Failed to parse organizations')
-  }
-
-  return parsed.data.data.map((organization) =>
-    organizationSummarySchema.parse(organization),
-  )
+  return payload.data.map((organization) => ({
+    id: organization.id,
+    name: organization.name,
+    slug: organization.slug,
+  }))
 }
 
 export const useAccessControl = () => {
   const { apiBaseUrl } = useConfig()
+  const apiClient = useApiClient()
   const authClient = useAuthClient()
   const session = authClient.useSession()
   const isSuperAdmin = session.data?.user?.role === 'super_admin'
@@ -116,7 +102,7 @@ export const useAccessControl = () => {
   const superAdminOrganizationsQuery = useQuery({
     queryKey: ['access-control', 'organizations', 'super-admin'],
     enabled: isAuthenticated && isSuperAdmin,
-    queryFn: async () => fetchSuperAdminOrganizations(apiBaseUrl),
+    queryFn: async () => fetchSuperAdminOrganizations(apiClient),
   })
 
   const parsedActiveMember = useMemo(() => {

@@ -38,6 +38,7 @@ export interface CrudFormProps<
   deleteMutation?: UseMutationResult<unknown, Error, void>
   actions?: CrudFormAction[]
   children?: React.ReactNode | React.ReactNode[]
+  onError?: (error: unknown) => void
   onSuccess?: () => void
   readOnly?: boolean
   successMessage: string
@@ -56,6 +57,7 @@ export const CrudForm = <
   readOnlyFields = ['id', 'metadata'],
   hiddenFields,
   fieldLabels,
+  onError,
   onSuccess,
   successMessage,
 }: CrudFormProps<Data>) => {
@@ -117,6 +119,7 @@ export const CrudForm = <
           onSubmit={form.handleSubmit((formData) => {
             if (!readOnly) {
               mutation.mutate(formData, {
+                onError,
                 onSuccess: () => {
                   form.reset(formData)
                   toast.success(successMessage)

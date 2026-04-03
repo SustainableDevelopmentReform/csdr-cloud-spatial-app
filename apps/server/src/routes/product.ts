@@ -35,6 +35,11 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import {
+  assertProductDependenciesExternallyVisible,
+  getProductVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
@@ -63,7 +68,6 @@ import {
 export const baseProductQuery = {
   columns: {
     ...baseAclColumns,
-    timePrecision: true,
     mainRunId: true,
   },
   with: {
@@ -88,6 +92,10 @@ const productNotFoundError = () =>
     message: 'Failed to get product',
     description: "Product you're looking for is not found",
   })
+
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
 
 export const parseBaseProduct = <
   T extends InferQueryModel<'product', typeof baseProductQuery>,
@@ -546,6 +554,60 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
+      description: 'Preview product visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed product visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview product visibility impact'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getProductVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
+    },
+  )
+  .openapi(
+    createRoute({
       description: 'Update product visibility.',
       method: 'patch',
       path: '/:id/visibility',
@@ -593,20 +655,33 @@ const app = createOpenAPIApp()
         nextVisibility: payload.visibility,
       })
 
-      const [record] = await db
-        .update(product)
-        .set(updatePayload(payload))
-        .where(
-          and(
-            eq(product.id, id),
-            eq(product.organizationId, accessRecord.organizationId),
-          ),
-        )
-        .returning()
+      const record = await db.transaction(async (tx) => {
+        const [updatedRecord] = await tx
+          .update(product)
+          .set(updatePayload(payload))
+          .where(
+            and(
+              eq(product.id, id),
+              eq(product.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
 
-      if (!record) {
-        throw productNotFoundError()
-      }
+        if (!updatedRecord) {
+          throw productNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertProductDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+            accessRecord.organizationId,
+          )
+        }
+
+        return updatedRecord
+      })
 
       const fullRecord = await fetchFullProductOrThrow(
         record.id,

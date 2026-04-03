@@ -123,14 +123,6 @@ export const geometries = pgTable(
   ],
 )
 
-export const timePrecision = pgEnum('time_precision', [
-  'hour',
-  'day',
-  'month',
-  'year',
-  // 'custom', // TODO: add custom time precision (see productOutput.timeInterval)
-])
-
 /** This need more though...
  * For example - how could this be used to run generic workflows for
  */
@@ -145,8 +137,6 @@ export const product = pgTable(
     geometriesId: text('geometries_id').references(() => geometries.id, {
       onDelete: 'cascade',
     }),
-
-    timePrecision: timePrecision('time_precision').notNull(),
   },
   (table) => [
     index('product_search_trgm_idx').using(
@@ -338,7 +328,7 @@ export const productOutput = pgTable(
       mode: 'date',
       withTimezone: false,
     }).notNull(),
-    // Will stick to timePoint with timePrecision (see product.timePrecision) for now
+    // Will stick to timePoint for now
     // timeInterval: tstzrange('time_interval'),
   },
   (table) => [

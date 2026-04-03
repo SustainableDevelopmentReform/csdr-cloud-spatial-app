@@ -5,8 +5,9 @@ import {
   useQueryClient,
   type UseMutationResult,
 } from '@tanstack/react-query'
-import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
+import { useApiClient } from '~/hooks/useApiClient'
+import { Client, unwrapResponse } from '~/utils/apiClient'
 
 const getSwitchOrganizationErrorMessage = (payload: unknown): string => {
   if (
@@ -22,32 +23,26 @@ const getSwitchOrganizationErrorMessage = (payload: unknown): string => {
 }
 
 const setSuperAdminActiveOrganization = async (
-  apiBaseUrl: string,
+  client: Client,
   organizationId: string,
 ): Promise<void> => {
-  const response = await fetch(`${apiBaseUrl}/api/v0/organization/active`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
+  const response = client.api.v0.organization.active.$post({
+    json: {
       organizationId,
-    }),
+    },
   })
 
-  if (response.ok) {
-    return
+  try {
+    await unwrapResponse(response)
+  } catch (error) {
+    throw new Error(getSwitchOrganizationErrorMessage(error))
   }
-
-  const payload = await response.json().catch(() => null)
-  throw new Error(getSwitchOrganizationErrorMessage(payload))
 }
 
 export const useSwitchOrganization = (
   isSuperAdmin: boolean,
 ): UseMutationResult<void, Error, string> => {
-  const { apiBaseUrl } = useConfig()
+  const apiClient = useApiClient()
   const authClient = useAuthClient()
   const session = authClient.useSession()
   const queryClient = useQueryClient()
@@ -55,7 +50,7 @@ export const useSwitchOrganization = (
   return useMutation({
     mutationFn: async (organizationId: string) => {
       if (isSuperAdmin) {
-        await setSuperAdminActiveOrganization(apiBaseUrl, organizationId)
+        await setSuperAdminActiveOrganization(apiClient, organizationId)
       } else {
         const response = await authClient.organization.setActive({
           organizationId,

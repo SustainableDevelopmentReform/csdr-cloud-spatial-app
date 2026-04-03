@@ -24,6 +24,7 @@ import {
   useDeleteGeometries,
   useGeometries,
   useGeometriesRunsLink,
+  usePreviewGeometriesVisibility,
   useUpdateGeometries,
   useUpdateGeometriesVisibility,
 } from '../_hooks'
@@ -33,6 +34,7 @@ const GeometriesDetails = () => {
   const productsLink = useProductsLink()
   const updateGeometries = useUpdateGeometries()
   const updateGeometriesVisibility = useUpdateGeometriesVisibility()
+  const previewGeometriesVisibility = usePreviewGeometriesVisibility()
   const deleteGeometries = useDeleteGeometries(undefined, GEOMETRIES_BASE_PATH)
   const geometriesRunsLink = useGeometriesRunsLink()
   const { access } = useAccessControl()
@@ -60,12 +62,18 @@ const GeometriesDetails = () => {
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateGeometriesVisibility,
+      previewMutation: previewGeometriesVisibility,
       successMessage: 'Geometries visibility updated',
       visibility: geometries.visibility,
     })
 
     return visibilityAction ? [visibilityAction] : []
-  }, [access, geometries, updateGeometriesVisibility])
+  }, [
+    access,
+    geometries,
+    previewGeometriesVisibility,
+    updateGeometriesVisibility,
+  ])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">

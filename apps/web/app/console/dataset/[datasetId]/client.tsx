@@ -23,6 +23,7 @@ import {
   useDataset,
   useDatasetRunsLink,
   useDeleteDataset,
+  usePreviewDatasetVisibility,
   useUpdateDataset,
   useUpdateDatasetVisibility,
 } from '../_hooks'
@@ -32,6 +33,7 @@ const DatasetDetails = () => {
   const productsLink = useProductsLink()
   const updateDataset = useUpdateDataset()
   const updateDatasetVisibility = useUpdateDatasetVisibility()
+  const previewDatasetVisibility = usePreviewDatasetVisibility()
   const deleteDataset = useDeleteDataset(undefined, DATASETS_BASE_PATH)
   const datasetRunsLink = useDatasetRunsLink()
   const { access } = useAccessControl()
@@ -59,12 +61,13 @@ const DatasetDetails = () => {
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateDatasetVisibility,
+      previewMutation: previewDatasetVisibility,
       successMessage: 'Dataset visibility updated',
       visibility: dataset.visibility,
     })
 
     return visibilityAction ? [visibilityAction] : []
-  }, [access, dataset, updateDatasetVisibility])
+  }, [access, dataset, previewDatasetVisibility, updateDatasetVisibility])
 
   return (
     <div className="w-[800px] max-w-full gap-8 flex flex-col">

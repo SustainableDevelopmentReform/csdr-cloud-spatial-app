@@ -331,7 +331,6 @@ async function main(): Promise<void> {
           organizationId: defaultOrg.id,
           createdByUserId: superAdmin.id,
           name: 'Forest Cover Product in Australia',
-          timePrecision: 'year',
           datasetId: dataset.id,
           geometriesId: geometries.id,
           description: 'Forest Cover Product in Australia',

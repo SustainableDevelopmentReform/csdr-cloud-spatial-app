@@ -431,7 +431,6 @@ const seedBaseData = async (db: DbModule['db']) => {
     visibility: 'private',
     createdAt: now,
     updatedAt: now,
-    timePrecision: 'year',
     datasetId: seededIds.dataset,
     geometriesId: seededIds.geometries,
     mainRunId: null,
