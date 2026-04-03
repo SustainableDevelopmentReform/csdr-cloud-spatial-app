@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi'
 import { visibilitySchema } from '@repo/schemas/crud'
-import { eq, inArray, or } from 'drizzle-orm'
+import { inArray, or } from 'drizzle-orm'
 import { db } from './db'
 import { ServerError } from './error'
 import type { AppVisibility } from './access-control'
@@ -74,7 +74,7 @@ const getProductSummaryMessage = (
     ? 'This product needs a main run with an output summary before it can be public or global.'
     : 'This product needs a main run with an output summary before it can be public.'
 const dependentWarningMessage =
-  'Other externally visible resources depend on this. Changing it to private may break them until you update their visibility or restore this dependency.'
+  'Other resources depend on this. Changing it to private may break them until you update those dependencies or restore this resource.'
 
 const isExternallyVisible = (visibility: AppVisibility): boolean =>
   visibility !== 'private'
@@ -88,6 +88,17 @@ const appendVisibleResource = (
   resource: InternalImpactResource | null,
 ): void => {
   if (!resource || !isExternallyVisible(resource.visibility)) {
+    return
+  }
+
+  resourceMap.set(toResourceKey(resource), resource)
+}
+
+const appendResource = (
+  resourceMap: Map<string, InternalImpactResource>,
+  resource: InternalImpactResource | null,
+): void => {
+  if (!resource) {
     return
   }
 
@@ -523,7 +534,7 @@ const getVisibleProductsForSummaryIndicators = async (
   return getVisibleProductsForRunIds(tx, runIds)
 }
 
-const getVisibleDerivedIndicatorsForMeasuredIndicator = async (
+const getDerivedIndicatorsForMeasuredIndicator = async (
   tx: DbTransaction,
   indicatorId: string,
 ): Promise<InternalImpactResource[]> => {
@@ -544,7 +555,7 @@ const getVisibleDerivedIndicatorsForMeasuredIndicator = async (
   const resourceMap = new Map<string, InternalImpactResource>()
   for (const dependency of dependencies) {
     const derivedIndicator = dependency.derivedIndicator
-    appendVisibleResource(
+    appendResource(
       resourceMap,
       derivedIndicator
         ? {
@@ -710,7 +721,7 @@ export const getDerivedIndicatorVisibilityImpact = async (
       [derivedIndicatorId],
     )
     const productIds = products.map((product) => product.id)
-    const runIds = await getProductRunsForProductIds(tx, productIds)
+    await getProductRunsForProductIds(tx, productIds)
     const reports = await getVisibleReportsByIndicatorIds(
       tx,
       [],
@@ -1462,8 +1473,10 @@ export const getMeasuredIndicatorVisibilityImpact = async (
   }
 
   const downstreamResources = new Map<string, InternalImpactResource>()
-  const derivedIndicators =
-    await getVisibleDerivedIndicatorsForMeasuredIndicator(tx, indicatorId)
+  const derivedIndicators = await getDerivedIndicatorsForMeasuredIndicator(
+    tx,
+    indicatorId,
+  )
   const derivedIndicatorIds = derivedIndicators.map(
     (derivedIndicator) => derivedIndicator.id,
   )
@@ -1487,8 +1500,11 @@ export const getMeasuredIndicatorVisibilityImpact = async (
   const reportsFromProducts = await getVisibleReportsForRunIds(tx, runIds)
   const dashboardsFromProducts = await getVisibleDashboardsForRunIds(tx, runIds)
 
+  for (const resource of derivedIndicators) {
+    appendResource(downstreamResources, resource)
+  }
+
   for (const resource of [
-    ...derivedIndicators,
     ...products,
     ...reports,
     ...dashboards,

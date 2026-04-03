@@ -1,10 +1,9 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
@@ -22,8 +21,6 @@ import {
 import { createDatasetRunSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
-
-const columnHelper = createColumnHelper<DatasetRunListItem>()
 
 const DatasetRunFeature = () => {
   const datasetQuery = useDataset()

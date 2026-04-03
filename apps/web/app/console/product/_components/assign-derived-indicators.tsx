@@ -16,7 +16,6 @@ import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { IndicatorListItem, useDerivedIndicator } from '../../indicator/_hooks'
 import {
   ProductDetail,
-  ProductRunAssignedDerivedIndicator,
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
   useComputeDerivedIndicatorsForProductRun,
@@ -39,9 +38,6 @@ import {
 import { BadgeLink } from '../../../../components/badge-link'
 import { Value } from '../../../../components/value'
 import { getUserFacingErrorMessage } from '../../../../utils/error-handling'
-
-type DerivedIndicatorItem =
-  ProductRunAssignedDerivedIndicator['derivedIndicator']
 
 type DependencyMapping = {
   indicatorId: string

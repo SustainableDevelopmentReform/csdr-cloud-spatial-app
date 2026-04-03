@@ -1,9 +1,4 @@
-import { ArrowUpRightIcon } from 'lucide-react'
-import { BadgeLink } from '../../../../components/badge-link'
-import {
-  IndicatorCategoryLinkParams,
-  useIndicatorCategoryLink,
-} from '../_hooks'
+import { IndicatorCategoryLinkParams } from '../_hooks'
 
 export const IndicatorCategoryButtons = ({
   indicatorCategories,
@@ -27,14 +22,5 @@ export const IndicatorCategoryButton = ({
 }: {
   indicatorCategory: IndicatorCategoryLinkParams
 }) => {
-  // const indicatorCategoryLink = useIndicatorCategoryLink()
-
   return <div>{indicatorCategory.name}</div>
-
-  // return (
-  //   <BadgeLink href={indicatorCategoryLink(indicatorCategory)} variant="outline">
-  //     {indicatorCategory.name}
-  //     <ArrowUpRightIcon className="size-4" />
-  //   </BadgeLink>
-  // )
 }

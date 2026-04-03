@@ -6,9 +6,13 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
-import { useAccessControl } from '../../../../hooks/useAccessControl'
+import {
+  useAccessControl,
+  useRequiresActiveOrganizationSwitchForWrite,
+} from '../../../../hooks/useAccessControl'
 import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
 import {
   canEditConsoleResource,
@@ -46,6 +50,13 @@ const GeometriesDetails = () => {
     createdByUserId: getCreatedByUserId(geometries),
     resourceData: geometries,
   })
+  const requiresOrganizationSwitch =
+    useRequiresActiveOrganizationSwitchForWrite({
+      access,
+      createdByUserId: getCreatedByUserId(geometries),
+      resource: 'geometries',
+      resourceData: geometries,
+    })
 
   const form = useForm({
     resolver: zodResolver(updateGeometriesSchema),
@@ -88,6 +99,9 @@ const GeometriesDetails = () => {
       notFoundMessage="Geometries not found"
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        {requiresOrganizationSwitch ? (
+          <ActiveOrganizationWriteWarning visibility={geometries?.visibility} />
+        ) : null}
         <div className="flex flex-col gap-4">
           <GeometriesMapViewer
             geometriesRun={geometries?.mainRun}

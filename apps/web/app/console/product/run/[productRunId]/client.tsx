@@ -23,7 +23,6 @@ import { RefreshProductSummary } from '../../_components/refresh-product-summary
 import {
   useDeleteProductRun,
   useProductRun,
-  useProductRunLink,
   useProductRunOutputsLink,
   useProductRunsLink,
   useSetProductMainRun,
@@ -45,7 +44,6 @@ const ProductRunDetails = () => {
     undefined,
     productRun?.product ? productRunsLink(productRun?.product) : undefined,
   )
-  const productRunLink = useProductRunLink()
   const productRunOutputsLink = useProductRunOutputsLink()
   const setProductMainRun = useSetProductMainRun(productRun)
 

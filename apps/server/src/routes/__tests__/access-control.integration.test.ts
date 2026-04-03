@@ -1030,6 +1030,77 @@ describe('access control integration', () => {
     )
   })
 
+  it('warns when a measured indicator has cross-organization derived indicator dependents', async () => {
+    const otherOrgAdminHeaders = await createSessionHeaders({
+      email: 'other-org-indicator-admin@example.com',
+      organizationId: 'other-indicator-warning-organization',
+      organizationRole: 'org_admin',
+      twoFactorEnabled: true,
+    })
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.indicator.measured[':id'][
+        'visibility'
+      ].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'global',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(
+        otherOrgAdminHeaders,
+      ).api.v0.indicator.derived.$post({
+        json: {
+          name: 'Cross-org derived dependency',
+          unit: '%',
+          expression: '$1 * 4',
+          indicatorIds: [seededIds.indicator],
+        },
+      }),
+      {
+        status: 201,
+        message: 'Derived indicator created',
+      },
+    )
+
+    const previewJson = await expectJsonResponse<{
+      canApply: boolean
+      warnings: {
+        resources: { id: string; resourceType: string }[]
+        externalCounts: { count: number; resourceType: string }[]
+      }[]
+    }>(
+      await app.request(
+        `/api/v0/indicator/measured/${seededIds.indicator}/visibility-impact?targetVisibility=private`,
+        {
+          headers: superAdminHeaders,
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(previewJson.data.canApply).toBe(true)
+    expect(
+      previewJson.data.warnings.some((warning) =>
+        warning.externalCounts.some(
+          (externalCount) =>
+            externalCount.resourceType === 'derivedIndicator' &&
+            externalCount.count === 1,
+        ),
+      ),
+    ).toBe(true)
+  })
+
   it('requires a main run output summary before a product can become public or global', async () => {
     await expectJsonResponse(
       await createAppClient(superAdminHeaders).api.v0.dataset[':id'][

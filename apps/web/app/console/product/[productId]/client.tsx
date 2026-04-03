@@ -6,10 +6,14 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../components/form/crud-form-action'
-import { useAccessControl } from '../../../../hooks/useAccessControl'
+import {
+  useAccessControl,
+  useRequiresActiveOrganizationSwitchForWrite,
+} from '../../../../hooks/useAccessControl'
 import { PRODUCTS_BASE_PATH } from '../../../../lib/paths'
 import {
   canEditConsoleResource,
@@ -46,6 +50,13 @@ const ProductDetails = () => {
     createdByUserId: getCreatedByUserId(product),
     resourceData: product,
   })
+  const requiresOrganizationSwitch =
+    useRequiresActiveOrganizationSwitchForWrite({
+      access,
+      createdByUserId: getCreatedByUserId(product),
+      resource: 'product',
+      resourceData: product,
+    })
 
   const formActions: CrudFormAction[] = useMemo(() => {
     const actions: CrudFormAction[] = []
@@ -101,6 +112,9 @@ const ProductDetails = () => {
       notFoundMessage="Product not found"
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        {requiresOrganizationSwitch ? (
+          <ActiveOrganizationWriteWarning visibility={product?.visibility} />
+        ) : null}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ProductRunSummaryCard run={product?.mainRun} mainRun />
           <div className="grid grid-cols-1 gap-4">

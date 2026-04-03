@@ -5,6 +5,7 @@ import type { DashboardContent } from '@repo/schemas/crud'
 import { updateDashboardSchema } from '@repo/schemas/crud'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import {
   createResourceVisibilityAction,
   handleVisibilityImpactError,
@@ -13,7 +14,10 @@ import {
 } from '~/app/console/_components/resource-visibility-action'
 import { ResourcePageState } from '../../_components/resource-page-state'
 import { CrudForm } from '../../../../components/form/crud-form'
-import { useAccessControl } from '../../../../hooks/useAccessControl'
+import {
+  useAccessControl,
+  useRequiresActiveOrganizationSwitchForWrite,
+} from '../../../../hooks/useAccessControl'
 import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
 import {
   canEditConsoleResource,
@@ -66,6 +70,13 @@ const DashboardDetails = () => {
     createdByUserId: getCreatedByUserId(dashboard),
     resourceData: dashboard,
   })
+  const requiresOrganizationSwitch =
+    useRequiresActiveOrganizationSwitchForWrite({
+      access,
+      createdByUserId: getCreatedByUserId(dashboard),
+      resource: 'dashboard',
+      resourceData: dashboard,
+    })
 
   const formActions = useMemo(() => {
     if (!dashboard) {
@@ -93,6 +104,9 @@ const DashboardDetails = () => {
       notFoundMessage="Dashboard not found"
     >
       <div className="max-w-full gap-8 flex flex-col">
+        {requiresOrganizationSwitch ? (
+          <ActiveOrganizationWriteWarning visibility={dashboard?.visibility} />
+        ) : null}
         <CrudForm
           form={form}
           mutation={updateDashboard}

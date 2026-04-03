@@ -384,6 +384,74 @@ describe('indicator route', () => {
     )
   })
 
+  it('allows another organization to create a derived indicator from a global measured indicator', async () => {
+    const otherOrgAdminClient = createAppClient(
+      await createSessionHeaders({
+        email: 'indicator-global-derived-admin@example.com',
+        organizationId: 'other-derived-indicator-organization',
+        organizationRole: 'org_admin',
+        twoFactorEnabled: true,
+      }),
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.measured[':id']['visibility'].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'global',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    const listJson = await expectJsonResponse<{
+      data: { id: string; type: 'measured' | 'derived' }[]
+    }>(
+      await otherOrgAdminClient.api.v0.indicator.$get({
+        query: { type: 'measure' },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      listJson.data.data.some((item) => item.id === seededIds.indicator),
+    ).toBe(true)
+
+    const createdDerivedJson = await expectJsonResponse<{
+      id: string
+      indicators: { id: string }[]
+      organizationId: string
+    }>(
+      await otherOrgAdminClient.api.v0.indicator.derived.$post({
+        json: {
+          name: 'Other org global derived indicator',
+          unit: '%',
+          expression: '$1 * 2',
+          indicatorIds: [seededIds.indicator],
+        },
+      }),
+      {
+        status: 201,
+        message: 'Derived indicator created',
+      },
+    )
+
+    expect(createdDerivedJson.data.organizationId).toBe(
+      'other-derived-indicator-organization',
+    )
+    expect(
+      createdDerivedJson.data.indicators.some(
+        (item) => item.id === seededIds.indicator,
+      ),
+    ).toBe(true)
+  })
+
   it('blocks deleting indicators that are used by reports or dashboards', async () => {
     const reportJson = await expectJsonResponse<{ id: string }>(
       await adminClient.api.v0.report.$post({

@@ -7,14 +7,10 @@ import {
   type CurveType,
   ChartConfiguration,
   type DivergingColorScheme,
-  KpiChartConfiguration,
   type LegendPosition,
   makeDateFormatter,
-  MapChartConfiguration,
-  PlotChartConfiguration,
   PlotSubType,
   type SequentialColorScheme,
-  TableChartConfiguration,
   TableChartDimension,
 } from '@repo/plot/types'
 import {

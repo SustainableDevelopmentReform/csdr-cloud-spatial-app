@@ -9,7 +9,10 @@ const hcWithType = (...args: Parameters<typeof hc>): Client =>
 
 export const createApiClient = (baseURL: string) =>
   hcWithType(baseURL, {
-    fetch(input, requestInit, _Env, _executionCtx) {
+    fetch(
+      input: Parameters<typeof fetch>[0],
+      requestInit?: Parameters<typeof fetch>[1],
+    ) {
       const headers = new Headers(requestInit?.headers ?? {})
       const body = requestInit?.body
 

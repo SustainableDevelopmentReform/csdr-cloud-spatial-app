@@ -137,7 +137,7 @@ const extractValidatedFeatures = ({
     featureId: string
     name: string
     geometry: MultiPolygon
-    properties: Record<string, any>
+    properties: Record<string, unknown>
   }[] = []
 
   features.forEach((feature, index) => {

@@ -130,7 +130,9 @@ const DashboardGridEditor = ({
   const handleRemoveChart = useCallback(
     (id: string) => {
       updateContent((prev) => {
-        const { [id]: _, ...restCharts } = prev.charts
+        const restCharts = Object.fromEntries(
+          Object.entries(prev.charts).filter(([chartId]) => chartId !== id),
+        )
         return {
           charts: restCharts,
           layout: prev.layout.filter((item) => item.i !== id),

@@ -48,7 +48,7 @@ import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
 import { getUserFacingErrorMessage } from '~/utils/error-handling'
-import { ImportProductOutputsPayload, useImportProductOutputs } from '../_hooks'
+import { useImportProductOutputs } from '../_hooks'
 import type { IndicatorListItem } from '../../indicator/_hooks'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 type CsvSummary = {

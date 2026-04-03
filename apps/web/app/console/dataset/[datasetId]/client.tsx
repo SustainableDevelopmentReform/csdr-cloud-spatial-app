@@ -6,9 +6,13 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
-import { useAccessControl } from '../../../../hooks/useAccessControl'
+import {
+  useAccessControl,
+  useRequiresActiveOrganizationSwitchForWrite,
+} from '../../../../hooks/useAccessControl'
 import { DATASETS_BASE_PATH } from '../../../../lib/paths'
 import {
   canEditConsoleResource,
@@ -45,6 +49,13 @@ const DatasetDetails = () => {
     createdByUserId: getCreatedByUserId(dataset),
     resourceData: dataset,
   })
+  const requiresOrganizationSwitch =
+    useRequiresActiveOrganizationSwitchForWrite({
+      access,
+      createdByUserId: getCreatedByUserId(dataset),
+      resource: 'dataset',
+      resourceData: dataset,
+    })
 
   const form = useForm({
     resolver: zodResolver(updateDatasetSchema),
@@ -82,6 +93,9 @@ const DatasetDetails = () => {
       notFoundMessage="Dataset not found"
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col">
+        {requiresOrganizationSwitch ? (
+          <ActiveOrganizationWriteWarning visibility={dataset?.visibility} />
+        ) : null}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <DatasetRunSummaryCard run={dataset?.mainRun} mainRun />
           <div className="grid grid-cols-1 gap-4">

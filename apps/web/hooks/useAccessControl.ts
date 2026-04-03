@@ -10,11 +10,20 @@ import { Client, unwrapResponse } from '~/utils/apiClient'
 import {
   activeMemberSchema,
   buildSessionAccess,
+  ConsoleResource,
+  getResourceOrganizationId,
   OrganizationSummary,
+  OrganizationRole,
+  organizationRoleSchema,
   organizationSummarySchema,
+  SessionAccess,
+  requiresActiveOrganizationSwitchForWrite,
 } from '~/utils/access-control'
 
 const organizationListSchema = z.array(organizationSummarySchema)
+const organizationRoleResponseSchema = z.object({
+  role: organizationRoleSchema,
+})
 
 const fetchAuthEndpoint = async (
   apiBaseUrl: string,
@@ -200,4 +209,53 @@ export const useAccessControl = () => {
         },
     session,
   }
+}
+
+export const useRequiresActiveOrganizationSwitchForWrite = (input: {
+  access: SessionAccess
+  createdByUserId?: string | null
+  resource: ConsoleResource
+  resourceData: unknown
+}): boolean => {
+  const { apiBaseUrl } = useConfig()
+  const resourceOrganizationId = getResourceOrganizationId(input.resourceData)
+  const activeOrganizationId = input.access.activeOrganization?.id
+  const shouldCheckOrganizationRole =
+    input.access.isAuthenticated &&
+    !input.access.isSuperAdmin &&
+    typeof resourceOrganizationId === 'string' &&
+    resourceOrganizationId !== activeOrganizationId
+
+  const organizationRoleQuery = useQuery({
+    queryKey: [
+      'access-control',
+      'organization-role',
+      resourceOrganizationId ?? null,
+    ],
+    enabled: shouldCheckOrganizationRole,
+    queryFn: async (): Promise<OrganizationRole | null> => {
+      if (!resourceOrganizationId) {
+        return null
+      }
+
+      const query = new URLSearchParams({
+        organizationId: resourceOrganizationId,
+      })
+      const payload = await fetchAuthEndpoint(
+        apiBaseUrl,
+        `/organization/get-active-member-role?${query.toString()}`,
+      )
+      const parsed = organizationRoleResponseSchema.safeParse(payload)
+
+      return parsed.success ? parsed.data.role : null
+    },
+  })
+
+  return requiresActiveOrganizationSwitchForWrite({
+    access: input.access,
+    createdByUserId: input.createdByUserId,
+    resource: input.resource,
+    resourceData: input.resourceData,
+    resourceOrganizationRole: organizationRoleQuery.data ?? null,
+  })
 }

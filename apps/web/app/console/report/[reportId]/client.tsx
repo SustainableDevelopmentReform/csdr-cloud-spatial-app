@@ -6,6 +6,7 @@ import { updateReportSchema } from '@repo/schemas/crud'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import {
   createResourceVisibilityAction,
   handleVisibilityImpactError,
@@ -14,7 +15,10 @@ import {
 } from '~/app/console/_components/resource-visibility-action'
 import { ResourcePageState } from '../../_components/resource-page-state'
 import { CrudForm } from '../../../../components/form/crud-form'
-import { useAccessControl } from '../../../../hooks/useAccessControl'
+import {
+  useAccessControl,
+  useRequiresActiveOrganizationSwitchForWrite,
+} from '../../../../hooks/useAccessControl'
 import { REPORTS_BASE_PATH } from '../../../../lib/paths'
 import {
   canEditConsoleResource,
@@ -70,6 +74,13 @@ const ReportDetails = () => {
     createdByUserId: getCreatedByUserId(report),
     resourceData: report,
   })
+  const requiresOrganizationSwitch =
+    useRequiresActiveOrganizationSwitchForWrite({
+      access,
+      createdByUserId: getCreatedByUserId(report),
+      resource: 'report',
+      resourceData: report,
+    })
 
   const formActions = useMemo(() => {
     if (!report) {
@@ -97,6 +108,9 @@ const ReportDetails = () => {
       notFoundMessage="Report not found"
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col relative">
+        {requiresOrganizationSwitch ? (
+          <ActiveOrganizationWriteWarning visibility={report?.visibility} />
+        ) : null}
         <CrudForm
           form={form}
           mutation={updateReport}
