@@ -1,5 +1,6 @@
 import type { Env } from 'hono'
 import { OpenAPIHono, type OpenAPIHonoOptions, z } from '@hono/zod-openapi'
+import type { AuthType } from './auth'
 import { generateJsonResponse } from './response'
 
 function createDefaultValidationHook<E extends Env>(): NonNullable<
@@ -128,7 +129,11 @@ type CreateAppOptions<E extends Env> = OpenAPIHonoOptions<E> & {
   strict?: boolean
 }
 
-export const createOpenAPIApp = <E extends Env = Env>(
+type AppEnv = {
+  Variables: AuthType
+}
+
+export const createOpenAPIApp = <E extends Env = AppEnv>(
   options: CreateAppOptions<E> = {},
 ) =>
   new OpenAPIHono<E>({

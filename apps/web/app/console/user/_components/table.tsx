@@ -6,14 +6,18 @@ import {
 import React from 'react'
 import Link from '~/components/link'
 import Table from '../../../../components/table/table'
-import { User } from '../../../../utils/authClient'
 import { USERS_BASE_PATH } from '../../../../lib/paths'
+import {
+  formatGlobalUserRole,
+  globalUserRoleSchema,
+} from '../../../../utils/access-control'
+import { AdminUser } from '../_hooks'
 
 interface UsersTableProps {
-  data: Partial<User>[]
+  data: AdminUser[]
 }
 
-const columnHelper = createColumnHelper<Partial<User>>()
+const columnHelper = createColumnHelper<AdminUser>()
 
 const columns = [
   columnHelper.accessor('name', {
@@ -28,7 +32,10 @@ const columns = [
   }),
   columnHelper.accessor('role', {
     header: () => <span>Role</span>,
-    cell: (info) => info.getValue(),
+    cell: (info) => {
+      const parsedRole = globalUserRoleSchema.safeParse(info.getValue())
+      return formatGlobalUserRole(parsedRole.success ? parsedRole.data : 'user')
+    },
     minSize: 160,
   }),
 

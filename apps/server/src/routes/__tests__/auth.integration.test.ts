@@ -395,7 +395,13 @@ describe('auth integration', () => {
     const unauthenticatedList = await createAppClient().api.v0.dataset.$get({
       query: {},
     })
-    expect(unauthenticatedList.status).toBe(401)
+    expect(unauthenticatedList.status).toBe(200)
+    expect(await unauthenticatedList.json()).toMatchObject({
+      data: {
+        totalCount: 0,
+        data: [],
+      },
+    })
 
     const userList = await createAppClient(userHeaders).api.v0.dataset.$get({
       query: {},

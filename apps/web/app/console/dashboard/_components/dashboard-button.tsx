@@ -1,4 +1,5 @@
 import { BadgeLink } from '../../../../components/badge-link'
+import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { DashboardLinkParams, useDashboardLink } from '../_hooks'
 
 export const DashboardButtons = ({
@@ -23,7 +24,13 @@ export const DashboardButton = ({
   const dashboardLink = useDashboardLink()
 
   return (
-    <BadgeLink href={dashboardLink(dashboard)} variant="outline">
+    <BadgeLink
+      href={dashboardLink(dashboard)}
+      variant="outline"
+      adornment={
+        <GlobalVisibilityIndicator visibility={dashboard.visibility} />
+      }
+    >
       {dashboard.name}
     </BadgeLink>
   )

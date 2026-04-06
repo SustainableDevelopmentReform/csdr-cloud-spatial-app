@@ -10,6 +10,7 @@ import {
   updateGeometriesRunSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, notInArray, sql, SQL } from 'drizzle-orm'
+import { assertResourceWritable } from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -149,7 +150,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a geometries run with aggregated metadata.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:geometriesRun' })],
+      middleware: [
+        authMiddleware({ permission: 'read:geometriesRun', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -211,6 +214,8 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:geometryOutput',
+          scope: 'explorer',
+          targetResource: 'geometriesRun',
         }),
       ],
       request: {
@@ -287,6 +292,8 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:geometryOutput',
+          scope: 'explorer',
+          targetResource: 'geometriesRun',
         }),
       ],
       request: {
@@ -333,7 +340,13 @@ const app = createOpenAPIApp()
       description: 'Export outputs for a geometries run.',
       method: 'get',
       path: '/:id/outputs/export',
-      middleware: [authMiddleware({ permission: 'read:geometryOutput' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:geometryOutput',
+          scope: 'explorer',
+          targetResource: 'geometriesRun',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         query: geometryOutputExportQuerySchema,
@@ -419,6 +432,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: payload.geometriesId,
+        notFoundError: geometriesRunNotFoundError,
+      })
       const [newGeometriesRun] = await db
         .insert(geometriesRun)
         .values(createPayload(payload))

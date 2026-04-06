@@ -3,7 +3,7 @@ import UserFeature from './client'
 
 export default () => {
   return (
-    <PageAuthGuard roles={['admin']}>
+    <PageAuthGuard roles={['super_admin']}>
       <UserFeature />
     </PageAuthGuard>
   )

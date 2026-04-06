@@ -96,14 +96,15 @@ describe('product route', () => {
   it('returns read responses with expected messages', async () => {
     await createUsageArtifacts()
 
-    await expectJsonResponse(
-      await createAppClient().api.v0.product.$get({ query: {} }),
-      {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
-      },
-    )
+    const anonymousListJson = await expectJsonResponse<{
+      data: { id: string }[]
+      totalCount: number
+    }>(await createAppClient().api.v0.product.$get({ query: {} }), {
+      status: 200,
+      message: 'OK',
+    })
+    expect(anonymousListJson.data.totalCount).toBe(0)
+    expect(anonymousListJson.data.data).toEqual([])
 
     const listJson = await expectJsonResponse<{
       data: { id: string }[]
@@ -173,7 +174,6 @@ describe('product route', () => {
       await memberClient.api.v0.product.$post({
         json: {
           name: 'Forbidden product',
-          timePrecision: 'year',
         },
       }),
       {
@@ -190,7 +190,6 @@ describe('product route', () => {
           description: 'Created in test',
           datasetId: seededIds.dataset,
           geometriesId: seededIds.geometries,
-          timePrecision: 'year',
         },
       }),
       {

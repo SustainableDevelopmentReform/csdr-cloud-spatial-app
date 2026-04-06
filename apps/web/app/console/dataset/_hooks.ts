@@ -16,6 +16,10 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { DATASETS_BASE_PATH, DATASETS_RUNS_BASE_PATH } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { getSearchParams } from '../../../utils/browser'
 
 export type DatasetListResponse = NonNullable<
@@ -42,6 +46,11 @@ export type DatasetRunDetail = NonNullable<
 
 export type UpdateDatasetPayload = NonNullable<
   InferRequestType<Client['api']['v0']['dataset'][':id']['$patch']>['json']
+>
+export type UpdateDatasetVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['dataset'][':id']['visibility']['$patch']
+  >['json']
 >
 export type UpdateDatasetRunPayload = NonNullable<
   InferRequestType<Client['api']['v0']['dataset-run'][':id']['$patch']>['json']
@@ -300,6 +309,55 @@ export const useUpdateDataset = (_datasetId?: string) => {
   })
 }
 
+export const useUpdateDatasetVisibility = (_datasetId?: string) => {
+  const { datasetId } = useDatasetParams(_datasetId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateDatasetVisibilityPayload) => {
+      if (!datasetId) return
+      const res = client.api.v0.dataset[':id'].visibility.$patch({
+        param: { id: datasetId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: datasetQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const usePreviewDatasetVisibility = (_datasetId?: string) => {
+  const { datasetId } = useDatasetParams(_datasetId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!datasetId) {
+        return null
+      }
+
+      const res = client.api.v0.dataset[':id']['visibility-impact'].$get({
+        param: {
+          id: datasetId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
+    },
+  })
+}
+
 export const useUpdateDatasetRun = (_datasetRunId?: string) => {
   const { datasetId, datasetRunId } = useDatasetParams(undefined, _datasetRunId)
   const queryClient = useQueryClient()
@@ -428,7 +486,9 @@ export const useDeleteDatasetRun = (
   })
 }
 
-export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'>
+export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useDatasetsLink = () =>
   useCallback(

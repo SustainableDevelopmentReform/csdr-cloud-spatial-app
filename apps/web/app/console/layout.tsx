@@ -1,3 +1,4 @@
+import { Button } from '@repo/ui/components/ui/button'
 import { SquareIcon } from 'lucide-react'
 import React from 'react'
 import Link from '~/components/link'
@@ -9,8 +10,16 @@ import {
   REPORTS_BASE_PATH,
   USERS_BASE_PATH,
   INDICATORS_BASE_PATH,
+  LOGS_BASE_PATH,
+  WORKSPACE_BASE_PATH,
 } from '../../lib/paths'
 import { getUserServerSession } from '../../utils/getUserServerSession'
+import {
+  buildSessionAccess,
+  canManageWorkspace,
+  canViewLogs,
+} from '../../utils/access-control'
+import { OrgSwitcher } from './_components/org-switcher'
 import { UserDropdown } from './_components/user-dropdown'
 
 const SIDEBAR_CONFIG = [
@@ -18,56 +27,74 @@ const SIDEBAR_CONFIG = [
     text: 'Users',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: USERS_BASE_PATH,
-    roles: ['admin'],
+    show: (isSuperAdmin: boolean) => isSuperAdmin,
   },
+  {
+    text: 'Organization',
+    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
+    href: WORKSPACE_BASE_PATH,
+    show: (_isSuperAdmin: boolean, canManage: boolean) => canManage,
+  },
+  {
+    text: 'Logs',
+    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
+    href: LOGS_BASE_PATH,
+    show: (_isSuperAdmin: boolean, _canManage: boolean, canReadLogs: boolean) =>
+      canReadLogs,
+  },
+
   {
     text: 'Datasets',
     icon: <SquareIcon className="fill-dataset stroke-none size-6" />,
     href: DATASETS_BASE_PATH,
-    roles: ['admin', 'user'],
+    show: () => true,
   },
   {
     text: 'Geometries',
     icon: <SquareIcon className="fill-geometry stroke-none size-6" />,
     href: GEOMETRIES_BASE_PATH,
-    roles: ['admin', 'user'],
+    show: () => true,
   },
   {
     text: 'Products',
     icon: <SquareIcon className="fill-product stroke-none size-6" />,
     href: PRODUCTS_BASE_PATH,
-    roles: ['admin', 'user'],
+    show: () => true,
   },
   {
     text: 'Indicators',
     icon: <SquareIcon className="fill-indicator stroke-none size-6" />,
     href: INDICATORS_BASE_PATH,
-    roles: ['admin', 'user'],
+    show: () => true,
   },
   {
     text: 'Dashboards',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: DASHBOARDS_BASE_PATH,
-    roles: ['admin', 'user'],
+    show: () => true,
   },
   {
     text: 'Data Explorer',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: '/console/data-explorer',
-    roles: ['admin', 'user'],
+    show: () => true,
   },
   {
     text: 'Reports',
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: REPORTS_BASE_PATH,
-    roles: ['admin', 'user'],
+    show: () => true,
   },
 ]
 
 const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
   children,
 }) => {
-  const { user } = await getUserServerSession()
+  const session = await getUserServerSession()
+  const access = buildSessionAccess(session)
+  const canManage = canManageWorkspace(access)
+  const canReadLogs = canViewLogs(access)
+  const isAuthenticated = session.user !== null
 
   return (
     <>
@@ -79,12 +106,28 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
           >
             CSDR Cloud Spatial App
           </Link>
-          <UserDropdown />
+          <div className="flex items-center gap-4">
+            {isAuthenticated ? (
+              <>
+                <OrgSwitcher />
+                <UserDropdown />
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Button asChild className="px-6">
+                  <Link href="/login">Log in</Link>
+                </Button>
+                <Button asChild variant="outline" className="px-6">
+                  <Link href="/sign-up">Sign up</Link>
+                </Button>
+              </div>
+            )}
+          </div>
         </nav>
         <aside className="fixed top-20 bottom-0 left-0 w-60 px-10 py-6">
           <div className="grid gap-3">
-            {SIDEBAR_CONFIG.map(({ href, text, roles, icon }) =>
-              roles.includes(user?.role ?? 'user') ? (
+            {SIDEBAR_CONFIG.map(({ href, text, show, icon }) =>
+              show(access.isSuperAdmin, canManage, canReadLogs) ? (
                 <Link
                   key={href}
                   className="text-lg hover:underline data-[active=true]:underline"

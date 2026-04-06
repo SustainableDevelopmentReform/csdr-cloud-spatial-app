@@ -24,6 +24,7 @@ import BaseCrudTable, {
   SortButton,
 } from '../../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../../components/table/search-input'
+import { useAccessControl } from '../../../../../../hooks/useAccessControl'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { DatasetButton } from '../../../../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../../../../dataset/_components/dataset-run-button'
@@ -33,6 +34,7 @@ import { GeometryOutputButton } from '../../../../geometries/_components/geometr
 import { ProductOutputButton } from '../../../_components/product-output-button'
 import { ProductOutputsImportDialog } from '../../../_components/product-output-import'
 import { ProductGeometryOutputSelect } from '../../../_components/product-run-geometry-output-select'
+import { ResourcePageState } from '../../../../_components/resource-page-state'
 import {
   ProductOutputListItem,
   useCreateProductRunOutput,
@@ -45,6 +47,7 @@ import { IndicatorsSelect } from '../../../../indicator/_components/indicators-s
 import { ProductRunIndicatorsSelect } from '../../../_components/product-run-indicators-select'
 import z from 'zod'
 import { Value } from '../../../../../../components/value'
+import { canManageConsoleChildResource } from '../../../../../../utils/access-control'
 
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
@@ -59,8 +62,14 @@ const ProductOutputFeature = () => {
     isFetchingNextPage,
   } = useProductOutputs(undefined, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
-  const { data: productRun } = useProductRun()
+  const productRunQuery = useProductRun()
+  const productRun = productRunQuery.data
   const productLink = useProductOutputLink()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: productRun,
+  })
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
     [query?.indicatorId],
@@ -192,150 +201,160 @@ const ProductOutputFeature = () => {
   }, [form, productRun])
 
   return (
-    <div>
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
-          Product Outputs
-        </h1>
-        <div className="flex items-center gap-3">
-          {productRun?.id ? (
-            <ProductOutputsImportDialog
-              productRunId={productRun.id}
-              geometriesRunId={productRun.geometriesRun?.id}
-            />
-          ) : null}
-          <CrudFormDialog
-            form={form}
-            mutation={createProductOutput}
-            buttonText="Add Product Output"
-            entityName="Product Output"
-            entityNamePlural="product outputs"
-          >
-            <FormField
-              control={form.control}
-              name="geometryOutputId"
-              render={({ field }) => (
-                <FormItem>
-                  <ProductGeometryOutputSelect
-                    productRunId={productRun?.id}
-                    value={field.value}
-                    onChange={(value) => field.onChange(value?.id ?? null)}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="indicatorId"
-              render={({ field }) => (
-                <FormItem>
-                  <IndicatorsSelect
-                    value={field.value}
-                    onChange={(value) => field.onChange(value?.id ?? null)}
-                    creatable
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={'value'}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Value</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="timePoint"
-              render={({ field }) => (
-                <FormItem className="w-full relative">
-                  <FormLabel>Time Point</FormLabel>
-                  <CalendarSelect
-                    label="Time Point"
-                    value={new Date(field.value)}
-                    onChange={(event) => {
-                      field.onChange(
-                        event?.toISOString().replace('+00:00', 'Z'),
-                      )
-                    }}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CrudFormDialog>
-        </div>
-      </div>
+    <ResourcePageState
+      error={productRunQuery.error}
+      errorMessage="Failed to load product run"
+      isLoading={productRunQuery.isLoading}
+      loadingMessage="Loading product run"
+      notFoundMessage="Product run not found"
+    >
       <div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <SearchInput
-            className="w-full md:max-w-md"
-            placeholder="Search product outputs"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
-          <div className="flex flex-wrap justify-end gap-3">
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <ProductRunIndicatorsSelect
-                productRunId={productRun?.id}
-                value={selectedIndicatorIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    indicatorId: selected.map((indicator) => indicator.id),
-                  })
-                }
-                isMulti
-                isClearable
+        <div className="flex justify-between">
+          <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
+            Product Outputs
+          </h1>
+          <div className="flex items-center gap-3">
+            {productRun?.id && canEdit ? (
+              <ProductOutputsImportDialog
+                productRunId={productRun.id}
+                geometriesRunId={productRun.geometriesRun?.id}
               />
-            </div>
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <ProductGeometryOutputSelect
-                title="Filter Geometry Outputs"
-                productRunId={productRun?.id}
-                value={selectedGeometryOutputIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    geometryOutputId: selected.map((output) => output.id),
-                  })
-                }
-                isMulti
+            ) : null}
+            <CrudFormDialog
+              form={form}
+              mutation={createProductOutput}
+              buttonText="Add Product Output"
+              entityName="Product Output"
+              entityNamePlural="product outputs"
+              hiddenFields={['visibility']}
+              hideTrigger={!canEdit}
+            >
+              <FormField
+                control={form.control}
+                name="geometryOutputId"
+                render={({ field }) => (
+                  <FormItem>
+                    <ProductGeometryOutputSelect
+                      productRunId={productRun?.id}
+                      value={field.value}
+                      onChange={(value) => field.onChange(value?.id ?? null)}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
+              <FormField
+                control={form.control}
+                name="indicatorId"
+                render={({ field }) => (
+                  <FormItem>
+                    <IndicatorsSelect
+                      value={field.value}
+                      onChange={(value) => field.onChange(value?.id ?? null)}
+                      creatable
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={'value'}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Value</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="timePoint"
+                render={({ field }) => (
+                  <FormItem className="w-full relative">
+                    <FormLabel>Time Point</FormLabel>
+                    <CalendarSelect
+                      label="Time Point"
+                      value={new Date(field.value)}
+                      onChange={(event) => {
+                        field.onChange(
+                          event?.toISOString().replace('+00:00', 'Z'),
+                        )
+                      }}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CrudFormDialog>
           </div>
         </div>
+        <div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              className="w-full md:max-w-md"
+              placeholder="Search product outputs"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <div className="flex flex-wrap justify-end gap-3">
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <ProductRunIndicatorsSelect
+                  productRunId={productRun?.id}
+                  value={selectedIndicatorIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      indicatorId: selected.map((indicator) => indicator.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <ProductGeometryOutputSelect
+                  title="Filter Geometry Outputs"
+                  productRunId={productRun?.id}
+                  value={selectedGeometryOutputIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      geometryOutputId: selected.map((output) => output.id),
+                    })
+                  }
+                  isMulti
+                />
+              </div>
+            </div>
+          </div>
 
-        <BaseCrudTable<
-          ProductOutputListItem,
-          Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
-        >
-          data={data?.data || []}
-          isLoading={isLoading}
-          baseColumns={baseColumns}
-          extraColumns={columns}
-          title="ProductOutput"
-          itemLink={productLink}
-          itemButton={(productOutput) => (
-            <ProductOutputButton productOutput={productOutput} />
-          )}
-          query={{ sort: query?.sort, order: query?.order }}
-          onSortChange={(next) => setSearchParams(next)}
-        />
-        <Pagination
-          className="justify-end mt-4"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
-        />
+          <BaseCrudTable<
+            ProductOutputListItem,
+            Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
+          >
+            data={data?.data || []}
+            isLoading={isLoading}
+            baseColumns={baseColumns}
+            extraColumns={columns}
+            title="ProductOutput"
+            itemLink={productLink}
+            itemButton={(productOutput) => (
+              <ProductOutputButton productOutput={productOutput} />
+            )}
+            query={{ sort: query?.sort, order: query?.order }}
+            onSortChange={(next) => setSearchParams(next)}
+          />
+          <Pagination
+            className="justify-end mt-4"
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            onLoadMore={() => fetchNextPage()}
+          />
+        </div>
       </div>
-    </div>
+    </ResourcePageState>
   )
 }
 

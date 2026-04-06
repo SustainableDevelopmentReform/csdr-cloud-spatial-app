@@ -19,6 +19,10 @@ import {
   INDICATORS_DERIVED_BASE_PATH,
   INDICATORS_MEASURED_BASE_PATH,
 } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { productQueryKeys, productRunQueryKeys } from '../product/_hooks'
 
 export type IndicatorListResponse = NonNullable<
@@ -50,10 +54,20 @@ export type UpdateMeasuredIndicatorPayload = NonNullable<
     Client['api']['v0']['indicator']['measured'][':id']['$patch']
   >['json']
 >
+export type UpdateMeasuredIndicatorVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['measured'][':id']['visibility']['$patch']
+  >['json']
+>
 
 export type UpdateDerivedIndicatorPayload = NonNullable<
   InferRequestType<
     Client['api']['v0']['indicator']['derived'][':id']['$patch']
+  >['json']
+>
+export type UpdateDerivedIndicatorVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['indicator']['derived'][':id']['visibility']['$patch']
   >['json']
 >
 
@@ -373,6 +387,59 @@ export const useUpdateMeasuredIndicator = (_indicatorId?: string) => {
   })
 }
 
+export const useUpdateMeasuredIndicatorVisibility = (_indicatorId?: string) => {
+  const { measuredIndicatorId } = useIndicatorParams(_indicatorId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateMeasuredIndicatorVisibilityPayload) => {
+      if (!measuredIndicatorId) return
+      const res = client.api.v0.indicator.measured[':id'].visibility.$patch({
+        param: { id: measuredIndicatorId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: indicatorQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const usePreviewMeasuredIndicatorVisibility = (
+  _indicatorId?: string,
+) => {
+  const { measuredIndicatorId } = useIndicatorParams(_indicatorId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!measuredIndicatorId) {
+        return null
+      }
+
+      const res = client.api.v0.indicator.measured[':id'][
+        'visibility-impact'
+      ].$get({
+        param: {
+          id: measuredIndicatorId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
+    },
+  })
+}
+
 export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
   const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
   const queryClient = useQueryClient()
@@ -390,6 +457,57 @@ export const useUpdateDerivedIndicator = (_indicatorId?: string) => {
       queryClient.invalidateQueries({
         queryKey: indicatorQueryKeys.all,
       })
+    },
+  })
+}
+
+export const useUpdateDerivedIndicatorVisibility = (_indicatorId?: string) => {
+  const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateDerivedIndicatorVisibilityPayload) => {
+      if (!derivedIndicatorId) return
+      const res = client.api.v0.indicator.derived[':id'].visibility.$patch({
+        param: { id: derivedIndicatorId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: indicatorQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const usePreviewDerivedIndicatorVisibility = (_indicatorId?: string) => {
+  const { derivedIndicatorId } = useIndicatorParams(undefined, _indicatorId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!derivedIndicatorId) {
+        return null
+      }
+
+      const res = client.api.v0.indicator.derived[':id'][
+        'visibility-impact'
+      ].$get({
+        param: {
+          id: derivedIndicatorId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }
@@ -540,7 +658,9 @@ export const useDeleteIndicatorCategory = (
 export type IndicatorLinkParams = Pick<
   IndicatorListItem,
   'id' | 'name' | 'type'
->
+> & {
+  visibility?: ResourceVisibility | null
+}
 export type IndicatorCategoryLinkParams = Pick<
   IndicatorCategoryListItem,
   'id' | 'name'

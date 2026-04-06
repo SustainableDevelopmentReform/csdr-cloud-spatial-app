@@ -10,6 +10,7 @@ import {
   indicatorQuerySchema,
   updateDerivedIndicatorSchema,
   updateIndicatorSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import {
   and,
@@ -26,8 +27,21 @@ import {
   ensureMeasuredIndicatorNotUsedByCharts,
   fetchChartUsageCounts,
 } from '~/lib/chartUsage'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildExplorerReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import {
+  assertDerivedIndicatorDependenciesExternallyVisible,
+  getDerivedIndicatorVisibilityImpact,
+  getMeasuredIndicatorVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -45,7 +59,8 @@ import {
 } from '../schemas/db'
 import {
   baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   InferQueryModel,
   QueryForTable,
   updatePayload,
@@ -54,7 +69,7 @@ import { normalizeFilterValues, parseQuery } from '../utils/query'
 
 export const fullMeasuredIndicatorQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
     unit: true,
     displayOrder: true,
     categoryId: true,
@@ -102,6 +117,10 @@ const derivedIndicatorNotFoundError = () =>
     description: "derived indicator you're looking for is not found",
   })
 
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
+
 export const parseFullMeasuredIndicator = <
   T extends InferQueryModel<'indicator', typeof fullMeasuredIndicatorQuery>,
 >(
@@ -112,10 +131,14 @@ export const parseFullMeasuredIndicator = <
     type: 'measured' as const,
   }
 }
-const fetchFullMeasuredIndicator = async (id: string) => {
+const fetchFullMeasuredIndicator = async (
+  id: string,
+  organizationId: string,
+) => {
   const [indicatorRecord, productCount, usageCounts] = await Promise.all([
     db.query.indicator.findFirst({
-      where: (indicator, { eq }) => eq(indicator.id, id),
+      where: (indicator, { and, eq }) =>
+        and(eq(indicator.id, id), eq(indicator.organizationId, organizationId)),
       ...fullMeasuredIndicatorQuery,
     }),
     fetchProductUsageCount(id),
@@ -159,11 +182,18 @@ export const parseFullDerivedIndicator = <
   }
 }
 
-const fetchFullDerivedIndicator = async (id: string) => {
+const fetchFullDerivedIndicator = async (
+  id: string,
+  organizationId: string,
+) => {
   const [derivedIndicatorRecord, productCount, usageCounts] = await Promise.all(
     [
       db.query.derivedIndicator.findFirst({
-        where: (derivedIndicator, { eq }) => eq(derivedIndicator.id, id),
+        where: (derivedIndicator, { and, eq }) =>
+          and(
+            eq(derivedIndicator.id, id),
+            eq(derivedIndicator.organizationId, organizationId),
+          ),
         ...fullDerivedIndicatorQuery,
       }),
       fetchProductUsageCount(id),
@@ -179,8 +209,11 @@ const fetchFullDerivedIndicator = async (id: string) => {
       }
     : null
 }
-export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
-  const record = await fetchFullDerivedIndicator(id)
+export const fetchFullDerivedIndicatorOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const record = await fetchFullDerivedIndicator(id, organizationId)
 
   if (!record) {
     throw derivedIndicatorNotFoundError()
@@ -189,14 +222,40 @@ export const fetchFullDerivedIndicatorOrThrow = async (id: string) => {
   return record
 }
 
-const fetchFullMeasuredIndicatorOrThrow = async (id: string) => {
-  const record = await fetchFullMeasuredIndicator(id)
+export const fetchFullMeasuredIndicatorOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const record = await fetchFullMeasuredIndicator(id, organizationId)
 
   if (!record) {
     throw indicatorNotFoundError()
   }
 
   return record
+}
+
+const tryReadAccessibleIndicator = async (options: {
+  c: Parameters<typeof assertResourceReadable>[0]['c']
+  resource: 'indicator' | 'derivedIndicator'
+  resourceId: string
+  notFoundError: () => ServerError
+}) => {
+  try {
+    return await assertResourceReadable({
+      c: options.c,
+      resource: options.resource,
+      resourceId: options.resourceId,
+      scope: 'explorer',
+      notFoundError: options.notFoundError,
+    })
+  } catch (error) {
+    if (error instanceof ServerError && error.response.statusCode === 404) {
+      return null
+    }
+
+    throw error
+  }
 }
 
 const fetchProductUsageCount = async (indicatorId: string) => {
@@ -233,7 +292,9 @@ const app = createOpenAPIApp()
       description: 'List indicators with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      middleware: [
+        authMiddleware({ permission: 'read:indicator', scope: 'explorer' }),
+      ],
       request: {
         query: indicatorQuerySchema,
       },
@@ -266,6 +327,11 @@ const app = createOpenAPIApp()
         normalizeFilterValues(excludeIndicatorIds)
       const categoryIdsArray = normalizeFilterValues(categoryId)
       const measuredBaseWhere = and(
+        buildExplorerReadScope(
+          c,
+          indicator.organizationId,
+          indicator.visibility,
+        ),
         indicatorIdsArray.length > 0
           ? inArray(indicator.id, indicatorIdsArray)
           : undefined,
@@ -277,6 +343,11 @@ const app = createOpenAPIApp()
           : undefined,
       )
       const derivedBaseWhere = and(
+        buildExplorerReadScope(
+          c,
+          derivedIndicator.organizationId,
+          derivedIndicator.visibility,
+        ),
         indicatorIdsArray.length > 0
           ? inArray(derivedIndicator.id, indicatorIdsArray)
           : undefined,
@@ -393,7 +464,13 @@ const app = createOpenAPIApp()
       description: 'Retrieve an indicator (measured or derived).',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:indicator',
+          scope: 'explorer',
+          skipResourceCheck: true,
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -414,12 +491,37 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record =
-        (await fetchFullMeasuredIndicator(id)) ??
-        (await fetchFullDerivedIndicator(id))
-      if (!record) {
+      const measuredAccessRecord = await tryReadAccessibleIndicator({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        notFoundError: indicatorNotFoundError,
+      })
+
+      if (measuredAccessRecord) {
+        const record = await fetchFullMeasuredIndicatorOrThrow(
+          id,
+          measuredAccessRecord.organizationId,
+        )
+
+        return generateJsonResponse(c, record, 200, 'Indicator retrieved')
+      }
+
+      const derivedAccessRecord = await tryReadAccessibleIndicator({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        notFoundError: derivedIndicatorNotFoundError,
+      })
+
+      if (!derivedAccessRecord) {
         throw indicatorNotFoundError()
       }
+
+      const record = await fetchFullDerivedIndicatorOrThrow(
+        id,
+        derivedAccessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200, 'Indicator retrieved')
     },
@@ -430,7 +532,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a measured indicator.',
       method: 'get',
       path: '/measured/:id',
-      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      middleware: [
+        authMiddleware({ permission: 'read:indicator', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -451,7 +555,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullMeasuredIndicatorOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        scope: 'explorer',
+        notFoundError: indicatorNotFoundError,
+      })
+      const record = await fetchFullMeasuredIndicatorOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -462,7 +576,14 @@ const app = createOpenAPIApp()
       description: 'Retrieve a derived indicator.',
       method: 'get',
       path: '/derived/:id',
-      middleware: [authMiddleware({ permission: 'read:indicator' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:indicator',
+          scope: 'explorer',
+          skipResourceCheck: true,
+          targetResource: 'derivedIndicator',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -483,7 +604,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDerivedIndicatorOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        scope: 'explorer',
+        notFoundError: derivedIndicatorNotFoundError,
+      })
+      const record = await fetchFullDerivedIndicatorOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -521,13 +652,28 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
+      if (payload.categoryId) {
+        await assertResourceWritable({
+          c,
+          resource: 'indicatorCategory',
+          resourceId: payload.categoryId,
+          notFoundError: indicatorNotFoundError,
+        })
+      }
       const data = {
         ...payload,
         categoryId: payload.categoryId ?? null,
       }
       const [newIndicator] = await db
         .insert(indicator)
-        .values(createPayload(data))
+        .values(
+          createOwnedPayload({
+            ...data,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newIndicator) {
@@ -538,7 +684,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullMeasuredIndicatorOrThrow(newIndicator.id)
+      const record = await fetchFullMeasuredIndicatorOrThrow(
+        newIndicator.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Measured indicator created')
     },
@@ -576,13 +725,37 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { indicatorIds, ...payload } = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
+      if (payload.categoryId) {
+        await assertResourceWritable({
+          c,
+          resource: 'indicatorCategory',
+          resourceId: payload.categoryId,
+          notFoundError: derivedIndicatorNotFoundError,
+        })
+      }
+      for (const indicatorId of indicatorIds) {
+        await assertResourceReadable({
+          c,
+          resource: 'indicator',
+          resourceId: indicatorId,
+          scope: 'explorer',
+          notFoundError: derivedIndicatorNotFoundError,
+        })
+      }
       const data = {
         ...payload,
         categoryId: payload.categoryId ?? null,
       }
       const [newIndicator] = await db
         .insert(derivedIndicator)
-        .values(createPayload(data))
+        .values(
+          createOwnedPayload({
+            ...data,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newIndicator) {
@@ -615,7 +788,10 @@ const app = createOpenAPIApp()
         )
       }
 
-      const record = await fetchFullDerivedIndicatorOrThrow(newIndicator.id)
+      const record = await fetchFullDerivedIndicatorOrThrow(
+        newIndicator.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Derived indicator created')
     },
@@ -656,6 +832,12 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        notFoundError: indicatorNotFoundError,
+      })
       const data = {
         ...payload,
         ...(payload.categoryId !== undefined && {
@@ -663,17 +845,34 @@ const app = createOpenAPIApp()
         }),
       }
 
+      if (payload.categoryId) {
+        await assertResourceWritable({
+          c,
+          resource: 'indicatorCategory',
+          resourceId: payload.categoryId,
+          notFoundError: indicatorNotFoundError,
+        })
+      }
+
       const [record] = await db
         .update(indicator)
         .set(updatePayload(data))
-        .where(eq(indicator.id, id))
+        .where(
+          and(
+            eq(indicator.id, id),
+            eq(indicator.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw indicatorNotFoundError()
       }
 
-      const fullRecord = await fetchFullMeasuredIndicatorOrThrow(record.id)
+      const fullRecord = await fetchFullMeasuredIndicatorOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(
         c,
@@ -683,13 +882,216 @@ const app = createOpenAPIApp()
       )
     },
   )
+  .openapi(
+    createRoute({
+      description: 'Preview measured indicator visibility impact.',
+      method: 'get',
+      path: '/measured/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:indicator' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description:
+            'Successfully previewed measured indicator visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Measured indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to preview measured indicator visibility impact',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        notFoundError: indicatorNotFoundError,
+      })
 
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getMeasuredIndicatorVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update measured indicator visibility.',
+      method: 'patch',
+      path: '/measured/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:indicator' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated a measured indicator visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(baseMeasuredIndicatorSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Measured indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to update measured indicator visibility',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        notFoundError: indicatorNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(indicator)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(indicator.id, id),
+            eq(indicator.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw indicatorNotFoundError()
+      }
+
+      const fullRecord = await fetchFullMeasuredIndicatorOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Measured indicator visibility updated',
+      )
+    },
+  )
+
+  .openapi(
+    createRoute({
+      description: 'Preview derived indicator visibility impact.',
+      method: 'get',
+      path: '/derived/:id/visibility-impact',
+      middleware: [
+        authMiddleware({
+          permission: 'write:indicator',
+          targetResource: 'derivedIndicator',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description:
+            'Successfully previewed derived indicator visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Derived indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to preview derived indicator visibility impact',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        notFoundError: derivedIndicatorNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getDerivedIndicatorVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
+    },
+  )
   .openapi(
     createRoute({
       description: 'Update a derived indicator.',
       method: 'patch',
       path: '/derived/:id',
-      middleware: [authMiddleware({ permission: 'write:indicator' })],
+      middleware: [
+        authMiddleware({
+          permission: 'write:indicator',
+          targetResource: 'derivedIndicator',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         body: {
@@ -719,6 +1121,12 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        notFoundError: derivedIndicatorNotFoundError,
+      })
       const data = {
         ...payload,
         ...(payload.categoryId !== undefined && {
@@ -726,23 +1134,152 @@ const app = createOpenAPIApp()
         }),
       }
 
-      const [record] = await db
-        .update(derivedIndicator)
-        .set(updatePayload(data))
-        .where(eq(derivedIndicator.id, id))
-        .returning()
+      if (payload.categoryId) {
+        await assertResourceWritable({
+          c,
+          resource: 'indicatorCategory',
+          resourceId: payload.categoryId,
+          notFoundError: derivedIndicatorNotFoundError,
+        })
+      }
+
+      const [record] = await db.transaction(async (tx) => {
+        const [updatedRecord] = await tx
+          .update(derivedIndicator)
+          .set(updatePayload(data))
+          .where(
+            and(
+              eq(derivedIndicator.id, id),
+              eq(derivedIndicator.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
+
+        if (!updatedRecord) {
+          throw derivedIndicatorNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertDerivedIndicatorDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+            accessRecord.organizationId,
+          )
+        }
+
+        return [updatedRecord]
+      })
 
       if (!record) {
         throw derivedIndicatorNotFoundError()
       }
 
-      const fullRecord = await fetchFullDerivedIndicatorOrThrow(record.id)
+      const fullRecord = await fetchFullDerivedIndicatorOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(
         c,
         fullRecord,
         200,
         'Derived indicator updated',
+      )
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update a derived indicator visibility.',
+      method: 'patch',
+      path: '/derived/:id/visibility',
+      middleware: [
+        authMiddleware({
+          permission: 'write:indicator',
+          targetResource: 'derivedIndicator',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated a derived indicator visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullDerivedIndicatorSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Derived indicator not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update derived indicator visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        notFoundError: derivedIndicatorNotFoundError,
+      })
+
+      const record = await db.transaction(async (tx) => {
+        assertCanSetVisibility({
+          actor,
+          currentVisibility: accessRecord.visibility,
+          nextVisibility: payload.visibility,
+        })
+
+        const [updatedRecord] = await tx
+          .update(derivedIndicator)
+          .set(updatePayload(payload))
+          .where(
+            and(
+              eq(derivedIndicator.id, id),
+              eq(derivedIndicator.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
+
+        if (!updatedRecord) {
+          throw derivedIndicatorNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertDerivedIndicatorDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+            accessRecord.organizationId,
+          )
+        }
+
+        return updatedRecord
+      })
+
+      const fullRecord = await fetchFullDerivedIndicatorOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Derived indicator visibility updated',
       )
     },
   )
@@ -774,11 +1311,27 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullMeasuredIndicatorOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'indicator',
+        resourceId: id,
+        notFoundError: indicatorNotFoundError,
+      })
+      const record = await fetchFullMeasuredIndicatorOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       await ensureMeasuredIndicatorNotUsedByCharts(id)
 
-      await db.delete(indicator).where(eq(indicator.id, id))
+      await db
+        .delete(indicator)
+        .where(
+          and(
+            eq(indicator.id, id),
+            eq(indicator.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Measured indicator deleted')
     },
@@ -789,7 +1342,12 @@ const app = createOpenAPIApp()
       description: 'Delete a derived indicator.',
       method: 'delete',
       path: '/derived/:id',
-      middleware: [authMiddleware({ permission: 'write:indicator' })],
+      middleware: [
+        authMiddleware({
+          permission: 'write:indicator',
+          targetResource: 'derivedIndicator',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -811,11 +1369,27 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDerivedIndicatorOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'derivedIndicator',
+        resourceId: id,
+        notFoundError: derivedIndicatorNotFoundError,
+      })
+      const record = await fetchFullDerivedIndicatorOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       await ensureDerivedIndicatorNotUsedByCharts(id)
 
-      await db.delete(derivedIndicator).where(eq(derivedIndicator.id, id))
+      await db
+        .delete(derivedIndicator)
+        .where(
+          and(
+            eq(derivedIndicator.id, id),
+            eq(derivedIndicator.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Derived indicator deleted')
     },

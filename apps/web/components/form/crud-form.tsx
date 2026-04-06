@@ -38,7 +38,9 @@ export interface CrudFormProps<
   deleteMutation?: UseMutationResult<unknown, Error, void>
   actions?: CrudFormAction[]
   children?: React.ReactNode | React.ReactNode[]
+  onError?: (error: unknown) => void
   onSuccess?: () => void
+  readOnly?: boolean
   successMessage: string
 }
 
@@ -50,19 +52,22 @@ export const CrudForm = <
   deleteMutation,
   actions: actionsProp,
   children,
+  readOnly = false,
   entityName,
-  entityNamePlural,
   readOnlyFields = ['id', 'metadata'],
   hiddenFields,
   fieldLabels,
+  onError,
   onSuccess,
   successMessage,
 }: CrudFormProps<Data>) => {
   // Warn on navigation when the form has unsaved changes
   useUnsavedChangesWarning(form.formState.isDirty)
 
+  type CrudField = keyof Data
+
   // Helper function to get field label
-  const getFieldLabel = (field: keyof Data): string => {
+  const getFieldLabel = (field: CrudField): string => {
     if (fieldLabels) {
       const label = fieldLabels[field as keyof typeof fieldLabels]
       if (label) return label
@@ -75,17 +80,17 @@ export const CrudForm = <
   }
 
   // Helper function to check if field should be shown
-  const shouldShowField = (field: keyof Data): boolean => {
+  const shouldShowField = (field: CrudField): boolean => {
     return !hiddenFields?.includes(field)
   }
 
   // Helper function to check if field is read-only
-  const isReadOnlyField = (field: keyof Data): boolean => {
-    return !!readOnlyFields?.includes(field)
+  const isReadOnlyField = (field: CrudField): boolean => {
+    return readOnly || !!readOnlyFields?.includes(field)
   }
 
   const deleteAction: CrudFormAction | undefined = useMemo(() => {
-    if (!deleteMutation) return undefined
+    if (readOnly || !deleteMutation) return undefined
     return {
       title: `Delete ${entityName}`,
       description: `Permanently remove the ${entityName?.toLowerCase()}, including all dependents.`,
@@ -98,7 +103,7 @@ export const CrudForm = <
         buttonCancelTitle: 'Cancel',
       },
     }
-  }, [entityName, deleteMutation, form])
+  }, [deleteMutation, entityName, form, readOnly])
 
   const actions = useMemo(() => {
     return [...(actionsProp ?? []), deleteAction ?? undefined]
@@ -112,13 +117,16 @@ export const CrudForm = <
         <form
           className="grid gap-3 border-b border-gray-200 pb-8"
           onSubmit={form.handleSubmit((formData) => {
-            mutation.mutate(formData, {
-              onSuccess: () => {
-                form.reset(formData)
-                toast.success(successMessage)
-                onSuccess?.()
-              },
-            })
+            if (!readOnly) {
+              mutation.mutate(formData, {
+                onError,
+                onSuccess: () => {
+                  form.reset(formData)
+                  toast.success(successMessage)
+                  onSuccess?.()
+                },
+              })
+            }
           })}
         >
           {shouldShowField('id') && isReadOnlyField('id') && (
@@ -236,11 +244,13 @@ export const CrudForm = <
 
           {children}
 
-          <div>
-            <Button className="mt-4" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Loading...' : 'Save'}
-            </Button>
-          </div>
+          {!readOnly ? (
+            <div>
+              <Button className="mt-4" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Loading...' : 'Save'}
+              </Button>
+            </div>
+          ) : null}
         </form>
       </Form>
 

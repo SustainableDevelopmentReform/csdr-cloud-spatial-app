@@ -18,6 +18,7 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import { assertResourceWritable } from '~/lib/authorization'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometryOutput } from '../schemas/db'
@@ -136,7 +137,7 @@ const extractValidatedFeatures = ({
     featureId: string
     name: string
     geometry: MultiPolygon
-    properties: Record<string, any>
+    properties: Record<string, unknown>
   }[] = []
 
   features.forEach((feature, index) => {
@@ -247,7 +248,12 @@ const app = createOpenAPIApp()
       description: 'Retrieve a geometry output.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:geometryOutput' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:geometryOutput',
+          scope: 'explorer',
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -307,6 +313,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'geometriesRun',
+        resourceId: payload.geometriesRunId,
+        notFoundError: geometryOutputNotFoundError,
+      })
 
       if (!payload.geometry) {
         throw new ServerError({
@@ -367,6 +379,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'geometriesRun',
+        resourceId: payload.geometriesRunId,
+        notFoundError: geometryOutputNotFoundError,
+      })
 
       if (!payload.outputs.every((output) => output.geometry)) {
         throw new ServerError({
@@ -478,6 +496,13 @@ const app = createOpenAPIApp()
         geojsonIdProperty: idProperty,
         geojsonNameProperty: nameProperty,
       } = c.req.valid('form')
+
+      await assertResourceWritable({
+        c,
+        resource: 'geometriesRun',
+        resourceId: geometriesRunId,
+        notFoundError: geometryOutputNotFoundError,
+      })
 
       const featureCollection = await parseGeoJsonFile(geojsonFile)
 

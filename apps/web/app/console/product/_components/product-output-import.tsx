@@ -47,7 +47,8 @@ import {
 import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
-import { ImportProductOutputsPayload, useImportProductOutputs } from '../_hooks'
+import { getUserFacingErrorMessage } from '~/utils/error-handling'
+import { useImportProductOutputs } from '../_hooks'
 import type { IndicatorListItem } from '../../indicator/_hooks'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 type CsvSummary = {
@@ -476,12 +477,7 @@ const ProductOutputsImportForm = ({
       },
       onError: (error) => {
         const message =
-          typeof error === 'object' &&
-          error !== null &&
-          'message' in error &&
-          typeof (error as { message?: unknown }).message === 'string'
-            ? (error as { message: string }).message
-            : 'Failed to import product outputs'
+          getUserFacingErrorMessage(error) ?? 'Failed to import product outputs'
         setDropError(message)
         toast.error(message)
       },

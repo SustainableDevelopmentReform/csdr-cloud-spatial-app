@@ -101,9 +101,9 @@ describe('geometries-run route', () => {
         param: { id: seededIds.geometriesRun },
       }),
       {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
+        status: 404,
+        message: 'Failed to get geometriesRun',
+        description: "geometriesRun you're looking for is not found",
       },
     )
 

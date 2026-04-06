@@ -15,6 +15,7 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import { organization, user } from './auth'
 import { multiPolygon } from './customTypes'
 
 export * from './auth'
@@ -26,6 +27,26 @@ const baseColumns = {
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}
+
+export const resourceVisibilityEnum = pgEnum('resource_visibility', [
+  'private',
+  'public',
+  'global',
+])
+
+const topLevelAclColumns = {
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organization.id, {
+      onDelete: 'restrict',
+    }),
+  createdByUserId: text('created_by_user_id')
+    .notNull()
+    .references(() => user.id, {
+      onDelete: 'restrict',
+    }),
+  visibility: resourceVisibilityEnum('visibility').default('private').notNull(),
 }
 
 export const datasetRunDataType = pgEnum('dataset_run_data_type', [
@@ -53,6 +74,7 @@ const runBaseColumns = {
 // DATA RELATED TABLES
 const coreBaseResourceColumns = (mainRunRelation: ReferenceConfig['ref']) => ({
   ...baseColumns,
+  ...topLevelAclColumns,
   mainRunId: text('main_run_id').references(mainRunRelation, {
     onDelete: 'cascade',
   }),
@@ -75,6 +97,8 @@ export const dataset = pgTable(
     index('dataset_name_idx').on(table.name),
     index('dataset_created_at_idx').on(table.createdAt),
     index('dataset_main_run_id_idx').on(table.mainRunId),
+    index('dataset_organization_id_idx').on(table.organizationId),
+    index('dataset_visibility_idx').on(table.visibility),
   ],
 )
 
@@ -94,16 +118,10 @@ export const geometries = pgTable(
     index('geometries_name_idx').on(table.name),
     index('geometries_created_at_idx').on(table.createdAt),
     index('geometries_main_run_id_idx').on(table.mainRunId),
+    index('geometries_organization_id_idx').on(table.organizationId),
+    index('geometries_visibility_idx').on(table.visibility),
   ],
 )
-
-export const timePrecision = pgEnum('time_precision', [
-  'hour',
-  'day',
-  'month',
-  'year',
-  // 'custom', // TODO: add custom time precision (see productOutput.timeInterval)
-])
 
 /** This need more though...
  * For example - how could this be used to run generic workflows for
@@ -119,8 +137,6 @@ export const product = pgTable(
     geometriesId: text('geometries_id').references(() => geometries.id, {
       onDelete: 'cascade',
     }),
-
-    timePrecision: timePrecision('time_precision').notNull(),
   },
   (table) => [
     index('product_search_trgm_idx').using(
@@ -134,6 +150,8 @@ export const product = pgTable(
     index('product_geometries_id_idx').on(table.geometriesId),
     index('product_created_at_idx').on(table.createdAt),
     index('product_main_run_id_idx').on(table.mainRunId),
+    index('product_organization_id_idx').on(table.organizationId),
+    index('product_visibility_idx').on(table.visibility),
   ],
 )
 
@@ -310,7 +328,7 @@ export const productOutput = pgTable(
       mode: 'date',
       withTimezone: false,
     }).notNull(),
-    // Will stick to timePoint with timePrecision (see product.timePrecision) for now
+    // Will stick to timePoint for now
     // timeInterval: tstzrange('time_interval'),
   },
   (table) => [
@@ -437,6 +455,7 @@ export const indicatorCategory = pgTable(
   'indicator_category',
   {
     ...baseColumns,
+    ...topLevelAclColumns,
 
     // Tree structure
     parentId: text('parent_id').references(
@@ -451,6 +470,8 @@ export const indicatorCategory = pgTable(
   (table) => [
     index('indicator_category_parent_idx').on(table.parentId),
     index('indicator_category_name_idx').on(table.name),
+    index('indicator_category_organization_id_idx').on(table.organizationId),
+    index('indicator_category_visibility_idx').on(table.visibility),
     // Composite index for hierarchical queries with ordering
     index('indicator_category_parent_order_idx').on(
       table.parentId,
@@ -461,6 +482,7 @@ export const indicatorCategory = pgTable(
 
 const indicatorBaseColumns = {
   ...baseColumns,
+  ...topLevelAclColumns,
   unit: text('unit').notNull(),
   displayOrder: integer('display_order').default(0),
   // Link to category
@@ -483,6 +505,8 @@ export const indicator = pgTable(
     ),
     index('indicator_category_idx').on(table.categoryId),
     index('indicator_name_idx').on(table.name),
+    index('indicator_organization_id_idx').on(table.organizationId),
+    index('indicator_visibility_idx').on(table.visibility),
     // Composite index for listing indicators within a category with ordering
     index('indicator_category_order_idx').on(
       table.categoryId,
@@ -506,6 +530,8 @@ export const derivedIndicator = pgTable(
     ),
     index('derived_indicator_category_idx').on(table.categoryId),
     index('derived_indicator_name_idx').on(table.name),
+    index('derived_indicator_organization_id_idx').on(table.organizationId),
+    index('derived_indicator_visibility_idx').on(table.visibility),
     // Composite index for listing indicators within a category with ordering
     index('derived_indicator_category_order_idx').on(
       table.categoryId,
@@ -533,6 +559,7 @@ export const report = pgTable(
   'report',
   {
     ...baseColumns,
+    ...topLevelAclColumns,
     content: jsonb('content'),
   },
   (table) => [
@@ -541,6 +568,8 @@ export const report = pgTable(
       table.name.op('gin_trgm_ops'),
       table.description.op('gin_trgm_ops'),
     ),
+    index('report_organization_id_idx').on(table.organizationId),
+    index('report_visibility_idx').on(table.visibility),
   ],
 )
 
@@ -548,6 +577,7 @@ export const dashboard = pgTable(
   'dashboard',
   {
     ...baseColumns,
+    ...topLevelAclColumns,
     content: jsonb('content').notNull(),
   },
   (table) => [
@@ -556,6 +586,88 @@ export const dashboard = pgTable(
       table.name.op('gin_trgm_ops'),
       table.description.op('gin_trgm_ops'),
     ),
+    index('dashboard_organization_id_idx').on(table.organizationId),
+    index('dashboard_visibility_idx').on(table.visibility),
+  ],
+)
+
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: text('id').primaryKey(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    actorUserId: text('actor_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    actorRole: text('actor_role'),
+    activeOrganizationId: text('active_organization_id').references(
+      () => organization.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
+    targetOrganizationId: text('target_organization_id').references(
+      () => organization.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
+    resourceType: text('resource_type').notNull(),
+    resourceId: text('resource_id'),
+    action: text('action').notNull(),
+    decision: text('decision').notNull(),
+    requestPath: text('request_path').notNull(),
+    requestMethod: text('request_method').notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    details: jsonb('details'),
+  },
+  (table) => [
+    index('audit_log_created_at_idx').on(table.createdAt),
+    index('audit_log_target_organization_id_idx').on(
+      table.targetOrganizationId,
+    ),
+    index('audit_log_actor_user_id_idx').on(table.actorUserId),
+    index('audit_log_resource_idx').on(table.resourceType, table.resourceId),
+  ],
+)
+
+export const readLog = pgTable(
+  'read_log',
+  {
+    id: text('id').primaryKey(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    actorUserId: text('actor_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    actorRole: text('actor_role'),
+    activeOrganizationId: text('active_organization_id').references(
+      () => organization.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
+    targetOrganizationId: text('target_organization_id').references(
+      () => organization.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
+    resourceType: text('resource_type').notNull(),
+    resourceId: text('resource_id'),
+    action: text('action').notNull(),
+    decision: text('decision').notNull(),
+    requestPath: text('request_path').notNull(),
+    requestMethod: text('request_method').notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    details: jsonb('details'),
+  },
+  (table) => [
+    index('read_log_created_at_idx').on(table.createdAt),
+    index('read_log_target_organization_id_idx').on(table.targetOrganizationId),
+    index('read_log_actor_user_id_idx').on(table.actorUserId),
+    index('read_log_resource_idx').on(table.resourceType, table.resourceId),
   ],
 )
 

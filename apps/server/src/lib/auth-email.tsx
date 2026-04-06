@@ -2,12 +2,17 @@ import { render } from '@react-email/components'
 import nodemailer, { type Transporter } from 'nodemailer'
 import type { ReactElement } from 'react'
 import { OTPEmail } from '~/emails/otp-email'
+import { OrganizationInvitationEmail } from '~/emails/organization-invitation-email'
 import { PasswordResetEmail } from '~/emails/password-reset-email'
 import { VerificationEmail } from '~/emails/verification-email'
 import { env } from '~/env'
 import { logAuthSecurity } from './auth-security'
 
-export type AuthEmailKind = 'verification' | 'password-reset' | 'two-factor-otp'
+export type AuthEmailKind =
+  | 'verification'
+  | 'password-reset'
+  | 'two-factor-otp'
+  | 'organization-invitation'
 
 interface AuthEmailUser {
   id: string
@@ -170,5 +175,32 @@ export async function sendTwoFactorOTPEmail(data: {
     userId: data.user.id,
     email: data.user.email,
     deliveryMode: env.AUTH_EMAIL_MODE,
+  })
+}
+
+export async function sendOrganizationInvitationEmail(data: {
+  acceptUrl: string
+  email: string
+  invitationId: string
+  inviterEmail: string
+  inviterName?: string | null
+  organizationName: string
+  role: string
+}) {
+  await deliverAuthEmail({
+    kind: 'organization-invitation',
+    to: data.email,
+    subject: `You're invited to join ${data.organizationName}`,
+    react: (
+      <OrganizationInvitationEmail
+        acceptUrl={data.acceptUrl}
+        invitationId={data.invitationId}
+        inviterEmail={data.inviterEmail}
+        inviterName={data.inviterName}
+        organizationName={data.organizationName}
+        role={data.role}
+      />
+    ),
+    actionUrl: data.acceptUrl,
   })
 }

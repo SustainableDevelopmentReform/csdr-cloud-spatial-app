@@ -1,5 +1,12 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildExplorerReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -9,12 +16,16 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import {
+  getDatasetVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { dataset, datasetRun, product } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -26,13 +37,14 @@ import {
   datasetRunQuerySchema,
   fullDatasetSchema,
   updateDatasetSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { baseDatasetRunQuery } from './datasetRun'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 
 export const baseDatasetQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
     mainRunId: true,
     sourceUrl: true,
     sourceMetadataUrl: true,
@@ -53,9 +65,14 @@ const datasetNotFoundError = () =>
     description: "Dataset you're looking for is not found",
   })
 
-const fetchFullDataset = async (id: string) => {
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
+
+const fetchFullDataset = async (id: string, organizationId: string) => {
   const record = await db.query.dataset.findFirst({
-    where: (dataset, { eq }) => eq(dataset.id, id),
+    where: (dataset, { and, eq }) =>
+      and(eq(dataset.id, id), eq(dataset.organizationId, organizationId)),
     ...fullDatasetQuery,
   })
 
@@ -72,8 +89,11 @@ const fetchFullDataset = async (id: string) => {
   return { ...record, runCount, productCount, ...usageCounts }
 }
 
-const fetchFullDatasetOrThrow = async (id: string) => {
-  const fullDataset = await fetchFullDataset(id)
+export const fetchFullDatasetOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const fullDataset = await fetchFullDataset(id, organizationId)
 
   if (!fullDataset) {
     throw datasetNotFoundError()
@@ -91,6 +111,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:dataset',
+          scope: 'explorer',
         }),
       ],
       request: {
@@ -121,6 +142,7 @@ const app = createOpenAPIApp()
       const datasetIdsArray = normalizeFilterValues(datasetIds)
       const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
       const baseWhere = and(
+        buildExplorerReadScope(c, dataset.organizationId, dataset.visibility),
         datasetIdsArray.length > 0
           ? inArray(dataset.id, datasetIdsArray)
           : undefined,
@@ -154,7 +176,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a dataset by id.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:dataset' })],
+      middleware: [
+        authMiddleware({ permission: 'read:dataset', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({
           id: z.string().min(1),
@@ -177,7 +201,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDatasetOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        scope: 'explorer',
+        notFoundError: datasetNotFoundError,
+      })
+      const record = await fetchFullDatasetOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -190,7 +224,9 @@ const app = createOpenAPIApp()
       path: '/:id/runs',
       middleware: [
         authMiddleware({
-          permission: 'read:productRun',
+          permission: 'read:datasetRun',
+          scope: 'explorer',
+          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -223,6 +259,15 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const datasetId = id === '*' ? undefined : id
+      if (datasetId) {
+        await assertResourceReadable({
+          c,
+          resource: 'dataset',
+          resourceId: datasetId,
+          scope: 'explorer',
+          notFoundError: datasetNotFoundError,
+        })
+      }
       const { meta, query } = await parseQuery(
         datasetRun,
         c.req.valid('query'),
@@ -231,7 +276,19 @@ const app = createOpenAPIApp()
           searchableColumns: [datasetRun.name, datasetRun.description],
           baseWhere: datasetId
             ? eq(datasetRun.datasetId, datasetId)
-            : undefined,
+            : inArray(
+                datasetRun.datasetId,
+                db
+                  .select({ id: dataset.id })
+                  .from(dataset)
+                  .where(
+                    buildExplorerReadScope(
+                      c,
+                      dataset.organizationId,
+                      dataset.visibility,
+                    ),
+                  ),
+              ),
         },
       )
 
@@ -286,9 +343,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
       const [newDataset] = await db
         .insert(dataset)
-        .values(createPayload(payload))
+        .values(
+          createOwnedPayload({
+            ...payload,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newDataset) {
@@ -299,7 +363,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullDatasetOrThrow(newDataset.id)
+      const record = await fetchFullDatasetOrThrow(
+        newDataset.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Dataset created')
     },
@@ -343,20 +410,173 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
 
       const [record] = await db
         .update(dataset)
         .set(updatePayload(payload))
-        .where(eq(dataset.id, id))
+        .where(
+          and(
+            eq(dataset.id, id),
+            eq(dataset.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw datasetNotFoundError()
       }
 
-      const fullRecord = await fetchFullDatasetOrThrow(record.id)
+      const fullRecord = await fetchFullDatasetOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Dataset updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview dataset visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed dataset visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview dataset visibility impact'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getDatasetVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update dataset visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dataset',
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated dataset visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullDatasetSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dataset not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update dataset visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(dataset)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(dataset.id, id),
+            eq(dataset.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw datasetNotFoundError()
+      }
+
+      const fullRecord = await fetchFullDatasetOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Dataset visibility updated',
+      )
     },
   )
   .openapi(
@@ -389,9 +609,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullDatasetOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: id,
+        notFoundError: datasetNotFoundError,
+      })
+      const record = await fetchFullDatasetOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(dataset).where(eq(dataset.id, id))
+      await db
+        .delete(dataset)
+        .where(
+          and(
+            eq(dataset.id, id),
+            eq(dataset.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Dataset deleted')
     },

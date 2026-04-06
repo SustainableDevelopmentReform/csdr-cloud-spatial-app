@@ -27,6 +27,14 @@ export const baseResourceSchema = baseIdResourceSchema.extend({
   updatedAt: z.iso.datetime(),
 })
 
+export const visibilitySchema = z.enum(['private', 'public', 'global'])
+
+export const baseAclResourceSchema = baseResourceSchema.extend({
+  organizationId: z.string(),
+  createdByUserId: z.string(),
+  visibility: visibilitySchema,
+})
+
 export const baseRunResourceSchema = baseResourceSchema.extend({
   imageCode: z.string().nullable(),
   imageTag: z.string().nullable(),
@@ -73,8 +81,12 @@ export const baseUpdateResourceSchema = z.object({
   description: z.string().nullable().optional(),
 })
 
+export const updateVisibilitySchema = z.object({
+  visibility: visibilitySchema,
+})
+
 /* INDICATOR RESOURCE SCHEMAS */
-export const baseMeasuredIndicatorSchema = baseResourceSchema
+export const baseMeasuredIndicatorSchema = baseAclResourceSchema
   .extend({
     unit: z.string(),
     category: baseResourceSchema.nullable(),
@@ -146,7 +158,7 @@ export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
 export const updateDerivedIndicatorSchema = updateIndicatorSchema
 
 /* INDICATOR CATEGORY RESOURCE SCHEMAS */
-export const indicatorCategorySchema = baseResourceSchema
+export const indicatorCategorySchema = baseAclResourceSchema
   .extend({
     parentId: z.string().nullable(),
     displayOrder: z.number().int().nullable(),
@@ -179,7 +191,7 @@ export const fullDatasetRunSchema = baseDatasetRunSchema
   })
   .openapi('DatasetRunFull')
 
-export const baseDatasetSchema = baseResourceSchema
+export const baseDatasetSchema = baseAclResourceSchema
   .extend({
     mainRunId: z.string().nullable(),
     sourceUrl: z.string().nullable(),
@@ -242,7 +254,7 @@ export const fullGeometriesRunSchema = baseGeometriesRunSchema
   })
   .openapi('GeometriesRunFull')
 
-export const baseGeometriesSchema = baseResourceSchema
+export const baseGeometriesSchema = baseAclResourceSchema
   .extend({
     mainRunId: z.string().nullable(),
     sourceUrl: z.string().nullable(),
@@ -440,9 +452,8 @@ export const fullProductRunSchema = baseProductRunSchema
   })
   .openapi('ProductRunFull')
 
-export const baseProductSchema = baseResourceSchema
+export const baseProductSchema = baseAclResourceSchema
   .extend({
-    timePrecision: z.enum(['hour', 'day', 'month', 'year']),
     mainRunId: z.string().nullable(),
     dataset: baseIdResourceSchema.nullable(),
     geometries: baseIdResourceSchema.nullable(),
@@ -489,12 +500,10 @@ export const productQuerySchema = baseQuerySchema.extend({
 export const createProductSchema = baseCreateResourceSchema.extend({
   datasetId: z.string().optional(),
   geometriesId: z.string().optional(),
-  timePrecision: z.enum(['hour', 'day', 'month', 'year']),
 })
 
 export const updateProductSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
-  timePrecision: z.enum(['hour', 'day', 'month', 'year']).optional(),
 })
 
 export const productRunQuerySchema = baseQuerySchema.extend({
@@ -635,7 +644,8 @@ export const importProductOutputsSchema = z.object({
 
 /* REPORT RESOURCE SCHEMAS */
 
-export const baseReportSchema = baseResourceSchema.openapi('ReportSchemaBase')
+export const baseReportSchema =
+  baseAclResourceSchema.openapi('ReportSchemaBase')
 export const reportStoredContentSchema = z
   .record(z.string(), z.unknown())
   .openapi('ReportStoredContentSchema', {
@@ -660,7 +670,7 @@ export const reportQuerySchema = baseQuerySchema.extend({
 })
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
-  content: reportStoredContentSchema.nullable(),
+  content: reportStoredContentSchema.nullable().optional(),
 })
 
 /* DASHBOARD RESOURCE SCHEMAS */
@@ -698,7 +708,7 @@ export const dashboardContentSchema = z
 
 export type DashboardContent = z.infer<typeof dashboardContentSchema>
 
-export const baseDashboardSchema = baseResourceSchema.openapi(
+export const baseDashboardSchema = baseAclResourceSchema.openapi(
   'DashboardSchemaBase',
 )
 

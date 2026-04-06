@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { eq } from 'drizzle-orm'
+import { assertResourceWritable } from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -86,7 +87,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a dataset run with aggregated metadata.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:datasetRun' })],
+      middleware: [
+        authMiddleware({ permission: 'read:datasetRun', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -148,6 +151,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'dataset',
+        resourceId: payload.datasetId,
+        notFoundError: datasetRunNotFoundError,
+      })
       const [newDatasetRun] = await db
         .insert(datasetRun)
         .values(createPayload(payload))

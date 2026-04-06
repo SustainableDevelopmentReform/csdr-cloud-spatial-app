@@ -7,8 +7,16 @@ import {
   geometriesQuerySchema,
   geometriesRunQuerySchema,
   updateGeometriesSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildExplorerReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -18,12 +26,16 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import {
+  getGeometriesVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import { geometries, geometriesRun, product } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -32,7 +44,7 @@ import { baseGeometriesRunQuery } from './geometriesRun'
 
 export const baseGeometriesQuery = {
   columns: {
-    ...baseColumns,
+    ...baseAclColumns,
     mainRunId: true,
     sourceUrl: true,
     sourceMetadataUrl: true,
@@ -53,9 +65,14 @@ const geometriesNotFoundError = () =>
     description: "Geometries you're looking for is not found",
   })
 
-const fetchFullGeometries = async (id: string) => {
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
+
+const fetchFullGeometries = async (id: string, organizationId: string) => {
   const record = await db.query.geometries.findFirst({
-    where: (geometries, { eq }) => eq(geometries.id, id),
+    where: (geometries, { and, eq }) =>
+      and(eq(geometries.id, id), eq(geometries.organizationId, organizationId)),
     ...fullGeometriesQuery,
   })
 
@@ -72,8 +89,11 @@ const fetchFullGeometries = async (id: string) => {
   return { ...record, runCount, productCount, ...usageCounts }
 }
 
-const fetchFullGeometriesOrThrow = async (id: string) => {
-  const record = await fetchFullGeometries(id)
+export const fetchFullGeometriesOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const record = await fetchFullGeometries(id, organizationId)
 
   if (!record) {
     throw geometriesNotFoundError()
@@ -88,7 +108,9 @@ const app = createOpenAPIApp()
       description: 'List geometries with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:geometries' })],
+      middleware: [
+        authMiddleware({ permission: 'read:geometries', scope: 'explorer' }),
+      ],
       request: {
         query: geometriesQuerySchema,
       },
@@ -118,6 +140,11 @@ const app = createOpenAPIApp()
       const excludeGeometriesIdsArray =
         normalizeFilterValues(excludeGeometriesIds)
       const baseWhere = and(
+        buildExplorerReadScope(
+          c,
+          geometries.organizationId,
+          geometries.visibility,
+        ),
         geometriesIdsArray.length > 0
           ? inArray(geometries.id, geometriesIdsArray)
           : undefined,
@@ -155,7 +182,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve geometries by id.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:geometries' })],
+      middleware: [
+        authMiddleware({ permission: 'read:geometries', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -176,7 +205,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullGeometriesOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        scope: 'explorer',
+        notFoundError: geometriesNotFoundError,
+      })
+      const record = await fetchFullGeometriesOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -187,7 +226,13 @@ const app = createOpenAPIApp()
         'List geometries runs for a geometries resource, or across geometries using "*".',
       method: 'get',
       path: '/:id/runs',
-      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:geometriesRun',
+          scope: 'explorer',
+          skipResourceCheck: true,
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         query: geometriesRunQuerySchema,
@@ -216,6 +261,15 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const geometriesId = id === '*' ? undefined : id
+      if (geometriesId) {
+        await assertResourceReadable({
+          c,
+          resource: 'geometries',
+          resourceId: geometriesId,
+          scope: 'explorer',
+          notFoundError: geometriesNotFoundError,
+        })
+      }
       const { meta, query } = await parseQuery(
         geometriesRun,
         c.req.valid('query'),
@@ -224,7 +278,19 @@ const app = createOpenAPIApp()
           searchableColumns: [geometriesRun.name, geometriesRun.description],
           baseWhere: geometriesId
             ? eq(geometriesRun.geometriesId, geometriesId)
-            : undefined,
+            : inArray(
+                geometriesRun.geometriesId,
+                db
+                  .select({ id: geometries.id })
+                  .from(geometries)
+                  .where(
+                    buildExplorerReadScope(
+                      c,
+                      geometries.organizationId,
+                      geometries.visibility,
+                    ),
+                  ),
+              ),
         },
       )
 
@@ -276,9 +342,16 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
       const [record] = await db
         .insert(geometries)
-        .values(createPayload(payload))
+        .values(
+          createOwnedPayload({
+            ...payload,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!record) {
@@ -289,7 +362,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const fullRecord = await fetchFullGeometriesOrThrow(record.id)
+      const fullRecord = await fetchFullGeometriesOrThrow(
+        record.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 201, 'Geometries created')
     },
@@ -330,20 +406,167 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        notFoundError: geometriesNotFoundError,
+      })
 
       const [record] = await db
         .update(geometries)
         .set(updatePayload(payload))
-        .where(eq(geometries.id, id))
+        .where(
+          and(
+            eq(geometries.id, id),
+            eq(geometries.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw geometriesNotFoundError()
       }
 
-      const fullRecord = await fetchFullGeometriesOrThrow(record.id)
+      const fullRecord = await fetchFullGeometriesOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Geometries updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview geometries visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:geometries' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed geometries visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse(
+          'Failed to preview geometries visibility impact',
+        ),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        notFoundError: geometriesNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getGeometriesVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update geometries visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:geometries' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated geometries visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullGeometriesSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Geometries not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update geometries visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        notFoundError: geometriesNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const [record] = await db
+        .update(geometries)
+        .set(updatePayload(payload))
+        .where(
+          and(
+            eq(geometries.id, id),
+            eq(geometries.organizationId, accessRecord.organizationId),
+          ),
+        )
+        .returning()
+
+      if (!record) {
+        throw geometriesNotFoundError()
+      }
+
+      const fullRecord = await fetchFullGeometriesOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Geometries visibility updated',
+      )
     },
   )
 
@@ -373,9 +596,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullGeometriesOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'geometries',
+        resourceId: id,
+        notFoundError: geometriesNotFoundError,
+      })
+      const record = await fetchFullGeometriesOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(geometries).where(eq(geometries.id, id))
+      await db
+        .delete(geometries)
+        .where(
+          and(
+            eq(geometries.id, id),
+            eq(geometries.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Geometries deleted')
     },

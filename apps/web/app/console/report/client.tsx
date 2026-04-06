@@ -8,6 +8,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { DatasetRunSelect } from '../dataset/_components/dataset-run-select'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
 import { GeometriesRunSelect } from '../geometries/_components/geometries-run-select'
@@ -18,6 +19,7 @@ import { ProductSelect } from '../product/_components/product-select'
 import { ReportButton } from './_components/report-button'
 import { useCreateReport, useReportLink, useReports } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const ReportFeature = () => {
   const {
@@ -30,6 +32,7 @@ const ReportFeature = () => {
     isFetchingNextPage,
   } = useReports(undefined, true)
   const createReport = useCreateReport()
+  const { access } = useAccessControl()
 
   const reportLink = useReportLink()
   const selectedIndicatorIds = useMemo(
@@ -73,6 +76,7 @@ const ReportFeature = () => {
           buttonText="Add Report"
           entityName="Report"
           entityNamePlural="reports"
+          hideTrigger={!canCreateConsoleResource(access, 'report')}
         ></CrudFormDialog>
       </div>
       <div>

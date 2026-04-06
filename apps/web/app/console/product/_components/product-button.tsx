@@ -1,4 +1,5 @@
 import { BadgeLink } from '../../../../components/badge-link'
+import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { ProductLinkParams, useProductLink } from '../_hooks'
 
 export const ProductButtons = ({
@@ -19,7 +20,11 @@ export const ProductButton = ({ product }: { product: ProductLinkParams }) => {
   const productLink = useProductLink()
 
   return (
-    <BadgeLink href={productLink(product)} variant="product">
+    <BadgeLink
+      href={productLink(product)}
+      variant="product"
+      adornment={<GlobalVisibilityIndicator visibility={product.visibility} />}
+    >
       {product.name}
     </BadgeLink>
   )

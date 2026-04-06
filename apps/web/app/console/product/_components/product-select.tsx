@@ -33,6 +33,10 @@ type ProductSelectProps = ProductSelectBaseProps &
 
 export const ProductSelect = (props: ProductSelectProps) => {
   const { title, description, disabled, isClearable, queryOptions } = props
+  const selectedProductIds = useMemo(
+    () => (props.isMulti === true ? props.value : []),
+    [props.isMulti, props.value],
+  )
   const {
     data: products,
     setSearchParams,
@@ -44,12 +48,11 @@ export const ProductSelect = (props: ProductSelectProps) => {
     props.isMulti === true
       ? {
           ...queryOptions,
-          excludeProductIds: props.value,
+          excludeProductIds: selectedProductIds,
         }
       : queryOptions,
   )
 
-  const selectedProductIds = props.isMulti === true ? props.value : []
   const hasSelectedProducts = selectedProductIds.length > 0
   const { data: selectedProductsQuery, isLoading: isLoadingSelectedProducts } =
     useProducts(

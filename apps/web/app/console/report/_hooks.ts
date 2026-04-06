@@ -1,6 +1,10 @@
 'use client'
 
-import { reportQuerySchema } from '@repo/schemas/crud'
+import {
+  createReportSchema,
+  reportQuerySchema,
+  updateReportSchema,
+} from '@repo/schemas/crud'
 import {
   useInfiniteQuery,
   useMutation,
@@ -17,6 +21,10 @@ import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
 import { REPORTS_BASE_PATH } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { invalidateChartUsageDependencyQueries } from '../_utils/chart-usage-invalidation'
 
 export type ReportListResponse = NonNullable<
@@ -27,13 +35,14 @@ export type ReportDetail = NonNullable<
   InferResponseType<Client['api']['v0']['report'][':id']['$get'], 200>['data']
 >
 
-export type UpdateReportPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['report'][':id']['$patch']>['json']
+export type UpdateReportPayload = z.infer<typeof updateReportSchema>
+export type UpdateReportVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['report'][':id']['visibility']['$patch']
+  >['json']
 >
 
-export type CreateReportPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['report']['$post']>['json']
->
+export type CreateReportPayload = z.infer<typeof createReportSchema>
 
 const reportParamsSchema = z.object({
   reportId: z.string().optional(),
@@ -150,6 +159,9 @@ export const useUpdateReport = (_reportId?: string) => {
   const queryClient = useQueryClient()
   const client = useApiClient()
   return useMutation({
+    meta: {
+      suppressGlobalErrorToast: true,
+    },
     mutationFn: async (payload: UpdateReportPayload) => {
       if (!reportId) return
       const res = client.api.v0.report[':id'].$patch({
@@ -163,6 +175,56 @@ export const useUpdateReport = (_reportId?: string) => {
         queryKey: reportQueryKeys.all,
       })
       await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const useUpdateReportVisibility = (_reportId?: string) => {
+  const { reportId } = useReportParams(_reportId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateReportVisibilityPayload) => {
+      if (!reportId) return
+      const res = client.api.v0.report[':id'].visibility.$patch({
+        param: { id: reportId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: reportQueryKeys.all,
+      })
+      await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const usePreviewReportVisibility = (_reportId?: string) => {
+  const { reportId } = useReportParams(_reportId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!reportId) {
+        return null
+      }
+
+      const res = client.api.v0.report[':id']['visibility-impact'].$get({
+        param: {
+          id: reportId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
     },
   })
 }
@@ -203,7 +265,9 @@ export const useDeleteReport = (
   })
 }
 
-export type ReportLinkParams = Pick<ReportListItem, 'id' | 'name'>
+export type ReportLinkParams = Pick<ReportListItem, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useReportsLink = () =>
   useCallback(

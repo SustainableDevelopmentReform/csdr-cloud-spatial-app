@@ -16,9 +16,13 @@ import {
 import { generateJsonResponse } from './lib/response'
 import {
   enforceAuthRateLimit,
+  enforceProtectedAuthRouteMfa,
   getAuthRequestBody,
+  persistAuthAuditLog,
   logTwoFactorRouteResult,
+  resolveAuthAuditLogContext,
 } from './lib/auth-security'
+import { loadRequestActor } from './lib/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
 import dataset from './routes/dataset'
@@ -33,8 +37,16 @@ import indicator from './routes/indicator'
 import indicatorCategory from './routes/indicatorCategory'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
+import logs from './routes/logs'
+import organization from './routes/organization'
 
 const isProduction = env.NODE_ENV === 'production'
+const apiKeyOrganizationDocs = [
+  'Use `x-api-key` header to authenticate requests.',
+  'API keys authenticate as the owning user and are not tied to a single organization.',
+  'For users who belong to multiple organizations, set `x-csdr-active-organization-id` on each request to select the organization context.',
+  "If no organization header is sent, the server falls back to the persisted active organization on the auth session, then to the user's first membership.",
+].join('\n\n')
 
 const app = createOpenAPIApp<{ Variables: AuthType }>({
   strict: false,
@@ -60,11 +72,23 @@ app.use('*', async (c, next) => {
   if (!session) {
     c.set('user', null)
     c.set('session', null)
+    c.set('activeMember', null)
+    c.set('activeOrganizationId', null)
+    c.set('requestActor', null)
     return next()
   }
 
+  const actor = await loadRequestActor({
+    headers: c.req.raw.headers,
+    user: session.user,
+    session: session.session,
+  })
+
   c.set('user', session.user)
   c.set('session', session.session)
+  c.set('activeMember', actor?.activeMember ?? null)
+  c.set('activeOrganizationId', actor?.activeOrganizationId ?? null)
+  c.set('requestActor', actor)
 
   return next()
 })
@@ -72,20 +96,61 @@ app.use('*', async (c, next) => {
 // Handle auth routes
 app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
   const body = await getAuthRequestBody(c.req.raw)
-
-  await enforceAuthRateLimit(c.req.raw, body)
-
+  const actor = c.get('requestActor')
   const user = c.get('user')
-
-  const response = await auth.handler(c.req.raw)
-
-  logTwoFactorRouteResult({
+  const logContext = await resolveAuthAuditLogContext({
+    actor,
+    body,
     request: c.req.raw,
-    response,
-    session: user ? { user } : null,
   })
 
-  return response
+  try {
+    await enforceAuthRateLimit(c.req.raw, body)
+    enforceProtectedAuthRouteMfa({
+      actor,
+      request: c.req.raw,
+    })
+
+    const response = await auth.handler(c.req.raw)
+
+    logTwoFactorRouteResult({
+      request: c.req.raw,
+      response,
+      session: user ? { user } : null,
+    })
+
+    await persistAuthAuditLog({
+      actor,
+      request: c.req.raw,
+      body,
+      statusCode: response.status,
+      logContext,
+    })
+
+    return response
+  } catch (error) {
+    if (error instanceof ServerError) {
+      await persistAuthAuditLog({
+        actor,
+        request: c.req.raw,
+        body,
+        statusCode: error.response.statusCode,
+        logContext,
+      })
+    }
+
+    if (error instanceof BetterAuthApiError) {
+      await persistAuthAuditLog({
+        actor,
+        request: c.req.raw,
+        body,
+        statusCode: error.statusCode,
+        logContext,
+      })
+    }
+
+    throw error
+  }
 })
 
 const v0ApiBase = app
@@ -101,13 +166,16 @@ const v0ApiBase = app
   .route('/product-output', productOutput)
   .route('/indicator', indicator)
   .route('/indicator-category', indicatorCategory)
+  .route('/organization', organization)
   .route('/report', report)
   .route('/dashboard', dashboard)
+  .route('/logs', logs)
 
 v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   type: 'apiKey',
   in: 'header',
   name: 'x-api-key',
+  description: apiKeyOrganizationDocs,
 })
 
 // TODO: add better auth responses here (eg 429 rate limit)
@@ -145,7 +213,8 @@ const v0ApiRoutes = v0ApiBase
       version: '0.0.1',
       title: 'CSDR Cloud Spatial API',
       description:
-        'This is the API for the CSDR Cloud Spatial platform. Current is 0.0.1 alpha - expect breaking changes.',
+        'This is the API for the CSDR Cloud Spatial platform. Current is 0.0.1 alpha - expect breaking changes.\n\n## API keys and organization context\n\n' +
+        apiKeyOrganizationDocs,
     },
     servers: [
       {

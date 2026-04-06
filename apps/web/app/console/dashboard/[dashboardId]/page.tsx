@@ -3,7 +3,7 @@ import ClientPage from './client'
 
 export default function DashboardDetailPage() {
   return (
-    <PageAuthGuard>
+    <PageAuthGuard allowAnonymous>
       <ClientPage />
     </PageAuthGuard>
   )

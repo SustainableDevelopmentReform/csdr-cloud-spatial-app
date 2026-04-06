@@ -2,19 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createProductSchema } from '@repo/schemas/crud'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@repo/ui/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/ui/components/ui/select'
+import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
@@ -22,6 +10,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { SearchInput } from '../../../components/table/search-input'
 import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
@@ -36,6 +25,7 @@ import {
   useProductLink,
   useProducts,
 } from './_hooks'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const columnHelper = createColumnHelper<ProductListItem>()
 
@@ -108,6 +98,7 @@ const ProductFeature = () => {
   } = useProducts(undefined, true)
   const productLink = useProductLink()
   const createProduct = useCreateProduct()
+  const { access } = useAccessControl()
   const selectedDatasetIds = useMemo(
     () => normalizeFilterValues(query?.datasetId),
     [query?.datasetId],
@@ -140,6 +131,7 @@ const ProductFeature = () => {
           entityName="Product"
           entityNamePlural="Products"
           buttonText="Add Product"
+          hideTrigger={!canCreateConsoleResource(access, 'product')}
         >
           <FormField
             control={form.control}
@@ -169,27 +161,6 @@ const ProductFeature = () => {
                   }
                   isClearable
                 />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="timePrecision"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Time Precision</FormLabel>
-                <Select {...field} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hour">Hour</SelectItem>
-                    <SelectItem value="day">Day</SelectItem>
-                    <SelectItem value="month">Month</SelectItem>
-                    <SelectItem value="year">Year</SelectItem>
-                  </SelectContent>
-                </Select>
                 <FormMessage />
               </FormItem>
             )}

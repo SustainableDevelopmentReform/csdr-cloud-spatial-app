@@ -7,14 +7,10 @@ import {
   type CurveType,
   ChartConfiguration,
   type DivergingColorScheme,
-  KpiChartConfiguration,
   type LegendPosition,
   makeDateFormatter,
-  MapChartConfiguration,
-  PlotChartConfiguration,
   PlotSubType,
   type SequentialColorScheme,
-  TableChartConfiguration,
   TableChartDimension,
 } from '@repo/plot/types'
 import {
@@ -156,23 +152,9 @@ function toSeriesKey(value: unknown): string {
   return key === '' ? 'Value' : key
 }
 
-/** Map a product's timePrecision to the chart's datePrecision default. */
-function timePrecisionToDatePrecision(
-  tp: ProductListItem['timePrecision'] | null | undefined,
-): AppearanceConfig['datePrecision'] {
-  switch (tp) {
-    case 'hour':
-      return 'full'
-    case 'day':
-      return 'year-month-day'
-    case 'month':
-      return 'year-month'
-    case 'year':
-      return 'year'
-    default:
-      return 'year-month'
-  }
-}
+/** Default date precision for product-backed chart previews and labels. */
+const DEFAULT_PRODUCT_DATE_PRECISION: AppearanceConfig['datePrecision'] =
+  'year-month'
 
 const STEP_LABELS = [
   'Data Source',
@@ -776,7 +758,6 @@ export const ChartFormDialog = ({
     productName: string
     indicatorCount: number
     timePointCount: number
-    timePrecision: ProductListItem['timePrecision'] | null
     firstIndicatorId: string | null
     firstTimePoint: string | null
   } | null>(null)
@@ -855,7 +836,6 @@ export const ChartFormDialog = ({
       productName: productRunDetail.product?.name ?? current?.productName ?? '',
       indicatorCount: productRunDetail.outputSummary?.indicators?.length ?? 0,
       timePointCount: productRunDetail.outputSummary?.timePoints?.length ?? 0,
-      timePrecision: current?.timePrecision ?? null,
       firstIndicatorId: hookDefaults?.firstIndicatorId ?? null,
       firstTimePoint,
     }))
@@ -948,8 +928,7 @@ export const ChartFormDialog = ({
   // Series labels used for the colour-override list in Step 3.
   // These mirror the keys that pivotData / groupBySeries produce at render time.
   const effectiveDatePrecision =
-    appearanceDatePrecision ??
-    timePrecisionToDatePrecision(productSummary?.timePrecision)
+    appearanceDatePrecision ?? DEFAULT_PRODUCT_DATE_PRECISION
 
   const previewPlotGroupBy = useMemo(() => {
     if (chartType !== 'plot') return null
@@ -1114,10 +1093,7 @@ export const ChartFormDialog = ({
     // Format a single time point for the title.
     const resolveTimeName = (tp: string | undefined): string | null => {
       if (!tp) return null
-      const datePrecision = timePrecisionToDatePrecision(
-        productSummary?.timePrecision,
-      )
-      const fmt = makeDateFormatter(datePrecision)
+      const fmt = makeDateFormatter(DEFAULT_PRODUCT_DATE_PRECISION)
       return fmt.format(new Date(tp))
     }
 
@@ -1169,7 +1145,6 @@ export const ChartFormDialog = ({
     }
   }, [
     productSummary?.productName,
-    productSummary?.timePrecision,
     chartType,
     seriesDimension,
     indicatorId,
@@ -1231,12 +1206,10 @@ export const ChartFormDialog = ({
 
       // Capture summary for series count warnings + defaults for auto-fill
       const summary = product.mainRun?.outputSummary
-      const tp = product.timePrecision ?? null
       setProductSummary({
         productName: product.name,
         indicatorCount: summary?.indicators?.length ?? 0,
         timePointCount: summary?.timePoints?.length ?? 0,
-        timePrecision: tp,
         firstIndicatorId: summary?.indicators?.[0]?.id ?? null,
         firstTimePoint: summary?.timePoints?.[0] ?? null,
       })
@@ -1245,7 +1218,7 @@ export const ChartFormDialog = ({
       form.setValue('appearance.compactNumbers', true, sv)
       form.setValue(
         'appearance.datePrecision',
-        timePrecisionToDatePrecision(tp),
+        DEFAULT_PRODUCT_DATE_PRECISION,
         sv,
       )
 
@@ -2548,9 +2521,7 @@ export const ChartFormDialog = ({
                                 <Select
                                   value={
                                     field.value ??
-                                    timePrecisionToDatePrecision(
-                                      productSummary?.timePrecision,
-                                    )
+                                    DEFAULT_PRODUCT_DATE_PRECISION
                                   }
                                   onValueChange={(v) =>
                                     field.onChange(

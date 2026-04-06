@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { GeometriesButton } from './_components/geometries-button'
 import {
   useAllGeometries,
@@ -22,6 +23,7 @@ import {
 } from './_hooks'
 import { createGeometriesSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../components/table/search-input'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const GeometriesFeature = () => {
   const {
@@ -34,6 +36,7 @@ const GeometriesFeature = () => {
     isFetchingNextPage,
   } = useAllGeometries(undefined, true)
   const createGeometries = useCreateGeometries()
+  const { access } = useAccessControl()
   const geometriesLink = useGeometriesLink()
 
   const baseColumns = useMemo(() => {
@@ -54,6 +57,7 @@ const GeometriesFeature = () => {
           buttonText="Add Geometries"
           entityName="Geometries"
           entityNamePlural="geometries sets"
+          hideTrigger={!canCreateConsoleResource(access, 'geometries')}
         >
           <FormField
             control={form.control}

@@ -101,9 +101,9 @@ describe('dataset-run route', () => {
         param: { id: seededIds.datasetRun },
       }),
       {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
+        status: 404,
+        message: 'Failed to get datasetRun',
+        description: "datasetRun you're looking for is not found",
       },
     )
 

@@ -7,6 +7,7 @@ import {
   productQuerySchema,
   productRunQuerySchema,
   updateProductSchema,
+  updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import {
   and,
@@ -18,6 +19,13 @@ import {
   or,
   sql,
 } from 'drizzle-orm'
+import {
+  assertCanSetVisibility,
+  assertResourceReadable,
+  assertResourceWritable,
+  buildExplorerReadScope,
+  requireOwnedInsertContext,
+} from '~/lib/authorization'
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -27,6 +35,11 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import {
+  assertProductDependenciesExternallyVisible,
+  getProductVisibilityImpact,
+  visibilityImpactSchema,
+} from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
@@ -35,8 +48,8 @@ import {
   productRun,
 } from '../schemas/db'
 import {
-  baseColumns,
-  createPayload,
+  baseAclColumns,
+  createOwnedPayload,
   idColumns,
   InferQueryModel,
   QueryForTable,
@@ -52,10 +65,9 @@ import {
   parseFullProductRun,
 } from './productRun'
 
-const baseProductQuery = {
+export const baseProductQuery = {
   columns: {
-    ...baseColumns,
-    timePrecision: true,
+    ...baseAclColumns,
     mainRunId: true,
   },
   with: {
@@ -81,7 +93,11 @@ const productNotFoundError = () =>
     description: "Product you're looking for is not found",
   })
 
-const parseBaseProduct = <
+const visibilityImpactQuerySchema = z.object({
+  targetVisibility: updateVisibilitySchema.shape.visibility,
+})
+
+export const parseBaseProduct = <
   T extends InferQueryModel<'product', typeof baseProductQuery>,
 >(
   record: T,
@@ -92,7 +108,7 @@ const parseBaseProduct = <
   }
 }
 
-const parseFullProduct = <
+export const parseFullProduct = <
   T extends InferQueryModel<'product', typeof fullProductQuery>,
 >(
   record: T,
@@ -103,9 +119,10 @@ const parseFullProduct = <
   }
 }
 
-const fetchFullProduct = async (id: string) => {
+const fetchFullProduct = async (id: string, organizationId: string) => {
   const record = await db.query.product.findFirst({
-    where: (product, { eq }) => eq(product.id, id),
+    where: (product, { and, eq }) =>
+      and(eq(product.id, id), eq(product.organizationId, organizationId)),
     ...fullProductQuery,
   })
 
@@ -123,8 +140,11 @@ const fetchFullProduct = async (id: string) => {
     : null
 }
 
-const fetchFullProductOrThrow = async (id: string) => {
-  const fullProduct = await fetchFullProduct(id)
+export const fetchFullProductOrThrow = async (
+  id: string,
+  organizationId: string,
+) => {
+  const fullProduct = await fetchFullProduct(id, organizationId)
 
   if (!fullProduct) {
     throw productNotFoundError()
@@ -139,7 +159,9 @@ const app = createOpenAPIApp()
       description: 'List products with pagination metadata.',
       method: 'get',
       path: '/',
-      middleware: [authMiddleware({ permission: 'read:product' })],
+      middleware: [
+        authMiddleware({ permission: 'read:product', scope: 'explorer' }),
+      ],
       request: {
         query: productQuerySchema,
       },
@@ -178,6 +200,7 @@ const app = createOpenAPIApp()
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
       const baseWhere = and(
+        buildExplorerReadScope(c, product.organizationId, product.visibility),
         productIdsArray.length > 0
           ? inArray(product.id, productIdsArray)
           : undefined,
@@ -253,7 +276,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a product.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:product' })],
+      middleware: [
+        authMiddleware({ permission: 'read:product', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -274,7 +299,17 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullProductOrThrow(id)
+      const accessRecord = await assertResourceReadable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        scope: 'explorer',
+        notFoundError: productNotFoundError,
+      })
+      const record = await fetchFullProductOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, record, 200)
     },
@@ -286,7 +321,13 @@ const app = createOpenAPIApp()
         'List product runs for a product, or across products using "*".',
       method: 'get',
       path: '/:id/runs',
-      middleware: [authMiddleware({ permission: 'read:productRun' })],
+      middleware: [
+        authMiddleware({
+          permission: 'read:productRun',
+          scope: 'explorer',
+          skipResourceCheck: true,
+        }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
         query: productRunQuerySchema,
@@ -315,9 +356,33 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const productId = id === '*' ? undefined : id
+      if (productId) {
+        await assertResourceReadable({
+          c,
+          resource: 'product',
+          resourceId: productId,
+          scope: 'explorer',
+          notFoundError: productNotFoundError,
+        })
+      }
       const { datasetRunId, geometriesRunId } = c.req.valid('query')
       const baseWhere = and(
         productId ? eq(productRun.productId, id) : undefined,
+        productId
+          ? undefined
+          : inArray(
+              productRun.productId,
+              db
+                .select({ id: product.id })
+                .from(product)
+                .where(
+                  buildExplorerReadScope(
+                    c,
+                    product.organizationId,
+                    product.visibility,
+                  ),
+                ),
+            ),
         datasetRunId ? eq(productRun.datasetRunId, datasetRunId) : undefined,
         geometriesRunId
           ? eq(productRun.geometriesRunId, geometriesRunId)
@@ -384,9 +449,32 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
+      if (payload.datasetId) {
+        await assertResourceWritable({
+          c,
+          resource: 'dataset',
+          resourceId: payload.datasetId,
+          notFoundError: productNotFoundError,
+        })
+      }
+      if (payload.geometriesId) {
+        await assertResourceWritable({
+          c,
+          resource: 'geometries',
+          resourceId: payload.geometriesId,
+          notFoundError: productNotFoundError,
+        })
+      }
       const [newProduct] = await db
         .insert(product)
-        .values(createPayload(payload))
+        .values(
+          createOwnedPayload({
+            ...payload,
+            organizationId: activeOrganizationId,
+            createdByUserId: actor.user.id,
+          }),
+        )
         .returning()
 
       if (!newProduct) {
@@ -397,7 +485,10 @@ const app = createOpenAPIApp()
         })
       }
 
-      const record = await fetchFullProductOrThrow(newProduct.id)
+      const record = await fetchFullProductOrThrow(
+        newProduct.id,
+        activeOrganizationId,
+      )
 
       return generateJsonResponse(c, record, 201, 'Product created')
     },
@@ -438,20 +529,178 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
 
       const [record] = await db
         .update(product)
         .set(updatePayload(payload))
-        .where(eq(product.id, id))
+        .where(
+          and(
+            eq(product.id, id),
+            eq(product.organizationId, accessRecord.organizationId),
+          ),
+        )
         .returning()
 
       if (!record) {
         throw productNotFoundError()
       }
 
-      const fullRecord = await fetchFullProductOrThrow(record.id)
+      const fullRecord = await fetchFullProductOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
 
       return generateJsonResponse(c, fullRecord, 200, 'Product updated')
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Preview product visibility impact.',
+      method: 'get',
+      path: '/:id/visibility-impact',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        query: visibilityImpactQuerySchema,
+      },
+      responses: {
+        200: {
+          description: 'Successfully previewed product visibility impact.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(visibilityImpactSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview product visibility impact'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { targetVisibility } = c.req.valid('query')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: targetVisibility,
+      })
+
+      const impact = await db.transaction((tx) =>
+        getProductVisibilityImpact(
+          tx,
+          id,
+          targetVisibility,
+          accessRecord.organizationId,
+        ),
+      )
+
+      return generateJsonResponse(c, impact, 200)
+    },
+  )
+  .openapi(
+    createRoute({
+      description: 'Update product visibility.',
+      method: 'patch',
+      path: '/:id/visibility',
+      middleware: [authMiddleware({ permission: 'write:product' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateVisibilitySchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Successfully updated product visibility.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullProductSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Product not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to update product visibility'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const payload = c.req.valid('json')
+      const { actor } = requireOwnedInsertContext(c)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+
+      assertCanSetVisibility({
+        actor,
+        currentVisibility: accessRecord.visibility,
+        nextVisibility: payload.visibility,
+      })
+
+      const record = await db.transaction(async (tx) => {
+        const [updatedRecord] = await tx
+          .update(product)
+          .set(updatePayload(payload))
+          .where(
+            and(
+              eq(product.id, id),
+              eq(product.organizationId, accessRecord.organizationId),
+            ),
+          )
+          .returning()
+
+        if (!updatedRecord) {
+          throw productNotFoundError()
+        }
+
+        if (updatedRecord.visibility !== 'private') {
+          await assertProductDependenciesExternallyVisible(
+            tx,
+            updatedRecord.id,
+            updatedRecord.visibility,
+            accessRecord.organizationId,
+          )
+        }
+
+        return updatedRecord
+      })
+
+      const fullRecord = await fetchFullProductOrThrow(
+        record.id,
+        accessRecord.organizationId,
+      )
+
+      return generateJsonResponse(
+        c,
+        fullRecord,
+        200,
+        'Product visibility updated',
+      )
     },
   )
 
@@ -481,9 +730,25 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const record = await fetchFullProductOrThrow(id)
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'product',
+        resourceId: id,
+        notFoundError: productNotFoundError,
+      })
+      const record = await fetchFullProductOrThrow(
+        id,
+        accessRecord.organizationId,
+      )
 
-      await db.delete(product).where(eq(product.id, id))
+      await db
+        .delete(product)
+        .where(
+          and(
+            eq(product.id, id),
+            eq(product.organizationId, accessRecord.organizationId),
+          ),
+        )
 
       return generateJsonResponse(c, record, 200, 'Product deleted')
     },

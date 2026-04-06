@@ -30,9 +30,9 @@ describe('geometry-output route', () => {
         param: { id: seededIds.tasmaniaGeometryOutput },
       }),
       {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
+        status: 404,
+        message: 'Failed to get geometryOutput',
+        description: "geometryOutput you're looking for is not found",
       },
     )
 

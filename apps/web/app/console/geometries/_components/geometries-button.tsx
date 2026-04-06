@@ -1,4 +1,5 @@
 import { BadgeLink } from '../../../../components/badge-link'
+import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { GeometriesLinkParams, useGeometriesLink } from '../_hooks'
 
 export const GeometriesButtons = ({
@@ -23,7 +24,13 @@ export const GeometriesButton = ({
   const geometriesLink = useGeometriesLink()
 
   return (
-    <BadgeLink href={geometriesLink(geometries)} variant="geometries">
+    <BadgeLink
+      href={geometriesLink(geometries)}
+      variant="geometries"
+      adornment={
+        <GlobalVisibilityIndicator visibility={geometries.visibility} />
+      }
+    >
       {geometries.name}
     </BadgeLink>
   )

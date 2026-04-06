@@ -1,11 +1,16 @@
 'use client'
 
-import { createAuthClient } from '../utils/authClient'
-import { useContext, useMemo } from 'react'
-import { ConfigContext } from '../components/providers'
+import { useContext } from 'react'
+import { AuthClientContext, ConfigContext } from '../components/providers'
+import type { AuthClient } from '../utils/authClient'
 
-export const useAuthClient = () => {
+export const useAuthClient = (): AuthClient => {
   const { apiBaseUrl } = useContext(ConfigContext)
+  const authClient = useContext(AuthClientContext)
 
-  return useMemo(() => createAuthClient(apiBaseUrl), [apiBaseUrl])
+  if (authClient === null) {
+    throw new Error(`Auth client is not available for base URL ${apiBaseUrl}`)
+  }
+
+  return authClient
 }

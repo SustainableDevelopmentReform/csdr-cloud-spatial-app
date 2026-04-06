@@ -8,6 +8,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { useAccessControl } from '../../../hooks/useAccessControl'
 import { DatasetRunSelect } from '../dataset/_components/dataset-run-select'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
 import { GeometriesRunSelect } from '../geometries/_components/geometries-run-select'
@@ -19,6 +20,7 @@ import { useCreateDashboard, useDashboardLink, useDashboards } from './_hooks'
 import { createEmptyDashboardContent } from './_components/dashboard-grid-editor'
 import { DashboardButton } from './_components/dashboard-button'
 import { SearchInput } from '../../../components/table/search-input'
+import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const DashboardFeature = () => {
   const {
@@ -31,6 +33,7 @@ const DashboardFeature = () => {
     isFetchingNextPage,
   } = useDashboards(undefined, true)
   const createDashboard = useCreateDashboard()
+  const { access } = useAccessControl()
 
   const dashboardLink = useDashboardLink()
   const selectedIndicatorIds = useMemo(
@@ -77,6 +80,7 @@ const DashboardFeature = () => {
           buttonText="Add Dashboard"
           entityName="Dashboard"
           entityNamePlural="dashboards"
+          hideTrigger={!canCreateConsoleResource(access, 'dashboard')}
           hiddenFields={['content', 'metadata']}
         />
       </div>

@@ -31,6 +31,10 @@ import { match } from 'ts-pattern'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import { QueryKey } from '~/utils/apiClient'
+import {
+  formatGlobalUserRole,
+  globalUserRoleSchema,
+} from '~/utils/access-control'
 import { userIdSchema, useUser } from '../_hooks'
 // import AssignOrgForm from './_components/assign-org-form'
 import {
@@ -46,7 +50,7 @@ import { useUnsavedChangesWarning } from '../../../../hooks/useUnsavedChangesWar
 
 const formSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),
-  role: z.enum(['admin', 'user']),
+  role: globalUserRoleSchema,
 })
 
 type Data = z.infer<typeof formSchema>
@@ -76,9 +80,11 @@ const UserProfile = () => {
 
   useEffect(() => {
     if (user) {
+      const parsedRole = globalUserRoleSchema.safeParse(user.role)
+
       form.reset({
         name: user.name ?? '',
-        role: (user.role ?? 'user') as 'admin' | 'user',
+        role: parsedRole.success ? parsedRole.data : 'user',
       })
     }
   }, [user, form])
@@ -241,7 +247,7 @@ const UserProfile = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="super_admin">Super admin</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
@@ -259,7 +265,7 @@ const UserProfile = () => {
       </Form>
 
       <div className="mt-8 border-b border-gray-200 pb-8">
-        <div className="text-xl mb-6 font-medium">Admin actions</div>
+        <div className="text-xl mb-6 font-medium">Super admin actions</div>
         <div className="mb-6">
           <div className="font-medium">Impersonate user</div>
           <div className="mb-3">
@@ -333,6 +339,10 @@ const UserProfile = () => {
             mutation={deleteUser}
           />
         </div>
+      </div>
+
+      <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+        Effective global role: {formatGlobalUserRole(form.watch('role'))}
       </div>
     </div>
   )

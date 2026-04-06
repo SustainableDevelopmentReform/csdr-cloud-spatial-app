@@ -1,14 +1,14 @@
 /* NOTE: this script should run one-time only, when first time create the app */
 
+import { hashPassword } from 'better-auth/crypto'
+import { MultiPolygon } from 'geojson'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 import * as schema from '~/schemas/db'
 import { isEmail } from '~/utils'
-import { hashPassword } from 'better-auth/crypto'
 import { env } from '../src/env'
 import { geomFromGeoJSON } from '../src/schemas/customTypes'
-import { MultiPolygon } from 'geojson'
 
 function getRequiredEnvValue(
   value: string | undefined,
@@ -67,10 +67,10 @@ async function main(): Promise<void> {
     const existingDefaultOrganization = await db
       .select({ id: schema.organization.id })
       .from(schema.organization)
-      .where(eq(schema.organization.id, 'default-organization'))
+      .where(eq(schema.organization.id, 'csdr'))
 
     if (existingDefaultOrganization.length > 0) {
-      console.info('Default organization already exists. Skipping seed.')
+      console.info('CSDR organization already exists. Skipping seed.')
       return
     }
 
@@ -78,9 +78,9 @@ async function main(): Promise<void> {
       await db
         .insert(schema.organization)
         .values({
-          id: 'default-organization',
-          slug: 'default-organization',
-          name: 'Default Organization',
+          id: 'csdr',
+          slug: 'csdr',
+          name: 'CSDR',
           createdAt: new Date(),
           metadata: '{}',
         })
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
           name: initialUserName,
           emailVerified: true,
           createdAt: new Date(),
-          role: 'admin',
+          role: 'super_admin',
           banned: false,
           banReason: null,
           banExpires: null,
@@ -130,11 +130,28 @@ async function main(): Promise<void> {
       'super admin account',
     )
 
+    await expectInsertedRow(
+      await db
+        .insert(schema.member)
+        .values({
+          id: 'csdr-super-admin',
+          organizationId: defaultOrg.id,
+          userId: superAdmin.id,
+          role: 'org_admin',
+          createdAt: new Date(),
+        })
+        .onConflictDoNothing()
+        .returning(),
+      'super admin membership',
+    )
+
     const indicatorCategory = expectInsertedRow(
       await db
         .insert(schema.indicatorCategory)
         .values({
           id: 'forest',
+          organizationId: defaultOrg.id,
+          createdByUserId: superAdmin.id,
           name: 'Forest Data',
           description: 'Forest Data',
         })
@@ -148,6 +165,8 @@ async function main(): Promise<void> {
         .insert(schema.indicator)
         .values({
           id: 'forest-cover-area',
+          organizationId: defaultOrg.id,
+          createdByUserId: superAdmin.id,
           name: 'Forest Land Area',
           categoryId: indicatorCategory.id,
           description: 'Forest Land Area',
@@ -164,6 +183,8 @@ async function main(): Promise<void> {
         .insert(schema.indicator)
         .values({
           id: 'forest-cover-percentage',
+          organizationId: defaultOrg.id,
+          createdByUserId: superAdmin.id,
           name: 'Forest Cover Percentage',
           categoryId: indicatorCategory.id,
           description: 'Forest Cover Percentage',
@@ -180,6 +201,8 @@ async function main(): Promise<void> {
         .insert(schema.dataset)
         .values({
           id: 'forest-cover',
+          organizationId: defaultOrg.id,
+          createdByUserId: superAdmin.id,
           name: 'Forest Cover',
           description: 'Some Forest Cover Data',
           metadata: '{ "source": "https://example.com" }',
@@ -212,6 +235,8 @@ async function main(): Promise<void> {
         .insert(schema.geometries)
         .values({
           id: 'australia-geometries',
+          organizationId: defaultOrg.id,
+          createdByUserId: superAdmin.id,
           name: 'Australia Geometries',
           description: 'Australia Geometries',
           metadata: '{ "source": "https://example.com" }',
@@ -303,8 +328,9 @@ async function main(): Promise<void> {
         .insert(schema.product)
         .values({
           id: 'forest-cover-product',
+          organizationId: defaultOrg.id,
+          createdByUserId: superAdmin.id,
           name: 'Forest Cover Product in Australia',
-          timePrecision: 'year',
           datasetId: dataset.id,
           geometriesId: geometries.id,
           description: 'Forest Cover Product in Australia',

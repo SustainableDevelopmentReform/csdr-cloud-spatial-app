@@ -18,7 +18,9 @@ import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
+import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
+import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
   GeometriesRunListItem,
   useCreateGeometriesRun,
@@ -26,6 +28,7 @@ import {
   useGeometriesRunLink,
   useGeometriesRuns,
 } from '../../_hooks'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 
 const GeometriesRunFeature = () => {
   const {
@@ -37,9 +40,15 @@ const GeometriesRunFeature = () => {
     isLoading,
     isFetchingNextPage,
   } = useGeometriesRuns(undefined, undefined, true)
-  const { data: geometries } = useGeometries()
+  const geometriesQuery = useGeometries()
+  const geometries = geometriesQuery.data
   const createGeometriesRun = useCreateGeometriesRun()
   const geometriesLink = useGeometriesRunLink()
+  const { access } = useAccessControl()
+  const canEdit = canManageConsoleChildResource({
+    access,
+    resourceData: geometries,
+  })
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
@@ -68,60 +77,70 @@ const GeometriesRunFeature = () => {
   }, [form, geometries])
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-medium mb-2">Geometries Runs</h1>
-
-        <CrudFormDialog
-          form={form}
-          mutation={createGeometriesRun}
-          buttonText="Add Geometries Run"
-          entityName="Geometries Run"
-          entityNamePlural="geometries runs"
-        >
-          <CrudFormRunFields form={form} />
-          <FormField
-            control={form.control}
-            name={'dataPmtilesUrl'}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Data PMTiles URL</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </CrudFormDialog>
-      </div>
+    <ResourcePageState
+      error={geometriesQuery.error}
+      errorMessage="Failed to load geometries"
+      isLoading={geometriesQuery.isLoading}
+      loadingMessage="Loading geometries"
+      notFoundMessage="Geometries not found"
+    >
       <div>
-        <SearchInput
-          placeholder="Search geometries runs"
-          value={query?.search ?? ''}
-          onChange={(e) => setSearchParams({ search: e.target.value })}
-        />
-        <BaseCrudTable
-          data={data?.data || []}
-          isLoading={isLoading}
-          baseColumns={baseColumns}
-          extraColumns={columns}
-          title="GeometriesRun"
-          itemLink={geometriesLink}
-          itemButton={(geometriesRun) => (
-            <GeometriesRunButton geometriesRun={geometriesRun} />
-          )}
-          query={query}
-          onSortChange={setSearchParams}
-        />
-        <Pagination
-          className="justify-end mt-4"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-medium mb-2">Geometries Runs</h1>
+
+          <CrudFormDialog
+            form={form}
+            mutation={createGeometriesRun}
+            buttonText="Add Geometries Run"
+            entityName="Geometries Run"
+            entityNamePlural="geometries runs"
+            hiddenFields={['visibility']}
+            hideTrigger={!canEdit}
+          >
+            <CrudFormRunFields form={form} />
+            <FormField
+              control={form.control}
+              name={'dataPmtilesUrl'}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Data PMTiles URL</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CrudFormDialog>
+        </div>
+        <div>
+          <SearchInput
+            placeholder="Search geometries runs"
+            value={query?.search ?? ''}
+            onChange={(e) => setSearchParams({ search: e.target.value })}
+          />
+          <BaseCrudTable
+            data={data?.data || []}
+            isLoading={isLoading}
+            baseColumns={baseColumns}
+            extraColumns={columns}
+            title="GeometriesRun"
+            itemLink={geometriesLink}
+            itemButton={(geometriesRun) => (
+              <GeometriesRunButton geometriesRun={geometriesRun} />
+            )}
+            query={query}
+            onSortChange={setSearchParams}
+          />
+          <Pagination
+            className="justify-end mt-4"
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            onLoadMore={() => fetchNextPage()}
+          />
+        </div>
       </div>
-    </div>
+    </ResourcePageState>
   )
 }
 

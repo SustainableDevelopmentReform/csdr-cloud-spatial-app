@@ -102,9 +102,9 @@ describe('product-run route', () => {
         param: { id: seededIds.productRun },
       }),
       {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
+        status: 404,
+        message: 'Failed to get productRun',
+        description: "productRun you're looking for is not found",
       },
     )
 

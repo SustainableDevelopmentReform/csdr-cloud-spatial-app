@@ -16,7 +16,6 @@ import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { IndicatorListItem, useDerivedIndicator } from '../../indicator/_hooks'
 import {
   ProductDetail,
-  ProductRunAssignedDerivedIndicator,
   ProductRunDetail,
   useAssignDerivedIndicatorToProductRun,
   useComputeDerivedIndicatorsForProductRun,
@@ -38,27 +37,12 @@ import {
 } from '@repo/ui/components/ui/tooltip'
 import { BadgeLink } from '../../../../components/badge-link'
 import { Value } from '../../../../components/value'
-
-type DerivedIndicatorItem =
-  ProductRunAssignedDerivedIndicator['derivedIndicator']
+import { getUserFacingErrorMessage } from '../../../../utils/error-handling'
 
 type DependencyMapping = {
   indicatorId: string
   productId: string | null
   sourceProductRunId: string | null
-}
-
-const getErrorMessage = (error: unknown) => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message?: unknown }).message === 'string'
-  ) {
-    return (error as { message: string }).message
-  }
-
-  return 'Failed to update derived indicators'
 }
 
 const DependencyMappingRow = ({
@@ -233,7 +217,10 @@ export const AssignDerivedIndicatorsDialog = ({
         toast.success('Derived indicator removed')
       },
       onError: (error) => {
-        toast.error(getErrorMessage(error))
+        toast.error(
+          getUserFacingErrorMessage(error) ??
+            'Failed to update derived indicators',
+        )
       },
     })
   }
@@ -288,7 +275,10 @@ export const AssignDerivedIndicatorsDialog = ({
           toast.success('Derived indicator assigned')
         },
         onError: (error) => {
-          toast.error(getErrorMessage(error))
+          toast.error(
+            getUserFacingErrorMessage(error) ??
+              'Failed to update derived indicators',
+          )
         },
       },
     )
@@ -479,7 +469,10 @@ export const AssignDerivedIndicatorsDialog = ({
                       }
                     },
                     onError: (error) => {
-                      toast.error(getErrorMessage(error))
+                      toast.error(
+                        getUserFacingErrorMessage(error) ??
+                          'Failed to update derived indicators',
+                      )
                       setWarnings([])
                     },
                   })

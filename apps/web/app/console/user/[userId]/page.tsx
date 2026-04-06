@@ -3,7 +3,7 @@ import ClientPage from './client'
 
 export default () => {
   return (
-    <PageAuthGuard roles={['admin']}>
+    <PageAuthGuard roles={['super_admin']}>
       <ClientPage />
     </PageAuthGuard>
   )

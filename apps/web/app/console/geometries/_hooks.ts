@@ -27,6 +27,10 @@ import {
   GEOMETRIES_RUNS_BASE_PATH,
   GEOMETRIES_RUNS_OUTPUTS_BASE_PATH,
 } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 
 export type GeometriesListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
@@ -75,6 +79,11 @@ export type GeometryOutputDetail = NonNullable<
 
 export type UpdateGeometriesPayload = NonNullable<
   InferRequestType<Client['api']['v0']['geometries'][':id']['$patch']>['json']
+>
+export type UpdateGeometriesVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['geometries'][':id']['visibility']['$patch']
+  >['json']
 >
 
 export type UpdateGeometriesRunPayload = NonNullable<
@@ -614,6 +623,55 @@ export const useUpdateGeometries = (_geometriesId?: string) => {
   })
 }
 
+export const useUpdateGeometriesVisibility = (_geometriesId?: string) => {
+  const { geometriesId } = useGeometriesParams(_geometriesId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateGeometriesVisibilityPayload) => {
+      if (!geometriesId) return
+      const res = client.api.v0.geometries[':id'].visibility.$patch({
+        param: { id: geometriesId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: geometriesQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const usePreviewGeometriesVisibility = (_geometriesId?: string) => {
+  const { geometriesId } = useGeometriesParams(_geometriesId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!geometriesId) {
+        return null
+      }
+
+      const res = client.api.v0.geometries[':id']['visibility-impact'].$get({
+        param: {
+          id: geometriesId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
+    },
+  })
+}
+
 export const useUpdateGeometriesRun = (_geometriesRunId?: string) => {
   const { geometriesRunId } = useGeometriesParams(undefined, _geometriesRunId)
   const queryClient = useQueryClient()
@@ -805,7 +863,9 @@ export const useDeleteGeometriesRun = (
   })
 }
 
-export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'>
+export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useAllGeometriesLink = () =>
   useCallback(

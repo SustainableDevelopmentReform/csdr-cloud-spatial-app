@@ -184,12 +184,14 @@ type SimpleEditorProps = {
   onUpdate: (json: any) => void
   content: Content
   chartFormBuilder?: ChartFormBuilder
+  editable?: boolean
 }
 
 export function SimpleEditor({
   onUpdate,
   content,
   chartFormBuilder,
+  editable = true,
 }: SimpleEditorProps) {
   const isMobile = useIsMobile()
   const { height } = useWindowSize()
@@ -224,6 +226,7 @@ export function SimpleEditor({
 
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
+    editable,
     editorProps: {
       attributes: {
         autocomplete: 'off',
@@ -272,22 +275,24 @@ export function SimpleEditor({
               : {}),
           }}
         >
-          {mobileView === 'main' ? (
-            <MainToolbarContent
-              onHighlighterClick={() => setMobileView('highlighter')}
-              onLinkClick={() => setMobileView('link')}
-              isMobile={isMobile}
-              showChartButton={Boolean(chartFormBuilder)}
-            />
-          ) : (
-            <MobileToolbarContent
-              type={mobileView === 'highlighter' ? 'highlighter' : 'link'}
-              onBack={() => setMobileView('main')}
-            />
-          )}
+          {editable ? (
+            mobileView === 'main' ? (
+              <MainToolbarContent
+                onHighlighterClick={() => setMobileView('highlighter')}
+                onLinkClick={() => setMobileView('link')}
+                isMobile={isMobile}
+                showChartButton={Boolean(chartFormBuilder)}
+              />
+            ) : (
+              <MobileToolbarContent
+                type={mobileView === 'highlighter' ? 'highlighter' : 'link'}
+                onBack={() => setMobileView('main')}
+              />
+            )
+          ) : null}
         </Toolbar>
 
-        {editor && (
+        {editor && editable ? (
           <DragHandle editor={editor}>
             <div className="tiptap-drag-handle">
               <svg
@@ -305,7 +310,7 @@ export function SimpleEditor({
               </svg>
             </div>
           </DragHandle>
-        )}
+        ) : null}
 
         <EditorContent
           editor={editor}

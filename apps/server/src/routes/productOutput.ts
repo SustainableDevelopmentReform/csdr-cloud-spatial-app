@@ -18,6 +18,7 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
+import { assertResourceWritable } from '~/lib/authorization'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
@@ -265,7 +266,9 @@ const app = createOpenAPIApp()
       description: 'Retrieve a product output.',
       method: 'get',
       path: '/:id',
-      middleware: [authMiddleware({ permission: 'read:productOutput' })],
+      middleware: [
+        authMiddleware({ permission: 'read:productOutput', scope: 'explorer' }),
+      ],
       request: {
         params: z.object({ id: z.string().min(1) }),
       },
@@ -328,6 +331,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'productRun',
+        resourceId: payload.productRunId,
+        notFoundError: productOutputNotFoundError,
+      })
       const timePointDate = new Date(payload.timePoint)
 
       if (Number.isNaN(timePointDate.valueOf())) {
@@ -391,6 +400,12 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      await assertResourceWritable({
+        c,
+        resource: 'productRun',
+        resourceId: payload.productRunId,
+        notFoundError: productOutputNotFoundError,
+      })
       const timePointDate = new Date(payload.timePoint)
 
       if (Number.isNaN(timePointDate.valueOf())) {
@@ -500,6 +515,13 @@ const app = createOpenAPIApp()
     async (c) => {
       const { productRunId, geometryColumn, indicatorMappings, csvFile } =
         c.req.valid('form')
+
+      await assertResourceWritable({
+        c,
+        resource: 'productRun',
+        resourceId: productRunId,
+        notFoundError: productOutputNotFoundError,
+      })
 
       const productRunRecord = await db.query.productRun.findFirst({
         where: (productRunTable, { eq }) =>

@@ -101,14 +101,15 @@ describe('indicator route', () => {
     await createReportWithChartUsage(seededIds.derivedIndicator)
     await createDashboardWithChartUsage(seededIds.derivedIndicator)
 
-    await expectJsonResponse(
-      await createAppClient().api.v0.indicator.$get({ query: {} }),
-      {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
-      },
-    )
+    const anonymousListJson = await expectJsonResponse<{
+      data: { id: string; type: 'measured' | 'derived' }[]
+      totalCount: number
+    }>(await createAppClient().api.v0.indicator.$get({ query: {} }), {
+      status: 200,
+      message: 'OK',
+    })
+    expect(anonymousListJson.data.totalCount).toBe(0)
+    expect(anonymousListJson.data.data).toEqual([])
 
     const listJson = await expectJsonResponse<{
       data: { id: string; type: 'measured' | 'derived' }[]
@@ -207,6 +208,91 @@ describe('indicator route', () => {
     )
   })
 
+  it('retrieves public indicators via the combined endpoint across organizations', async () => {
+    const otherOrgClient = createAppClient(
+      await createSessionHeaders({
+        email: 'indicator-public-reader@example.com',
+        organizationId: 'other-indicator-organization',
+      }),
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.measured[':id']['visibility'].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.derived[':id']['visibility'].$patch({
+        param: { id: seededIds.derivedIndicator },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Derived indicator visibility updated',
+      },
+    )
+
+    await expectJsonResponse(
+      await otherOrgClient.api.v0.indicator.measured[':id'].$get({
+        param: { id: seededIds.indicator },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const measuredCombinedJson = await expectJsonResponse<{
+      id: string
+      type: 'measured'
+    }>(
+      await otherOrgClient.api.v0.indicator[':id'].$get({
+        param: { id: seededIds.indicator },
+      }),
+      {
+        status: 200,
+        message: 'Indicator retrieved',
+      },
+    )
+    expect(measuredCombinedJson.data.id).toBe(seededIds.indicator)
+    expect(measuredCombinedJson.data.type).toBe('measured')
+
+    await expectJsonResponse(
+      await otherOrgClient.api.v0.indicator.derived[':id'].$get({
+        param: { id: seededIds.derivedIndicator },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const derivedCombinedJson = await expectJsonResponse<{
+      id: string
+      type: 'derived'
+    }>(
+      await otherOrgClient.api.v0.indicator[':id'].$get({
+        param: { id: seededIds.derivedIndicator },
+      }),
+      {
+        status: 200,
+        message: 'Indicator retrieved',
+      },
+    )
+    expect(derivedCombinedJson.data.id).toBe(seededIds.derivedIndicator)
+    expect(derivedCombinedJson.data.type).toBe('derived')
+  })
+
   it('returns write auth and success messages', async () => {
     await expectJsonResponse(
       await memberClient.api.v0.indicator.measured.$post({
@@ -297,6 +383,74 @@ describe('indicator route', () => {
         message: 'Measured indicator deleted',
       },
     )
+  })
+
+  it('allows another organization to create a derived indicator from a global measured indicator', async () => {
+    const otherOrgAdminClient = createAppClient(
+      await createSessionHeaders({
+        email: 'indicator-global-derived-admin@example.com',
+        organizationId: 'other-derived-indicator-organization',
+        organizationRole: 'org_admin',
+        twoFactorEnabled: true,
+      }),
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.indicator.measured[':id']['visibility'].$patch({
+        param: { id: seededIds.indicator },
+        json: {
+          visibility: 'global',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Measured indicator visibility updated',
+      },
+    )
+
+    const listJson = await expectJsonResponse<{
+      data: { id: string; type: 'measured' | 'derived' }[]
+    }>(
+      await otherOrgAdminClient.api.v0.indicator.$get({
+        query: { type: 'measure' },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      listJson.data.data.some((item) => item.id === seededIds.indicator),
+    ).toBe(true)
+
+    const createdDerivedJson = await expectJsonResponse<{
+      id: string
+      indicators: { id: string }[]
+      organizationId: string
+    }>(
+      await otherOrgAdminClient.api.v0.indicator.derived.$post({
+        json: {
+          name: 'Other org global derived indicator',
+          unit: '%',
+          expression: '$1 * 2',
+          indicatorIds: [seededIds.indicator],
+        },
+      }),
+      {
+        status: 201,
+        message: 'Derived indicator created',
+      },
+    )
+
+    expect(createdDerivedJson.data.organizationId).toBe(
+      'other-derived-indicator-organization',
+    )
+    expect(
+      createdDerivedJson.data.indicators.some(
+        (item) => item.id === seededIds.indicator,
+      ),
+    ).toBe(true)
   })
 
   it('blocks deleting indicators that are used by reports or dashboards', async () => {

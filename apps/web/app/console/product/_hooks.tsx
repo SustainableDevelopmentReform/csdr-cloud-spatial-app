@@ -27,6 +27,10 @@ import {
   PRODUCTS_RUNS_BASE_PATH,
   PRODUCTS_RUNS_OUTPUTS_BASE_PATH,
 } from '../../../lib/paths'
+import {
+  ResourceVisibility,
+  VisibilityImpact,
+} from '../../../utils/access-control'
 import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../dataset/_components/dataset-run-button'
 import {
@@ -85,6 +89,11 @@ export type ProductOutputDetail = NonNullable<
 
 export type UpdateProductPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product'][':id']['$patch']>['json']
+>
+export type UpdateProductVisibilityPayload = NonNullable<
+  InferRequestType<
+    Client['api']['v0']['product'][':id']['visibility']['$patch']
+  >['json']
 >
 export type UpdateProductRunPayload = NonNullable<
   InferRequestType<Client['api']['v0']['product-run'][':id']['$patch']>['json']
@@ -706,6 +715,55 @@ export const useUpdateProduct = (_productId?: string) => {
   })
 }
 
+export const useUpdateProductVisibility = (_productId?: string) => {
+  const { productId } = useProductParams(_productId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateProductVisibilityPayload) => {
+      if (!productId) return
+      const res = client.api.v0.product[':id'].visibility.$patch({
+        param: { id: productId },
+        json: payload,
+      })
+      return await unwrapResponse(res)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.all,
+      })
+    },
+  })
+}
+
+export const usePreviewProductVisibility = (_productId?: string) => {
+  const { productId } = useProductParams(_productId)
+  const client = useApiClient()
+  return useMutation<
+    VisibilityImpact | null,
+    Error,
+    { visibility: ResourceVisibility }
+  >({
+    mutationFn: async (payload) => {
+      if (!productId) {
+        return null
+      }
+
+      const res = client.api.v0.product[':id']['visibility-impact'].$get({
+        param: {
+          id: productId,
+        },
+        query: {
+          targetVisibility: payload.visibility,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
+    },
+  })
+}
+
 export const useUpdateProductRun = (_productRunId?: string) => {
   const { productRunId } = useProductParams(undefined, _productRunId)
   const queryClient = useQueryClient()
@@ -1028,7 +1086,9 @@ export const useProductsLink = () =>
     [],
   )
 
-export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'>
+export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'> & {
+  visibility?: ResourceVisibility | null
+}
 
 export const useProductLink = () =>
   useCallback(
