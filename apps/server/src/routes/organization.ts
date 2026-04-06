@@ -46,6 +46,11 @@ const createOrganizationSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
 })
 
+const updateOrganizationSchema = z.object({
+  name: z.string().trim().min(1),
+  organizationId: z.string().min(1).optional(),
+})
+
 const setActiveOrganizationSchema = z.object({
   organizationId: z.string().min(1),
 })
@@ -315,6 +320,17 @@ const loadOrganizationSummary = async (organizationId: string) => {
   return currentOrganization
 }
 
+const loadOrganizationMemberCount = async (organizationId: string) => {
+  const organizationMembers = await db.query.member.findMany({
+    columns: {
+      id: true,
+    },
+    where: (table, { eq }) => eq(table.organizationId, organizationId),
+  })
+
+  return organizationMembers.length
+}
+
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -500,6 +516,89 @@ const app = createOpenAPIApp()
             createdOrganization,
             201,
             'Organization created',
+          )
+        },
+      }),
+  )
+  .openapi(
+    createRoute({
+      method: 'patch',
+      path: '/',
+      description: 'Update an organization as a super admin.',
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: updateOrganizationSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Organization updated.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(organizationSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('Forbidden'),
+        404: jsonErrorResponse('Organization not found'),
+        422: validationErrorResponse,
+      },
+    }),
+    async (c) =>
+      runLoggedSuperAdminAction({
+        c,
+        resourceType: 'organization',
+        action: 'update',
+        run: async (actor, logContext) => {
+          const payload = c.req.valid('json')
+          const managedOrganizationId = await resolveSuperAdminOrganizationId({
+            actor,
+            organizationId: payload.organizationId,
+          })
+          const normalizedName = payload.name.trim()
+
+          logContext.resourceId = managedOrganizationId
+          logContext.targetOrganizationId = managedOrganizationId
+
+          const updatedOrganizations = await db
+            .update(organization)
+            .set({
+              name: normalizedName,
+            })
+            .where(eq(organization.id, managedOrganizationId))
+            .returning({
+              createdAt: organization.createdAt,
+              id: organization.id,
+              name: organization.name,
+              slug: organization.slug,
+            })
+
+          const updatedOrganization = updatedOrganizations[0]
+
+          if (!updatedOrganization) {
+            throw new ServerError({
+              statusCode: 404,
+              message: 'Organization not found',
+            })
+          }
+
+          return generateJsonResponse(
+            c,
+            {
+              ...updatedOrganization,
+              createdAt: updatedOrganization.createdAt.toISOString(),
+              memberCount: await loadOrganizationMemberCount(
+                managedOrganizationId,
+              ),
+            },
+            200,
+            'Organization updated',
           )
         },
       }),

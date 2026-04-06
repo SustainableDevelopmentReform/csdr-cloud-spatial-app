@@ -349,6 +349,29 @@ describe('access control integration', () => {
       'direct add user id',
     )
 
+    const updatedOrganization = await expectJsonResponse<{
+      id: string
+      memberCount: number
+      name: string
+      slug: string
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization.$patch({
+        json: {
+          organizationId: detachedOrganizationId,
+          name: 'Super Admin Renamed Organization',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Organization updated',
+      },
+    )
+
+    expect(updatedOrganization.data.id).toBe(detachedOrganizationId)
+    expect(updatedOrganization.data.name).toBe(
+      'Super Admin Renamed Organization',
+    )
+
     const addedMember = await expectJsonResponse<{
       id: string
       organizationId: string
@@ -382,6 +405,13 @@ describe('access control integration', () => {
         ),
     })
     expect(persistedAddedMember?.role).toBe('org_viewer')
+
+    const persistedUpdatedOrganization = await db.query.organization.findFirst({
+      where: eq(organization.id, detachedOrganizationId),
+    })
+    expect(persistedUpdatedOrganization?.name).toBe(
+      'Super Admin Renamed Organization',
+    )
 
     const updatedMember = await expectJsonResponse<{
       id: string

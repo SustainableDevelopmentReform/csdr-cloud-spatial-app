@@ -66,8 +66,10 @@ const WorkspacePageClient = () => {
     activeOrganizationId,
     access.isSuperAdmin,
   )
-  const updateOrganization =
-    useUpdateWorkspaceOrganization(activeOrganizationId)
+  const updateOrganization = useUpdateWorkspaceOrganization(
+    activeOrganizationId,
+    access.isSuperAdmin,
+  )
   const removeMember = useRemoveWorkspaceMember(
     activeOrganizationId,
     access.isSuperAdmin,
@@ -224,12 +226,6 @@ const WorkspacePageClient = () => {
         {!hasActiveOrganization ? (
           <div className="text-sm text-gray-500">
             Select an organization before editing its name.
-          </div>
-        ) : access.isSuperAdmin ? (
-          <div className="text-sm text-gray-500">
-            Organization rename uses Better Auth&apos;s organization update
-            flow, which requires org-admin membership in the selected
-            organization.
           </div>
         ) : (
           <div className="grid max-w-xl gap-3">

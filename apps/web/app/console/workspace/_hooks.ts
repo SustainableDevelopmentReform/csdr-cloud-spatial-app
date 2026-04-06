@@ -260,13 +260,31 @@ export const useCreateOrganization = () => {
 
 export const useUpdateWorkspaceOrganization = (
   organizationId: string | null,
+  isSuperAdmin = false,
 ) => {
+  const client = useApiClient()
   const authClient = useAuthClient()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (payload: { name: string }) =>
-      unwrapAuthClientResponse(
+    mutationFn: async (payload: { name: string }) => {
+      if (isSuperAdmin) {
+        return (
+          await unwrapResponse(
+            client.api.v0.organization.$patch({
+              json:
+                organizationId === null
+                  ? payload
+                  : {
+                      ...payload,
+                      organizationId,
+                    },
+            }),
+          )
+        ).data
+      }
+
+      return unwrapAuthClientResponse(
         await authClient.organization.update(
           organizationId
             ? {
@@ -281,7 +299,8 @@ export const useUpdateWorkspaceOrganization = (
                 },
               },
         ),
-      ),
+      )
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: workspaceQueryKeys.organizations,
