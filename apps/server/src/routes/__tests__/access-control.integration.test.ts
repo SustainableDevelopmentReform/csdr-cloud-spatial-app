@@ -337,6 +337,52 @@ describe('access control integration', () => {
     expect(listedMembers.data.total).toBe(1)
     expect(listedMembers.data.members[0]?.userId).toBe(detachedMemberId)
 
+    const directAddHeaders = await createSessionHeaders({
+      email: 'direct-add@example.com',
+    })
+    const directAddSession =
+      await createTestAuthClient(directAddHeaders).client.getSession()
+    expect(directAddSession.error).toBeNull()
+
+    const directAddUserId = requireValue(
+      directAddSession.data?.user.id,
+      'direct add user id',
+    )
+
+    const addedMember = await expectJsonResponse<{
+      id: string
+      organizationId: string
+      role: string
+      userId: string
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.organization[
+        'add-member'
+      ].$post({
+        json: {
+          organizationId: detachedOrganizationId,
+          role: 'org_viewer',
+          userId: directAddUserId,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Member added',
+      },
+    )
+
+    expect(addedMember.data.organizationId).toBe(detachedOrganizationId)
+    expect(addedMember.data.role).toBe('org_viewer')
+    expect(addedMember.data.userId).toBe(directAddUserId)
+
+    const persistedAddedMember = await db.query.member.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, detachedOrganizationId),
+          eq(table.userId, directAddUserId),
+        ),
+    })
+    expect(persistedAddedMember?.role).toBe('org_viewer')
+
     const updatedMember = await expectJsonResponse<{
       id: string
       role: string

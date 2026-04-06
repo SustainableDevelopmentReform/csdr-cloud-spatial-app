@@ -10,19 +10,22 @@ import {
   SelectValue,
 } from '@repo/ui/components/ui/select'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useAccessControl } from '~/hooks/useAccessControl'
 import {
   formatOrganizationRole,
   organizationRoleSchema,
 } from '~/utils/access-control'
+import { useAdminUserSearch } from '../user/_hooks'
 import {
+  useAddWorkspaceMember,
   useAdminOrganizations,
   useCancelWorkspaceInvitation,
   useCreateOrganization,
   useInviteWorkspaceMember,
   useRemoveWorkspaceMember,
+  useUpdateWorkspaceOrganization,
   useUpdateWorkspaceMemberRole,
   useWorkspaceInvitations,
   useWorkspaceMembers,
@@ -63,7 +66,13 @@ const WorkspacePageClient = () => {
     activeOrganizationId,
     access.isSuperAdmin,
   )
+  const updateOrganization =
+    useUpdateWorkspaceOrganization(activeOrganizationId)
   const removeMember = useRemoveWorkspaceMember(
+    activeOrganizationId,
+    access.isSuperAdmin,
+  )
+  const addWorkspaceMember = useAddWorkspaceMember(
     activeOrganizationId,
     access.isSuperAdmin,
   )
@@ -73,10 +82,28 @@ const WorkspacePageClient = () => {
     useState<z.infer<typeof organizationRoleSchema>>('org_viewer')
   const [organizationName, setOrganizationName] = useState('')
   const [organizationSlug, setOrganizationSlug] = useState('')
+  const [organizationNameDraft, setOrganizationNameDraft] = useState('')
+  const [existingUserSearch, setExistingUserSearch] = useState('')
+  const deferredExistingUserSearch = useDeferredValue(existingUserSearch)
+  const [existingUserRole, setExistingUserRole] =
+    useState<z.infer<typeof organizationRoleSchema>>('org_viewer')
+  const candidateUsers = useAdminUserSearch(
+    deferredExistingUserSearch.trim(),
+    access.isSuperAdmin &&
+      hasActiveOrganization &&
+      deferredExistingUserSearch.trim() !== '',
+  )
   const pendingInvitations =
     invitations.data?.filter(
       (invitation) => invitation.status.toLowerCase() === 'pending',
     ) ?? []
+  const existingMemberUserIds = new Set(
+    (members.data?.members ?? []).map((member) => member.userId),
+  )
+
+  useEffect(() => {
+    setOrganizationNameDraft(activeOrganization.data?.name ?? '')
+  }, [activeOrganization.data?.id, activeOrganization.data?.name])
 
   return (
     <div className="max-w-6xl">
@@ -193,6 +220,56 @@ const WorkspacePageClient = () => {
       ) : null}
 
       <section className="mb-8 border-b border-gray-200 pb-8">
+        <h2 className="mb-4 text-xl font-medium">Organization settings</h2>
+        {!hasActiveOrganization ? (
+          <div className="text-sm text-gray-500">
+            Select an organization before editing its name.
+          </div>
+        ) : access.isSuperAdmin ? (
+          <div className="text-sm text-gray-500">
+            Organization rename uses Better Auth&apos;s organization update
+            flow, which requires org-admin membership in the selected
+            organization.
+          </div>
+        ) : (
+          <div className="grid max-w-xl gap-3">
+            <Input
+              placeholder="Organization name"
+              value={organizationNameDraft}
+              onChange={(event) => setOrganizationNameDraft(event.target.value)}
+            />
+            <Button
+              className="w-fit"
+              disabled={
+                updateOrganization.isPending ||
+                organizationNameDraft.trim() === '' ||
+                organizationNameDraft.trim() === activeOrganization.data?.name
+              }
+              onClick={() => {
+                updateOrganization.mutate(
+                  {
+                    name: organizationNameDraft.trim(),
+                  },
+                  {
+                    onSuccess: () => {
+                      toast.success('Organization updated')
+                    },
+                    onError: (error) => {
+                      toast.error(error.message)
+                    },
+                  },
+                )
+              }}
+            >
+              {updateOrganization.isPending
+                ? 'Saving...'
+                : 'Update organization'}
+            </Button>
+          </div>
+        )}
+      </section>
+
+      <section className="mb-8 border-b border-gray-200 pb-8">
         <h2 className="mb-4 text-xl font-medium">Members</h2>
         {!hasActiveOrganization ? (
           <div className="text-sm text-gray-500">
@@ -287,6 +364,135 @@ const WorkspacePageClient = () => {
           </div>
         )}
       </section>
+
+      {access.isSuperAdmin ? (
+        <section className="mb-8 border-b border-gray-200 pb-8">
+          <h2 className="mb-4 text-xl font-medium">Add existing user</h2>
+          {!hasActiveOrganization ? (
+            <div className="text-sm text-gray-500">
+              Select an organization before adding an existing user.
+            </div>
+          ) : (
+            <>
+              <div className="mb-4 grid max-w-xl gap-3">
+                <Input
+                  placeholder="Search by name or email"
+                  value={existingUserSearch}
+                  onChange={(event) =>
+                    setExistingUserSearch(event.target.value)
+                  }
+                />
+                <Select
+                  value={existingUserRole}
+                  onValueChange={(nextRole) => {
+                    const parsedRole =
+                      organizationRoleSchema.safeParse(nextRole)
+
+                    if (!parsedRole.success) {
+                      return
+                    }
+
+                    setExistingUserRole(parsedRole.data)
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="org_admin">Org admin</SelectItem>
+                    <SelectItem value="org_creator">Org creator</SelectItem>
+                    <SelectItem value="org_viewer">Org viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {deferredExistingUserSearch.trim() === '' ? (
+                <div className="text-sm text-gray-500">
+                  Search for an existing user to add them directly to the active
+                  organization.
+                </div>
+              ) : candidateUsers.isLoading ? (
+                <div className="text-sm text-gray-500">Searching users...</div>
+              ) : candidateUsers.isError ? (
+                <div className="text-sm text-red-600">
+                  {candidateUsers.error instanceof Error
+                    ? candidateUsers.error.message
+                    : 'Failed to search users.'}
+                </div>
+              ) : candidateUsers.data?.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="px-3 py-2 font-medium">Name</th>
+                        <th className="px-3 py-2 font-medium">Email</th>
+                        <th className="px-3 py-2 font-medium">Status</th>
+                        <th className="px-3 py-2 font-medium"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {candidateUsers.data.map((candidateUser) => {
+                        const isExistingMember = existingMemberUserIds.has(
+                          candidateUser.id,
+                        )
+
+                        return (
+                          <tr
+                            key={candidateUser.id}
+                            className="border-b border-gray-100"
+                          >
+                            <td className="px-3 py-2">
+                              {candidateUser.name ?? 'Unnamed user'}
+                            </td>
+                            <td className="px-3 py-2">{candidateUser.email}</td>
+                            <td className="px-3 py-2">
+                              {isExistingMember
+                                ? 'Already a member'
+                                : `Ready to add as ${formatOrganizationRole(existingUserRole)}`}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={
+                                  addWorkspaceMember.isPending ||
+                                  isExistingMember
+                                }
+                                onClick={() => {
+                                  addWorkspaceMember.mutate(
+                                    {
+                                      role: existingUserRole,
+                                      userId: candidateUser.id,
+                                    },
+                                    {
+                                      onSuccess: () => {
+                                        toast.success('Member added')
+                                      },
+                                      onError: (error) => {
+                                        toast.error(error.message)
+                                      },
+                                    },
+                                  )
+                                }}
+                              >
+                                Add to organization
+                              </Button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  No users matched that search.
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      ) : null}
 
       <section className="mb-8 border-b border-gray-200 pb-8">
         <h2 className="mb-4 text-xl font-medium">Invite member</h2>

@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import type { Context } from 'hono'
 import { and, asc, desc, eq } from 'drizzle-orm'
-import type { AuthType } from '~/lib/auth'
+import { auth, type AuthType } from '~/lib/auth'
 import {
   appOrganizationRoleValues,
   getHighestOrganizationRole,
@@ -96,6 +96,12 @@ const createWorkspaceInvitationSchema = z.object({
   email: z.string().trim().email(),
   organizationId: z.string().min(1).optional(),
   role: organizationRoleSchema,
+})
+
+const addWorkspaceMemberSchema = z.object({
+  organizationId: z.string().min(1).optional(),
+  role: organizationRoleSchema,
+  userId: z.string().min(1),
 })
 
 const updateWorkspaceMemberRoleSchema = z.object({
@@ -494,6 +500,122 @@ const app = createOpenAPIApp()
             createdOrganization,
             201,
             'Organization created',
+          )
+        },
+      }),
+  )
+  .openapi(
+    createRoute({
+      method: 'post',
+      path: '/add-member',
+      description:
+        'Add an existing user to a target organization as a super admin.',
+      request: {
+        body: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: addWorkspaceMemberSchema,
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Member added.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(workspaceMemberSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('Forbidden'),
+        404: jsonErrorResponse('User not found'),
+        409: jsonErrorResponse('User is already a member of this organization'),
+        422: validationErrorResponse,
+      },
+    }),
+    async (c) =>
+      runLoggedSuperAdminAction({
+        c,
+        resourceType: 'member',
+        action: 'create',
+        run: async (actor, logContext) => {
+          const payload = c.req.valid('json')
+          const managedOrganizationId = await resolveSuperAdminOrganizationId({
+            actor,
+            organizationId: payload.organizationId,
+          })
+
+          logContext.targetOrganizationId = managedOrganizationId
+
+          const existingUser = await db.query.user.findFirst({
+            columns: {
+              email: true,
+              id: true,
+              image: true,
+              name: true,
+            },
+            where: (table, { eq }) => eq(table.id, payload.userId),
+          })
+
+          if (!existingUser) {
+            throw new ServerError({
+              statusCode: 404,
+              message: 'User not found',
+            })
+          }
+
+          const existingMembership = await db.query.member.findFirst({
+            columns: {
+              id: true,
+            },
+            where: (table, { and, eq }) =>
+              and(
+                eq(table.organizationId, managedOrganizationId),
+                eq(table.userId, payload.userId),
+              ),
+          })
+
+          if (existingMembership) {
+            throw new ServerError({
+              statusCode: 409,
+              message: 'User is already a member of this organization',
+            })
+          }
+
+          const createdMember = await auth.api.addMember({
+            body: {
+              organizationId: managedOrganizationId,
+              role: payload.role,
+              userId: payload.userId,
+            },
+          })
+          const createdMemberRole = getHighestOrganizationRole(
+            createdMember.role,
+          )
+
+          if (createdMemberRole === null) {
+            throw new ServerError({
+              statusCode: 500,
+              message: 'Failed to resolve member role',
+            })
+          }
+
+          logContext.resourceId = createdMember.id
+
+          return generateJsonResponse(
+            c,
+            {
+              id: createdMember.id,
+              organizationId: createdMember.organizationId,
+              role: organizationRoleSchema.parse(createdMemberRole),
+              user: existingUser,
+              userId: createdMember.userId,
+            },
+            201,
+            'Member added',
           )
         },
       }),
