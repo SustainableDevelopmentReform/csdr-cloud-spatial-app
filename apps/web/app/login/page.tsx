@@ -1,7 +1,15 @@
 import Link from '../../components/link'
+import { getUserServerSession } from '~/utils/getUserServerSession'
+import { redirect } from 'next/navigation'
 import LoginForm from './_components/form'
 
-const Page = () => {
+const Page = async () => {
+  const { user } = await getUserServerSession()
+
+  if (user) {
+    redirect('/console')
+  }
+
   return (
     <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
       <div className="font-bold text-2xl mb-8 -mt-8 w-full">
