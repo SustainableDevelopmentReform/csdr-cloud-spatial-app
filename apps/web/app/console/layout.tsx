@@ -30,6 +30,20 @@ const SIDEBAR_CONFIG = [
     show: (isSuperAdmin: boolean) => isSuperAdmin,
   },
   {
+    text: 'Organization',
+    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
+    href: WORKSPACE_BASE_PATH,
+    show: (_isSuperAdmin: boolean, canManage: boolean) => canManage,
+  },
+  {
+    text: 'Logs',
+    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
+    href: LOGS_BASE_PATH,
+    show: (_isSuperAdmin: boolean, _canManage: boolean, canReadLogs: boolean) =>
+      canReadLogs,
+  },
+
+  {
     text: 'Datasets',
     icon: <SquareIcon className="fill-dataset stroke-none size-6" />,
     href: DATASETS_BASE_PATH,
@@ -70,19 +84,6 @@ const SIDEBAR_CONFIG = [
     icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
     href: REPORTS_BASE_PATH,
     show: () => true,
-  },
-  {
-    text: 'Workspace',
-    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
-    href: WORKSPACE_BASE_PATH,
-    show: (_isSuperAdmin: boolean, canManage: boolean) => canManage,
-  },
-  {
-    text: 'Logs',
-    icon: <SquareIcon className="fill-gray-300 stroke-none size-6" />,
-    href: LOGS_BASE_PATH,
-    show: (_isSuperAdmin: boolean, _canManage: boolean, canReadLogs: boolean) =>
-      canReadLogs,
   },
 ]
 
