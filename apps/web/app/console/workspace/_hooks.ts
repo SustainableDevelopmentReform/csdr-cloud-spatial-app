@@ -258,6 +258,97 @@ export const useCreateOrganization = () => {
   })
 }
 
+export const useUpdateWorkspaceOrganization = (
+  organizationId: string | null,
+  isSuperAdmin = false,
+) => {
+  const client = useApiClient()
+  const authClient = useAuthClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: { name: string }) => {
+      if (isSuperAdmin) {
+        return (
+          await unwrapResponse(
+            client.api.v0.organization.$patch({
+              json:
+                organizationId === null
+                  ? payload
+                  : {
+                      ...payload,
+                      organizationId,
+                    },
+            }),
+          )
+        ).data
+      }
+
+      return unwrapAuthClientResponse(
+        await authClient.organization.update(
+          organizationId
+            ? {
+                data: {
+                  name: payload.name,
+                },
+                organizationId,
+              }
+            : {
+                data: {
+                  name: payload.name,
+                },
+              },
+        ),
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: workspaceQueryKeys.organizations,
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['access-control'],
+      })
+    },
+  })
+}
+
+export const useAddWorkspaceMember = (
+  organizationId: string | null,
+  isSuperAdmin = false,
+) => {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: {
+      role: z.infer<typeof organizationRoleSchema>
+      userId: string
+    }) => {
+      if (!isSuperAdmin) {
+        throw new Error('User is not authorized')
+      }
+
+      await unwrapResponse(
+        client.api.v0.organization['add-member'].$post({
+          json:
+            organizationId === null
+              ? payload
+              : {
+                  ...payload,
+                  organizationId,
+                },
+        }),
+        201,
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspace', 'members'],
+      })
+    },
+  })
+}
+
 export const useUpdateWorkspaceMemberRole = (
   organizationId: string | null,
   isSuperAdmin = false,

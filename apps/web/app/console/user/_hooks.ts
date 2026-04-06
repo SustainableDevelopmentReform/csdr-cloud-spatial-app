@@ -117,3 +117,31 @@ export const useUsers = () => {
     data: aggregatedData,
   }
 }
+
+export const useAdminUserSearch = (
+  search: string,
+  enabled = true,
+  limit = 10,
+) => {
+  const authClient = useAuthClient()
+
+  return useQuery({
+    queryKey: [QueryKey.Users, 'search', search, limit],
+    enabled,
+    queryFn: async () => {
+      const res = await authClient.admin.listUsers({
+        query: {
+          limit,
+          offset: 0,
+          searchValue: search,
+        },
+      })
+
+      if (res.error) {
+        throw res.error
+      }
+
+      return listUsersResponseSchema.parse(res.data).users
+    },
+  })
+}
