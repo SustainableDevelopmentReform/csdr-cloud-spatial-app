@@ -228,7 +228,7 @@ const app = createOpenAPIApp()
       path: '/:id/runs',
       middleware: [
         authMiddleware({
-          permission: 'read:productRun',
+          permission: 'read:geometriesRun',
           scope: 'explorer',
           skipResourceCheck: true,
         }),

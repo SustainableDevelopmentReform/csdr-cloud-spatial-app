@@ -55,6 +55,11 @@ export const env = createEnv({
       .optional()
       .default(defaultAnonymousPublicAccess)
       .transform((val) => val === 'true'),
+    ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
     ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID: z
       .string()
       .optional()
@@ -101,6 +106,8 @@ export const env = createEnv({
       process.env.AUTH_REQUIRE_EMAIL_VERIFICATION,
     ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC:
       process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC,
+    ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS:
+      process.env.ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS,
     ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID:
       process.env.ACCESS_CONTROL_BOOTSTRAP_ORGANIZATION_ID,
     ACCESS_CONTROL_BOOTSTRAP_USER_ID:

@@ -1207,6 +1207,12 @@ describe('access control integration', () => {
       organizationRole: 'org_admin',
       twoFactorEnabled: false,
     })
+    const noMfaSuperAdminHeaders = await createSessionHeaders({
+      email: 'super-admin-no-mfa@example.com',
+      role: 'super_admin',
+      organizationRole: 'org_admin',
+      twoFactorEnabled: false,
+    })
 
     await expectJsonResponse(
       await createAppClient(noMfaHeaders).api.v0.dataset.$post({
@@ -1221,6 +1227,30 @@ describe('access control integration', () => {
           'Enable two-factor authentication before performing this action.',
       },
     )
+
+    await expectJsonResponse(
+      await createAppClient(noMfaSuperAdminHeaders).api.v0.organization.$get(),
+      {
+        status: 403,
+        message: 'Two-factor authentication is required',
+        description:
+          'Enable two-factor authentication before performing this action.',
+      },
+    )
+
+    const deniedInvitationResponse = await app.request(
+      '/api/auth/organization/invite-member',
+      {
+        method: 'POST',
+        headers: createAuthPostHeaders(noMfaHeaders),
+        body: JSON.stringify({
+          email: 'blocked-no-mfa-invitee@example.com',
+          role: 'org_admin',
+          organizationId: seededIds.organization,
+        }),
+      },
+    )
+    expect(deniedInvitationResponse.status).toBe(403)
 
     const invitationResponse = await app.request(
       '/api/auth/organization/invite-member',
@@ -1240,6 +1270,36 @@ describe('access control integration', () => {
       where: eq(invitation.email, 'invitee@example.com'),
     })
     expect(pendingInvitation?.organizationId).toBe(seededIds.organization)
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.organization.invite.$post(
+        {
+          json: {
+            email: 'super-admin-route-invitee@example.com',
+            organizationId: seededIds.organization,
+            role: 'org_viewer',
+          },
+        },
+      ),
+      {
+        status: 201,
+        message: 'Invitation created',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(superAdminHeaders).api.v0.organization.members.$get(
+        {
+          query: {
+            organizationId: seededIds.organization,
+          },
+        },
+      ),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
 
     const inviteeAuth = createTestAuthClient()
     const inviteeSignUpResult = await inviteeAuth.client.signUp.email({
@@ -1274,6 +1334,71 @@ describe('access control integration', () => {
         ),
     })
     expect(inviteeMember?.role).toBe('org_admin')
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.dataset[':id'].runs.$get({
+        param: {
+          id: seededIds.dataset,
+        },
+        query: {},
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.geometries[':id'][
+        'runs'
+      ].$get({
+        param: {
+          id: seededIds.geometries,
+        },
+        query: {},
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const otherOrgHeaders = await createSessionHeaders({
+      email: 'other-org-admin@example.com',
+      organizationId: 'other-org-access-control',
+      organizationRole: 'org_admin',
+      twoFactorEnabled: true,
+    })
+
+    await expectJsonResponse(
+      await createAppClient(otherOrgHeaders).api.v0.dataset[':id'].$patch({
+        param: {
+          id: seededIds.dataset,
+        },
+        json: {
+          description: 'Blocked cross-org update',
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get dataset',
+        description: "dataset you're looking for is not found",
+      },
+    )
+
+    const deniedWrongOrgWrite = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, `/api/v0/dataset/${seededIds.dataset}`),
+          eq(table.requestMethod, 'PATCH'),
+          eq(table.decision, 'deny'),
+          eq(table.targetOrganizationId, 'other-org-access-control'),
+        ),
+    })
+    expect(deniedWrongOrgWrite?.details).toMatchObject({
+      permission: 'write:dataset',
+      statusCode: 404,
+    })
 
     const soloAdminHeaders = await createSessionHeaders({
       email: 'solo-admin@example.com',
@@ -1326,7 +1451,12 @@ describe('access control integration', () => {
     )
 
     const auditLogsJson = await expectJsonResponse<{
-      data: { resourceType: string; action: string; decision: string }[]
+      data: {
+        resourceType: string
+        action: string
+        decision: string
+        targetOrganizationId: string | null
+      }[]
     }>(
       await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
         query: {},
@@ -1345,9 +1475,31 @@ describe('access control integration', () => {
           entry.decision === 'allow',
       ),
     ).toBe(true)
+    expect(
+      auditLogsJson.data.data.some(
+        (entry) =>
+          entry.resourceType === 'invitation' &&
+          entry.action === 'invite' &&
+          entry.decision === 'allow' &&
+          entry.targetOrganizationId === seededIds.organization,
+      ),
+    ).toBe(true)
+    expect(
+      auditLogsJson.data.data.some(
+        (entry) =>
+          entry.resourceType === 'auth' &&
+          entry.action === 'accept_invitation' &&
+          entry.targetOrganizationId === seededIds.organization,
+      ),
+    ).toBe(true)
 
     const readLogsJson = await expectJsonResponse<{
-      data: { resourceType: string; action: string; decision: string }[]
+      data: {
+        resourceType: string
+        action: string
+        decision: string
+        requestPath: string
+      }[]
     }>(
       await createAppClient(orgAdminHeaders).api.v0.logs.read.$get({
         query: {},
@@ -1363,6 +1515,37 @@ describe('access control integration', () => {
         (entry) => entry.resourceType === 'auditLog' && entry.action === 'read',
       ),
     ).toBe(true)
+    expect(
+      readLogsJson.data.data.some(
+        (entry) =>
+          entry.resourceType === 'member' &&
+          entry.action === 'list' &&
+          entry.decision === 'allow',
+      ),
+    ).toBe(true)
+
+    const datasetRunReadLog = await db.query.readLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, `/api/v0/dataset/${seededIds.dataset}/runs`),
+          eq(table.resourceType, 'datasetRun'),
+          eq(table.decision, 'allow'),
+        ),
+    })
+    expect(datasetRunReadLog).toBeDefined()
+
+    const geometriesRunReadLog = await db.query.readLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(
+            table.requestPath,
+            `/api/v0/geometries/${seededIds.geometries}/runs`,
+          ),
+          eq(table.resourceType, 'geometriesRun'),
+          eq(table.decision, 'allow'),
+        ),
+    })
+    expect(geometriesRunReadLog).toBeDefined()
   })
 
   it('supports active-organization switching and keeps API keys scoped to the owner membership context', async () => {

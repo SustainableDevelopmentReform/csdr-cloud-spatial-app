@@ -2,10 +2,9 @@ import type { Context } from 'hono'
 import { eq, or } from 'drizzle-orm'
 import type { AnyColumn, SQL } from 'drizzle-orm'
 import { env } from '~/env'
-import { auditLog, readLog } from '~/schemas/db'
 import type { AppVisibility } from './access-control'
+import { persistAccessLog, shouldPersistDeniedDecisionLog } from './access-log'
 import type { AuthType } from './auth'
-import { getRequestIp } from './auth-security'
 import { db } from './db'
 import { ServerError } from './error'
 import {
@@ -93,18 +92,6 @@ const parsePermission = (permission: string): ParsedPermission => {
   }
 }
 
-const getActorRole = (actor: RequestActor | null): string | null => {
-  if (!actor) {
-    return null
-  }
-
-  if (actor.isSuperAdmin) {
-    return 'super_admin'
-  }
-
-  return actor.organizationRole
-}
-
 const getRequestResourceId = (c: AppContext): string | null => {
   const id = c.req.param('id')
 
@@ -121,38 +108,22 @@ const persistDecisionLog = async (options: {
   targetOrganizationId?: string | null
 }) => {
   const parsedPermission = parsePermission(options.permission)
-  const actor = options.actor
-  const commonValues = {
-    id: crypto.randomUUID(),
-    actorUserId: actor?.user.id ?? null,
-    actorRole: getActorRole(actor),
-    activeOrganizationId: actor?.activeOrganizationId ?? null,
-    targetOrganizationId:
-      options.targetOrganizationId ?? actor?.activeOrganizationId ?? null,
-    resourceType: parsedPermission.resource,
-    resourceId: options.resourceId ?? getRequestResourceId(options.c),
+  await persistAccessLog({
+    actor: options.actor,
     action: parsedPermission.action,
     decision: options.decision,
-    requestPath: new URL(options.c.req.url).pathname,
-    requestMethod: options.c.req.method,
-    ipAddress: getRequestIp(options.c.req.raw),
-    userAgent: options.c.req.header('user-agent') ?? null,
+    request: options.c.req.raw,
+    resourceType: parsedPermission.resource,
+    resourceId: options.resourceId ?? getRequestResourceId(options.c),
+    statusCode: options.statusCode,
+    targetOrganizationId:
+      options.targetOrganizationId ??
+      options.actor?.activeOrganizationId ??
+      null,
     details: {
       permission: options.permission,
-      statusCode: options.statusCode,
     },
-  }
-
-  try {
-    if (parsedPermission.action === 'read') {
-      await db.insert(readLog).values(commonValues)
-      return
-    }
-
-    await db.insert(auditLog).values(commonValues)
-  } catch (error) {
-    console.error('Failed to persist access control log entry', error)
-  }
+  })
 }
 
 const unauthorizedError = (description?: string) =>
@@ -643,11 +614,7 @@ export const runAuthorizationMiddleware = async (
     if (error instanceof ServerError) {
       const statusCode = error.response.statusCode
 
-      if (
-        statusCode === 401 ||
-        statusCode === 403 ||
-        (parsedPermission.action === 'read' && statusCode === 404)
-      ) {
+      if (shouldPersistDeniedDecisionLog(statusCode)) {
         await persistDecisionLog({
           actor,
           c,

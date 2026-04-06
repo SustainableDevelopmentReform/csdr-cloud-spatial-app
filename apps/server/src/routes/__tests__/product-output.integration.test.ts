@@ -30,9 +30,9 @@ describe('product-output route', () => {
         param: { id: seededIds.productOutputTasmania2021 },
       }),
       {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
+        status: 404,
+        message: 'Failed to get productOutput',
+        description: "productOutput you're looking for is not found",
       },
     )
 

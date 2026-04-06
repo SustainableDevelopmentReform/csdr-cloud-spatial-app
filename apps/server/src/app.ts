@@ -16,9 +16,11 @@ import {
 import { generateJsonResponse } from './lib/response'
 import {
   enforceAuthRateLimit,
+  enforceProtectedAuthRouteMfa,
   getAuthRequestBody,
   persistAuthAuditLog,
   logTwoFactorRouteResult,
+  resolveAuthAuditLogContext,
 } from './lib/auth-security'
 import { loadRequestActor } from './lib/request-actor'
 import { logger } from './middlewares/logger'
@@ -94,27 +96,61 @@ app.use('*', async (c, next) => {
 // Handle auth routes
 app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
   const body = await getAuthRequestBody(c.req.raw)
-
-  await enforceAuthRateLimit(c.req.raw, body)
-
+  const actor = c.get('requestActor')
   const user = c.get('user')
-
-  const response = await auth.handler(c.req.raw)
-
-  logTwoFactorRouteResult({
-    request: c.req.raw,
-    response,
-    session: user ? { user } : null,
-  })
-
-  await persistAuthAuditLog({
-    request: c.req.raw,
-    response,
+  const logContext = await resolveAuthAuditLogContext({
+    actor,
     body,
-    session: user ? { user } : null,
+    request: c.req.raw,
   })
 
-  return response
+  try {
+    await enforceAuthRateLimit(c.req.raw, body)
+    enforceProtectedAuthRouteMfa({
+      actor,
+      request: c.req.raw,
+    })
+
+    const response = await auth.handler(c.req.raw)
+
+    logTwoFactorRouteResult({
+      request: c.req.raw,
+      response,
+      session: user ? { user } : null,
+    })
+
+    await persistAuthAuditLog({
+      actor,
+      request: c.req.raw,
+      body,
+      statusCode: response.status,
+      logContext,
+    })
+
+    return response
+  } catch (error) {
+    if (error instanceof ServerError) {
+      await persistAuthAuditLog({
+        actor,
+        request: c.req.raw,
+        body,
+        statusCode: error.response.statusCode,
+        logContext,
+      })
+    }
+
+    if (error instanceof BetterAuthApiError) {
+      await persistAuthAuditLog({
+        actor,
+        request: c.req.raw,
+        body,
+        statusCode: error.statusCode,
+        logContext,
+      })
+    }
+
+    throw error
+  }
 })
 
 const v0ApiBase = app

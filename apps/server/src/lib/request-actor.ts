@@ -1,4 +1,4 @@
-import { AppMember, AppSession, AppSessionUser } from './auth'
+import type { AppMember, AppSession, AppSessionUser } from './auth'
 import {
   AppOrganizationRole,
   getHighestOrganizationRole,
@@ -157,7 +157,10 @@ export const requireMfaIfNeeded = (actor: RequestActor): void => {
     return
   }
 
-  if (env.NODE_ENV === 'development') {
+  if (
+    env.NODE_ENV === 'development' &&
+    env.ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS
+  ) {
     console.warn(
       `MFA requirement bypassed in development mode for user ${actor.user.id} with global role ${actor.user.role ?? 'user'}, organization role ${actor.organizationRole ?? 'none'}, and active organization ${actor.activeOrganizationId ?? 'none'}.`,
     )

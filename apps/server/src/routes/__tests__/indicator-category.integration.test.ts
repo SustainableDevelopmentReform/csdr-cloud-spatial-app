@@ -25,14 +25,15 @@ beforeEach(async () => {
 
 describe('indicator-category route', () => {
   it('returns read responses with expected messages', async () => {
-    await expectJsonResponse(
-      await createAppClient().api.v0['indicator-category'].$get(),
-      {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
-      },
-    )
+    const anonymousListJson = await expectJsonResponse<{
+      data: { id: string }[]
+      totalCount: number
+    }>(await createAppClient().api.v0['indicator-category'].$get(), {
+      status: 200,
+      message: 'OK',
+    })
+    expect(anonymousListJson.data.totalCount).toBe(0)
+    expect(anonymousListJson.data.data).toEqual([])
 
     const listJson = await expectJsonResponse<{
       data: { id: string }[]

@@ -101,14 +101,15 @@ describe('indicator route', () => {
     await createReportWithChartUsage(seededIds.derivedIndicator)
     await createDashboardWithChartUsage(seededIds.derivedIndicator)
 
-    await expectJsonResponse(
-      await createAppClient().api.v0.indicator.$get({ query: {} }),
-      {
-        status: 401,
-        message: 'User is not authenticated',
-        description: null,
-      },
-    )
+    const anonymousListJson = await expectJsonResponse<{
+      data: { id: string; type: 'measured' | 'derived' }[]
+      totalCount: number
+    }>(await createAppClient().api.v0.indicator.$get({ query: {} }), {
+      status: 200,
+      message: 'OK',
+    })
+    expect(anonymousListJson.data.totalCount).toBe(0)
+    expect(anonymousListJson.data.data).toEqual([])
 
     const listJson = await expectJsonResponse<{
       data: { id: string; type: 'measured' | 'derived' }[]

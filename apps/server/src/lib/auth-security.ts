@@ -1,7 +1,14 @@
-import { auditLog } from '~/schemas/db'
+import { eq } from 'drizzle-orm'
+import { organization, invitation } from '~/schemas/db'
+import { getRequestIp, persistAccessLog } from './access-log'
 import { db } from './db'
 import { RateLimiterMemory } from 'rate-limiter-flexible'
 import { ServerError } from './error'
+import {
+  type RequestActor,
+  requireAuthenticatedActor,
+  requireMfaIfNeeded,
+} from './request-actor'
 
 export type AuthRequestBody = Record<string, unknown> | null
 
@@ -11,6 +18,12 @@ export interface AuthSessionSnapshot {
     email: string
     twoFactorEnabled?: boolean | null
   } | null
+}
+
+export type AuthAuditLogContext = {
+  action: string | null
+  resourceId: string | null
+  targetOrganizationId: string | null
 }
 
 const authVerifyIpLimiter = new RateLimiterMemory({
@@ -41,47 +54,82 @@ const AUTH_SEND_PATHS = new Set([
   '/api/auth/two-factor/send-otp',
 ])
 
-const AUTH_LOG_ACTIONS = {
-  '/api/auth/sign-in/email': 'sign_in',
-  '/api/auth/sign-out': 'sign_out',
-  '/api/auth/two-factor/enable': 'two_factor_enable',
-  '/api/auth/two-factor/disable': 'two_factor_disable',
-  '/api/auth/two-factor/verify-totp': 'two_factor_verify',
-  '/api/auth/two-factor/verify-otp': 'two_factor_verify',
-  '/api/auth/two-factor/verify-backup-code': 'two_factor_verify',
-  '/api/auth/two-factor/send-otp': 'two_factor_send_otp',
-  '/api/auth/two-factor/generate-backup-codes': 'backup_codes_regenerate',
-  '/api/auth/api-key/create': 'api_key_create',
-  '/api/auth/api-key/delete': 'api_key_delete',
-  '/api/auth/organization/set-active': 'set_active_organization',
-  '/api/auth/organization/invite-member': 'invite_member',
-  '/api/auth/organization/accept-invitation': 'accept_invitation',
-  '/api/auth/organization/remove-member': 'remove_member',
-  '/api/auth/organization/update-member-role': 'update_member_role',
-} as const
+const MFA_PROTECTED_ORGANIZATION_PATHS = new Set([
+  '/api/auth/organization/set-active',
+  '/api/auth/organization/invite-member',
+  '/api/auth/organization/remove-member',
+  '/api/auth/organization/update-member-role',
+])
 
-export function logAuthSecurity(
-  event: string,
-  data: Record<string, unknown> = {},
-) {
-  console.info(
-    JSON.stringify({
-      channel: 'auth_security',
-      event,
-      timestamp: new Date().toISOString(),
-      ...data,
-    }),
-  )
+const AUTH_ORGANIZATION_TARGET_PATHS = new Set([
+  '/api/auth/organization/set-active',
+  '/api/auth/organization/invite-member',
+  '/api/auth/organization/remove-member',
+  '/api/auth/organization/update-member-role',
+])
+
+const AUTH_ADMIN_PATH_PREFIX = '/api/auth/admin/'
+
+const AUTH_LOG_ACTIONS = new Map<string, string>([
+  ['/api/auth/sign-in/email', 'sign_in'],
+  ['/api/auth/sign-out', 'sign_out'],
+  ['/api/auth/two-factor/enable', 'two_factor_enable'],
+  ['/api/auth/two-factor/disable', 'two_factor_disable'],
+  ['/api/auth/two-factor/verify-totp', 'two_factor_verify'],
+  ['/api/auth/two-factor/verify-otp', 'two_factor_verify'],
+  ['/api/auth/two-factor/verify-backup-code', 'two_factor_verify'],
+  ['/api/auth/two-factor/send-otp', 'two_factor_send_otp'],
+  ['/api/auth/two-factor/generate-backup-codes', 'backup_codes_regenerate'],
+  ['/api/auth/api-key/create', 'api_key_create'],
+  ['/api/auth/api-key/delete', 'api_key_delete'],
+  ['/api/auth/organization/set-active', 'set_active_organization'],
+  ['/api/auth/organization/invite-member', 'invite_member'],
+  ['/api/auth/organization/accept-invitation', 'accept_invitation'],
+  ['/api/auth/organization/remove-member', 'remove_member'],
+  ['/api/auth/organization/update-member-role', 'update_member_role'],
+])
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const getStringValue = (body: AuthRequestBody, key: string): string | null => {
+  const value = body?.[key]
+
+  return typeof value === 'string' ? value : null
 }
 
-export function getRequestIp(request: Request) {
-  const forwardedFor = request.headers.get('x-forwarded-for')
-
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0]?.trim() ?? null
+const resolveExistingOrganizationId = async (
+  organizationId: string | null,
+): Promise<string | null> => {
+  if (!organizationId) {
+    return null
   }
 
-  return request.headers.get('x-real-ip')
+  const currentOrganization = await db.query.organization.findFirst({
+    columns: {
+      id: true,
+    },
+    where: (table, { eq }) => eq(table.id, organizationId),
+  })
+
+  return currentOrganization?.id ?? null
+}
+
+const resolveInvitationOrganizationId = async (
+  invitationId: string | null,
+): Promise<string | null> => {
+  if (!invitationId) {
+    return null
+  }
+
+  const currentInvitation = await db.query.invitation.findFirst({
+    columns: {
+      organizationId: true,
+    },
+    where: (table, { eq }) => eq(table.id, invitationId),
+  })
+
+  return currentInvitation?.organizationId ?? null
 }
 
 const redactSensitiveValue = (value: unknown): unknown => {
@@ -89,7 +137,7 @@ const redactSensitiveValue = (value: unknown): unknown => {
     return value.map(redactSensitiveValue)
   }
 
-  if (value && typeof value === 'object') {
+  if (isRecord(value)) {
     return Object.fromEntries(
       Object.entries(value).map(([key, nestedValue]) => {
         const normalizedKey = key.toLowerCase()
@@ -112,55 +160,130 @@ const redactSensitiveValue = (value: unknown): unknown => {
   return value
 }
 
-export async function persistAuthAuditLog(options: {
+const resolveAuthTargetOrganizationId = async (options: {
+  actor: RequestActor | null
   body: AuthRequestBody
-  request: Request
-  response: Response
-  session: AuthSessionSnapshot | null
-}): Promise<void> {
-  const path = new URL(options.request.url).pathname
-  const action = AUTH_LOG_ACTIONS[path as keyof typeof AUTH_LOG_ACTIONS]
+  path: string
+}): Promise<string | null> => {
+  if (options.path === '/api/auth/organization/accept-invitation') {
+    return resolveInvitationOrganizationId(
+      getStringValue(options.body, 'invitationId'),
+    )
+  }
 
-  if (!action) {
+  if (AUTH_ORGANIZATION_TARGET_PATHS.has(options.path)) {
+    const organizationId = await resolveExistingOrganizationId(
+      getStringValue(options.body, 'organizationId'),
+    )
+
+    return organizationId ?? options.actor?.activeOrganizationId ?? null
+  }
+
+  return null
+}
+
+export function logAuthSecurity(
+  event: string,
+  data: Record<string, unknown> = {},
+) {
+  console.info(
+    JSON.stringify({
+      channel: 'auth_security',
+      event,
+      timestamp: new Date().toISOString(),
+      ...data,
+    }),
+  )
+}
+
+export const enforceProtectedAuthRouteMfa = (options: {
+  actor: RequestActor | null
+  request: Request
+}): void => {
+  const path = new URL(options.request.url).pathname
+
+  if (MFA_PROTECTED_ORGANIZATION_PATHS.has(path)) {
+    requireMfaIfNeeded(requireAuthenticatedActor(options.actor))
     return
   }
 
-  const bodyOrganizationId =
-    typeof options.body?.organizationId === 'string'
-      ? options.body.organizationId
-      : null
-  const invitationId =
-    typeof options.body?.invitationId === 'string'
-      ? options.body.invitationId
-      : null
-  const memberIdOrEmail =
-    typeof options.body?.memberIdOrEmail === 'string'
-      ? options.body.memberIdOrEmail
-      : null
-
-  try {
-    await db.insert(auditLog).values({
-      id: crypto.randomUUID(),
-      actorUserId: options.session?.user?.id ?? null,
-      actorRole: null,
-      activeOrganizationId: bodyOrganizationId,
-      targetOrganizationId: bodyOrganizationId,
-      resourceType: 'auth',
-      resourceId: invitationId ?? memberIdOrEmail,
-      action,
-      decision: options.response.ok ? 'allow' : 'deny',
-      requestPath: path,
-      requestMethod: options.request.method,
-      ipAddress: getRequestIp(options.request),
-      userAgent: options.request.headers.get('user-agent'),
-      details: {
-        body: redactSensitiveValue(options.body),
-        statusCode: options.response.status,
-      },
-    })
-  } catch (error) {
-    console.error('Failed to persist auth audit log entry', error)
+  if (!path.startsWith(AUTH_ADMIN_PATH_PREFIX)) {
+    return
   }
+
+  const actor = requireAuthenticatedActor(options.actor)
+
+  if (!actor.isSuperAdmin) {
+    return
+  }
+
+  requireMfaIfNeeded(actor)
+}
+
+export const resolveAuthAuditLogContext = async (options: {
+  actor: RequestActor | null
+  body: AuthRequestBody
+  request: Request
+}): Promise<AuthAuditLogContext> => {
+  const path = new URL(options.request.url).pathname
+  const action = AUTH_LOG_ACTIONS.get(path) ?? null
+
+  if (!action) {
+    return {
+      action: null,
+      resourceId: null,
+      targetOrganizationId: null,
+    }
+  }
+
+  const invitationId = getStringValue(options.body, 'invitationId')
+  const memberIdOrEmail = getStringValue(options.body, 'memberIdOrEmail')
+
+  return {
+    action,
+    resourceId: invitationId ?? memberIdOrEmail,
+    targetOrganizationId: await resolveAuthTargetOrganizationId({
+      actor: options.actor,
+      body: options.body,
+      path,
+    }),
+  }
+}
+
+export async function persistAuthAuditLog(options: {
+  actor: RequestActor | null
+  body: AuthRequestBody
+  request: Request
+  statusCode: number
+  logContext?: AuthAuditLogContext | null
+}): Promise<void> {
+  const logContext =
+    options.logContext ??
+    (await resolveAuthAuditLogContext({
+      actor: options.actor,
+      body: options.body,
+      request: options.request,
+    }))
+
+  if (!logContext.action) {
+    return
+  }
+
+  await persistAccessLog({
+    actor: options.actor,
+    action: logContext.action,
+    decision:
+      options.statusCode >= 200 && options.statusCode < 400 ? 'allow' : 'deny',
+    destination: 'audit',
+    request: options.request,
+    resourceType: 'auth',
+    resourceId: logContext.resourceId,
+    statusCode: options.statusCode,
+    targetOrganizationId: logContext.targetOrganizationId,
+    details: {
+      body: redactSensitiveValue(options.body),
+    },
+  })
 }
 
 export async function getAuthRequestBody(
@@ -175,8 +298,8 @@ export async function getAuthRequestBody(
   try {
     const parsed = await request.clone().json()
 
-    if (typeof parsed === 'object' && parsed && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>
+    if (isRecord(parsed)) {
+      return parsed
     }
   } catch {
     return null

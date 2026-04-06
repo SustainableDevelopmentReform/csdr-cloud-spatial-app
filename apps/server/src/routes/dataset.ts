@@ -224,7 +224,7 @@ const app = createOpenAPIApp()
       path: '/:id/runs',
       middleware: [
         authMiddleware({
-          permission: 'read:productRun',
+          permission: 'read:datasetRun',
           scope: 'explorer',
           skipResourceCheck: true,
         }),

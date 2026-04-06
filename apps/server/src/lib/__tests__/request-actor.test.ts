@@ -82,8 +82,30 @@ describe('requireMfaIfNeeded', () => {
     vi.resetModules()
   })
 
-  it('warns and skips MFA enforcement in development', async () => {
+  it('still enforces MFA in development when the bypass flag is disabled', async () => {
     vi.stubEnv('NODE_ENV', 'development')
+
+    const { requireMfaIfNeeded } = await import('../request-actor')
+
+    try {
+      requireMfaIfNeeded(createRequestActor())
+      throw new Error('Expected requireMfaIfNeeded to throw')
+    } catch (error) {
+      if (!isServerErrorLike(error)) {
+        throw error
+      }
+
+      expect(error.response.statusCode).toBe(403)
+      expect(error.message).toBe('Two-factor authentication is required')
+      expect(error.response.description).toBe(
+        'Enable two-factor authentication before performing this action.',
+      )
+    }
+  })
+
+  it('warns and skips MFA enforcement only when the development bypass flag is enabled', async () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS', 'true')
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { requireMfaIfNeeded } = await import('../request-actor')
