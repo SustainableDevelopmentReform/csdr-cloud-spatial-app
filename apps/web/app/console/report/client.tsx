@@ -93,7 +93,7 @@ const ReportFeature = () => {
             value={query?.search ?? ''}
             onChange={(e) => setSearchParams({ search: e.target.value })}
           />
-          <div className="flex flex-wrap justify-end gap-3 items-end md:flex-wrap-reverse">
+          <div className="flex flex-wrap items-end justify-end gap-3">
             <div className="min-w-[220px] md:min-w-[260px]">
               <IndicatorsSelect
                 title="Filter Indicators"
@@ -198,6 +198,8 @@ const ReportFeature = () => {
               </div>
             )}
             <GeographicBoundsPickerDialog
+              title="Area of Interest"
+              className="min-w-[220px] md:min-w-[260px]"
               value={geographicBounds}
               onChange={(bounds) =>
                 setSearchParams(toGeographicBoundsQuery(bounds))

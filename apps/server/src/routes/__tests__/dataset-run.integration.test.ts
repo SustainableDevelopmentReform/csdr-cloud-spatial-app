@@ -296,4 +296,51 @@ describe('dataset-run route', () => {
 
     expect(clearedJson.data.bounds).toBeNull()
   })
+
+  it('accepts missing or null bounds on create', async () => {
+    const withoutBoundsJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Unbounded dataset run',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
+      },
+    )
+
+    expect(withoutBoundsJson.data.bounds).toBeNull()
+
+    const nullBoundsJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Null-bounds dataset run',
+          bounds: null,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
+      },
+    )
+
+    expect(nullBoundsJson.data.bounds).toBeNull()
+  })
 })
