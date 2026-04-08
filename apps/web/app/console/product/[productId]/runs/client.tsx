@@ -13,6 +13,11 @@ import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../../../_components/geographic-bounds-picker-dialog'
 import { DatasetRunSelect } from '../../../dataset/_components/dataset-run-select'
 import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
 import { IndicatorButtons } from '../../../indicator/_components/indicator-button'
@@ -53,6 +58,7 @@ const ProductRunFeature = () => {
     access,
     resourceData: product,
   })
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
@@ -166,11 +172,20 @@ const ProductRunFeature = () => {
           )}
         </div>
         <div>
-          <SearchInput
-            placeholder="Search product runs"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              placeholder="Search product runs"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <GeographicBoundsPickerDialog
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
+          </div>
           <BaseCrudTable
             data={data?.data || []}
             isLoading={isLoading}

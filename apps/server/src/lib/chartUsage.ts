@@ -1,5 +1,6 @@
 import {
   extractChartIndicatorSelection,
+  type ChartConfiguration,
   type ChartIndicatorSelection,
 } from '@repo/schemas/chart'
 import { type DashboardContent } from '@repo/schemas/crud'
@@ -10,11 +11,13 @@ import {
 import { and, eq, exists, inArray, or, sql, type SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import { buildExtentEnvelopeSql } from '~/lib/geographicBounds'
 import {
   dashboard,
   dashboardIndicatorUsage,
   datasetRun,
   geometriesRun,
+  geometryOutput,
   productRun,
   report,
   reportIndicatorUsage,
@@ -27,6 +30,17 @@ type IndicatorUsageRow = {
   productRunId: string
   indicatorId: string | null
   derivedIndicatorId: string | null
+}
+
+type ChartSpatialSelection = {
+  productRunId: string
+  geometryOutputIds: string[]
+  mapBbox: {
+    minLon: number
+    minLat: number
+    maxLon: number
+    maxLat: number
+  } | null
 }
 
 type ChartUsageQuery = {
@@ -93,6 +107,91 @@ const getDashboardIndicatorSelections = (
   Object.values(content.charts).map((chart) =>
     extractChartIndicatorSelection(chart),
   )
+
+const getChartSpatialSelection = (
+  chart: ChartConfiguration,
+): ChartSpatialSelection => ({
+  productRunId: chart.productRunId,
+  geometryOutputIds:
+    'geometryOutputIds' in chart && Array.isArray(chart.geometryOutputIds)
+      ? chart.geometryOutputIds
+      : [],
+  mapBbox: chart.appearance?.mapBbox ?? null,
+})
+
+const getReportChartSpatialSelections = (
+  content: unknown,
+): ChartSpatialSelection[] => {
+  const parsedContent = parseNullableReportStoredContent(content)
+
+  if (!parsedContent) {
+    return []
+  }
+
+  return extractReportChartReferences(parsedContent).map(({ chart }) =>
+    getChartSpatialSelection(chart),
+  )
+}
+
+const getDashboardChartSpatialSelections = (
+  content: DashboardContent,
+): ChartSpatialSelection[] =>
+  Object.values(content.charts).map((chart) => getChartSpatialSelection(chart))
+
+const buildChartBoundsSql = (
+  selection: ChartSpatialSelection,
+): SQL<unknown> => {
+  if (selection.mapBbox) {
+    return sql`ST_MakeEnvelope(${selection.mapBbox.minLon}, ${selection.mapBbox.minLat}, ${selection.mapBbox.maxLon}, ${selection.mapBbox.maxLat}, 4326)`
+  }
+
+  if (selection.geometryOutputIds.length > 0) {
+    return sql`
+      (
+        select ${buildExtentEnvelopeSql(geometryOutput.geometry)}
+        from ${geometryOutput}
+        inner join ${productRun}
+          on ${productRun.geometriesRunId} = ${geometryOutput.geometriesRunId}
+        where
+          ${productRun.id} = ${selection.productRunId}
+          and ${inArray(geometryOutput.id, selection.geometryOutputIds)}
+      )
+    `
+  }
+
+  return sql`
+    (
+      select ${buildExtentEnvelopeSql(geometryOutput.geometry)}
+      from ${geometryOutput}
+      inner join ${productRun}
+        on ${productRun.geometriesRunId} = ${geometryOutput.geometriesRunId}
+      where ${productRun.id} = ${selection.productRunId}
+    )
+  `
+}
+
+const buildUnionBoundsSql = (
+  selections: ChartSpatialSelection[],
+): SQL<unknown> | null => {
+  if (selections.length === 0) {
+    return null
+  }
+
+  const unionedSelections = sql.join(
+    selections.map(
+      (selection) => sql`select ${buildChartBoundsSql(selection)} as geom`,
+    ),
+    sql` union all `,
+  )
+
+  return sql`
+    (
+      select ST_Envelope(ST_Collect(chart_bounds.geom))
+      from (${unionedSelections}) as chart_bounds
+      where chart_bounds.geom is not null
+    )
+  `
+}
 
 const resolveIndicatorUsages = async (
   tx: DbTransaction,
@@ -697,12 +796,19 @@ export const syncReportChartUsages = async (
   reportId: string,
   content: unknown,
 ): Promise<void> => {
+  const spatialSelections = getReportChartSpatialSelections(content)
   const indicatorUsages = await resolveIndicatorUsages(
     tx,
     getReportIndicatorSelections(content),
   )
 
   await replaceReportIndicatorUsages(tx, reportId, indicatorUsages)
+  await tx
+    .update(report)
+    .set({
+      bounds: buildUnionBoundsSql(spatialSelections),
+    })
+    .where(eq(report.id, reportId))
 }
 
 export const syncDashboardChartUsages = async (
@@ -710,12 +816,19 @@ export const syncDashboardChartUsages = async (
   dashboardId: string,
   content: DashboardContent,
 ): Promise<void> => {
+  const spatialSelections = getDashboardChartSpatialSelections(content)
   const indicatorUsages = await resolveIndicatorUsages(
     tx,
     getDashboardIndicatorSelections(content),
   )
 
   await replaceDashboardIndicatorUsages(tx, dashboardId, indicatorUsages)
+  await tx
+    .update(dashboard)
+    .set({
+      bounds: buildUnionBoundsSql(spatialSelections),
+    })
+    .where(eq(dashboard.id, dashboardId))
 }
 
 export const ensureMeasuredIndicatorNotUsedByCharts = async (

@@ -1,6 +1,11 @@
 'use client'
 
-import { datasetQuerySchema, datasetRunQuerySchema } from '@repo/schemas/crud'
+import {
+  createDatasetRunSchema,
+  datasetQuerySchema,
+  datasetRunQuerySchema,
+  updateDatasetRunSchema,
+} from '@repo/schemas/crud'
 import {
   useInfiniteQuery,
   useMutation,
@@ -53,15 +58,34 @@ export type UpdateDatasetVisibilityPayload = NonNullable<
   >['json']
 >
 export type UpdateDatasetRunPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['dataset-run'][':id']['$patch']>['json']
+  z.input<typeof updateDatasetRunSchema>
 >
 
 export type CreateDatasetPayload = NonNullable<
   InferRequestType<Client['api']['v0']['dataset']['$post']>['json']
 >
 export type CreateDatasetRunPayload = NonNullable<
-  InferRequestType<Client['api']['v0']['dataset-run']['$post']>['json']
+  z.input<typeof createDatasetRunSchema>
 >
+
+const hasFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
+const normalizeDatasetRunBounds = (
+  bounds: CreateDatasetRunPayload['bounds'] | UpdateDatasetRunPayload['bounds'],
+) => {
+  if (bounds === undefined || bounds === null) {
+    return bounds
+  }
+
+  const hasCompleteBounds =
+    hasFiniteNumber(bounds.minX) &&
+    hasFiniteNumber(bounds.minY) &&
+    hasFiniteNumber(bounds.maxX) &&
+    hasFiniteNumber(bounds.maxY)
+
+  return hasCompleteBounds ? bounds : undefined
+}
 
 const datasetParamsSchema = z.object({
   datasetId: z.string().optional(),
@@ -272,8 +296,16 @@ export const useCreateDatasetRun = () => {
   const client = useApiClient()
   return useMutation({
     mutationFn: async (data: CreateDatasetRunPayload) => {
+      const { bounds, ...rest } = data
+      const normalizedBounds = normalizeDatasetRunBounds(bounds)
       const res = client.api.v0['dataset-run'].$post({
-        json: data,
+        json:
+          normalizedBounds === undefined
+            ? rest
+            : {
+                ...rest,
+                bounds: normalizedBounds,
+              },
       })
       await unwrapResponse(res, 201)
     },
@@ -365,9 +397,17 @@ export const useUpdateDatasetRun = (_datasetRunId?: string) => {
   return useMutation({
     mutationFn: async (payload: UpdateDatasetRunPayload) => {
       if (!datasetRunId) return
+      const { bounds, ...rest } = payload
+      const normalizedBounds = normalizeDatasetRunBounds(bounds)
       const res = client.api.v0['dataset-run'][':id'].$patch({
         param: { id: datasetRunId },
-        json: payload,
+        json:
+          normalizedBounds === undefined
+            ? rest
+            : {
+                ...rest,
+                bounds: normalizedBounds,
+              },
       })
       return await unwrapResponse(res)
     },

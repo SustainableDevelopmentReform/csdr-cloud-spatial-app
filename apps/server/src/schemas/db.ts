@@ -16,7 +16,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { organization, user } from './auth'
-import { multiPolygon } from './customTypes'
+import { multiPolygon, polygon } from './customTypes'
 
 export * from './auth'
 
@@ -161,6 +161,7 @@ export const datasetRun = pgTable(
   {
     ...runBaseColumns,
     dataType: datasetRunDataType('data_type'),
+    bounds: polygon('bounds', { srid: 4326 }),
     datasetId: text('dataset_id')
       .notNull()
       .references(() => dataset.id, { onDelete: 'cascade' }),
@@ -173,6 +174,7 @@ export const datasetRun = pgTable(
     ),
     index('dataset_run_dataset_idx').on(table.datasetId),
     index('dataset_run_created_at_idx').on(table.createdAt),
+    index('dataset_run_bounds_gist_idx').using('gist', table.bounds),
   ],
 )
 
@@ -402,12 +404,14 @@ export const productOutputSummary = pgTable(
       withTimezone: false,
     }).array(),
     outputCount: integer('output_count').notNull().default(0),
+    bounds: polygon('bounds', { srid: 4326 }),
     lastUpdated: timestamp('last_updated').defaultNow().notNull(),
   },
   (table) => [
     index('product_output_summary_start_time_idx').on(table.startTime),
     index('product_output_summary_end_time_idx').on(table.endTime),
     index('product_output_summary_last_updated_idx').on(table.lastUpdated),
+    index('product_output_summary_bounds_gist_idx').using('gist', table.bounds),
   ],
 )
 
@@ -560,6 +564,7 @@ export const report = pgTable(
   {
     ...baseColumns,
     ...topLevelAclColumns,
+    bounds: polygon('bounds', { srid: 4326 }),
     content: jsonb('content'),
     publishedAt: timestamp('published_at'),
     publishedByUserId: text('published_by_user_id').references(() => user.id, {
@@ -576,6 +581,7 @@ export const report = pgTable(
     index('report_organization_id_idx').on(table.organizationId),
     index('report_visibility_idx').on(table.visibility),
     index('report_published_at_idx').on(table.publishedAt),
+    index('report_bounds_gist_idx').using('gist', table.bounds),
   ],
 )
 
@@ -584,6 +590,7 @@ export const dashboard = pgTable(
   {
     ...baseColumns,
     ...topLevelAclColumns,
+    bounds: polygon('bounds', { srid: 4326 }),
     content: jsonb('content').notNull(),
   },
   (table) => [
@@ -594,6 +601,7 @@ export const dashboard = pgTable(
     ),
     index('dashboard_organization_id_idx').on(table.organizationId),
     index('dashboard_visibility_idx').on(table.visibility),
+    index('dashboard_bounds_gist_idx').using('gist', table.bounds),
   ],
 )
 

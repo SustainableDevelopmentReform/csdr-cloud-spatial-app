@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectBoundsToMatch,
+  expectJsonResponse,
+  seededMainlandBounds,
+  seededTasmaniaBounds,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
   import.meta.url,
@@ -113,6 +118,12 @@ describe('dataset-run route', () => {
       productRunCount: number
       reportCount: number
       dashboardCount: number
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
     }>(
       await memberClient.api.v0['dataset-run'][':id'].$get({
         param: { id: seededIds.datasetRun },
@@ -127,6 +138,7 @@ describe('dataset-run route', () => {
     expect(detailJson.data.productRunCount).toBe(1)
     expect(detailJson.data.reportCount).toBe(1)
     expect(detailJson.data.dashboardCount).toBe(1)
+    expect(detailJson.data.bounds).toBeNull()
 
     await expectJsonResponse(
       await memberClient.api.v0['dataset-run'][':id'].$get({
@@ -212,5 +224,123 @@ describe('dataset-run route', () => {
         message: 'Dataset run deleted',
       },
     )
+  })
+
+  it('round-trips manual bounds on create and update', async () => {
+    const createdJson = await expectJsonResponse<{
+      id: string
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Bounded dataset run',
+          bounds: seededTasmaniaBounds,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
+      },
+    )
+
+    expectBoundsToMatch(createdJson.data.bounds, seededTasmaniaBounds)
+
+    const updatedJson = await expectJsonResponse<{
+      id: string
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'][':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          bounds: seededMainlandBounds,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset run updated',
+      },
+    )
+
+    expectBoundsToMatch(updatedJson.data.bounds, seededMainlandBounds)
+
+    const clearedJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'][':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          bounds: null,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset run updated',
+      },
+    )
+
+    expect(clearedJson.data.bounds).toBeNull()
+  })
+
+  it('accepts missing or null bounds on create', async () => {
+    const withoutBoundsJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Unbounded dataset run',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
+      },
+    )
+
+    expect(withoutBoundsJson.data.bounds).toBeNull()
+
+    const nullBoundsJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Null-bounds dataset run',
+          bounds: null,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
+      },
+    )
+
+    expect(nullBoundsJson.data.bounds).toBeNull()
   })
 })

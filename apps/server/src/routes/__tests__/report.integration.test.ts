@@ -9,7 +9,14 @@ import {
   reportIndicatorUsage,
 } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectBoundsToMatch,
+  expectJsonResponse,
+  remoteNoMatchBoundsFilter,
+  seededFullRunBounds,
+  seededTasmaniaBounds,
+  tasmaniaBoundsFilter,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders, db } =
   await setupIsolatedTestFile(import.meta.url)
@@ -32,6 +39,39 @@ beforeEach(async () => {
 })
 
 describe('report route', () => {
+  const buildChart = (
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({
+    type: 'plot',
+    subType: 'line',
+    productRunId: seededIds.productRun,
+    indicatorIds: [seededIds.indicator],
+    timePoints: ['2021-01-01T00:00:00.000Z'],
+    ...overrides,
+  })
+
+  const buildReportContent = (...charts: Record<string, unknown>[]) => ({
+    type: 'doc',
+    content: charts.map((chart) => ({
+      type: 'chart',
+      attrs: { chart },
+    })),
+  })
+
+  const createReport = async (name: string) => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: { name },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    return createdJson.data.id
+  }
+
   const validReportContent = {
     type: 'doc',
     content: [
@@ -43,40 +83,18 @@ describe('report route', () => {
   }
 
   const createReportWithChartUsage = async (indicatorId: string) => {
-    const createdJson = await expectJsonResponse<{ id: string }>(
-      await adminClient.api.v0.report.$post({
-        json: {
-          name: `Chart report ${indicatorId}`,
-        },
-      }),
-      {
-        status: 201,
-        message: 'Report created',
-      },
-    )
+    const reportId = await createReport(`Chart report ${indicatorId}`)
 
     await expectJsonResponse(
       await adminClient.api.v0.report[':id'].$patch({
-        param: { id: createdJson.data.id },
+        param: { id: reportId },
         json: {
-          content: {
-            type: 'doc',
-            content: [
-              {
-                type: 'chart',
-                attrs: {
-                  chart: {
-                    type: 'plot',
-                    subType: 'line',
-                    productRunId: seededIds.productRun,
-                    indicatorIds: [indicatorId],
-                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
-                    timePoints: ['2021-01-01T00:00:00.000Z'],
-                  },
-                },
-              },
-            ],
-          },
+          content: buildReportContent(
+            buildChart({
+              indicatorIds: [indicatorId],
+              geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+            }),
+          ),
         },
       }),
       {
@@ -85,7 +103,7 @@ describe('report route', () => {
       },
     )
 
-    return createdJson.data.id
+    return reportId
   }
 
   it('returns read responses with expected messages', async () => {
@@ -600,6 +618,218 @@ describe('report route', () => {
     expect(geometriesSources.map((source) => source.id)).toEqual([
       seededIds.geometries,
     ])
+  })
+
+  it('stores report bounds from explicit map bbox over geometry output selections', async () => {
+    const reportId = await createReport('Map bbox precedence report')
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportId },
+        json: {
+          content: buildReportContent(
+            buildChart({
+              geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+              appearance: {
+                mapBbox: {
+                  minLon: -9,
+                  minLat: 51,
+                  maxLon: -6,
+                  maxLat: 53,
+                },
+              },
+            }),
+          ),
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.report[':id'].$get({
+        param: { id: reportId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, {
+      minX: -9,
+      minY: 51,
+      maxX: -6,
+      maxY: 53,
+    })
+  })
+
+  it('stores report bounds from explicit geometry outputs before whole-run fallback', async () => {
+    const reportId = await createReport('Geometry bounds report')
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportId },
+        json: {
+          content: buildReportContent(
+            buildChart({
+              geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+            }),
+          ),
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.report[':id'].$get({
+        param: { id: reportId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, seededTasmaniaBounds)
+  })
+
+  it('stores report bounds from whole geometries run when no chart geometry outputs are selected', async () => {
+    const reportId = await createReport('Run fallback report')
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportId },
+        json: {
+          content: buildReportContent(buildChart()),
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.report[':id'].$get({
+        param: { id: reportId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, seededFullRunBounds)
+  })
+
+  it('unions report bounds across all chart rectangles and filters by stored bounds', async () => {
+    const reportId = await createReport('Union bounds report')
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: reportId },
+        json: {
+          content: buildReportContent(
+            buildChart({
+              geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+            }),
+            buildChart({
+              appearance: {
+                mapBbox: {
+                  minLon: -9,
+                  minLat: 51,
+                  maxLon: -6,
+                  maxLat: 53,
+                },
+              },
+            }),
+          ),
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.report[':id'].$get({
+        param: { id: reportId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, {
+      minX: -9,
+      minY: seededTasmaniaBounds.minY,
+      maxX: seededTasmaniaBounds.maxX,
+      maxY: 53,
+    })
+
+    const matchingJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.report.$get({
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingJson.data.data.map((item) => item.id)).toContain(reportId)
+
+    const noMatchJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.report.$get({
+        query: remoteNoMatchBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(noMatchJson.data.data.map((item) => item.id)).not.toContain(reportId)
   })
 
   it('duplicates a report into a new private unpublished draft with synced chart usage', async () => {

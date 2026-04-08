@@ -10,6 +10,7 @@ import {
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
 import { and, desc, eq, isNull } from 'drizzle-orm'
+import type { Polygon } from 'geojson'
 import {
   buildReportUsageFilters,
   syncReportChartUsages,
@@ -23,6 +24,11 @@ import {
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import {
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+  toResourceBounds,
+} from '~/lib/geographicBounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -55,6 +61,7 @@ import { parseQuery } from '../utils/query'
 export const baseReportQuery = {
   columns: {
     ...baseAclColumns,
+    bounds: true,
     publishedAt: true,
     publishedByUserId: true,
     publishedPdfKey: true,
@@ -153,6 +160,7 @@ const validateReportContentOrThrow = (content: unknown) => {
 
 const serializeBaseReport = <
   T extends {
+    bounds: Polygon | null
     createdAt: Date
     updatedAt: Date
     publishedAt: Date | null
@@ -166,6 +174,7 @@ const serializeBaseReport = <
 
   return {
     ...rest,
+    bounds: toResourceBounds(record.bounds),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     publishedAt: record.publishedAt?.toISOString() ?? null,
@@ -271,6 +280,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const queryParams = c.req.valid('query')
       const usageFilters = buildReportUsageFilters(queryParams)
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere =
         usageFilters.length > 0
           ? and(
@@ -280,8 +290,16 @@ const app = createOpenAPIApp()
                 report.visibility,
               ),
               ...usageFilters,
+              buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
             )
-          : buildExplorerReadScope(c, report.organizationId, report.visibility)
+          : and(
+              buildExplorerReadScope(
+                c,
+                report.organizationId,
+                report.visibility,
+              ),
+              buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
+            )
       const { meta, query } = await parseQuery(report, queryParams, {
         defaultOrderBy: desc(report.createdAt),
         searchableColumns: [report.name, report.description],
@@ -293,11 +311,13 @@ const app = createOpenAPIApp()
         ...query,
       })
 
+      const parsedData = data.map(serializeBaseReport)
+
       return generateJsonResponse(
         c,
         {
           ...meta,
-          data: data.map((record) => serializeBaseReport(record)),
+          data: parsedData,
         },
         200,
       )

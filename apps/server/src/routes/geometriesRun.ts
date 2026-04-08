@@ -15,6 +15,11 @@ import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
+  buildBoundsSelect,
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+} from '~/lib/geographicBounds'
+import {
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -182,12 +187,7 @@ const app = createOpenAPIApp()
       ])
 
       const [bounds] = await db
-        .select({
-          minX: sql<number>`ST_XMin(ST_Extent(${geometryOutput.geometry}))`,
-          minY: sql<number>`ST_YMin(ST_Extent(${geometryOutput.geometry}))`,
-          maxX: sql<number>`ST_XMax(ST_Extent(${geometryOutput.geometry}))`,
-          maxY: sql<number>`ST_YMax(ST_Extent(${geometryOutput.geometry}))`,
-        })
+        .select(buildBoundsSelect(sql`ST_Extent(${geometryOutput.geometry})`))
         .from(geometryOutput)
         .where(eq(geometryOutput.geometriesRunId, id))
 
@@ -244,12 +244,13 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { geometryOutputIds, excludeGeometryOutputIds } =
-        c.req.valid('query')
+      const queryParams = c.req.valid('query')
+      const { geometryOutputIds, excludeGeometryOutputIds } = queryParams
       const geometryOutputIdFilters = normalizeFilterValues(geometryOutputIds)
       const excludeGeometryOutputIdFilters = normalizeFilterValues(
         excludeGeometryOutputIds,
       )
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
         eq(geometryOutput.geometriesRunId, id),
         geometryOutputIdFilters.length > 0
@@ -258,16 +259,13 @@ const app = createOpenAPIApp()
         excludeGeometryOutputIdFilters.length > 0
           ? notInArray(geometryOutput.id, excludeGeometryOutputIdFilters)
           : undefined,
+        buildGeometryIntersectsFilter(geometryOutput.geometry, boundsEnvelope),
       )
-      const { meta, query } = await parseQuery(
-        geometryOutput,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(geometryOutput.createdAt),
-          searchableColumns: [geometryOutput.name, geometryOutput.description],
-          baseWhere,
-        },
-      )
+      const { meta, query } = await parseQuery(geometryOutput, queryParams, {
+        defaultOrderBy: desc(geometryOutput.createdAt),
+        searchableColumns: [geometryOutput.name, geometryOutput.description],
+        baseWhere,
+      })
 
       const data = await db.query.geometryOutput.findMany({
         ...baseGeometryOutputQuery,

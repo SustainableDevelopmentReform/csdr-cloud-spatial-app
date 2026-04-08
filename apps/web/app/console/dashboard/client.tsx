@@ -9,6 +9,11 @@ import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { useAccessControl } from '../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../_components/geographic-bounds-picker-dialog'
 import { DatasetRunSelect } from '../dataset/_components/dataset-run-select'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
 import { GeometriesRunSelect } from '../geometries/_components/geometries-run-select'
@@ -58,6 +63,7 @@ const DashboardFeature = () => {
   const showDatasetRunFilter = Boolean(query?.datasetRunId)
   const showGeometriesFilter = selectedGeometriesIds.length > 0
   const showGeometriesRunFilter = Boolean(query?.geometriesRunId)
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['description', 'createdAt', 'updatedAt'] as const
@@ -92,7 +98,7 @@ const DashboardFeature = () => {
             value={query?.search ?? ''}
             onChange={(e) => setSearchParams({ search: e.target.value })}
           />
-          <div className="flex flex-wrap justify-end gap-3 items-end md:flex-wrap-reverse">
+          <div className="flex flex-wrap items-end justify-end gap-3">
             <div className="min-w-[220px] md:min-w-[260px]">
               <IndicatorsSelect
                 title="Filter Indicators"
@@ -196,6 +202,15 @@ const DashboardFeature = () => {
                 />
               </div>
             )}
+            <GeographicBoundsPickerDialog
+              title="Area of Interest"
+              className="min-w-[220px] md:min-w-[260px]"
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
           </div>
         </div>
         <BaseCrudTable

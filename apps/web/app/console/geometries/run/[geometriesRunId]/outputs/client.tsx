@@ -19,6 +19,11 @@ import BaseCrudTable from '../../../../../../components/table/crud-table'
 import Pagination from '../../../../../../components/table/pagination'
 import { SearchInput } from '../../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../../../../_components/geographic-bounds-picker-dialog'
 import { GeojsonImportDialog } from '../../../_components/geojson-import'
 import { GeometryOutputButton } from '../../../_components/geometry-output-button'
 import { ResourcePageState } from '../../../../_components/resource-page-state'
@@ -50,6 +55,7 @@ const GeometryOutputFeature = () => {
     access,
     resourceData: geometriesRun,
   })
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'name'] as const
@@ -126,11 +132,20 @@ const GeometryOutputFeature = () => {
           </div>
         </div>
         <div>
-          <SearchInput
-            placeholder="Search geometry outputs"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              placeholder="Search geometry outputs"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <GeographicBoundsPickerDialog
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
+          </div>
           <BaseCrudTable
             data={data?.data || []}
             isLoading={isLoading}
