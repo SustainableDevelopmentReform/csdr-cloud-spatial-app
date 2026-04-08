@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectJsonResponse,
+  noMatchBoundsFilter,
+  tasmaniaBoundsFilter,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
   import.meta.url,
@@ -217,5 +221,56 @@ describe('geometries route', () => {
         message: 'Geometries deleted',
       },
     )
+  })
+
+  it('filters geometries and geometries runs by intersecting geometry outputs', async () => {
+    const matchingGeometriesJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.geometries.$get({
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingGeometriesJson.data.data.map((item) => item.id)).toContain(
+      seededIds.geometries,
+    )
+
+    const matchingRunsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.geometries[':id'].runs.$get({
+        param: { id: seededIds.geometries },
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingRunsJson.data.data.map((item) => item.id)).toContain(
+      seededIds.geometriesRun,
+    )
+
+    const noMatchGeometriesJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.geometries.$get({
+        query: noMatchBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      noMatchGeometriesJson.data.data.map((item) => item.id),
+    ).not.toContain(seededIds.geometries)
   })
 })

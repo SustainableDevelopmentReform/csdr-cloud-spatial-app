@@ -56,6 +56,43 @@ export const baseQuerySchema = z.object({
   order: z.enum(['asc', 'desc']).optional(),
 })
 
+export const resourceBoundsSchema = z
+  .object({
+    minX: z.number(),
+    minY: z.number(),
+    maxX: z.number(),
+    maxY: z.number(),
+  })
+  .superRefine((bounds, context) => {
+    if (bounds.minX >= bounds.maxX) {
+      context.addIssue({
+        code: 'custom',
+        message: 'minX must be less than maxX',
+        path: ['minX'],
+      })
+    }
+
+    if (bounds.minY >= bounds.maxY) {
+      context.addIssue({
+        code: 'custom',
+        message: 'minY must be less than maxY',
+        path: ['minY'],
+      })
+    }
+  })
+  .openapi('ResourceBoundsSchema')
+
+const geographicBoundsFilterShape = {
+  boundsMinX: z.coerce.number().optional(),
+  boundsMinY: z.coerce.number().optional(),
+  boundsMaxX: z.coerce.number().optional(),
+  boundsMaxY: z.coerce.number().optional(),
+} satisfies z.ZodRawShape
+
+const geographicBoundsQuerySchema = baseQuerySchema.extend(
+  geographicBoundsFilterShape,
+)
+
 export const baseCreateResourceSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
@@ -180,6 +217,7 @@ export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
 export const baseDatasetRunSchema = baseRunResourceSchema
   .extend({
     dataset: baseIdResourceSchemaWithMainRunId,
+    bounds: resourceBoundsSchema.nullable().optional(),
   })
   .openapi('DatasetRunBase')
 
@@ -209,7 +247,7 @@ export const fullDatasetSchema = baseDatasetSchema
   })
   .openapi('DatasetFull')
 
-export const datasetQuerySchema = baseQuerySchema.extend({
+export const datasetQuerySchema = geographicBoundsQuerySchema.extend({
   datasetIds: z.union([z.string(), z.array(z.string())]).optional(),
   excludeDatasetIds: z.union([z.string(), z.array(z.string())]).optional(),
 })
@@ -223,13 +261,16 @@ export const updateDatasetSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
-export const datasetRunQuerySchema = baseQuerySchema
+export const datasetRunQuerySchema = geographicBoundsQuerySchema
 
 export const createDatasetRunSchema = baseCreateRunResourceSchema.extend({
   datasetId: z.string(),
+  bounds: resourceBoundsSchema.nullable().optional(),
 })
 
-export const updateDatasetRunSchema = baseUpdateResourceSchema
+export const updateDatasetRunSchema = baseUpdateResourceSchema.extend({
+  bounds: resourceBoundsSchema.nullable().optional(),
+})
 
 /* GEOMETRIES RESOURCE SCHEMAS */
 export const baseGeometriesRunSchema = baseRunResourceSchema
@@ -245,12 +286,7 @@ export const fullGeometriesRunSchema = baseGeometriesRunSchema
     outputCount: z.number().int(),
     reportCount: z.number().int(),
     dashboardCount: z.number().int(),
-    bounds: z.object({
-      minX: z.number(),
-      minY: z.number(),
-      maxX: z.number(),
-      maxY: z.number(),
-    }),
+    bounds: resourceBoundsSchema,
   })
   .openapi('GeometriesRunFull')
 
@@ -272,7 +308,7 @@ export const fullGeometriesSchema = baseGeometriesSchema
   })
   .openapi('GeometriesFull')
 
-export const geometriesQuerySchema = baseQuerySchema.extend({
+export const geometriesQuerySchema = geographicBoundsQuerySchema.extend({
   geometriesIds: z.union([z.string(), z.array(z.string())]).optional(),
   excludeGeometriesIds: z.union([z.string(), z.array(z.string())]).optional(),
 })
@@ -286,7 +322,7 @@ export const updateGeometriesSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
-export const geometriesRunQuerySchema = baseQuerySchema
+export const geometriesRunQuerySchema = geographicBoundsQuerySchema
 
 export const createGeometriesRunSchema = baseCreateRunResourceSchema.extend({
   // Override dataType to be geoparquet
@@ -329,7 +365,7 @@ export const geometryOutputExportSchema = z
   })
   .openapi('GeometryOutputExportSchema')
 
-export const geometryOutputQuerySchema = baseQuerySchema.extend({
+export const geometryOutputQuerySchema = geographicBoundsQuerySchema.extend({
   geometryOutputIds: z.union([z.string(), z.array(z.string())]).optional(),
   excludeGeometryOutputIds: z
     .union([z.string(), z.array(z.string())])
@@ -396,6 +432,7 @@ export const baseProductRunOutputSummarySchema = z
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
     timePoints: z.array(z.date()).nullable(),
+    bounds: resourceBoundsSchema.nullable(),
     indicators: z.array(anyBaseIndicatorSchema),
   })
   .openapi('ProductRunOutputSummaryBase')
@@ -406,6 +443,7 @@ export const fullProductRunOutputSummarySchema = z
     endTime: z.date().nullable(),
     outputCount: z.number().int(),
     timePoints: z.array(z.date()).nullable(),
+    bounds: resourceBoundsSchema.nullable(),
     indicators: z.array(
       z.object({
         minValue: z.number().nullable(),
@@ -488,7 +526,7 @@ export const fullProductSchema = baseProductSchema
   })
   .openapi('ProductFull')
 
-export const productQuerySchema = baseQuerySchema.extend({
+export const productQuerySchema = geographicBoundsQuerySchema.extend({
   productIds: z.union([z.string(), z.array(z.string())]).optional(),
   excludeProductIds: z.union([z.string(), z.array(z.string())]).optional(),
   datasetId: z.union([z.string(), z.array(z.string())]).optional(),
@@ -506,7 +544,7 @@ export const updateProductSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
 })
 
-export const productRunQuerySchema = baseQuerySchema.extend({
+export const productRunQuerySchema = geographicBoundsQuerySchema.extend({
   datasetRunId: z.string().optional(),
   geometriesRunId: z.string().optional(),
 })
@@ -578,7 +616,7 @@ export const productOutputExportSchema = z
   })
   .openapi('ProductOutputExportSchema')
 
-export const productOutputQuerySchema = baseQuerySchema.extend({
+export const productOutputQuerySchema = geographicBoundsQuerySchema.extend({
   geometryOutputId: z.union([z.string(), z.array(z.string())]).optional(),
   indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   timePoint: z.iso.datetime().optional(),
@@ -644,8 +682,11 @@ export const importProductOutputsSchema = z.object({
 
 /* REPORT RESOURCE SCHEMAS */
 
-export const baseReportSchema =
-  baseAclResourceSchema.openapi('ReportSchemaBase')
+export const baseReportSchema = baseAclResourceSchema
+  .extend({
+    bounds: resourceBoundsSchema.nullable(),
+  })
+  .openapi('ReportSchemaBase')
 export const reportStoredContentSchema = z
   .record(z.string(), z.unknown())
   .openapi('ReportStoredContentSchema', {
@@ -659,7 +700,7 @@ export const fullReportSchema = baseReportSchema
   .extend({ content: reportStoredContentSchema.nullable() })
   .openapi('ReportSchemaFull')
 
-export const reportQuerySchema = baseQuerySchema.extend({
+export const reportQuerySchema = geographicBoundsQuerySchema.extend({
   indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   productId: z.union([z.string(), z.array(z.string())]).optional(),
   productRunId: z.string().optional(),
@@ -708,9 +749,11 @@ export const dashboardContentSchema = z
 
 export type DashboardContent = z.infer<typeof dashboardContentSchema>
 
-export const baseDashboardSchema = baseAclResourceSchema.openapi(
-  'DashboardSchemaBase',
-)
+export const baseDashboardSchema = baseAclResourceSchema
+  .extend({
+    bounds: resourceBoundsSchema.nullable(),
+  })
+  .openapi('DashboardSchemaBase')
 
 export const fullDashboardSchema = baseDashboardSchema
   .extend({
@@ -718,7 +761,7 @@ export const fullDashboardSchema = baseDashboardSchema
   })
   .openapi('DashboardSchemaFull')
 
-export const dashboardQuerySchema = baseQuerySchema.extend({
+export const dashboardQuerySchema = geographicBoundsQuerySchema.extend({
   indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   productId: z.union([z.string(), z.array(z.string())]).optional(),
   productRunId: z.string().optional(),

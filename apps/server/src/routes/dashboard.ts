@@ -9,6 +9,7 @@ import {
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq } from 'drizzle-orm'
+import type { Polygon } from 'geojson'
 import {
   buildDashboardUsageFilters,
   syncDashboardChartUsages,
@@ -27,6 +28,11 @@ import {
 } from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import {
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+  toResourceBounds,
+} from '~/lib/geographicBounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -47,6 +53,7 @@ import { parseQuery } from '../utils/query'
 export const baseDashboardQuery = {
   columns: {
     ...baseAclColumns,
+    bounds: true,
   },
 } satisfies QueryForTable<'dashboard'>
 
@@ -56,6 +63,13 @@ export const fullDashboardQuery = {
     content: true,
   },
 } satisfies QueryForTable<'dashboard'>
+
+const parseBaseDashboard = <T extends { bounds: Polygon | null }>(
+  record: T,
+) => ({
+  ...record,
+  bounds: toResourceBounds(record.bounds),
+})
 
 const dashboardNotFoundError = () =>
   new ServerError({
@@ -90,7 +104,7 @@ const fetchFullDashboardOrThrow = async (
 
   const parsedContent = dashboardContentSchema.parse(record.content)
 
-  return { ...record, content: parsedContent }
+  return { ...parseBaseDashboard(record), content: parsedContent }
 }
 
 const app = createOpenAPIApp()
@@ -128,6 +142,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const queryParams = c.req.valid('query')
       const usageFilters = buildDashboardUsageFilters(queryParams)
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere =
         usageFilters.length > 0
           ? and(
@@ -137,16 +152,24 @@ const app = createOpenAPIApp()
                 dashboard.visibility,
               ),
               ...usageFilters,
+              buildGeometryIntersectsFilter(dashboard.bounds, boundsEnvelope),
             )
           : buildExplorerReadScope(
               c,
               dashboard.organizationId,
               dashboard.visibility,
             )
+      const filteredBaseWhere =
+        usageFilters.length > 0
+          ? baseWhere
+          : and(
+              baseWhere,
+              buildGeometryIntersectsFilter(dashboard.bounds, boundsEnvelope),
+            )
       const { meta, query } = await parseQuery(dashboard, queryParams, {
         defaultOrderBy: desc(dashboard.createdAt),
         searchableColumns: [dashboard.name, dashboard.description],
-        baseWhere,
+        baseWhere: filteredBaseWhere,
       })
 
       const data = await db.query.dashboard.findMany({
@@ -154,11 +177,13 @@ const app = createOpenAPIApp()
         ...query,
       })
 
+      const parsedData = data.map(parseBaseDashboard)
+
       return generateJsonResponse(
         c,
         {
           ...meta,
-          data,
+          data: parsedData,
         },
         200,
       )

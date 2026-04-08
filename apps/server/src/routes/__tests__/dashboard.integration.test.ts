@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { PlotChartConfiguration } from '@repo/schemas/chart'
+import type { DashboardContent } from '@repo/schemas/crud'
 import { eq } from 'drizzle-orm'
 import { dashboardIndicatorUsage } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectBoundsToMatch,
+  expectJsonResponse,
+  remoteNoMatchBoundsFilter,
+  seededFullRunBounds,
+  seededTasmaniaBounds,
+  tasmaniaBoundsFilter,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders, db } =
   await setupIsolatedTestFile(import.meta.url)
@@ -25,24 +34,40 @@ beforeEach(async () => {
 })
 
 describe('dashboard route', () => {
-  const createDashboardWithChartUsage = async (indicatorId: string) => {
+  const buildChart = (
+    overrides: Partial<PlotChartConfiguration> = {},
+  ): PlotChartConfiguration => ({
+    type: 'plot',
+    subType: 'line',
+    productRunId: seededIds.productRun,
+    indicatorIds: [seededIds.indicator],
+    timePoints: ['2021-01-01T00:00:00.000Z'],
+    ...overrides,
+  })
+
+  const buildDashboardContent = (
+    ...charts: PlotChartConfiguration[]
+  ): DashboardContent => ({
+    charts: Object.fromEntries(
+      charts.map((chart, index) => [`chart-${index}`, chart]),
+    ),
+    layout: charts.map((_, index) => ({
+      i: `chart-${index}`,
+      x: index * 2,
+      y: 0,
+      w: 4,
+      h: 3,
+    })),
+  })
+
+  const createDashboard = async (name: string, content?: DashboardContent) => {
+    const nextContent = content ?? { charts: {}, layout: [] }
+
     const createdJson = await expectJsonResponse<{ id: string }>(
       await adminClient.api.v0.dashboard.$post({
         json: {
-          name: `Chart dashboard ${indicatorId}`,
-          content: {
-            charts: {
-              primary: {
-                type: 'plot',
-                subType: 'line',
-                productRunId: seededIds.productRun,
-                indicatorIds: [indicatorId],
-                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
-                timePoints: ['2021-01-01T00:00:00.000Z'],
-              },
-            },
-            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
-          },
+          name,
+          content: nextContent,
         },
       }),
       {
@@ -52,6 +77,18 @@ describe('dashboard route', () => {
     )
 
     return createdJson.data.id
+  }
+
+  const createDashboardWithChartUsage = async (indicatorId: string) => {
+    return createDashboard(
+      `Chart dashboard ${indicatorId}`,
+      buildDashboardContent(
+        buildChart({
+          indicatorIds: [indicatorId],
+          geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+        }),
+      ),
+    )
   }
 
   it('returns read responses with expected messages', async () => {
@@ -202,5 +239,179 @@ describe('dashboard route', () => {
       expect(returnedIds).toContain(dashboardId)
       expect(returnedIds).not.toContain(seededIds.dashboard)
     }
+  })
+
+  it('stores dashboard bounds from explicit map bbox over geometry output selections', async () => {
+    const dashboardId = await createDashboard(
+      'Map bbox precedence dashboard',
+      buildDashboardContent(
+        buildChart({
+          geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+          appearance: {
+            mapBbox: {
+              minLon: -9,
+              minLat: 51,
+              maxLon: -6,
+              maxLat: 53,
+            },
+          },
+        }),
+      ),
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.dashboard[':id'].$get({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, {
+      minX: -9,
+      minY: 51,
+      maxX: -6,
+      maxY: 53,
+    })
+  })
+
+  it('stores dashboard bounds from explicit geometry outputs before whole-run fallback', async () => {
+    const dashboardId = await createDashboard(
+      'Geometry bounds dashboard',
+      buildDashboardContent(
+        buildChart({
+          geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+        }),
+      ),
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.dashboard[':id'].$get({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, seededTasmaniaBounds)
+  })
+
+  it('stores dashboard bounds from whole geometries run when no chart geometry outputs are selected', async () => {
+    const dashboardId = await createDashboard(
+      'Run fallback dashboard',
+      buildDashboardContent(buildChart()),
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.dashboard[':id'].$get({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, seededFullRunBounds)
+  })
+
+  it('unions dashboard bounds across chart cards and filters by stored bounds', async () => {
+    const dashboardId = await createDashboard(
+      'Union bounds dashboard',
+      buildDashboardContent(
+        buildChart({
+          geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+        }),
+        buildChart({
+          appearance: {
+            mapBbox: {
+              minLon: -9,
+              minLat: 51,
+              maxLon: -6,
+              maxLat: 53,
+            },
+          },
+        }),
+      ),
+    )
+
+    const detailJson = await expectJsonResponse<{
+      bounds: {
+        minX: number
+        minY: number
+        maxX: number
+        maxY: number
+      } | null
+    }>(
+      await memberClient.api.v0.dashboard[':id'].$get({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expectBoundsToMatch(detailJson.data.bounds, {
+      minX: -9,
+      minY: seededTasmaniaBounds.minY,
+      maxX: seededTasmaniaBounds.maxX,
+      maxY: 53,
+    })
+
+    const matchingJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.dashboard.$get({
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingJson.data.data.map((item) => item.id)).toContain(dashboardId)
+
+    const noMatchJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.dashboard.$get({
+        query: remoteNoMatchBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(noMatchJson.data.data.map((item) => item.id)).not.toContain(
+      dashboardId,
+    )
   })
 })

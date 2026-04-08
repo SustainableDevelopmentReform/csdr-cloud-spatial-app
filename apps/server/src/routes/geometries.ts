@@ -9,7 +9,7 @@ import {
   updateGeometriesSchema,
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, desc, eq, exists, inArray, notInArray, sql } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -20,6 +20,10 @@ import {
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import {
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+} from '~/lib/geographicBounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -32,7 +36,12 @@ import {
 } from '~/lib/public-visibility'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import { geometries, geometriesRun, product } from '../schemas/db'
+import {
+  geometries,
+  geometriesRun,
+  geometryOutput,
+  product,
+} from '../schemas/db'
 import {
   baseAclColumns,
   createOwnedPayload,
@@ -135,10 +144,12 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { geometriesIds, excludeGeometriesIds } = c.req.valid('query')
+      const queryParams = c.req.valid('query')
+      const { geometriesIds, excludeGeometriesIds } = queryParams
       const geometriesIdsArray = normalizeFilterValues(geometriesIds)
       const excludeGeometriesIdsArray =
         normalizeFilterValues(excludeGeometriesIds)
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
         buildExplorerReadScope(
           c,
@@ -151,16 +162,26 @@ const app = createOpenAPIApp()
         excludeGeometriesIdsArray.length > 0
           ? notInArray(geometries.id, excludeGeometriesIdsArray)
           : undefined,
+        boundsEnvelope
+          ? inArray(
+              geometries.mainRunId,
+              db
+                .select({ id: geometryOutput.geometriesRunId })
+                .from(geometryOutput)
+                .where(
+                  buildGeometryIntersectsFilter(
+                    geometryOutput.geometry,
+                    boundsEnvelope,
+                  ),
+                ),
+            )
+          : undefined,
       )
-      const { meta, query } = await parseQuery(
-        geometries,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(geometries.createdAt),
-          searchableColumns: [geometries.name, geometries.description],
-          baseWhere,
-        },
-      )
+      const { meta, query } = await parseQuery(geometries, queryParams, {
+        defaultOrderBy: desc(geometries.createdAt),
+        searchableColumns: [geometries.name, geometries.description],
+        baseWhere,
+      })
 
       const data = await db.query.geometries.findMany({
         ...baseGeometriesQuery,
@@ -261,6 +282,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const geometriesId = id === '*' ? undefined : id
+      const queryParams = c.req.valid('query')
       if (geometriesId) {
         await assertResourceReadable({
           c,
@@ -270,13 +292,12 @@ const app = createOpenAPIApp()
           notFoundError: geometriesNotFoundError,
         })
       }
-      const { meta, query } = await parseQuery(
-        geometriesRun,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(geometriesRun.createdAt),
-          searchableColumns: [geometriesRun.name, geometriesRun.description],
-          baseWhere: geometriesId
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
+      const { meta, query } = await parseQuery(geometriesRun, queryParams, {
+        defaultOrderBy: desc(geometriesRun.createdAt),
+        searchableColumns: [geometriesRun.name, geometriesRun.description],
+        baseWhere: and(
+          geometriesId
             ? eq(geometriesRun.geometriesId, geometriesId)
             : inArray(
                 geometriesRun.geometriesId,
@@ -291,8 +312,22 @@ const app = createOpenAPIApp()
                     ),
                   ),
               ),
-        },
-      )
+          boundsEnvelope
+            ? inArray(
+                geometriesRun.id,
+                db
+                  .select({ id: geometryOutput.geometriesRunId })
+                  .from(geometryOutput)
+                  .where(
+                    buildGeometryIntersectsFilter(
+                      geometryOutput.geometry,
+                      boundsEnvelope,
+                    ),
+                  ),
+              )
+            : undefined,
+        ),
+      })
 
       const data = await db.query.geometriesRun.findMany({
         ...baseGeometriesRunQuery,

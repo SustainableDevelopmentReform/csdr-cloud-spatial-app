@@ -5,6 +5,10 @@ import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
+  toResourceBounds,
+  toResourceBoundsPolygon,
+} from '~/lib/geographicBounds'
+import {
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -17,6 +21,7 @@ import {
   baseRunColumns,
   createPayload,
   idColumns,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -29,6 +34,7 @@ import {
 export const baseDatasetRunQuery = {
   columns: {
     ...baseRunColumns,
+    bounds: true,
   },
   with: {
     dataset: {
@@ -41,6 +47,15 @@ export const baseDatasetRunQuery = {
 } satisfies QueryForTable<'datasetRun'>
 
 export const fullDatasetRunQuery = baseDatasetRunQuery
+
+export const parseBaseDatasetRun = <
+  T extends InferQueryModel<'datasetRun', typeof baseDatasetRunQuery>,
+>(
+  record: T,
+) => ({
+  ...record,
+  bounds: toResourceBounds(record.bounds),
+})
 
 const datasetRunNotFoundError = () =>
   new ServerError({
@@ -65,7 +80,7 @@ const fetchFullDatasetRun = async (id: string) => {
   ])
 
   return {
-    ...results,
+    ...parseBaseDatasetRun(results),
     productRunCount,
     ...usageCounts,
   }
@@ -159,7 +174,14 @@ const app = createOpenAPIApp()
       })
       const [newDatasetRun] = await db
         .insert(datasetRun)
-        .values(createPayload(payload))
+        .values(
+          createPayload({
+            ...payload,
+            bounds: payload.bounds
+              ? toResourceBoundsPolygon(payload.bounds)
+              : undefined,
+          }),
+        )
         .returning()
 
       if (!newDatasetRun) {
@@ -217,7 +239,17 @@ const app = createOpenAPIApp()
 
       const [record] = await db
         .update(datasetRun)
-        .set(updatePayload(payload))
+        .set(
+          updatePayload({
+            ...payload,
+            bounds:
+              payload.bounds === undefined
+                ? undefined
+                : payload.bounds === null
+                  ? null
+                  : toResourceBoundsPolygon(payload.bounds),
+          }),
+        )
         .where(eq(datasetRun.id, id))
         .returning()
 

@@ -84,6 +84,7 @@ describe('requireMfaIfNeeded', () => {
 
   it('still enforces MFA in development when the bypass flag is disabled', async () => {
     vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS', 'false')
 
     const { requireMfaIfNeeded } = await import('../request-actor')
 
@@ -118,6 +119,7 @@ describe('requireMfaIfNeeded', () => {
 
   it('still enforces MFA outside development', async () => {
     vi.stubEnv('NODE_ENV', 'test')
+    vi.stubEnv('ACCESS_CONTROL_ALLOW_INSECURE_DEV_MFA_BYPASS', 'false')
 
     const { requireMfaIfNeeded } = await import('../request-actor')
 
