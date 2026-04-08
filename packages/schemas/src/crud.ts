@@ -217,7 +217,7 @@ export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
 export const baseDatasetRunSchema = baseRunResourceSchema
   .extend({
     dataset: baseIdResourceSchemaWithMainRunId,
-    bounds: resourceBoundsSchema.nullable(),
+    bounds: resourceBoundsSchema.nullable().optional(),
   })
   .openapi('DatasetRunBase')
 
