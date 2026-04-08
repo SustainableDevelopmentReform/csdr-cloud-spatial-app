@@ -1,6 +1,14 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
@@ -9,6 +17,11 @@ import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../../../_components/geographic-bounds-picker-dialog'
 import { DatasetRunButton } from '../../_components/dataset-run-button'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
@@ -41,6 +54,7 @@ const DatasetRunFeature = () => {
     access,
     resourceData: dataset,
   })
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
@@ -53,6 +67,7 @@ const DatasetRunFeature = () => {
   const form = useForm({
     resolver: zodResolver(createDatasetRunSchema),
   })
+  const formBounds = form.watch('bounds')
 
   useEffect(() => {
     if (!dataset) return
@@ -80,14 +95,142 @@ const DatasetRunFeature = () => {
             hideTrigger={!canEdit}
           >
             <CrudFormRunFields form={form} />
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <FormLabel>Bounds</FormLabel>
+                <GeographicBoundsPickerDialog
+                  value={formBounds ?? null}
+                  buttonText="Set from map"
+                  onChange={(bounds) =>
+                    form.setValue('bounds', bounds, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  onClear={() =>
+                    form.setValue('bounds', undefined, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="bounds.minX"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Min Longitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value === ''
+                                ? undefined
+                                : Number(event.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bounds.maxX"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Longitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value === ''
+                                ? undefined
+                                : Number(event.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bounds.minY"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Min Latitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value === ''
+                                ? undefined
+                                : Number(event.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bounds.maxY"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Latitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value === ''
+                                ? undefined
+                                : Number(event.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </CrudFormDialog>
         </div>
         <div>
-          <SearchInput
-            placeholder="Search dataset runs"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <SearchInput
+              placeholder="Search dataset runs"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <GeographicBoundsPickerDialog
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
+          </div>
           <BaseCrudTable
             data={data?.data || []}
             isLoading={isLoading}

@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { dashboardIndicatorUsage, product, productOutput } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectBoundsToMatch,
+  expectJsonResponse,
+  noMatchBoundsFilter,
+  seededFullRunBounds,
+  tasmaniaBoundsFilter,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders, db } =
   await setupIsolatedTestFile(import.meta.url)
@@ -474,6 +480,106 @@ describe('product-run route', () => {
         status: 200,
         message: 'Product run deleted',
       },
+    )
+  })
+
+  it('filters product outputs by intersecting linked geometry outputs', async () => {
+    const filteredOutputsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0['product-run'][':id'].outputs.$get({
+        param: { id: seededIds.productRun },
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(filteredOutputsJson.data.data.map((item) => item.id)).toEqual([
+      seededIds.productOutputTasmania2022,
+      seededIds.productOutputTasmania2021,
+    ])
+
+    const noMatchOutputsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0['product-run'][':id'].outputs.$get({
+        param: { id: seededIds.productRun },
+        query: noMatchBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(noMatchOutputsJson.data.data).toEqual([])
+  })
+
+  it('refreshes product summary bounds from linked geometry outputs only', async () => {
+    await expectJsonResponse(
+      await adminClient.api.v0['dataset-run'][':id'].$patch({
+        param: { id: seededIds.datasetRun },
+        json: {
+          bounds: {
+            minX: -10,
+            minY: 50,
+            maxX: 10,
+            maxY: 60,
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset run updated',
+      },
+    )
+
+    const beforeRefreshJson = await expectJsonResponse<{
+      outputSummary: {
+        bounds: {
+          minX: number
+          minY: number
+          maxX: number
+          maxY: number
+        } | null
+      } | null
+    }>(
+      await memberClient.api.v0['product-run'][':id'].$get({
+        param: { id: seededIds.productRun },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(beforeRefreshJson.data.outputSummary?.bounds).toBeNull()
+
+    const refreshedJson = await expectJsonResponse<{
+      outputSummary: {
+        bounds: {
+          minX: number
+          minY: number
+          maxX: number
+          maxY: number
+        } | null
+      } | null
+    }>(
+      await adminClient.api.v0['product-run'][':id']['refresh-summary'].$post({
+        param: { id: seededIds.productRun },
+      }),
+      {
+        status: 200,
+        message: 'Product run summary refreshed',
+      },
+    )
+
+    expectBoundsToMatch(
+      refreshedJson.data.outputSummary?.bounds,
+      seededFullRunBounds,
     )
   })
 })

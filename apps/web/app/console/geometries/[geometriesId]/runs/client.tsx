@@ -19,6 +19,11 @@ import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../../../_components/geographic-bounds-picker-dialog'
 import { GeometriesRunButton } from '../../_components/geometries-run-button'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
@@ -49,6 +54,7 @@ const GeometriesRunFeature = () => {
     access,
     resourceData: geometries,
   })
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['createdAt', 'updatedAt'] as const
@@ -114,11 +120,20 @@ const GeometriesRunFeature = () => {
           </CrudFormDialog>
         </div>
         <div>
-          <SearchInput
-            placeholder="Search geometries runs"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <SearchInput
+              placeholder="Search geometries runs"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <GeographicBoundsPickerDialog
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
+          </div>
           <BaseCrudTable
             data={data?.data || []}
             isLoading={isLoading}

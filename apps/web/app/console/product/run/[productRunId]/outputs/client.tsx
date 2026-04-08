@@ -25,6 +25,11 @@ import BaseCrudTable, {
 } from '../../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../../../../_components/geographic-bounds-picker-dialog'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { DatasetButton } from '../../../../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../../../../dataset/_components/dataset-run-button'
@@ -78,6 +83,7 @@ const ProductOutputFeature = () => {
     () => normalizeFilterValues(query?.geometryOutputId),
     [query?.geometryOutputId],
   )
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
@@ -327,6 +333,13 @@ const ProductOutputFeature = () => {
                   isMulti
                 />
               </div>
+              <GeographicBoundsPickerDialog
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
+                }
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+              />
             </div>
           </div>
 

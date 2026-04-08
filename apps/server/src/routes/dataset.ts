@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, desc, eq, exists, inArray, notInArray, sql } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -10,6 +10,10 @@ import {
 import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
+import {
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+} from '~/lib/geographicBounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -26,6 +30,7 @@ import { dataset, datasetRun, product } from '../schemas/db'
 import {
   baseAclColumns,
   createOwnedPayload,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -39,7 +44,7 @@ import {
   updateDatasetSchema,
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
-import { baseDatasetRunQuery } from './datasetRun'
+import { baseDatasetRunQuery, parseBaseDatasetRun } from './datasetRun'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 
 export const baseDatasetQuery = {
@@ -69,6 +74,21 @@ const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
 
+export const parseBaseDataset = <
+  T extends InferQueryModel<'dataset', typeof baseDatasetQuery>,
+>(
+  record: T,
+) => record
+
+export const parseFullDataset = <
+  T extends InferQueryModel<'dataset', typeof fullDatasetQuery>,
+>(
+  record: T,
+) => ({
+  ...record,
+  mainRun: record.mainRun ? parseBaseDatasetRun(record.mainRun) : null,
+})
+
 const fetchFullDataset = async (id: string, organizationId: string) => {
   const record = await db.query.dataset.findFirst({
     where: (dataset, { and, eq }) =>
@@ -86,7 +106,12 @@ const fetchFullDataset = async (id: string, organizationId: string) => {
     fetchChartUsageCounts({ type: 'dataset', id }),
   ])
 
-  return { ...record, runCount, productCount, ...usageCounts }
+  return {
+    ...parseFullDataset(record),
+    runCount,
+    productCount,
+    ...usageCounts,
+  }
 }
 
 export const fetchFullDatasetOrThrow = async (
@@ -138,9 +163,11 @@ const app = createOpenAPIApp()
       },
     }),
     async (c) => {
-      const { datasetIds, excludeDatasetIds } = c.req.valid('query')
+      const queryParams = c.req.valid('query')
+      const { datasetIds, excludeDatasetIds } = queryParams
       const datasetIdsArray = normalizeFilterValues(datasetIds)
       const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
         buildExplorerReadScope(c, dataset.organizationId, dataset.visibility),
         datasetIdsArray.length > 0
@@ -149,8 +176,22 @@ const app = createOpenAPIApp()
         excludeDatasetIdsArray.length > 0
           ? notInArray(dataset.id, excludeDatasetIdsArray)
           : undefined,
+        boundsEnvelope
+          ? inArray(
+              dataset.mainRunId,
+              db
+                .select({ id: datasetRun.id })
+                .from(datasetRun)
+                .where(
+                  buildGeometryIntersectsFilter(
+                    datasetRun.bounds,
+                    boundsEnvelope,
+                  ),
+                ),
+            )
+          : undefined,
       )
-      const { meta, query } = await parseQuery(dataset, c.req.valid('query'), {
+      const { meta, query } = await parseQuery(dataset, queryParams, {
         defaultOrderBy: desc(dataset.createdAt),
         searchableColumns: [dataset.name, dataset.description],
         baseWhere,
@@ -259,6 +300,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const datasetId = id === '*' ? undefined : id
+      const queryParams = c.req.valid('query')
       if (datasetId) {
         await assertResourceReadable({
           c,
@@ -268,13 +310,12 @@ const app = createOpenAPIApp()
           notFoundError: datasetNotFoundError,
         })
       }
-      const { meta, query } = await parseQuery(
-        datasetRun,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(datasetRun.createdAt),
-          searchableColumns: [datasetRun.name, datasetRun.description],
-          baseWhere: datasetId
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
+      const { meta, query } = await parseQuery(datasetRun, queryParams, {
+        defaultOrderBy: desc(datasetRun.createdAt),
+        searchableColumns: [datasetRun.name, datasetRun.description],
+        baseWhere: and(
+          datasetId
             ? eq(datasetRun.datasetId, datasetId)
             : inArray(
                 datasetRun.datasetId,
@@ -289,19 +330,22 @@ const app = createOpenAPIApp()
                     ),
                   ),
               ),
-        },
-      )
+          buildGeometryIntersectsFilter(datasetRun.bounds, boundsEnvelope),
+        ),
+      })
 
       const data = await db.query.datasetRun.findMany({
         ...baseDatasetRunQuery,
         ...query,
       })
 
+      const parsedData = data.map(parseBaseDatasetRun)
+
       return generateJsonResponse(
         c,
         {
           ...meta,
-          data,
+          data: parsedData,
         },
         200,
       )

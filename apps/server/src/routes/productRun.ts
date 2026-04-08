@@ -16,6 +16,7 @@ import {
   count,
   desc,
   eq,
+  exists,
   inArray,
   isNotNull,
   isNull,
@@ -23,6 +24,7 @@ import {
   min,
   or,
   SQL,
+  sql,
 } from 'drizzle-orm'
 import { evaluate } from 'mathjs'
 import {
@@ -34,6 +36,12 @@ import { assertResourceWritable } from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
+  buildExtentEnvelopeSql,
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+  toResourceBounds,
+} from '~/lib/geographicBounds'
+import {
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -42,6 +50,7 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
+  geometryOutput,
   product,
   productOutput,
   productOutputDependency,
@@ -61,7 +70,7 @@ import {
   updatePayload,
 } from '../schemas/util'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
-import { baseDatasetRunQuery } from './datasetRun'
+import { baseDatasetRunQuery, parseBaseDatasetRun } from './datasetRun'
 import { baseGeometriesRunQuery } from './geometriesRun'
 import {
   baseDerivedIndicatorQuery,
@@ -78,6 +87,7 @@ const baseProductRunOutputSummaryQuery = {
     endTime: true,
     outputCount: true,
     timePoints: true,
+    bounds: true,
   },
   with: {
     indicators: {
@@ -164,6 +174,7 @@ export const parseFullProductRunOutputSummary = <
 ) => {
   return {
     ...record,
+    bounds: toResourceBounds(record.bounds),
     indicators:
       record.indicators?.map((indicator) => ({
         ...indicator,
@@ -186,6 +197,7 @@ export const parseBaseProductRunOutputSummary = <
 ) => {
   return {
     ...record,
+    bounds: toResourceBounds(record.bounds),
     indicators:
       record.indicators
         ?.map((indicator) =>
@@ -223,6 +235,9 @@ export const parseFullProductRun = <
 ) => {
   return {
     ...record,
+    datasetRun: record.datasetRun
+      ? parseBaseDatasetRun(record.datasetRun)
+      : null,
     // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
     outputSummary: record.outputSummary
       ? parseFullProductRunOutputSummary(record.outputSummary)
@@ -351,9 +366,11 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
-      const { indicatorId, geometryOutputId, timePoint } = c.req.valid('query')
+      const queryParams = c.req.valid('query')
+      const { indicatorId, geometryOutputId, timePoint } = queryParams
       const indicatorIds = normalizeFilterValues(indicatorId)
       const geometryOutputIds = normalizeFilterValues(geometryOutputId)
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
         eq(productOutput.productRunId, id),
         indicatorIds.length > 0
@@ -368,21 +385,31 @@ const app = createOpenAPIApp()
         timePoint
           ? eq(productOutput.timePoint, new Date(timePoint))
           : undefined,
+        boundsEnvelope
+          ? inArray(
+              productOutput.geometryOutputId,
+              db
+                .select({ id: geometryOutput.id })
+                .from(geometryOutput)
+                .where(
+                  buildGeometryIntersectsFilter(
+                    geometryOutput.geometry,
+                    boundsEnvelope,
+                  ),
+                ),
+            )
+          : undefined,
       )
 
-      const { meta, query } = await parseQuery(
-        productOutput,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(productOutput.createdAt),
-          searchableColumns: [
-            productOutput.id,
-            productOutput.name,
-            productOutput.description,
-          ],
-          baseWhere,
-        },
-      )
+      const { meta, query } = await parseQuery(productOutput, queryParams, {
+        defaultOrderBy: desc(productOutput.createdAt),
+        searchableColumns: [
+          productOutput.id,
+          productOutput.name,
+          productOutput.description,
+        ],
+        baseWhere,
+      })
 
       const data = await db.query.productOutput.findMany({
         ...baseProductOutputQuery,
@@ -1019,6 +1046,16 @@ const app = createOpenAPIApp()
       }
 
       await db.transaction(async (tx) => {
+        const summaryBounds = sql`
+          (
+            select ${buildExtentEnvelopeSql(geometryOutput.geometry)}
+            from ${productOutput}
+            inner join ${geometryOutput}
+              on ${geometryOutput.id} = ${productOutput.geometryOutputId}
+            where ${productOutput.productRunId} = ${id}
+          )
+        `
+
         // 1. Calculate overall summary statistics
         const summaryStats = await tx
           .select({
@@ -1053,6 +1090,7 @@ const app = createOpenAPIApp()
               endTime: stats.endTime,
               timePoints: timePointsArray,
               outputCount: stats.outputCount,
+              bounds: summaryBounds,
               lastUpdated: new Date(),
             })
             .onConflictDoUpdate({
@@ -1062,6 +1100,7 @@ const app = createOpenAPIApp()
                 endTime: stats.endTime,
                 timePoints: timePointsArray,
                 outputCount: stats.outputCount,
+                bounds: summaryBounds,
                 lastUpdated: new Date(),
               },
             })

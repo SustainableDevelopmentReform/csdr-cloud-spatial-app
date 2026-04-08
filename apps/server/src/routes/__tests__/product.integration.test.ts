@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectJsonResponse,
+  noMatchBoundsFilter,
+  tasmaniaBoundsFilter,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
   import.meta.url,
@@ -219,6 +223,67 @@ describe('product route', () => {
         status: 200,
         message: 'Product deleted',
       },
+    )
+  })
+
+  it('filters products and product runs by refreshed product summary bounds', async () => {
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id']['refresh-summary'].$post({
+        param: { id: seededIds.productRun },
+      }),
+      {
+        status: 200,
+        message: 'Product run summary refreshed',
+      },
+    )
+
+    const matchingProductsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.product.$get({
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingProductsJson.data.data.map((item) => item.id)).toContain(
+      seededIds.product,
+    )
+
+    const matchingRunsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.product[':id'].runs.$get({
+        param: { id: seededIds.product },
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingRunsJson.data.data.map((item) => item.id)).toContain(
+      seededIds.productRun,
+    )
+
+    const noMatchProductsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.product.$get({
+        query: noMatchBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(noMatchProductsJson.data.data.map((item) => item.id)).not.toContain(
+      seededIds.product,
     )
   })
 })

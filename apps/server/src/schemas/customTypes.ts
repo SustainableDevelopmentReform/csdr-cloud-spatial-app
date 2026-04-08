@@ -2,6 +2,7 @@ import { customType } from 'drizzle-orm/pg-core'
 import { SQL, sql } from 'drizzle-orm'
 import {
   Geometry as GeoJSONGeometry,
+  Polygon as GeoJSONPolygon,
   MultiPolygon as GeoJSONMultiPolygon,
 } from 'geojson'
 import wkx from 'wkx'
@@ -67,13 +68,66 @@ export type GeometryOptions =
   | { type?: GeometryType; srid?: never; is3D?: boolean }
   | { type: GeometryType; srid: number; is3D?: boolean }
 
+type SerializedBuffer = {
+  type: 'Buffer'
+  data: number[]
+}
+
+type GeometryDriverValue = string | Buffer | GeoJSONGeometry | SerializedBuffer
+
 function toDriver(value: GeoJSONGeometry) {
   return sql`ST_GeomFromGeoJSON(${JSON.stringify(value)})`
 }
 
-export function fromDriver<T extends GeoJSONGeometry>(value: string) {
-  const b = Buffer.from(value, 'hex')
-  return wkx.Geometry.parse(b).toGeoJSON({ shortCrs: true }) as T
+const isSerializedBuffer = (value: unknown): value is SerializedBuffer =>
+  typeof value === 'object' &&
+  value !== null &&
+  'type' in value &&
+  value.type === 'Buffer' &&
+  'data' in value &&
+  Array.isArray(value.data)
+
+const isGeoJSONGeometry = (value: unknown): value is GeoJSONGeometry => {
+  if (typeof value !== 'object' || value === null || !('type' in value)) {
+    return false
+  }
+
+  const geometryType = value.type
+
+  if (typeof geometryType !== 'string') {
+    return false
+  }
+
+  if (geometryType === 'GeometryCollection') {
+    return 'geometries' in value && Array.isArray(value.geometries)
+  }
+
+  return 'coordinates' in value && Array.isArray(value.coordinates)
+}
+
+const parseGeometryBuffer = (value: Buffer) =>
+  wkx.Geometry.parse(value).toGeoJSON({ shortCrs: true })
+
+export function fromDriver<T extends GeoJSONGeometry>(
+  value: GeometryDriverValue,
+) {
+  if (typeof value === 'string') {
+    return parseGeometryBuffer(Buffer.from(value, 'hex')) as T
+  }
+
+  if (Buffer.isBuffer(value)) {
+    return parseGeometryBuffer(value) as T
+  }
+
+  if (isSerializedBuffer(value)) {
+    return parseGeometryBuffer(Buffer.from(value.data)) as T
+  }
+
+  if (isGeoJSONGeometry(value)) {
+    return value as T
+  }
+
+  throw new Error(`Invalid geometry value: ${JSON.stringify(value)}`)
 }
 
 const dataType = (options?: GeometryOptions) => {
@@ -101,12 +155,23 @@ const dataType = (options?: GeometryOptions) => {
 export const multiPolygon = customType<{
   data: GeoJSONMultiPolygon
   config: GeometrySubtypeOptions
-  driverData: string
+  driverData: GeometryDriverValue
 }>({
   dataType: (options) =>
     dataType({ type: `MultiPolygon${options?.is3D ? 'Z' : ''}`, ...options }),
   toDriver: (mp: GeoJSONMultiPolygon) => toDriver(mp),
   fromDriver: (value) => fromDriver<GeoJSONMultiPolygon>(value),
+})
+
+export const polygon = customType<{
+  data: GeoJSONPolygon
+  config: GeometrySubtypeOptions
+  driverData: GeometryDriverValue
+}>({
+  dataType: (options) =>
+    dataType({ type: `Polygon${options?.is3D ? 'Z' : ''}`, ...options }),
+  toDriver: (p: GeoJSONPolygon) => toDriver(p),
+  fromDriver: (value) => fromDriver<GeoJSONPolygon>(value),
 })
 
 /** Constructs a PostGIS geometry object from the GeoJSON representation.

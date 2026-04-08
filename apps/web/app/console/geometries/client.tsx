@@ -15,6 +15,11 @@ import Pagination from '~/components/table/pagination'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { useAccessControl } from '../../../hooks/useAccessControl'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../_components/geographic-bounds-picker-dialog'
 import { GeometriesButton } from './_components/geometries-button'
 import {
   useAllGeometries,
@@ -38,6 +43,7 @@ const GeometriesFeature = () => {
   const createGeometries = useCreateGeometries()
   const { access } = useAccessControl()
   const geometriesLink = useGeometriesLink()
+  const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
     return ['description', 'createdAt', 'updatedAt'] as const
@@ -88,11 +94,20 @@ const GeometriesFeature = () => {
         </CrudFormDialog>
       </div>
       <div>
-        <SearchInput
-          placeholder="Search geometries"
-          value={query?.search ?? ''}
-          onChange={(e) => setSearchParams({ search: e.target.value })}
-        />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <SearchInput
+            placeholder="Search geometries"
+            value={query?.search ?? ''}
+            onChange={(e) => setSearchParams({ search: e.target.value })}
+          />
+          <GeographicBoundsPickerDialog
+            value={geographicBounds}
+            onChange={(bounds) =>
+              setSearchParams(toGeographicBoundsQuery(bounds))
+            }
+            onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+          />
+        </div>
         <BaseCrudTable
           data={data?.data || []}
           isLoading={isLoading}

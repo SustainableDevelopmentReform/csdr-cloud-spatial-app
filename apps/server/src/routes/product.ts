@@ -30,6 +30,10 @@ import { fetchChartUsageCounts } from '~/lib/chartUsage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
+  buildGeometryIntersectsFilter,
+  getBoundsFilterEnvelope,
+} from '~/lib/geographicBounds'
+import {
   createOpenAPIApp,
   createResponseSchema,
   jsonErrorResponse,
@@ -44,6 +48,7 @@ import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
   product,
+  productOutputSummary,
   productOutputSummaryIndicator,
   productRun,
 } from '../schemas/db'
@@ -56,7 +61,7 @@ import {
   updatePayload,
 } from '../schemas/util'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
-import { fullDatasetQuery } from './dataset'
+import { fullDatasetQuery, parseFullDataset } from './dataset'
 import { fullGeometriesQuery } from './geometries'
 import {
   baseProductRunQuery,
@@ -115,6 +120,7 @@ export const parseFullProduct = <
 ) => {
   return {
     ...record,
+    dataset: record.dataset ? parseFullDataset(record.dataset) : null,
     mainRun: record.mainRun ? parseFullProductRun(record.mainRun) : null,
   }
 }
@@ -193,12 +199,22 @@ const app = createOpenAPIApp()
         geometriesId,
         indicatorId,
         hasRun,
+        boundsMinX,
+        boundsMinY,
+        boundsMaxX,
+        boundsMaxY,
       } = c.req.valid('query')
       const productIdsArray = normalizeFilterValues(productIds)
       const excludeProductIdsArray = normalizeFilterValues(excludeProductIds)
       const datasetIds = normalizeFilterValues(datasetId)
       const geometriesIds = normalizeFilterValues(geometriesId)
       const indicatorIds = normalizeFilterValues(indicatorId)
+      const boundsEnvelope = getBoundsFilterEnvelope({
+        boundsMinX,
+        boundsMinY,
+        boundsMaxX,
+        boundsMaxY,
+      })
       const baseWhere = and(
         buildExplorerReadScope(c, product.organizationId, product.visibility),
         productIdsArray.length > 0
@@ -244,6 +260,20 @@ const app = createOpenAPIApp()
                 .select({ _: sql`1` })
                 .from(productRun)
                 .where(eq(productRun.productId, product.id)),
+            )
+          : undefined,
+        boundsEnvelope
+          ? inArray(
+              product.mainRunId,
+              db
+                .select({ id: productOutputSummary.productRunId })
+                .from(productOutputSummary)
+                .where(
+                  buildGeometryIntersectsFilter(
+                    productOutputSummary.bounds,
+                    boundsEnvelope,
+                  ),
+                ),
             )
           : undefined,
       )
@@ -356,6 +386,7 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const productId = id === '*' ? undefined : id
+      const queryParams = c.req.valid('query')
       if (productId) {
         await assertResourceReadable({
           c,
@@ -365,7 +396,8 @@ const app = createOpenAPIApp()
           notFoundError: productNotFoundError,
         })
       }
-      const { datasetRunId, geometriesRunId } = c.req.valid('query')
+      const { datasetRunId, geometriesRunId } = queryParams
+      const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
         productId ? eq(productRun.productId, id) : undefined,
         productId
@@ -387,17 +419,27 @@ const app = createOpenAPIApp()
         geometriesRunId
           ? eq(productRun.geometriesRunId, geometriesRunId)
           : undefined,
+        boundsEnvelope
+          ? inArray(
+              productRun.id,
+              db
+                .select({ id: productOutputSummary.productRunId })
+                .from(productOutputSummary)
+                .where(
+                  buildGeometryIntersectsFilter(
+                    productOutputSummary.bounds,
+                    boundsEnvelope,
+                  ),
+                ),
+            )
+          : undefined,
       )
 
-      const { meta, query } = await parseQuery(
-        productRun,
-        c.req.valid('query'),
-        {
-          defaultOrderBy: desc(productRun.createdAt),
-          searchableColumns: [productRun.name, productRun.description],
-          baseWhere,
-        },
-      )
+      const { meta, query } = await parseQuery(productRun, queryParams, {
+        defaultOrderBy: desc(productRun.createdAt),
+        searchableColumns: [productRun.name, productRun.description],
+        baseWhere,
+      })
 
       const data = await db.query.productRun.findMany({
         ...baseProductRunQuery,

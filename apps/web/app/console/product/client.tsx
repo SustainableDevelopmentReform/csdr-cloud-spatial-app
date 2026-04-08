@@ -12,6 +12,11 @@ import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { useAccessControl } from '../../../hooks/useAccessControl'
 import { SearchInput } from '../../../components/table/search-input'
+import {
+  GeographicBoundsPickerDialog,
+  getGeographicBoundsFromQuery,
+  toGeographicBoundsQuery,
+} from '../_components/geographic-bounds-picker-dialog'
 import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
 import { GeometriesButton } from '../geometries/_components/geometries-button'
@@ -111,6 +116,7 @@ const ProductFeature = () => {
     () => normalizeFilterValues(query?.indicatorId),
     [query?.indicatorId],
   )
+  const geographicBounds = getGeographicBoundsFromQuery(query)
   const baseColumns = useMemo(() => {
     return ['createdAt'] as const
   }, [])
@@ -215,6 +221,13 @@ const ProductFeature = () => {
                 isClearable
               />
             </div>
+            <GeographicBoundsPickerDialog
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
           </div>
         </div>
         <BaseCrudTable

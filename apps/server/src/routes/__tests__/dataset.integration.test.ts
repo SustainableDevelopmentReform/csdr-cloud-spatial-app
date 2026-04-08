@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
-import { expectJsonResponse } from './test-helpers'
+import {
+  expectJsonResponse,
+  noMatchBoundsFilter,
+  seededTasmaniaBounds,
+  tasmaniaBoundsFilter,
+} from './test-helpers'
 
 const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
   import.meta.url,
@@ -217,6 +222,70 @@ describe('dataset route', () => {
         status: 200,
         message: 'Dataset deleted',
       },
+    )
+  })
+
+  it('filters datasets and dataset runs by stored dataset run bounds', async () => {
+    await expectJsonResponse(
+      await adminClient.api.v0['dataset-run'][':id'].$patch({
+        param: { id: seededIds.datasetRun },
+        json: {
+          bounds: seededTasmaniaBounds,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset run updated',
+      },
+    )
+
+    const matchingDatasetsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.dataset.$get({
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingDatasetsJson.data.data.map((item) => item.id)).toContain(
+      seededIds.dataset,
+    )
+
+    const matchingRunsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.dataset[':id'].runs.$get({
+        param: { id: seededIds.dataset },
+        query: tasmaniaBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(matchingRunsJson.data.data.map((item) => item.id)).toContain(
+      seededIds.datasetRun,
+    )
+
+    const noMatchDatasetsJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.dataset.$get({
+        query: noMatchBoundsFilter,
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(noMatchDatasetsJson.data.data.map((item) => item.id)).not.toContain(
+      seededIds.dataset,
     )
   })
 })
