@@ -17,6 +17,7 @@ export type CrudFormAction = {
         title?: string
         description: string
         buttonCancelTitle?: string
+        buttonConfirmTitle?: string
       }
       disabled?: boolean
     }
@@ -39,6 +40,7 @@ export const FormAction = (props: CrudFormAction) => {
           buttonTitle={props.buttonTitle}
           confirmDialog={props.confirmDialog}
           mutation={props.mutation}
+          disabled={props.disabled}
         />
       ) : (
         <Button

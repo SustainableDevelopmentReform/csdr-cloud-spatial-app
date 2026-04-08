@@ -87,6 +87,7 @@ Local development uses `docker-compose-dev.yml` to start:
 
 - PostGIS on port `5431`
 - Mailpit on ports `8025` and `1025`
+- SeaweedFS on ports `8333`, `8888`, and `9333`
 
 The web app defaults to `http://localhost:3000` and the server defaults to `http://localhost:4000`.
 

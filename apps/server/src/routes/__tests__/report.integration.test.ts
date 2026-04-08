@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { reportIndicatorUsage } from '~/schemas/db'
+import {
+  product,
+  productRun,
+  productRunAssignedDerivedIndicator,
+  productRunAssignedDerivedIndicatorDependency,
+  report,
+  reportIndicatorUsage,
+} from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import { expectJsonResponse } from './test-helpers'
 
@@ -317,5 +324,322 @@ describe('report route', () => {
       expect(returnedIds).toContain(reportId)
       expect(returnedIds).not.toContain(seededIds.report)
     }
+  })
+
+  it('publishes a report, stores PDF metadata, and locks future changes', async () => {
+    const createdJson = await expectJsonResponse<{
+      id: string
+    }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Publishable report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: validReportContent,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const publishedJson = await expectJsonResponse<{
+      id: string
+      publishedAt: string | null
+      publishedByUserId: string | null
+      publishedPdfAvailable: boolean
+    }>(
+      await adminClient.api.v0.report[':id'].publish.$post({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 200,
+        message: 'Report published',
+      },
+    )
+
+    expect(publishedJson.data.publishedAt).not.toBeNull()
+    expect(publishedJson.data.publishedByUserId).toBeDefined()
+    expect(publishedJson.data.publishedPdfAvailable).toBe(true)
+
+    const storedReport = await db.query.report.findFirst({
+      where: eq(report.id, createdJson.data.id),
+    })
+
+    expect(storedReport?.publishedAt).not.toBeNull()
+    expect(storedReport?.publishedByUserId).not.toBeNull()
+    expect(storedReport?.publishedPdfKey).toBe(
+      `reports/${createdJson.data.id}/published.pdf`,
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          description: 'Should fail',
+        },
+      }),
+      {
+        status: 409,
+        message: 'Report is published',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].visibility.$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 409,
+        message: 'Report is published',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].publish.$post({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 409,
+        message: 'Report is published',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$delete({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 409,
+        message: 'Report is published',
+      },
+    )
+  })
+
+  it('serves a published report PDF and rejects unpublished reports', async () => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'PDF report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await memberClient.api.v0.report[':id'].pdf.$get({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 409,
+        message: 'Failed to get report PDF',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].publish.$post({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 200,
+        message: 'Report published',
+      },
+    )
+
+    const pdfResponse = await memberClient.api.v0.report[':id'].pdf.$get({
+      param: { id: createdJson.data.id },
+    })
+
+    expect(pdfResponse.status).toBe(200)
+    expect(pdfResponse.headers.get('content-type')).toContain('application/pdf')
+    expect((await pdfResponse.arrayBuffer()).byteLength).toBeGreaterThan(0)
+  })
+
+  it('derives live report sources from chart usage and dedupes shared datasets and geometries', async () => {
+    const dependencyProductId = 'forest-cover-product-dependency'
+    const dependencyProductRunId = 'forest-cover-product-run-dependency'
+    const assignedDerivedIndicatorId = 'forest-cover-assigned-derived-indicator'
+
+    await db.insert(product).values({
+      id: dependencyProductId,
+      name: 'Forest Cover Dependency Product',
+      description: 'Dependency product for derived indicator sources',
+      metadata: null,
+      organizationId: seededIds.organization,
+      createdByUserId: seededIds.adminUser,
+      visibility: 'private',
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+      datasetId: seededIds.dataset,
+      geometriesId: seededIds.geometries,
+      mainRunId: null,
+    })
+
+    await db.insert(productRun).values({
+      id: dependencyProductRunId,
+      name: 'forest-cover-product-run-dependency',
+      description: 'Dependency product run for derived indicator sources',
+      metadata: null,
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+      productId: dependencyProductId,
+      datasetRunId: seededIds.datasetRun,
+      geometriesRunId: seededIds.geometriesRun,
+      imageCode: null,
+      imageTag: null,
+      provenanceJson: null,
+      provenanceUrl: null,
+      dataUrl: null,
+      dataType: 'parquet',
+      dataSize: null,
+      dataEtag: null,
+    })
+
+    await db.insert(productRunAssignedDerivedIndicator).values({
+      id: assignedDerivedIndicatorId,
+      productRunId: seededIds.productRun,
+      derivedIndicatorId: seededIds.derivedIndicator,
+    })
+
+    await db.insert(productRunAssignedDerivedIndicatorDependency).values({
+      assignedDerivedIndicatorId,
+      indicatorId: seededIds.indicator,
+      sourceProductRunId: dependencyProductRunId,
+    })
+
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Derived source report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'chart',
+                attrs: {
+                  chart: {
+                    type: 'plot',
+                    subType: 'line',
+                    productRunId: seededIds.productRun,
+                    indicatorIds: [seededIds.derivedIndicator],
+                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                    timePoints: ['2021-01-01T00:00:00.000Z'],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const detailJson = await expectJsonResponse<{
+      sources: {
+        resourceType: 'product' | 'dataset' | 'geometries'
+        id: string
+      }[]
+    }>(
+      await memberClient.api.v0.report[':id'].$get({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const productSources = detailJson.data.sources.filter(
+      (source) => source.resourceType === 'product',
+    )
+    const datasetSources = detailJson.data.sources.filter(
+      (source) => source.resourceType === 'dataset',
+    )
+    const geometriesSources = detailJson.data.sources.filter(
+      (source) => source.resourceType === 'geometries',
+    )
+
+    expect(productSources.map((source) => source.id).sort()).toEqual(
+      [dependencyProductId, seededIds.product].sort(),
+    )
+    expect(datasetSources.map((source) => source.id)).toEqual([
+      seededIds.dataset,
+    ])
+    expect(geometriesSources.map((source) => source.id)).toEqual([
+      seededIds.geometries,
+    ])
+  })
+
+  it('duplicates a report into a new private unpublished draft with synced chart usage', async () => {
+    const reportId = await createReportWithChartUsage(seededIds.indicator)
+
+    const duplicatedJson = await expectJsonResponse<{
+      id: string
+      name: string
+      visibility: string
+      publishedAt: string | null
+      publishedPdfAvailable: boolean
+    }>(
+      await adminClient.api.v0.report[':id'].duplicate.$post({
+        param: { id: reportId },
+      }),
+      {
+        status: 201,
+        message: 'Report duplicated',
+      },
+    )
+
+    expect(duplicatedJson.data.id).not.toBe(reportId)
+    expect(duplicatedJson.data.name).toBe(
+      `Chart report ${seededIds.indicator} (Copy)`,
+    )
+    expect(duplicatedJson.data.visibility).toBe('private')
+    expect(duplicatedJson.data.publishedAt).toBeNull()
+    expect(duplicatedJson.data.publishedPdfAvailable).toBe(false)
+
+    expect(
+      await db.query.reportIndicatorUsage.findMany({
+        where: eq(reportIndicatorUsage.reportId, duplicatedJson.data.id),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        reportId: duplicatedJson.data.id,
+        productRunId: seededIds.productRun,
+        indicatorId: seededIds.indicator,
+        derivedIndicatorId: null,
+      }),
+    ])
   })
 })

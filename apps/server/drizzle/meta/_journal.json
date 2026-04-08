@@ -225,6 +225,13 @@
       "when": 1775196736464,
       "tag": "0031_workable_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1778600000000,
+      "tag": "0032_fancy_power_pack",
+      "breakpoints": true
     }
   ]
 }

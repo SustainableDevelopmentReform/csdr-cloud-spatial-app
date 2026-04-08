@@ -61,8 +61,11 @@ Local services:
 - API server: `http://localhost:4000`
 - Mailpit UI: `http://localhost:8025`
 - PostGIS: `localhost:5431`
+- SeaweedFS S3 API: `http://localhost:8333`
+- SeaweedFS Filer UI: `http://localhost:8888`
+- SeaweedFS Master UI: `http://localhost:9333`
 
-The example environment file already contains sensible local defaults, including the seed user:
+The example environment file already contains sensible local defaults, including Mailpit SMTP settings, SeaweedFS S3 settings, and the seed user:
 
 - email: `admin@example.com`
 - password: `admin@123`

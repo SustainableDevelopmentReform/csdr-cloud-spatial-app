@@ -196,6 +196,36 @@ export const useUpdateDashboardVisibility = (_dashboardId?: string) => {
   })
 }
 
+export const useDuplicateDashboard = (_dashboardId?: string) => {
+  const { dashboardId } = useDashboardParams(_dashboardId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+
+  return useMutation({
+    meta: {
+      suppressGlobalErrorToast: true,
+    },
+    mutationFn: async () => {
+      if (!dashboardId) {
+        return null
+      }
+
+      const res = client.api.v0.dashboard[':id'].duplicate.$post({
+        param: {
+          id: dashboardId,
+        },
+      })
+
+      const json = await unwrapResponse(res, 201)
+      return json.data
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.all })
+      await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
 export const usePreviewDashboardVisibility = (_dashboardId?: string) => {
   const { dashboardId } = useDashboardParams(_dashboardId)
   const client = useApiClient()

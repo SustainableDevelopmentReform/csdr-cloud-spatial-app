@@ -17,7 +17,7 @@ What each step does:
 
 - `pnpm install`: installs all workspace dependencies
 - `cp .env.example.local .env`: creates the local runtime config used by both apps
-- `docker compose -f docker-compose-dev.yml up -d`: starts PostGIS and Mailpit
+- `docker compose -f docker-compose-dev.yml up -d`: starts PostGIS, Mailpit, and SeaweedFS
 - `pnpm migrate`: applies Drizzle migrations to the local database
 - `pnpm seed`: inserts the initial organization, admin user, and sample spatial resources
 - `pnpm dev`: starts the workspace development processes

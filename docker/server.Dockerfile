@@ -33,6 +33,8 @@ RUN pnpm run build --filter=@repo/server...
 FROM base AS runner
 WORKDIR /app
 
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+
 # Don't run production as root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 honojs
@@ -46,5 +48,6 @@ USER honojs
 EXPOSE 4000
 
 ENV IS_DOCKER_COMPOSE="true"
+ENV PDF_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium-browser"
 
 CMD node app/index.js

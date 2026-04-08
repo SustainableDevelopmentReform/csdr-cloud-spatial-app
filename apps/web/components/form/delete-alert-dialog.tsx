@@ -17,10 +17,12 @@ import { UseMutationResult } from '@tanstack/react-query'
 type DeleteAlertDialogProps = {
   buttonVariant: ComponentProps<typeof Button>['variant']
   buttonTitle: string
+  disabled?: boolean
   confirmDialog: {
     title?: string
     description: string
     buttonCancelTitle?: string
+    buttonConfirmTitle?: string
   }
 } & (
   | {
@@ -35,7 +37,11 @@ export const DeleteAlertDialog = (props: DeleteAlertDialogProps) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant={props.buttonVariant} className="w-fit">
+        <Button
+          variant={props.buttonVariant}
+          className="w-fit"
+          disabled={props.disabled}
+        >
           {props.buttonTitle}
         </Button>
       </AlertDialogTrigger>
@@ -64,7 +70,7 @@ export const DeleteAlertDialog = (props: DeleteAlertDialogProps) => {
             {'mutation' in props && props.mutation.isPending ? (
               <LoadingIcon>'Loading...'</LoadingIcon>
             ) : (
-              'Delete'
+              (props.confirmDialog.buttonConfirmTitle ?? props.buttonTitle)
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
