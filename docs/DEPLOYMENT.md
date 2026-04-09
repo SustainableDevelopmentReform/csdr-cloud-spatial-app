@@ -22,9 +22,24 @@ DATABASE_USER=admin
 DATABASE_PASSWORD=admin
 DATABASE_NAME=csdr-dev
 
+S3_BUCKET_NAME=
+S3_SPACES_ENDPOINT=
+S3_SPACES_SECRET_KEY=
+S3_SPACES_ACCESS_KEY_ID=
+# Optional for local/self-hosted S3-compatible stores
+S3_FORCE_PATH_STYLE=false
+
+# Optional if Chromium is not on the default runtime path
+PDF_BROWSER_EXECUTABLE_PATH=
+
 # You can use openssl to generate a random 32 character key: openssl rand -base64 32
 BETTER_AUTH_SECRET=
 ```
+
+Report publishing requires both:
+
+- S3-compatible object storage for published PDFs
+- a Chromium-compatible browser runtime for server-side PDF generation
 
 ### Build the image locally
 

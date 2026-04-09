@@ -6,6 +6,7 @@ First version of high-level requirements
 - **Geospatial Visualization:** Interactive map component for visualizing and querying standardized geospatial datasets (Zarr, GeoParquet, tiled formats)
   - https://github.com/SustainableDevelopmentReform/csdr-cloud-spatial-app/issues/2
 - **Unstructured Data Presentation:** User interface for discovering, viewing, and interacting with reports linked to geographic bounds
+- **Report Publishing:** Ability to lock reports permanently, generate server-side PDFs, display provenance sources, and duplicate published reports into editable drafts
 - **Modular Dashboards:** Modular visualization components for standardized ecosystem reporting (design and report structure to be provided)
   - https://github.com/SustainableDevelopmentReform/csdr-cloud-spatial-app/issues/3
 - **User-Driven Workflows** (see back-end Data Pipeline Integration)
@@ -21,9 +22,10 @@ First version of high-level requirements
   - Enforce attribute-based access control (ABAC) to manage tiered access for jurisdiction-specific data.
 - **REST API:** Deployed to Vercel with containerized deployment support
 - **Database:** PostgreSQL (NeonDB/AWS RDS) with JSON indexing strategy for unstructured reports
+- **Report PDF Generation:** Server-side rendering and S3-compatible storage for published report PDFs
 - **Data Pipeline Integration:** Integrate with the data pipeline API (e.g., Argo Workflows, Pachyderm) to:
   - Ingest data product outputs into database
   - Submit workflow runs for custom geometry processing
   - Monitor data pipeline status
   - Support method chaining through pipeline workflow definitions (not user-driven)
-- **PDF Certificate Generation:** Standardized certificates (requirements to be provided)
+- **PDF Certificate Generation:** Standardized certificates (separate from report PDF export requirements; requirements still to be provided)

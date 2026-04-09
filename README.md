@@ -13,6 +13,7 @@ The platform is built around a spatial reporting workflow:
 - `product` combines a dataset with a geometry collection
 - `*_run` resources capture concrete processing runs
 - `geometry_output` and `product_output` store the shapes and computed values that drive reports and dashboards
+- `report` supports rich-text authoring, irreversible publishing, live provenance sources, and downloadable PDFs
 
 Contributor-facing architecture notes live in [docs/architecture.md](./docs/architecture.md).
 
@@ -65,12 +66,16 @@ Local services:
 - SeaweedFS Filer UI: `http://localhost:8888`
 - SeaweedFS Master UI: `http://localhost:9333`
 
+SeaweedFS provides the local S3-compatible storage used for published report PDFs. The dev compose file also bootstraps the `csdr-dev-exports` bucket automatically.
+
 The example environment file already contains sensible local defaults, including Mailpit SMTP settings, SeaweedFS S3 settings, and the seed user:
 
 - email: `admin@example.com`
 - password: `admin@123`
 
 If you change the initial user settings, update `INITIAL_USER_EMAIL`, `INITIAL_USER_NAME`, and `INITIAL_USER_PASSWORD` in `.env` before running `pnpm seed`.
+
+Report publishing also requires a Chromium-compatible browser runtime. If Chromium is not on the default runtime path, set `PDF_BROWSER_EXECUTABLE_PATH` in `.env`.
 
 ## Common Commands
 
@@ -102,6 +107,9 @@ Backend tests require Docker because the server suite uses Testcontainers. See [
 
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/development-workflow.md](./docs/development-workflow.md)
+- [docs/requirements/report-publishing.md](./docs/requirements/report-publishing.md)
+- [docs/requirements/access-control.md](./docs/requirements/access-control.md)
+- [docs/requirements/charting.md](./docs/requirements/charting.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [SECURITY.md](./SECURITY.md)
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)

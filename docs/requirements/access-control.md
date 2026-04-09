@@ -8,7 +8,7 @@ It introduces:
 
 - Multi-tenant organization scoping for all core resources
 - Four organization-level roles: `org_admin`, `org_creator`, `org_viewer`, plus a platform-level `super_admin`
-- Visibility controls (`private`, `public`, `global`) with no draft state in MVP
+- Visibility controls (`private`, `public`, `global`) plus an irreversible publish state for reports
 - External visibility dependency validation for products, derived indicators, reports, and dashboards
 - Multi-factor authentication (MFA) required for `super_admin` and `org_admin`
 - Open signup with email verification (auto-provisioned personal organization as `org_creator`)
@@ -23,13 +23,13 @@ This is designed for implementation using the existing `better-auth` organizatio
 
 - Enforce organization-scoped tenancy across console and explorer surfaces.
 - Provide a tiered role model separating data management (`org_admin`) from reporting (`org_creator`) from read-only access (`org_viewer`).
-- Keep v1 authorization simple and predictable — no draft/publish workflow in MVP.
+- Keep visibility authorization simple and predictable, with report publishing treated as a separate editorial lock and PDF generation workflow.
 - Ensure data resources require platform-level approval (`super_admin`) before public exposure.
 - Support traceability and defensibility with complete access logging.
 
 ## Non-Goals (MVP)
 
-- Draft/publish workflow for dashboards and reports (deferred — orgs won't have many users, so all resources are visible to all org members).
+- Dashboard draft/publish workflow and multi-step editorial review for reports.
 - Per-resource sharing with specific users or external organizations (cross-org sharing at view/edit levels acknowledged but not necessary at this point).
 - Organization feature flags (deferred unless necessary).
 - Independent ACLs on run/output child resources.
@@ -44,6 +44,7 @@ This is designed for implementation using the existing `better-auth` organizatio
 - **Child resource**: Resource whose access is inherited from a top-level parent.
 - **Public resource**: Internet-readable resource (`visibility = public`), read-only for all non-admin users, but not cross-org listed.
 - **Globally public**: Internet-readable resource (`visibility = global`) that is also listed across all organizations and in the public explorer.
+- **Published report**: Report with generated PDF metadata that is permanently locked against further changes.
 
 ## Resource Model
 
@@ -80,7 +81,14 @@ Child resources must not have their own visibility/ACL fields in MVP.
 - `public`: directly readable by anyone (read-only); anonymous access subject to platform configuration
 - `global`: directly readable by anyone and listed across all organizations and in the public explorer
 
-There is no `draft` state in MVP. All resources within an organization are visible to all org members regardless of role.
+All resources within an organization are visible to all org members regardless of role.
+
+Reports additionally have a separate editorial lifecycle:
+
+- `draft`: editable and publishable
+- `published`: immutable, downloadable as PDF, and never unlockable
+
+Publishing does not change visibility. A report may remain `private`, `public`, or `global` before and after publish.
 
 ### Inheritance Rule
 
@@ -122,6 +130,7 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 
 - Full read/write on all resources in the organization.
 - Can create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, `dashboard`, `report`.
+- Can publish any draft report in the organization.
 - Can change resource visibility between `private` and `public` (subject to dependency validation where applicable).
 - Cannot move a resource into or out of `global` (requires `super_admin`).
 - Can invite/remove users and assign organization roles.
@@ -132,6 +141,7 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 
 - Can create `dashboard` and `report` in the organization.
 - Can edit/delete only the `dashboard` and `report` resources they created.
+- Can publish only the reports they created.
 - Read access to all resources in the active organization.
 - Cannot create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, or their child resources.
 - Cannot change visibility of any resource.
@@ -141,6 +151,7 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 
 - Read access to all `private` resources in the organization (including reports, dashboards, and their provenance).
 - Cannot create, edit, or delete any resources.
+- Cannot publish reports.
 - Cannot change visibility of any resources.
 - Cannot invite/remove users or change organization roles.
 
@@ -285,6 +296,8 @@ Notes:
 - "Read" in app context is subject to active org scope in console, direct `public`/`global` detail access, and `global` listing rules in explorer/public views.
 - Public reads are available anonymously (when enabled) only for `global` listing routes and `public`/`global` detail routes.
 - Visibility changes follow the transition matrix above (not shown in this table).
+- Reports are draft-editable only. Once published, edit/delete/visibility change/unpublish are no longer allowed.
+- Report publish permission follows report write permission: `org_creator` may publish own reports and `org_admin` may publish any report in the org.
 
 ## Logging Requirements
 
@@ -344,9 +357,11 @@ Log all read/list/export/download events for all resources, including:
   - Role checks (four-tier: `super_admin`, `org_admin`, `org_creator`, `org_viewer`)
   - Ownership checks (for `org_creator` edit/delete of own resources)
   - Visibility checks
+  - Report publish immutability checks where applicable
   - Dependency validation (for externally visible products, derived indicators, dashboards, and reports)
 - Authorization evaluation must be deny-by-default.
 - Standard resource endpoints must enforce read-only behavior for anonymous access.
+- Published report PDF downloads must use the same read authorization as report detail access.
 - MFA must be enforced for `super_admin` and `org_admin` before protected operations.
 - Existing global `user.role` can remain for platform-level operations (`super_admin`), but resource authorization must be org-scoped in MVP.
 
@@ -381,27 +396,30 @@ For resources created before org ACL fields exist, migration must:
 7. `org_admin` can create/edit/delete all resource types within their organization.
 8. `org_admin` can invite/remove users and change roles within their organization.
 9. Only `super_admin` can move a resource into or out of `global`.
-10. Publishing a `product`, `derivedIndicator`, `dashboard`, or `report` fails if any required upstream dependency is `private`, with clear error messaging.
-11. MFA is enforced for `super_admin` and `org_admin`.
-12. Console list queries are scoped to the active org plus `global` resources.
-13. Explorer list queries include active org resources + `global` resources from all orgs.
-14. Anonymous users can list `global` resources and read `public`/`global` details only (when anonymous access is enabled).
-15. Anonymous access is configurable at the platform level.
-16. Child resource access always follows parent access.
-17. Organization admin floor is enforced (cannot remove/demote last admin).
-18. Visibility transitions are enforced exactly per matrix in this document.
-19. Making an upstream dependency private returns a warning about externally visible dependents but does not block the change.
-20. Product external visibility requires a main run with an output summary.
-21. Any authenticated user can create and manage their own API keys.
-22. Migration/backfill is completed with idempotent fallback behavior and reporting.
-23. Audit log captures all write/security/authentication events listed above.
-24. Read log captures all read/list/export/download events (allow + deny) across all resource types.
-25. Log retention/privacy requirements are enforced.
-26. Standard resource routes reject anonymous writes and any access to org-management data.
+10. Making a `product`, `derivedIndicator`, `dashboard`, or `report` externally visible fails if any required upstream dependency is `private`, with clear error messaging.
+11. Draft report publishing is allowed only for users who can write that report.
+12. Published reports reject update, delete, visibility-change, and re-publish requests.
+13. Published report PDF downloads use the same read authorization as report detail access.
+14. MFA is enforced for `super_admin` and `org_admin`.
+15. Console list queries are scoped to the active org plus `global` resources.
+16. Explorer list queries include active org resources + `global` resources from all orgs.
+17. Anonymous users can list `global` resources and read `public`/`global` details only (when anonymous access is enabled).
+18. Anonymous access is configurable at the platform level.
+19. Child resource access always follows parent access.
+20. Organization admin floor is enforced (cannot remove/demote last admin).
+21. Visibility transitions are enforced exactly per matrix in this document.
+22. Making an upstream dependency private returns a warning about externally visible dependents but does not block the change.
+23. Product external visibility requires a main run with an output summary.
+24. Any authenticated user can create and manage their own API keys.
+25. Migration/backfill is completed with idempotent fallback behavior and reporting.
+26. Audit log captures all write/security/authentication events listed above.
+27. Read log captures all read/list/export/download events (allow + deny) across all resource types.
+28. Log retention/privacy requirements are enforced.
+29. Standard resource routes reject anonymous writes and any access to org-management data.
 
 ## Deferred (Post-MVP)
 
-- Draft/publish workflow for dashboards and reports (editorial review before org-wide visibility).
+- Dashboard publish workflow and multi-step editorial review before report publish.
 - Per-resource sharing to specific users/orgs (cross-org sharing at view/edit levels).
 - Resource-specific role overrides.
 - Time-limited/granular sharing links.
