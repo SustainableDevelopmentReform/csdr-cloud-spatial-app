@@ -3,15 +3,20 @@ import { REPORTS_BASE_PATH } from '~/lib/paths'
 import PageAuthGuard from '~/components/page-auth-guard'
 import ClientPage from './client'
 
-export default ({ params }: { params: { reportId: string } }) => {
+export default async ({
+  params,
+}: {
+  params: Promise<{ reportId: string }>
+}) => {
+  const { reportId } = await params
   const reportUrl = new URL(
-    `${REPORTS_BASE_PATH}/${params.reportId}`,
+    `${REPORTS_BASE_PATH}/${reportId}`,
     env.APP_URL,
   ).toString()
 
   return (
     <PageAuthGuard allowAnonymous>
-      <ClientPage reportId={params.reportId} reportUrl={reportUrl} />
+      <ClientPage reportId={reportId} reportUrl={reportUrl} />
     </PageAuthGuard>
   )
 }

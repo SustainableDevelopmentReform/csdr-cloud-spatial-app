@@ -6,7 +6,7 @@ import { updateReportSchema } from '@repo/schemas/crud'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
 import { Button } from '@repo/ui/components/ui/button'
 import { formatDateTime } from '@repo/ui/lib/date'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
@@ -44,6 +44,7 @@ import {
 } from '../_hooks'
 
 const ReportDetails = () => {
+  const { reportId } = useParams<{ reportId: string }>()
   const reportQuery = useReport()
   const report = reportQuery.data
   const updateReport = useUpdateReport()
@@ -52,7 +53,7 @@ const ReportDetails = () => {
   const publishReport = usePublishReport()
   const duplicateReport = useDuplicateReport()
   const deleteReport = useDeleteReport(undefined, REPORTS_BASE_PATH)
-  const { access } = useAccessControl()
+  const { access, activeOrganization, session } = useAccessControl()
   const { apiBaseUrl } = useConfig()
   const router = useRouter()
 
@@ -66,6 +67,8 @@ const ReportDetails = () => {
     resolver: zodResolver(updateReportSchema),
   })
   const isDirty = form.formState.isDirty
+  const reportName = form.watch('name')
+  const reportDescription = form.watch('description')
 
   useEffect(() => {
     if (!report || isDirty) {
@@ -104,6 +107,20 @@ const ReportDetails = () => {
       !requiresOrganizationSwitch &&
       !publishReport.isPending,
   )
+  const isEditorHydrating = Boolean(
+    report &&
+      !isDirty &&
+      (reportName !== report.name ||
+        (reportDescription ?? null) !== (report.description ?? null) ||
+        JSON.stringify(reportContent) !== JSON.stringify(report.content)),
+  )
+  const isAccessLoading =
+    session.data === undefined || activeOrganization.isLoading
+  const isPageLoading =
+    reportQuery.isLoading ||
+    (reportQuery.isFetching && report?.id !== reportId) ||
+    isAccessLoading ||
+    isEditorHydrating
 
   const downloadPublishedPdf = useCallback(async () => {
     if (!report) {
@@ -243,7 +260,7 @@ const ReportDetails = () => {
     <ResourcePageState
       error={reportQuery.error}
       errorMessage="Failed to load report"
-      isLoading={reportQuery.isLoading}
+      isLoading={isPageLoading}
       loadingMessage="Loading report"
       notFoundMessage="Report not found"
     >
@@ -279,6 +296,7 @@ const ReportDetails = () => {
         >
           {report ? (
             <SimpleEditor
+              key={`${report.id}:${report.updatedAt ?? 'unknown'}:${canEditDraft ? 'editable' : 'readonly'}`}
               onUpdate={(json) => {
                 form.setValue('content', json, {
                   shouldDirty: true,
@@ -286,7 +304,7 @@ const ReportDetails = () => {
                 })
               }}
               content={reportContent}
-              chartFormBuilder={canEditDraft ? formBuilder : undefined}
+              chartFormBuilder={formBuilder}
               editable={canEditDraft}
             />
           ) : null}

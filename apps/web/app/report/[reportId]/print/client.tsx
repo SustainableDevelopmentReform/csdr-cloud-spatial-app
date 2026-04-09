@@ -1,8 +1,9 @@
 'use client'
 
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
-import { formatDateTime } from '@repo/ui/lib/date'
 import { QRCodeSVG } from 'qrcode.react'
+import { useMemo } from 'react'
+import { reportChartFormBuilder } from '~/app/console/report/_components/report-chart-editor'
 import { ReportSources } from '~/app/console/report/_components/report-sources'
 import { useReport } from '~/app/console/report/_hooks'
 
@@ -15,6 +16,7 @@ const ReportPrintPage = ({
 }) => {
   const reportQuery = useReport(reportId)
   const report = reportQuery.data
+  const formBuilder = useMemo(() => reportChartFormBuilder(() => {}), [])
 
   if (reportQuery.isLoading) {
     return (
@@ -37,24 +39,11 @@ const ReportPrintPage = ({
       className="mx-auto flex max-w-[800px] flex-col gap-8 px-8 py-10"
       data-report-print-ready="true"
     >
-      <header className="border-b border-gray-200 pb-6">
-        <h1 className="text-3xl font-semibold">{report.name}</h1>
-        {report.description ? (
-          <p className="mt-3 text-base text-muted-foreground">
-            {report.description}
-          </p>
-        ) : null}
-        {report.publishedAt ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Published {formatDateTime(report.publishedAt)}
-          </p>
-        ) : null}
-      </header>
-
       <section>
         <SimpleEditor
           editable={false}
           content={report.content}
+          chartFormBuilder={formBuilder}
           onUpdate={() => {}}
         />
       </section>

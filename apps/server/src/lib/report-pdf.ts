@@ -113,7 +113,7 @@ export const renderReportPdf = async (options: {
       colorScheme: 'light',
     })
 
-    const frontendUrl = env.INTERNAL_FRONTEND_URL ?? env.APP_URL
+    const frontendUrl = new URL(env.INTERNAL_FRONTEND_URL ?? env.APP_URL)
     const cookies = parseCookieHeader(options.cookieHeader)
 
     if (cookies.length > 0) {
@@ -121,7 +121,11 @@ export const renderReportPdf = async (options: {
         cookies.map((cookie) => ({
           name: cookie.name,
           value: cookie.value,
-          url: frontendUrl,
+          domain: frontendUrl.hostname,
+          path: '/',
+          secure:
+            cookie.name.startsWith('__Secure-') ||
+            frontendUrl.protocol === 'https:',
         })),
       )
     }
@@ -149,7 +153,7 @@ export const renderReportPdf = async (options: {
       await document.fonts.ready
     })
 
-    return page.pdf({
+    return await page.pdf({
       format: 'A4',
       printBackground: true,
       margin: {
