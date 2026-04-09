@@ -329,7 +329,10 @@ export const useDeleteReport = (
   })
 }
 
-export type ReportLinkParams = Pick<ReportListItem, 'id' | 'name'> & {
+export type ReportLinkParams = Pick<
+  ReportListItem,
+  'id' | 'name' | 'publishedAt'
+> & {
   visibility?: ResourceVisibility | null
 }
 

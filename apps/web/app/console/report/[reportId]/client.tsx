@@ -33,6 +33,7 @@ import { ProductOutputExportListItem } from '../../product/_hooks'
 import { ChartSelectedItem } from '../_components/chart-selected-item'
 import { reportChartFormBuilder } from '../_components/report-chart-editor'
 import { ReportSources } from '../_components/report-sources'
+import { toastError } from '../../../../utils/error-handling'
 import {
   useDeleteReport,
   useDuplicateReport,
@@ -61,22 +62,32 @@ const ReportDetails = () => {
     useState<SelectedDataPoint<ProductOutputExportListItem> | null>(null)
   const [updateErrorDialog, setUpdateErrorDialog] =
     useState<VisibilityImpactDialogState | null>(null)
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const [activePdfAction, setActivePdfAction] = useState<
+    'preview' | 'published' | null
+  >(null)
+  const [hydratedReportVersion, setHydratedReportVersion] = useState<
+    string | null
+  >(null)
 
   const form = useForm({
     resolver: zodResolver(updateReportSchema),
   })
   const isDirty = form.formState.isDirty
-  const reportName = form.watch('name')
-  const reportDescription = form.watch('description')
+  const reportVersion = report ? `${report.id}:${report.updatedAt}` : null
 
   useEffect(() => {
-    if (!report || isDirty) {
+    if (!report) {
+      setHydratedReportVersion(null)
+      return
+    }
+
+    if (isDirty) {
       return
     }
 
     form.reset(report)
-  }, [form, isDirty, report])
+    setHydratedReportVersion(reportVersion)
+  }, [form, isDirty, report, reportVersion])
 
   const reportContent = form.watch('content') ?? { type: 'doc', content: [] }
 
@@ -107,12 +118,11 @@ const ReportDetails = () => {
       !requiresOrganizationSwitch &&
       !publishReport.isPending,
   )
+  const canPreviewPdf = Boolean(
+    report && canEditDraft && !requiresOrganizationSwitch,
+  )
   const isEditorHydrating = Boolean(
-    report &&
-      !isDirty &&
-      (reportName !== report.name ||
-        (reportDescription ?? null) !== (report.description ?? null) ||
-        JSON.stringify(reportContent) !== JSON.stringify(report.content)),
+    report && !isDirty && hydratedReportVersion !== reportVersion,
   )
   const isAccessLoading =
     session.data === undefined || activeOrganization.isLoading
@@ -122,38 +132,78 @@ const ReportDetails = () => {
     isAccessLoading ||
     isEditorHydrating
 
+  const downloadPdf = useCallback(
+    async (options: {
+      endpoint: string
+      filename: string
+      method?: 'GET' | 'POST'
+      action: 'preview' | 'published'
+      fallbackMessage: string
+    }) => {
+      setActivePdfAction(options.action)
+
+      try {
+        const response = await fetch(`${apiBaseUrl}${options.endpoint}`, {
+          credentials: 'include',
+          method: options.method ?? 'GET',
+        })
+
+        if (!response.ok) {
+          let errorPayload: unknown = null
+
+          try {
+            errorPayload = await response.json()
+          } catch {}
+
+          throw errorPayload ?? new Error(options.fallbackMessage)
+        }
+
+        const pdfBlob = await response.blob()
+        const objectUrl = window.URL.createObjectURL(pdfBlob)
+        const anchor = document.createElement('a')
+        anchor.href = objectUrl
+        anchor.download = options.filename
+        document.body.append(anchor)
+        anchor.click()
+        anchor.remove()
+        window.URL.revokeObjectURL(objectUrl)
+      } catch (error) {
+        toastError(error, options.fallbackMessage)
+      } finally {
+        setActivePdfAction((currentAction) =>
+          currentAction === options.action ? null : currentAction,
+        )
+      }
+    },
+    [apiBaseUrl],
+  )
+
+  const previewReportPdf = useCallback(async () => {
+    if (!report) {
+      return
+    }
+
+    await downloadPdf({
+      endpoint: `/api/v0/report/${report.id}/preview-pdf`,
+      filename: `${report.name}-preview.pdf`,
+      method: 'POST',
+      action: 'preview',
+      fallbackMessage: 'Failed to preview report PDF',
+    })
+  }, [downloadPdf, report])
+
   const downloadPublishedPdf = useCallback(async () => {
     if (!report) {
       return
     }
 
-    setIsDownloadingPdf(true)
-
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/v0/report/${report.id}/pdf`,
-        {
-          credentials: 'include',
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error('Failed to download report PDF')
-      }
-
-      const pdfBlob = await response.blob()
-      const objectUrl = window.URL.createObjectURL(pdfBlob)
-      const anchor = document.createElement('a')
-      anchor.href = objectUrl
-      anchor.download = `${report.name}.pdf`
-      document.body.append(anchor)
-      anchor.click()
-      anchor.remove()
-      window.URL.revokeObjectURL(objectUrl)
-    } finally {
-      setIsDownloadingPdf(false)
-    }
-  }, [apiBaseUrl, report])
+    await downloadPdf({
+      endpoint: `/api/v0/report/${report.id}/pdf`,
+      filename: `${report.name}.pdf`,
+      action: 'published',
+      fallbackMessage: 'Failed to download report PDF',
+    })
+  }, [downloadPdf, report])
 
   const formActions = useMemo(() => {
     if (!report) {
@@ -163,6 +213,28 @@ const ReportDetails = () => {
     const actions = []
 
     if (!isPublished) {
+      if (canPreviewPdf) {
+        actions.push({
+          title: 'Preview PDF',
+          description:
+            'Generate a temporary PDF preview from the last saved report content. It is not stored. Save any pending changes first.',
+          component: (
+            <Button
+              variant="outline"
+              onClick={() => {
+                void previewReportPdf()
+              }}
+              disabled={isDirty || activePdfAction !== null}
+              className="w-fit"
+            >
+              {activePdfAction === 'preview'
+                ? 'Preparing preview...'
+                : 'Preview PDF'}
+            </Button>
+          ),
+        })
+      }
+
       const visibilityAction = createResourceVisibilityAction({
         access,
         mutation: updateReportVisibility,
@@ -199,17 +271,19 @@ const ReportDetails = () => {
     if (report.publishedPdfAvailable) {
       actions.push({
         title: 'Published PDF',
-        description: 'Download the published PDF for this report.',
+        description: 'Download the canonical published PDF for this report.',
         component: (
           <Button
             variant="outline"
             onClick={() => {
               void downloadPublishedPdf()
             }}
-            disabled={isDownloadingPdf}
+            disabled={activePdfAction !== null}
             className="w-fit"
           >
-            {isDownloadingPdf ? 'Downloading...' : 'Download PDF'}
+            {activePdfAction === 'published'
+              ? 'Downloading...'
+              : 'Download PDF'}
           </Button>
         ),
       })
@@ -244,12 +318,14 @@ const ReportDetails = () => {
     access,
     canDuplicate,
     canPublish,
+    canPreviewPdf,
     downloadPublishedPdf,
     duplicateReport,
+    activePdfAction,
     isDirty,
-    isDownloadingPdf,
     isPublished,
     previewReportVisibility,
+    previewReportPdf,
     publishReport,
     report,
     router,
@@ -274,6 +350,10 @@ const ReportDetails = () => {
             <p className="mt-1">
               Published {formatDateTime(report?.publishedAt ?? null)}. This
               report is locked and can no longer be changed.
+            </p>
+            <p className="mt-2">
+              The downloadable PDF is the canonical published report. This live
+              view remains available for browsing, provenance, and link sharing.
             </p>
           </div>
         ) : null}

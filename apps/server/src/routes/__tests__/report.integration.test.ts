@@ -490,6 +490,53 @@ describe('report route', () => {
     expect((await pdfResponse.arrayBuffer()).byteLength).toBeGreaterThan(0)
   })
 
+  it('generates a temporary preview PDF for draft reports without storing publish metadata', async () => {
+    const createdJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0.report.$post({
+        json: {
+          name: 'Preview report',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Report created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.report[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          content: validReportContent,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+
+    const previewResponse = await adminClient.api.v0.report[':id'][
+      'preview-pdf'
+    ].$post({
+      param: { id: createdJson.data.id },
+    })
+
+    expect(previewResponse.status).toBe(200)
+    expect(previewResponse.headers.get('content-type')).toContain(
+      'application/pdf',
+    )
+    expect((await previewResponse.arrayBuffer()).byteLength).toBeGreaterThan(0)
+
+    const storedReport = await db.query.report.findFirst({
+      where: eq(report.id, createdJson.data.id),
+    })
+
+    expect(storedReport?.publishedAt).toBeNull()
+    expect(storedReport?.publishedByUserId).toBeNull()
+    expect(storedReport?.publishedPdfKey).toBeNull()
+  })
+
   it('derives live report sources from chart usage and dedupes shared datasets and geometries', async () => {
     const dependencyProductId = 'forest-cover-product-dependency'
     const dependencyProductRunId = 'forest-cover-product-run-dependency'

@@ -231,6 +231,8 @@ Anonymous (unauthenticated) access to public resources is configurable at the pl
 
 Anonymous/public internet access is read-only and uses the same resource endpoints as authenticated reads.
 
+MVP does not require dedicated public-only routes or layouts. Public detail reads may reuse the standard resource pages and endpoints as long as anonymous access remains read-only and private resources stay protected.
+
 Allowed:
 
 - List views for `global` top-level resources only.

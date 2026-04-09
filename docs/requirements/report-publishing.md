@@ -7,6 +7,7 @@ This document defines how reports move from editable drafts to fixed published o
 - Reports begin as drafts
 - Publishing locks a report permanently
 - Publishing creates a PDF copy of the report
+- The published PDF is the canonical published report
 - The report and the PDF both show a sources section
 - Published reports are revised by duplicating them into new drafts
 
@@ -49,13 +50,24 @@ This document defines how reports move from editable drafts to fixed published o
 - Publishing must generate a PDF as part of the same action
 - A report must not be marked as published unless its PDF has been created successfully
 - Publishing does not change report visibility
+- The published PDF is the canonical published artifact, while the live report remains available for browsing and sharing
 
 ## Published PDF
 
 - Publishing creates a server-generated PDF
+- The stored published PDF is the canonical published report
+- The live report remains available after publication, but it is not the canonical artifact
 - The PDF is stored in private object storage
 - The PDF can be downloaded by anyone who is allowed to read the report
-- Unpublished reports do not have a downloadable PDF
+- Draft reports do not have a stored published PDF download
+
+## Draft PDF Preview
+
+- Draft reports may be previewed as temporary server-generated PDFs
+- Preview uses the saved version of the report, not unsaved browser state
+- Preview does not publish the report
+- Preview PDFs are not stored in object storage
+- Preview PDFs are not canonical artifacts
 
 ## PDF Content
 
@@ -113,6 +125,7 @@ Dashboards should support the same duplicate workflow:
 ## Permissions
 
 - A user may publish a report only if they are allowed to edit that report
+- A user may preview a report PDF only if they are allowed to edit that report
 - A published report remains readable under the same read rules as any other report
 - Downloading the PDF follows the same read rules as viewing the report
 
@@ -120,9 +133,10 @@ Dashboards should support the same duplicate workflow:
 
 1. Draft reports can be edited and published.
 2. Publishing locks the report permanently.
-3. Publishing creates a PDF.
+3. Publishing creates a canonical PDF.
 4. A published report cannot be edited, deleted, or unpublished.
 5. The web report and the PDF both show the same sources section.
 6. Sources are deduplicated and grouped clearly.
-7. Users who can read a published report can download its PDF.
+7. Users who can read a published report can download its canonical PDF.
 8. Duplicating a published report creates a new editable draft copy.
+9. Draft reports can be previewed as temporary PDFs without being published or stored.

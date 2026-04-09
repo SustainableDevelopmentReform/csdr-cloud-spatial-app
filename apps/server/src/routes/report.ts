@@ -97,6 +97,9 @@ const unpublishedReportPdfError = () =>
       'The report must be published before its PDF can be downloaded.',
   })
 
+const browserSessionPdfGenerationDescription =
+  'This operation must be triggered from the web app with a browser session cookie. API keys are not supported.'
+
 const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
@@ -236,13 +239,15 @@ const fetchFullReportOrThrow = async (id: string, organizationId: string) => {
   }
 }
 
-const buildReportPdfFilename = (name: string) => {
+const buildReportPdfFilename = (name: string, suffix?: string) => {
   const normalizedName = name
     .trim()
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-  return `${normalizedName.length > 0 ? normalizedName : 'report'}.pdf`
+  const safeName = normalizedName.length > 0 ? normalizedName : 'report'
+
+  return `${safeName}${suffix ?? ''}.pdf`
 }
 
 const app = createOpenAPIApp()
@@ -752,7 +757,62 @@ const app = createOpenAPIApp()
   )
   .openapi(
     createRoute({
-      description: 'Publish a report and lock it permanently.',
+      description: `Preview the saved draft report as a temporary PDF. ${browserSessionPdfGenerationDescription}`,
+      method: 'post',
+      path: '/:id/preview-pdf',
+      middleware: [authMiddleware({ permission: 'write:report' })],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        200: {
+          description: 'Successfully generated a temporary report preview PDF.',
+          content: {
+            'application/pdf': {
+              schema: z.string().openapi({ format: 'binary' }),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Report not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to preview report PDF'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const accessRecord = await assertResourceWritable({
+        c,
+        resource: 'report',
+        resourceId: id,
+        notFoundError: reportNotFoundError,
+      })
+      const currentRecord = await fetchReportLifecycleRecord(
+        id,
+        accessRecord.organizationId,
+      )
+
+      if (!currentRecord) {
+        throw reportNotFoundError()
+      }
+
+      assertReportMutable(currentRecord)
+
+      const pdfBytes = await renderReportPdf({
+        reportId: id,
+        cookieHeader: c.req.raw.headers.get('cookie'),
+      })
+
+      return c.body(Buffer.from(pdfBytes), 200, {
+        'Content-Type': 'application/pdf',
+        'Content-Length': pdfBytes.length.toString(),
+        'Content-Disposition': `attachment; filename="${buildReportPdfFilename(currentRecord.name, '-preview')}"`,
+      })
+    },
+  )
+  .openapi(
+    createRoute({
+      description: `Publish a report and lock it permanently. ${browserSessionPdfGenerationDescription}`,
       method: 'post',
       path: '/:id/publish',
       middleware: [authMiddleware({ permission: 'write:report' })],
