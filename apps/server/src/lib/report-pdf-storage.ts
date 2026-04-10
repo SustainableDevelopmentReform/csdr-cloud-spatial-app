@@ -42,7 +42,7 @@ const assertPdfStorageConfigured = () => {
       statusCode: 500,
       message: 'Report PDF storage is not configured',
       description:
-        'Set the S3 bucket name and S3 credentials before publishing reports.',
+        'Set the S3 bucket name and configure the S3 client before publishing reports.',
     })
   }
 

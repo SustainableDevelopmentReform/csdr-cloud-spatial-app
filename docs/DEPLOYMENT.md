@@ -23,10 +23,11 @@ DATABASE_PASSWORD=admin
 DATABASE_NAME=csdr-dev
 
 S3_BUCKET_NAME=
+AWS_REGION=
+
 S3_SPACES_ENDPOINT=
 S3_SPACES_SECRET_KEY=
 S3_SPACES_ACCESS_KEY_ID=
-# Optional for local/self-hosted S3-compatible stores
 S3_FORCE_PATH_STYLE=false
 
 # Optional if Chromium is not on the default runtime path
@@ -40,6 +41,11 @@ Report publishing requires both:
 
 - S3-compatible object storage for published PDFs
 - a Chromium-compatible browser runtime for server-side PDF generation
+
+Supported S3 credential modes:
+
+- AWS S3 on EKS or EC2: set `S3_BUCKET_NAME` and `AWS_REGION`, and let the AWS SDK use the pod or node IAM role via the default credential chain. Do not set `S3_SPACES_ACCESS_KEY_ID` or `S3_SPACES_SECRET_KEY` in this mode.
+- Local or other S3-compatible storage: set `S3_BUCKET_NAME`, `S3_SPACES_ENDPOINT`, `S3_SPACES_ACCESS_KEY_ID`, and `S3_SPACES_SECRET_KEY`. Set `S3_FORCE_PATH_STYLE=true` if your provider requires path-style requests.
 
 If the app runs inside Docker while its database or S3-compatible storage runs on the host machine, use container-reachable endpoints such as `host.docker.internal` instead of `localhost`.
 

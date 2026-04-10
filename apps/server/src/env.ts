@@ -12,6 +12,8 @@ export const env = createEnv({
   },
   server: {
     APP_URL: z.url().default('http://localhost:3000'),
+    AWS_REGION: z.string().optional(),
+    AWS_DEFAULT_REGION: z.string().optional(),
     AUTH_BASE_URL: z.url().optional(),
     AUTH_EMAIL_MODE: z.enum(['log', 'smtp']).default('log'),
     INTERNAL_FRONTEND_URL: z.url().optional(),
@@ -81,6 +83,8 @@ export const env = createEnv({
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
+    AWS_REGION: process.env.AWS_REGION,
+    AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION,
     AUTH_BASE_URL: process.env.AUTH_BASE_URL,
     AUTH_EMAIL_MODE: process.env.AUTH_EMAIL_MODE,
     INTERNAL_FRONTEND_URL: process.env.INTERNAL_FRONTEND_URL,
