@@ -66,10 +66,7 @@ const resolveBrowserExecutablePath = async (): Promise<string | undefined> => {
 }
 
 const getReportPrintUrl = (reportId: string) =>
-  new URL(
-    `/report/${reportId}/print`,
-    env.INTERNAL_FRONTEND_URL ?? env.APP_URL,
-  ).toString()
+  new URL(`/report/${reportId}/print`, env.APP_URL).toString()
 
 const getBrowserLaunchArgs = (): string[] => {
   const args = ['--disable-dev-shm-usage']
@@ -113,7 +110,7 @@ export const renderReportPdf = async (options: {
       colorScheme: 'light',
     })
 
-    const frontendUrl = new URL(env.INTERNAL_FRONTEND_URL ?? env.APP_URL)
+    const frontendUrl = new URL(env.APP_URL)
     const cookies = parseCookieHeader(options.cookieHeader)
 
     if (cookies.length > 0) {
