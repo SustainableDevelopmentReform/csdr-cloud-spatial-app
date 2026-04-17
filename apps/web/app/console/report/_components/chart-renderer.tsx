@@ -16,6 +16,7 @@ import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-cop
 import { PlotChart } from '@repo/ui/components/ui/plot-chart'
 import { cn } from '@repo/ui/lib/utils'
 import { useMemo } from 'react'
+import { usePrintRenderReadiness } from '~/components/print-readiness'
 import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
 import { useGeometriesRun } from '../../geometries/_hooks'
 import { useIndicator } from '../../indicator/_hooks'
@@ -35,6 +36,40 @@ const UnsupportedChart = ({ type }: { type: string }) => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
     Chart type <strong className="ml-1 font-semibold">{type}</strong> is not
     supported yet.
+  </div>
+)
+
+const LoadingChart = ({
+  message,
+  className,
+}: {
+  message: string
+  className?: string
+}) => (
+  <div
+    className={cn(
+      'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
+      className,
+    )}
+  >
+    {message}
+  </div>
+)
+
+const UnavailableChart = ({
+  message,
+  className,
+}: {
+  message: string
+  className?: string
+}) => (
+  <div
+    className={cn(
+      'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
+      className,
+    )}
+  >
+    {message}
   </div>
 )
 
@@ -67,13 +102,38 @@ const PlotContainer = ({
   className?: string
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
-  const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
+  const productRunQuery = useProductRun(chart.productRunId)
+  const productRun = productRunQuery.data
+  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
     indicatorId: chart.indicatorIds,
     geometryOutputId: chart.geometryOutputIds,
     timePoint: chart.timePoints,
   })
+  const productOutputs = productOutputsQuery.data
+  const isLoadingPlotData =
+    productRunQuery.isPending ||
+    productRunQuery.isFetching ||
+    (!!productRun &&
+      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
+
+  usePrintRenderReadiness({
+    isReady: !isLoadingPlotData,
+  })
 
   const groupBy = getPlotChartGroupBy(chart)
+
+  if (isLoadingPlotData) {
+    return <LoadingChart message="Loading chart..." className={className} />
+  }
+
+  if (!productRun) {
+    return (
+      <UnavailableChart
+        message="Chart data is unavailable."
+        className={className}
+      />
+    )
+  }
 
   return (
     <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
@@ -120,17 +180,57 @@ const MapContainer = ({
 }) => {
   void config
 
-  const { data: productRun } = useProductRun(chart.productRunId)
-  const { data: geometriesRun } = useGeometriesRun(
+  const productRunQuery = useProductRun(chart.productRunId)
+  const productRun = productRunQuery.data
+  const shouldFetchGeometriesRun = !!productRun?.geometriesRun?.id
+  const geometriesRunQuery = useGeometriesRun(
     productRun?.geometriesRun?.id,
+    shouldFetchGeometriesRun,
   )
+  const geometriesRun = geometriesRunQuery.data
 
-  const { data: indicator } = useIndicator(chart.indicatorId)
+  const indicatorQuery = useIndicator(chart.indicatorId)
+  const indicator = indicatorQuery.data
 
-  const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
+  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
     indicatorId: chart.indicatorId,
     timePoint: chart.timePoint,
   })
+  const productOutputs = productOutputsQuery.data
+  const shouldWaitForProductOutputs = !!productRun
+  const isLoadingMapDependencies =
+    productRunQuery.isPending ||
+    productRunQuery.isFetching ||
+    (shouldFetchGeometriesRun &&
+      (geometriesRunQuery.isPending || geometriesRunQuery.isFetching)) ||
+    indicatorQuery.isPending ||
+    indicatorQuery.isFetching ||
+    (shouldWaitForProductOutputs &&
+      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
+
+  usePrintRenderReadiness({
+    isReady: !isLoadingMapDependencies,
+  })
+
+  if (isLoadingMapDependencies) {
+    return (
+      <div className={cn('flex h-full items-center justify-center', className)}>
+        <div className="px-4 text-center text-sm text-muted-foreground">
+          Loading map...
+        </div>
+      </div>
+    )
+  }
+
+  if (!productRun || !geometriesRun) {
+    return (
+      <div className={cn('flex h-full items-center justify-center', className)}>
+        <div className="px-4 text-center text-sm text-muted-foreground">
+          Map data is unavailable for this chart.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn('flex flex-col gap-2 h-full', className)}>
@@ -157,15 +257,24 @@ const KpiContainer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const geometryOutputId = chart.geometryOutputIds?.[0]
+  const productRunQuery = useProductRun(chart.productRunId)
+  const productRun = productRunQuery.data
 
-  const { data: productOutputs, isLoading } = useProductOutputsExport(
-    chart.productRunId,
-    {
-      indicatorId: chart.indicatorId,
-      geometryOutputId,
-      timePoint: chart.timePoint,
-    },
-  )
+  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
+    indicatorId: chart.indicatorId,
+    geometryOutputId,
+    timePoint: chart.timePoint,
+  })
+  const productOutputs = productOutputsQuery.data
+  const isLoading =
+    productRunQuery.isPending ||
+    productRunQuery.isFetching ||
+    (!!productRun &&
+      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
+
+  usePrintRenderReadiness({
+    isReady: !isLoading,
+  })
 
   const numberFormatter = useMemo(
     () =>
@@ -183,15 +292,15 @@ const KpiContainer = ({
   const outputs = productOutputs?.data ?? []
 
   if (isLoading && outputs.length === 0) {
+    return <LoadingChart message="Loading KPI value..." className={className} />
+  }
+
+  if (!productRun) {
     return (
-      <div
-        className={cn(
-          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
-          className,
-        )}
-      >
-        Loading KPI value...
-      </div>
+      <UnavailableChart
+        message="KPI data is unavailable."
+        className={className}
+      />
     )
   }
 
@@ -273,15 +382,40 @@ const TablePlotContainer = ({
   className?: string
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
-  const { data: productOutputs } = useProductOutputsExport(chart.productRunId, {
+  const productRunQuery = useProductRun(chart.productRunId)
+  const productRun = productRunQuery.data
+  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
     indicatorId: chart.indicatorIds,
     geometryOutputId: chart.geometryOutputIds,
     timePoint: chart.timePoints,
   })
+  const isLoadingTableData =
+    productRunQuery.isPending ||
+    productRunQuery.isFetching ||
+    (!!productRun &&
+      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
+
+  usePrintRenderReadiness({
+    isReady: !isLoadingTableData,
+  })
+
+  if (isLoadingTableData) {
+    return <LoadingChart message="Loading table..." className={className} />
+  }
+
+  if (!productRun) {
+    return (
+      <UnavailableChart
+        message="Table data is unavailable."
+        className={className}
+      />
+    )
+  }
+
   return (
     <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <TablePlot
-        data={productOutputs?.data ?? []}
+        data={productOutputsQuery.data?.data ?? []}
         xDimension={chart.xDimension}
         yDimension={chart.yDimension}
         appearance={chart.appearance}

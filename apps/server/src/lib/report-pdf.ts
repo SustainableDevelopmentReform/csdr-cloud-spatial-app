@@ -148,6 +148,28 @@ export const renderReportPdf = async (options: {
     await page.emulateMedia({ media: 'screen' })
     await page.evaluate(async () => {
       await document.fonts.ready
+
+      await Promise.all(
+        Array.from(document.images)
+          .filter((image) => !image.complete)
+          .map(
+            (image) =>
+              new Promise<void>((resolve) => {
+                const markDone = () => {
+                  resolve()
+                }
+
+                image.addEventListener('load', markDone, { once: true })
+                image.addEventListener('error', markDone, { once: true })
+              }),
+          ),
+      )
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve())
+        })
+      })
     })
 
     return await page.pdf({

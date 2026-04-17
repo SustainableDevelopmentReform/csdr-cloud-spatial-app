@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test:unit": "vitest run"
@@ -21,7 +21,8 @@
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "typescript": "catalog:",
-    "vitest": "^3.0.6"
+    "vite": "^8.0.8",
+    "vitest": "4.1.4"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
