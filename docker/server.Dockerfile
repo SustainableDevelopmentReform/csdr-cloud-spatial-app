@@ -22,6 +22,7 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
+ENV NODE_OPTIONS="--max_old_space_size=4096"
 RUN corepack enable
 RUN pnpm i
 
