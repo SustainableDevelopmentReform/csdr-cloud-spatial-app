@@ -12,8 +12,11 @@ export const env = createEnv({
   },
   server: {
     APP_URL: z.url().default('http://localhost:3000'),
+    AWS_REGION: z.string().optional(),
+    AWS_DEFAULT_REGION: z.string().optional(),
     AUTH_BASE_URL: z.url().optional(),
     AUTH_EMAIL_MODE: z.enum(['log', 'smtp']).default('log'),
+    INTERNAL_FRONTEND_URL: z.url().optional(),
     INTERNAL_BACKEND_URL: z.url().optional(),
     DATABASE_URL: z.string().optional(),
     DATABASE_SCHEMA: z.string().optional(),
@@ -42,6 +45,12 @@ export const env = createEnv({
     S3_SPACES_ENDPOINT: z.string().optional(),
     S3_SPACES_SECRET_KEY: z.string().optional(),
     S3_SPACES_ACCESS_KEY_ID: z.string().optional(),
+    S3_FORCE_PATH_STYLE: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
+    PDF_BROWSER_EXECUTABLE_PATH: z.string().optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().optional(),
@@ -74,8 +83,11 @@ export const env = createEnv({
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
+    AWS_REGION: process.env.AWS_REGION,
+    AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION,
     AUTH_BASE_URL: process.env.AUTH_BASE_URL,
     AUTH_EMAIL_MODE: process.env.AUTH_EMAIL_MODE,
+    INTERNAL_FRONTEND_URL: process.env.INTERNAL_FRONTEND_URL,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_SCHEMA: process.env.DATABASE_SCHEMA,
@@ -98,6 +110,8 @@ export const env = createEnv({
     S3_SPACES_ENDPOINT: process.env.S3_SPACES_ENDPOINT,
     S3_SPACES_SECRET_KEY: process.env.S3_SPACES_SECRET_KEY,
     S3_SPACES_ACCESS_KEY_ID: process.env.S3_SPACES_ACCESS_KEY_ID,
+    S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE,
+    PDF_BROWSER_EXECUTABLE_PATH: process.env.PDF_BROWSER_EXECUTABLE_PATH,
     NODE_ENV: process.env.NODE_ENV,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,

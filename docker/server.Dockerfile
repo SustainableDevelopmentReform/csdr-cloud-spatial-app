@@ -22,6 +22,7 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
+ENV NODE_OPTIONS="--max_old_space_size=4096"
 RUN corepack enable
 RUN pnpm i
 
@@ -32,6 +33,8 @@ RUN pnpm run build --filter=@repo/server...
 
 FROM base AS runner
 WORKDIR /app
+
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
 
 # Don't run production as root
 RUN addgroup --system --gid 1001 nodejs
@@ -46,5 +49,6 @@ USER honojs
 EXPOSE 4000
 
 ENV IS_DOCKER_COMPOSE="true"
+ENV PDF_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium-browser"
 
 CMD node app/index.js

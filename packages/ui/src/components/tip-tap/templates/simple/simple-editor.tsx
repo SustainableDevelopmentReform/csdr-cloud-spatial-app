@@ -251,6 +251,14 @@ export function SimpleEditor({
     content,
   })
 
+  React.useEffect(() => {
+    if (!editor) {
+      return
+    }
+
+    editor.setEditable(editable)
+  }, [editable, editor])
+
   const rect = useCursorVisibility({
     editor,
     overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
@@ -265,18 +273,18 @@ export function SimpleEditor({
   return (
     <div className="simple-editor-wrapper">
       <EditorContext.Provider value={{ editor }}>
-        <Toolbar
-          ref={toolbarRef}
-          style={{
-            ...(isMobile
-              ? {
-                  bottom: `calc(100% - ${height - rect.y}px)`,
-                }
-              : {}),
-          }}
-        >
-          {editable ? (
-            mobileView === 'main' ? (
+        {editable ? (
+          <Toolbar
+            ref={toolbarRef}
+            style={{
+              ...(isMobile
+                ? {
+                    bottom: `calc(100% - ${height - rect.y}px)`,
+                  }
+                : {}),
+            }}
+          >
+            {mobileView === 'main' ? (
               <MainToolbarContent
                 onHighlighterClick={() => setMobileView('highlighter')}
                 onLinkClick={() => setMobileView('link')}
@@ -288,9 +296,9 @@ export function SimpleEditor({
                 type={mobileView === 'highlighter' ? 'highlighter' : 'link'}
                 onBack={() => setMobileView('main')}
               />
-            )
-          ) : null}
-        </Toolbar>
+            )}
+          </Toolbar>
+        ) : null}
 
         {editor && editable ? (
           <DragHandle editor={editor}>

@@ -20,6 +20,7 @@ RUN apk update
 # Set working directory
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
+ENV NODE_OPTIONS="--max_old_space_size=4096"
 
 # First install the dependencies (as they change less often)
 RUN corepack enable
@@ -33,7 +34,7 @@ RUN pnpm run build
 FROM alpine:latest AS runner
 
 # Install Node.js runtime
-RUN apk add --no-cache nodejs
+RUN apk add --no-cache nodejs chromium nss freetype harfbuzz ca-certificates ttf-freefont
 
 WORKDIR /app
 
@@ -59,6 +60,6 @@ EXPOSE 4000
 ENV HOSTNAME="0.0.0.0"
 ENV IS_SINGLE_FILE_DOCKER="true"
 ENV NODE_ENV="production"
+ENV PDF_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium-browser"
 
-# Start backend & frontend in the background, then run Nginx
 CMD PORT=3000 node /app/frontend/standalone/apps/web/server.js & PORT=4000 node /app/backend/app/index.js

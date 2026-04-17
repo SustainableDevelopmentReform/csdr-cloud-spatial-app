@@ -3,6 +3,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { DashboardContent } from '@repo/schemas/crud'
 import { updateDashboardSchema } from '@repo/schemas/crud'
+import { Button } from '@repo/ui/components/ui/button'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
@@ -20,6 +22,7 @@ import {
 } from '../../../../hooks/useAccessControl'
 import { DASHBOARDS_BASE_PATH } from '../../../../lib/paths'
 import {
+  canCreateConsoleResource,
   canEditConsoleResource,
   getCreatedByUserId,
 } from '../../../../utils/access-control'
@@ -29,6 +32,7 @@ import DashboardGridEditor, {
 import {
   useDashboard,
   useDeleteDashboard,
+  useDuplicateDashboard,
   usePreviewDashboardVisibility,
   useUpdateDashboard,
   useUpdateDashboardVisibility,
@@ -40,8 +44,10 @@ const DashboardDetails = () => {
   const updateDashboard = useUpdateDashboard()
   const updateDashboardVisibility = useUpdateDashboardVisibility()
   const previewDashboardVisibility = usePreviewDashboardVisibility()
+  const duplicateDashboard = useDuplicateDashboard()
   const deleteDashboard = useDeleteDashboard(undefined, DASHBOARDS_BASE_PATH)
   const { access } = useAccessControl()
+  const router = useRouter()
   const [updateErrorDialog, setUpdateErrorDialog] =
     useState<VisibilityImpactDialogState | null>(null)
 
@@ -70,6 +76,7 @@ const DashboardDetails = () => {
     createdByUserId: getCreatedByUserId(dashboard),
     resourceData: dashboard,
   })
+  const canDuplicate = canCreateConsoleResource(access, 'dashboard')
   const requiresOrganizationSwitch =
     useRequiresActiveOrganizationSwitchForWrite({
       access,
@@ -83,6 +90,7 @@ const DashboardDetails = () => {
       return []
     }
 
+    const actions = []
     const visibilityAction = createResourceVisibilityAction({
       access,
       mutation: updateDashboardVisibility,
@@ -92,8 +100,48 @@ const DashboardDetails = () => {
       visibility: dashboard.visibility,
     })
 
-    return visibilityAction ? [visibilityAction] : []
-  }, [access, dashboard, previewDashboardVisibility, updateDashboardVisibility])
+    if (visibilityAction) {
+      actions.push(visibilityAction)
+    }
+
+    if (canDuplicate) {
+      actions.push({
+        title: 'Duplicate dashboard',
+        description:
+          'Create a new private editable copy in your active organization.',
+        component: (
+          <Button
+            variant="outline"
+            onClick={() => {
+              void duplicateDashboard
+                .mutateAsync()
+                .then((duplicatedDashboard) => {
+                  if (duplicatedDashboard?.id) {
+                    router.push(
+                      `${DASHBOARDS_BASE_PATH}/${duplicatedDashboard.id}`,
+                    )
+                  }
+                })
+            }}
+            disabled={duplicateDashboard.isPending}
+            className="w-fit"
+          >
+            {duplicateDashboard.isPending ? 'Duplicating...' : 'Duplicate'}
+          </Button>
+        ),
+      })
+    }
+
+    return actions
+  }, [
+    access,
+    canDuplicate,
+    dashboard,
+    duplicateDashboard,
+    previewDashboardVisibility,
+    router,
+    updateDashboardVisibility,
+  ])
 
   return (
     <ResourcePageState
@@ -103,7 +151,7 @@ const DashboardDetails = () => {
       loadingMessage="Loading dashboard"
       notFoundMessage="Dashboard not found"
     >
-      <div className="max-w-full gap-8 flex flex-col">
+      <div className="flex max-w-full flex-col gap-8">
         {requiresOrganizationSwitch ? (
           <ActiveOrganizationWriteWarning visibility={dashboard?.visibility} />
         ) : null}

@@ -28,13 +28,14 @@ The current domain model centers on datasets, geometries, products, and reportin
 - `dataset_run`, `geometries_run`, `product_run`: concrete processing runs
 - `geometry_output`: the geometry features produced by a geometries run
 - `product_output`: the computed indicator values tied to geometry outputs
-- `report` and `dashboard`: presentation-layer resources built on product outputs
+- `report` and `dashboard`: presentation-layer resources built on product outputs; published reports additionally carry immutable publish metadata plus a stored PDF artifact key
 
 The older internal model notes are still useful references:
 
 - [docs/MODEL.md](./MODEL.md)
 - [docs/REQUIREMENTS.md](./REQUIREMENTS.md)
 - [docs/requirements/access-control.md](./requirements/access-control.md)
+- [docs/requirements/report-publishing.md](./requirements/report-publishing.md)
 
 ## Request Flow
 
@@ -47,13 +48,20 @@ Typical read/write flow:
 5. Route handlers validate input, apply auth and rate-limiting middleware, and read/write through Drizzle.
 6. Responses are shaped with shared schemas and returned to the frontend.
 
+Special case: report publish flow
+
+1. The report publish route loads the saved report record and checks mutability.
+2. The server renders the read-only print route in a browser runtime.
+3. A PDF is generated from that print route and uploaded to S3-compatible storage.
+4. Only after upload succeeds does the server persist the report's publish metadata.
+
 ## Backend Structure
 
 Important backend areas:
 
 - `apps/server/src/app.ts`: Hono app composition, middleware, auth mounting, OpenAPI docs
 - `apps/server/src/routes/`: resource routes for datasets, geometries, products, outputs, dashboards, and reports
-- `apps/server/src/lib/`: auth, email, response helpers, OpenAPI helpers, and other shared server logic
+- `apps/server/src/lib/`: auth, email, response helpers, OpenAPI helpers, report PDF rendering/storage, and other shared server logic
 - `apps/server/src/schemas/`: Drizzle schema definitions and database custom types
 - `apps/server/drizzle/`: SQL migrations
 - `apps/server/src/routes/__tests__/`: integration tests backed by Testcontainers
@@ -87,6 +95,7 @@ Local development uses `docker-compose-dev.yml` to start:
 
 - PostGIS on port `5431`
 - Mailpit on ports `8025` and `1025`
+- SeaweedFS on ports `8333`, `8888`, and `9333` for S3-compatible report PDF storage in dev
 
 The web app defaults to `http://localhost:3000` and the server defaults to `http://localhost:4000`.
 

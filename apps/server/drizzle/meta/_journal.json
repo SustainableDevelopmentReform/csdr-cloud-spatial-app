@@ -232,6 +232,13 @@
       "when": 1775631366175,
       "tag": "0032_bizarre_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1775650112568,
+      "tag": "0033_fancy_power_pack",
+      "breakpoints": true
     }
   ]
 }

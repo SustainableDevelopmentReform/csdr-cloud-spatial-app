@@ -566,6 +566,11 @@ export const report = pgTable(
     ...topLevelAclColumns,
     bounds: polygon('bounds', { srid: 4326 }),
     content: jsonb('content'),
+    publishedAt: timestamp('published_at'),
+    publishedByUserId: text('published_by_user_id').references(() => user.id, {
+      onDelete: 'restrict',
+    }),
+    publishedPdfKey: text('published_pdf_key'),
   },
   (table) => [
     index('report_search_trgm_idx').using(
@@ -575,6 +580,7 @@ export const report = pgTable(
     ),
     index('report_organization_id_idx').on(table.organizationId),
     index('report_visibility_idx').on(table.visibility),
+    index('report_published_at_idx').on(table.publishedAt),
     index('report_bounds_gist_idx').using('gist', table.bounds),
   ],
 )

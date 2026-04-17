@@ -534,6 +534,94 @@ const app = createOpenAPIApp()
 
   .openapi(
     createRoute({
+      description: 'Duplicate a dashboard into the active organization.',
+      method: 'post',
+      path: '/:id/duplicate',
+      middleware: [
+        authMiddleware({
+          permission: 'write:dashboard',
+          skipResourceCheck: true,
+        }),
+      ],
+      request: {
+        params: z.object({ id: z.string().min(1) }),
+      },
+      responses: {
+        201: {
+          description: 'Successfully duplicated a dashboard.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(fullDashboardSchema),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        404: jsonErrorResponse('Dashboard not found'),
+        422: validationErrorResponse,
+        500: jsonErrorResponse('Failed to duplicate dashboard'),
+      },
+    }),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
+      const sourceAccessRecord = await assertResourceReadable({
+        c,
+        resource: 'dashboard',
+        resourceId: id,
+        scope: 'explorer',
+        notFoundError: dashboardNotFoundError,
+      })
+      const sourceRecord = await fetchFullDashboard(
+        id,
+        sourceAccessRecord.organizationId,
+      )
+
+      if (!sourceRecord) {
+        throw dashboardNotFoundError()
+      }
+
+      const parsedContent = dashboardContentSchema.parse(sourceRecord.content)
+
+      const duplicatedRecord = await db.transaction(async (tx) => {
+        const [insertedDashboard] = await tx
+          .insert(dashboard)
+          .values(
+            createOwnedPayload({
+              name: `${sourceRecord.name} (Copy)`,
+              description: sourceRecord.description,
+              metadata: sourceRecord.metadata,
+              content: parsedContent,
+              organizationId: activeOrganizationId,
+              createdByUserId: actor.user.id,
+              visibility: 'private',
+            }),
+          )
+          .returning()
+
+        if (!insertedDashboard) {
+          throw new ServerError({
+            statusCode: 500,
+            message: 'Failed to duplicate dashboard',
+            description: 'Dashboard insert did not return a record',
+          })
+        }
+
+        await syncDashboardChartUsages(tx, insertedDashboard.id, parsedContent)
+
+        return insertedDashboard
+      })
+
+      const record = await fetchFullDashboardOrThrow(
+        duplicatedRecord.id,
+        activeOrganizationId,
+      )
+
+      return generateJsonResponse(c, record, 201, 'Dashboard duplicated')
+    },
+  )
+
+  .openapi(
+    createRoute({
       description: 'Delete a dashboard.',
       method: 'delete',
       path: '/:id',

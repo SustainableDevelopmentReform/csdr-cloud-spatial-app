@@ -130,7 +130,7 @@ export function ChartNodeView(props: NodeViewProps) {
             </div>
           )}
         </div>
-        {editorControls && (
+        {isEditable && editorControls && (
           <div className="tiptap-chart-node__actions">{editorControls}</div>
         )}
       </div>

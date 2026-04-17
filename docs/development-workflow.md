@@ -17,10 +17,16 @@ What each step does:
 
 - `pnpm install`: installs all workspace dependencies
 - `cp .env.example.local .env`: creates the local runtime config used by both apps
-- `docker compose -f docker-compose-dev.yml up -d`: starts PostGIS and Mailpit
+- `docker compose -f docker-compose-dev.yml up -d`: starts PostGIS, Mailpit, and SeaweedFS
 - `pnpm migrate`: applies Drizzle migrations to the local database
 - `pnpm seed`: inserts the initial organization, admin user, and sample spatial resources
 - `pnpm dev`: starts the workspace development processes
+
+Notes:
+
+- SeaweedFS provides the local S3-compatible storage used for published report PDFs.
+- The dev compose file bootstraps the `csdr-dev-exports` bucket automatically.
+- If report publishing fails because Chromium is unavailable, install Chromium locally or set `PDF_BROWSER_EXECUTABLE_PATH` in `.env`.
 
 ## Root Command Contract
 
@@ -108,6 +114,8 @@ There is no frontend test suite yet, so manual checks still matter. After fronte
 
 - sign-in and auth-protected navigation
 - dashboard and report entry points
+- report create/edit/reload flow
+- report publish, PDF download, and duplicate flow
 - dataset, geometries, and product detail pages
 - at least one map rendering path
 

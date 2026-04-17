@@ -414,4 +414,41 @@ describe('dashboard route', () => {
       dashboardId,
     )
   })
+
+  it('duplicates a dashboard into a new private editable copy with synced chart usage', async () => {
+    const dashboardId = await createDashboardWithChartUsage(seededIds.indicator)
+
+    const duplicatedJson = await expectJsonResponse<{
+      id: string
+      name: string
+      visibility: string
+    }>(
+      await adminClient.api.v0.dashboard[':id'].duplicate.$post({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 201,
+        message: 'Dashboard duplicated',
+      },
+    )
+
+    expect(duplicatedJson.data.id).not.toBe(dashboardId)
+    expect(duplicatedJson.data.name).toBe(
+      `Chart dashboard ${seededIds.indicator} (Copy)`,
+    )
+    expect(duplicatedJson.data.visibility).toBe('private')
+
+    expect(
+      await db.query.dashboardIndicatorUsage.findMany({
+        where: eq(dashboardIndicatorUsage.dashboardId, duplicatedJson.data.id),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        dashboardId: duplicatedJson.data.id,
+        productRunId: seededIds.productRun,
+        indicatorId: seededIds.indicator,
+        derivedIndicatorId: null,
+      }),
+    ])
+  })
 })

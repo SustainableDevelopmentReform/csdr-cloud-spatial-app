@@ -685,6 +685,9 @@ export const importProductOutputsSchema = z.object({
 export const baseReportSchema = baseAclResourceSchema
   .extend({
     bounds: resourceBoundsSchema.nullable(),
+    publishedAt: z.iso.datetime().nullable(),
+    publishedByUserId: z.string().nullable(),
+    publishedPdfAvailable: z.boolean(),
   })
   .openapi('ReportSchemaBase')
 export const reportStoredContentSchema = z
@@ -696,8 +699,29 @@ export const reportStoredContentSchema = z
       'Opaque report document payload. It is currently stored as Tiptap JSON, but clients should treat the structure as an implementation detail.',
   })
 
+export const reportSourceResourceTypeSchema = z.enum([
+  'product',
+  'dataset',
+  'geometries',
+])
+
+export const reportSourceSchema = z
+  .object({
+    resourceType: reportSourceResourceTypeSchema,
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+  })
+  .openapi('ReportSourceSchema')
+
+export type ReportSource = z.infer<typeof reportSourceSchema>
+
 export const fullReportSchema = baseReportSchema
-  .extend({ content: reportStoredContentSchema.nullable() })
+  .extend({
+    content: reportStoredContentSchema.nullable(),
+    sources: z.array(reportSourceSchema),
+  })
   .openapi('ReportSchemaFull')
 
 export const reportQuerySchema = geographicBoundsQuerySchema.extend({

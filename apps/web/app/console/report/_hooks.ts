@@ -201,6 +201,70 @@ export const useUpdateReportVisibility = (_reportId?: string) => {
   })
 }
 
+export const usePublishReport = (_reportId?: string) => {
+  const { reportId } = useReportParams(_reportId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+
+  return useMutation({
+    meta: {
+      suppressGlobalErrorToast: true,
+    },
+    mutationFn: async () => {
+      if (!reportId) {
+        return null
+      }
+
+      const res = client.api.v0.report[':id'].publish.$post({
+        param: {
+          id: reportId,
+        },
+      })
+
+      const json = await unwrapResponse(res)
+      return json.data
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: reportQueryKeys.all,
+      })
+      await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
+export const useDuplicateReport = (_reportId?: string) => {
+  const { reportId } = useReportParams(_reportId)
+  const queryClient = useQueryClient()
+  const client = useApiClient()
+
+  return useMutation({
+    meta: {
+      suppressGlobalErrorToast: true,
+    },
+    mutationFn: async () => {
+      if (!reportId) {
+        return null
+      }
+
+      const res = client.api.v0.report[':id'].duplicate.$post({
+        param: {
+          id: reportId,
+        },
+      })
+
+      const json = await unwrapResponse(res, 201)
+      return json.data
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: reportQueryKeys.all,
+      })
+      await invalidateChartUsageDependencyQueries(queryClient)
+    },
+  })
+}
+
 export const usePreviewReportVisibility = (_reportId?: string) => {
   const { reportId } = useReportParams(_reportId)
   const client = useApiClient()
@@ -265,7 +329,10 @@ export const useDeleteReport = (
   })
 }
 
-export type ReportLinkParams = Pick<ReportListItem, 'id' | 'name'> & {
+export type ReportLinkParams = Pick<
+  ReportListItem,
+  'id' | 'name' | 'publishedAt'
+> & {
   visibility?: ResourceVisibility | null
 }
 

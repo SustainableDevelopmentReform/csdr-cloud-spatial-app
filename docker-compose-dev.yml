@@ -19,3 +19,35 @@ services:
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    restart: always
+    command: server -dir=/data -s3
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: key
+    ports:
+      - 8333:8333
+      - 8888:8888
+      - 9333:9333
+    volumes:
+      - seaweedfs-data:/data
+
+  seaweedfs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      - seaweedfs
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      until AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api list-buckets >/dev/null 2>&1; do
+        sleep 1;
+      done;
+      if ! AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket csdr-dev-exports >/dev/null 2>&1; then
+        AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket csdr-dev-exports;
+      fi
+      "
+
+volumes:
+  seaweedfs-data:

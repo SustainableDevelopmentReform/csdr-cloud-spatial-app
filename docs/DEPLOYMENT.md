@@ -4,7 +4,7 @@
 
 Using the single-container deployment, this will run the web app on port `3000` and the backend app on port `4000`.
 
-For the full set of env variables, see the [.env.example.local](../.env.example.local) file.
+For the full set of env variables, see the example env files, but do not copy their host-only service endpoints verbatim into container deployments.
 
 The minimum required env variables are:
 
@@ -22,9 +22,32 @@ DATABASE_USER=admin
 DATABASE_PASSWORD=admin
 DATABASE_NAME=csdr-dev
 
+S3_BUCKET_NAME=
+AWS_REGION=
+
+S3_SPACES_ENDPOINT=
+S3_SPACES_SECRET_KEY=
+S3_SPACES_ACCESS_KEY_ID=
+S3_FORCE_PATH_STYLE=false
+
+# Optional if Chromium is not on the default runtime path
+PDF_BROWSER_EXECUTABLE_PATH=
+
 # You can use openssl to generate a random 32 character key: openssl rand -base64 32
 BETTER_AUTH_SECRET=
 ```
+
+Report publishing requires both:
+
+- S3-compatible object storage for published PDFs
+- a Chromium-compatible browser runtime for server-side PDF generation
+
+Supported S3 credential modes:
+
+- AWS S3 on EKS or EC2: set `S3_BUCKET_NAME` and `AWS_REGION`, and let the AWS SDK use the pod or node IAM role via the default credential chain. Do not set `S3_SPACES_ACCESS_KEY_ID` or `S3_SPACES_SECRET_KEY` in this mode.
+- Local or other S3-compatible storage: set `S3_BUCKET_NAME`, `S3_SPACES_ENDPOINT`, `S3_SPACES_ACCESS_KEY_ID`, and `S3_SPACES_SECRET_KEY`. Set `S3_FORCE_PATH_STYLE=true` if your provider requires path-style requests.
+
+If the app runs inside Docker while its database or S3-compatible storage runs on the host machine, use container-reachable endpoints such as `host.docker.internal` instead of `localhost`.
 
 ### Build the image locally
 
@@ -43,7 +66,7 @@ The backend app need to be accessible on `APP_URL` at `/api` (for example `https
 
 ```bash
 # Run the container (using local .env file)
-docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal csdr-cloud-spatial-app
+docker run --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal -e S3_SPACES_ENDPOINT=http://host.docker.internal:8333 csdr-cloud-spatial-app
 ```
 
 ### Run using published image from ECR
@@ -56,7 +79,7 @@ aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS
 docker pull --platform linux/amd64 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
 
 # Run the container (using local .env file)
-docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
+docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .env --add-host=host.docker.internal:host-gateway -p 3000:3000 -p 4000:4000 -e DATABASE_HOST=host.docker.internal -e S3_SPACES_ENDPOINT=http://host.docker.internal:8333 891612567384.dkr.ecr.ap-southeast-2.amazonaws.com/csdr/csdr-cloud-spatial-app:latest
 ```
 
 ### Local development with caddy

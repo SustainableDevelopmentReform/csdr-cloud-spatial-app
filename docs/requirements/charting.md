@@ -188,7 +188,16 @@ Charts are embedded in rich-text reports as custom blocks:
 - Minimum height: 120px; default: 384px
 - Height is adjustable via a drag handle on the bottom-right corner
 - Title and description are shown above the chart
-- Edit button opens the same wizard dialog used in dashboards
+- In draft reports, the edit button opens the same wizard dialog used in dashboards
+- In published reports and PDF renders, chart blocks are read-only and hide edit/resize controls
+
+## Published Report Rendering
+
+- Published reports reuse the same rich-text chart blocks as draft reports, but in read-only mode
+- The shared sources component is rendered after report content in both the console report view and the print/PDF view
+- Sources are grouped as `Products`, `Datasets`, and `Geometries`
+- Published PDFs are generated from the dedicated print route, not from a separate charting export format
+- The final PDF includes a QR code page linking back to the live report URL
 
 ---
 

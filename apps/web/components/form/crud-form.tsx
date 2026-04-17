@@ -154,7 +154,7 @@ export const CrudForm = <
                 <FormItem>
                   <FormLabel>{getFieldLabel('id')}</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -181,7 +181,7 @@ export const CrudForm = <
                 <FormItem>
                   <FormLabel>{getFieldLabel('name')}</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
