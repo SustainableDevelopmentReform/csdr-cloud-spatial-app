@@ -5,6 +5,7 @@ import { SelectedDataPoint } from '@repo/plot/types'
 import { updateReportSchema } from '@repo/schemas/crud'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
 import { Button } from '@repo/ui/components/ui/button'
+import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -131,6 +132,20 @@ const ReportDetails = () => {
     (reportQuery.isFetching && report?.id !== reportId) ||
     isAccessLoading ||
     isEditorHydrating
+  const activePdfStatus =
+    activePdfAction === 'preview'
+      ? {
+          title: 'Generating PDF preview',
+          description:
+            'Rendering the current saved report into a temporary PDF preview.',
+        }
+      : publishReport.isPending
+        ? {
+            title: 'Publishing report',
+            description:
+              'Generating the published PDF and locking the report. This can take a little while.',
+          }
+        : null
 
   const downloadPdf = useCallback(
     async (options: {
@@ -153,7 +168,9 @@ const ReportDetails = () => {
 
           try {
             errorPayload = await response.json()
-          } catch {}
+          } catch {
+            // Ignore non-JSON error responses and fall back to the generic message.
+          }
 
           throw errorPayload ?? new Error(options.fallbackMessage)
         }
@@ -341,6 +358,19 @@ const ReportDetails = () => {
       notFoundMessage="Report not found"
     >
       <div className="relative flex w-[800px] max-w-full flex-col gap-8">
+        {activePdfStatus ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
+            <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 p-6 text-center text-sm text-blue-950 shadow-lg">
+              <div className="shrink-0 scale-150">
+                <LoadingIcon />
+              </div>
+              <div>
+                <p className="font-semibold">{activePdfStatus.title}</p>
+                <p className="mt-2">{activePdfStatus.description}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {requiresOrganizationSwitch && !isPublished ? (
           <ActiveOrganizationWriteWarning visibility={report?.visibility} />
         ) : null}
