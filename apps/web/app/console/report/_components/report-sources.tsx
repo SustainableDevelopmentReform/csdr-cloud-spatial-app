@@ -67,7 +67,14 @@ export const ReportSources = ({
               }
 
               return (
-                <div className="grid gap-3" key={group.resourceType}>
+                <div
+                  className="grid gap-3"
+                  key={group.resourceType}
+                  style={{
+                    breakInside: 'avoid-page',
+                    pageBreakInside: 'avoid',
+                  }}
+                >
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                     {group.title}
                   </h3>
@@ -79,6 +86,10 @@ export const ReportSources = ({
                         <div
                           className="rounded-md border border-gray-200 p-3"
                           key={`${source.resourceType}:${source.id}`}
+                          style={{
+                            breakInside: 'avoid-page',
+                            pageBreakInside: 'avoid',
+                          }}
                         >
                           <div className="flex flex-col gap-1">
                             <Link

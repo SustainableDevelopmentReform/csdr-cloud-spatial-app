@@ -6,7 +6,7 @@
     "./*": "./src/*.tsx"
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint ."
   },
   "peerDependencies": {
     "react": "^19"

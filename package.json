@@ -7,7 +7,7 @@
   "scripts": {
     "build": "dotenvx run -- turbo build",
     "dev": "dotenvx run -- turbo dev",
-    "lint": "turbo lint",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false turbo lint",
     "typecheck": "turbo typecheck",
     "typecheck:watch": "turbo typecheck:watch",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,scss,css,html}\"",
@@ -22,21 +22,16 @@
     "clean-deps": "rm -rf node_modules && pnpm -r exec rm -rf node_modules"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.51.1",
+    "@dotenvx/dotenvx": "^1.61.0",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/geojson": "^7946.0.16",
     "husky": "^9.1.7",
-    "lint-staged": "^15.5.2",
+    "lint-staged": "^16.4.0",
     "prettier": "catalog:",
     "turbo": "2.1.1"
   },
   "packageManager": "pnpm@9.12.0",
-  "pnpm": {
-    "overrides": {
-      "next": "^15.2.6"
-    }
-  },
   "engines": {
     "node": ">=20.17.0"
   },

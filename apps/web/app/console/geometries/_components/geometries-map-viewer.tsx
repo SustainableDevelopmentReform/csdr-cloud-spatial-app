@@ -41,7 +41,8 @@ import {
   RequestTransformFunction,
 } from 'maplibre-gl'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePrintRenderReadiness } from '~/components/print-readiness'
 import { useConfig } from '../../../../components/providers'
 import { useMapPreview } from './map-preview-context'
 import {
@@ -183,7 +184,7 @@ function MapLegend({
 
   return (
     <div
-      className={`pointer-events-auto absolute ${positionClasses} z-10 flex flex-col gap-1 rounded-md bg-background/90 px-3 py-2 text-xs shadow-md backdrop-blur-sm`}
+      className={`pointer-events-auto absolute ${positionClasses} z-10 flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2 text-xs`}
     >
       {label && (
         <span className="font-medium text-foreground">
@@ -465,6 +466,43 @@ const GeometriesMapViewer = ({
 
   const mapRef = useRef<MapRef | null>(null)
   const mapPreview = useMapPreview()
+  const [lastIdleToken, setLastIdleToken] = useState<string | null>(null)
+  const isMapLoading =
+    isLoadingGeometriesRun ||
+    isLoadingGeometryOutputsToZoomTo ||
+    isLoadingPmtilesHeader
+  const hasMapError = Boolean(
+    geometriesRunError || geometryOutputsToZoomToError,
+  )
+  const mapRenderToken = useMemo(
+    () =>
+      [
+        geometriesRun?.id ?? '',
+        mapBounds?.join(',') ?? '',
+        productOutputs
+          ?.map(
+            (output) =>
+              `${output.geometryOutputId ?? ''}:${output.value}:${output.timePoint.toISOString()}`,
+          )
+          .join('|') ?? '',
+        geometryOutputsToZoomTo?.data?.map((output) => output.id).join('|') ??
+          '',
+        zoomToGeometryOutputIds?.join('|') ?? '',
+        isMapLoading ? 'loading' : 'loaded',
+        hasMapError ? 'error' : 'ok',
+      ].join('::'),
+    [
+      geometriesRun?.id,
+      mapBounds,
+      productOutputs,
+      geometryOutputsToZoomTo?.data,
+      zoomToGeometryOutputIds,
+      isMapLoading,
+      hasMapError,
+    ],
+  )
+  const isMapIdle =
+    !isMapLoading && !hasMapError && lastIdleToken === mapRenderToken
 
   // Callback ref that sets the internal ref and registers with the context
   const mapRefCallback = useCallback(
@@ -510,6 +548,10 @@ const GeometriesMapViewer = ({
     }
   }, [mapBounds])
 
+  usePrintRenderReadiness({
+    isReady: !isMapLoading && (hasMapError || isMapIdle),
+  })
+
   if (isLoadingGeometriesRun || isLoadingGeometryOutputsToZoomTo)
     return <EmptyCard description="Loading" />
   if (geometriesRunError || geometryOutputsToZoomToError)
@@ -535,6 +577,9 @@ const GeometriesMapViewer = ({
             : undefined
         }
         onClick={onMouseClick}
+        onIdle={() => {
+          setLastIdleToken(mapRenderToken)
+        }}
         transformRequest={transformRequest}
       >
         <Source
