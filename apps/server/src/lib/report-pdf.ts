@@ -5,6 +5,7 @@ import { env } from '~/env'
 import { ServerError } from './error'
 
 const reportReadySelector = '[data-report-print-ready="true"]'
+const reportReadyTimeoutMs = 60_000
 const testPdfBytes = Buffer.from('%PDF-1.4\n% Report PDF fixture\n')
 
 const browserExecutableCandidates = [
@@ -72,7 +73,11 @@ const getBrowserLaunchArgs = (): string[] => {
   const args = ['--disable-dev-shm-usage']
 
   if (platform() === 'linux') {
-    args.push('--no-sandbox', '--disable-setuid-sandbox')
+    args.push(
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--enable-unsafe-swiftshader',
+    )
   }
 
   return args
@@ -129,7 +134,7 @@ export const renderReportPdf = async (options: {
 
     const page = await context.newPage()
     const response = await page.goto(getReportPrintUrl(options.reportId), {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
     })
 
     if (!response?.ok()) {
@@ -144,10 +149,33 @@ export const renderReportPdf = async (options: {
     await page.waitForFunction(
       (selector) => document.querySelector(selector) !== null,
       reportReadySelector,
+      { timeout: reportReadyTimeoutMs },
     )
     await page.emulateMedia({ media: 'screen' })
     await page.evaluate(async () => {
       await document.fonts.ready
+
+      await Promise.all(
+        Array.from(document.images)
+          .filter((image) => !image.complete)
+          .map(
+            (image) =>
+              new Promise<void>((resolve) => {
+                const markDone = () => {
+                  resolve()
+                }
+
+                image.addEventListener('load', markDone, { once: true })
+                image.addEventListener('error', markDone, { once: true })
+              }),
+          ),
+      )
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve())
+        })
+      })
     })
 
     return await page.pdf({
@@ -165,10 +193,15 @@ export const renderReportPdf = async (options: {
       throw error
     }
 
+    const description =
+      error instanceof Error
+        ? `Unexpected error while rendering the report PDF: ${error.message}`
+        : 'Unexpected error while rendering the report PDF.'
+
     throw new ServerError({
       statusCode: 500,
       message: 'Failed to generate report PDF',
-      description: 'Unexpected error while rendering the report PDF.',
+      description,
     })
   } finally {
     await browser.close()

@@ -14,6 +14,7 @@ export const env = createEnv({
     APP_URL: z.url().default('http://localhost:3000'),
     INTERNAL_BACKEND_URL: z.url().optional(),
     INTERNAL_FRONTEND_URL: z.url().optional(),
+    MAP_STYLE_URL: z.url().optional(),
     ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC: z
       .string()
       .optional()
@@ -29,6 +30,7 @@ export const env = createEnv({
     APP_URL: process.env.APP_URL,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
     INTERNAL_FRONTEND_URL: process.env.INTERNAL_FRONTEND_URL,
+    MAP_STYLE_URL: process.env.MAP_STYLE_URL,
     ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC:
       process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC,
     NODE_ENV: process.env.NODE_ENV,

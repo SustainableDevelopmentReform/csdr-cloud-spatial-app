@@ -1,6 +1,8 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
 import pg from 'pg'
-import type { GlobalSetupContext } from 'vitest/node'
+import type { TestProject } from 'vitest/node'
+
+type GlobalSetupContext = Pick<TestProject, 'provide'>
 
 export default async function setup({ provide }: GlobalSetupContext) {
   const container = await new PostgreSqlContainer('postgis/postgis:16-3.4')

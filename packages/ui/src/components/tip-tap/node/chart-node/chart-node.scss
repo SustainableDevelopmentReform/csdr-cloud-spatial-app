@@ -8,6 +8,8 @@
   background: var(--tt-surface-raised, rgba(255, 255, 255, 0.9));
   margin-top: 0.5rem;
   position: relative;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
 
   .dark & {
     border-color: var(--tt-gray-dark-a-300, rgba(255, 255, 255, 0.16));
@@ -64,6 +66,8 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
 
     .dark & {
       background: var(--tt-gray-dark-a-900, rgba(255, 255, 255, 0.04));
