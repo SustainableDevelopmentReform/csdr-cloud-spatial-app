@@ -5,6 +5,7 @@ import { createDashboardSchema } from '@repo/schemas/crud'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import { useAccessControl } from '../../../hooks/useAccessControl'
+import { useIsHydrated } from '../../../hooks/useIsHydrated'
 import { useUnsavedChangesWarning } from '../../../hooks/useUnsavedChangesWarning'
 import DashboardGridEditor, {
   createEmptyDashboardContent,
@@ -15,6 +16,7 @@ import { canCreateConsoleResource } from '../../../utils/access-control'
 const DataExplorerFeature = () => {
   const createDashboard = useCreateDashboard()
   const { access } = useAccessControl()
+  const isHydrated = useIsHydrated()
   const canSaveDashboard = canCreateConsoleResource(access, 'dashboard')
   const form = useForm({
     resolver: zodResolver(createDashboardSchema),
@@ -33,7 +35,7 @@ const DataExplorerFeature = () => {
         buttonText="Save as Dashboard"
         entityName="Dashboard"
         entityNamePlural="dashboards"
-        hideTrigger={!canSaveDashboard}
+        hideTrigger={!isHydrated || !canSaveDashboard}
         hiddenFields={['content', 'metadata']}
       />
       <DashboardGridEditor

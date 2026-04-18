@@ -11,6 +11,8 @@ import {
 } from '@repo/ui/components/ui/select'
 import { useQueryWithSearchParams } from '~/hooks/useSearchParams'
 import { useAccessControl } from '~/hooks/useAccessControl'
+import { ConsolePageHeader } from '../_components/console-page-header'
+import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
 import {
   logPageQuerySchema,
   type LogEntry,
@@ -127,7 +129,14 @@ const LogsPageClient = () => {
   const pageCount = activeData?.pageCount ?? 1
 
   return (
-    <div className="max-w-7xl">
+    <div className="flex max-w-7xl flex-col gap-6">
+      <ConsolePageHeader
+        breadcrumbs={
+          <ConsoleSimpleBreadcrumbs
+            items={[{ href: '/console', label: 'Home' }, { label: 'Logs' }]}
+          />
+        }
+      />
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="mb-2 text-3xl font-medium">Logs</h1>

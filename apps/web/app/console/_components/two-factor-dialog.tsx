@@ -8,14 +8,20 @@ import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation } from '@tanstack/react-query'
 import { CheckCircle2, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { OTPCodeInput } from '~/components/otp-code-input'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import { getTotpSetupDetails } from '~/utils/totp'
 
 interface TwoFactorButtonProps {
+  className?: string
+  hideTrigger?: boolean
+  icon?: ReactNode
+  label?: string
+  onOpenChange?: (open: boolean) => void
   onClose?: () => void
+  open?: boolean
 }
 
 type DialogStep =
@@ -66,7 +72,7 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
   const router = useRouter()
   const { data } = authClient.useSession()
   const user = data?.user
-  const [isOpen, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [step, setStep] = useState<DialogStep>('initial')
   const [setupPassword, setSetupPassword] = useState('')
   const [setupCode, setSetupCode] = useState('')
@@ -77,6 +83,20 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
   const [freshBackupCodes, setFreshBackupCodes] = useState<string[]>([])
   const [backupAcknowledged, setBackupAcknowledged] = useState(false)
   const [disablePassword, setDisablePassword] = useState('')
+  const isControlled = props.open !== undefined
+  const isOpen = props.open ?? internalOpen
+
+  const setOpen = (open: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(open)
+    }
+
+    props.onOpenChange?.(open)
+
+    if (!open) {
+      props.onClose?.()
+    }
+  }
 
   const refreshSession = async () => {
     await authClient.getSession()
@@ -132,7 +152,6 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
       await refreshSession()
       resetState()
       setOpen(false)
-      props.onClose?.()
     },
     onError(error) {
       toast.error(
@@ -176,7 +195,6 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
       await refreshSession()
       resetState()
       setOpen(false)
-      props.onClose?.()
     },
     onError(error) {
       toast.error(
@@ -203,12 +221,16 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
 
   return (
     <>
-      <button
-        className="mb-2 block w-full text-left"
-        onClick={() => setOpen(true)}
-      >
-        Two-factor Auth
-      </button>
+      {props.hideTrigger ? null : (
+        <button
+          className={props.className ?? 'mb-2 block w-full text-left'}
+          onClick={() => setOpen(true)}
+          type="button"
+        >
+          {props.icon}
+          <span>{props.label ?? 'Two-factor Auth'}</span>
+        </button>
+      )}
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
@@ -219,7 +241,6 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
           setOpen(open)
           if (!open) {
             resetState()
-            props.onClose?.()
           }
         }}
       >

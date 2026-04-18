@@ -16,14 +16,20 @@ import { Switch } from '@repo/ui/components/ui/switch'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
 interface AccountSettingsProps {
+  className?: string
+  hideTrigger?: boolean
+  icon?: ReactNode
+  label?: string
+  onOpenChange?: (open: boolean) => void
   onClose?: () => void
+  open?: boolean
 }
 
 const profileSchema = z.object({
@@ -48,13 +54,35 @@ const passwordSchema = z
 type ProfileData = z.infer<typeof profileSchema>
 type PasswordData = z.infer<typeof passwordSchema>
 
-const AccountSettingsButton = ({ onClose }: AccountSettingsProps) => {
+const AccountSettingsButton = ({
+  className,
+  hideTrigger = false,
+  icon,
+  label = 'Account Details',
+  onOpenChange,
+  onClose,
+  open: openProp,
+}: AccountSettingsProps) => {
   const authClient = useAuthClient()
   const router = useRouter()
   const { appUrl } = useConfig()
   const { data } = authClient.useSession()
   const user = data?.user
-  const [isOpen, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const isOpen = openProp ?? internalOpen
+
+  const setOpen = (open: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(open)
+    }
+
+    onOpenChange?.(open)
+
+    if (!open) {
+      onClose?.()
+    }
+  }
 
   const profileForm = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
@@ -162,19 +190,20 @@ const AccountSettingsButton = ({ onClose }: AccountSettingsProps) => {
 
   return (
     <>
-      <button
-        className="mb-2 block w-full text-left"
-        onClick={() => setOpen(true)}
-      >
-        Account Details
-      </button>
+      {hideTrigger ? null : (
+        <button
+          className={className ?? 'mb-2 block w-full text-left'}
+          onClick={() => setOpen(true)}
+          type="button"
+        >
+          {icon}
+          <span>{label}</span>
+        </button>
+      )}
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
           setOpen(open)
-          if (!open) {
-            onClose?.()
-          }
         }}
       >
         <DialogContent className="max-w-xl p-6">

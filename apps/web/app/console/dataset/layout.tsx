@@ -6,7 +6,12 @@ const DatasetLayout: React.FC<{
   children?: React.ReactNode
 }> = async ({ children }) => {
   return (
-    <DetailLayout breadcrumbs={<DatasetBreadcrumbs />}>{children}</DetailLayout>
+    <DetailLayout
+      breadcrumbs={<DatasetBreadcrumbs />}
+      showHeaderOnIndex={false}
+    >
+      {children}
+    </DetailLayout>
   )
 }
 

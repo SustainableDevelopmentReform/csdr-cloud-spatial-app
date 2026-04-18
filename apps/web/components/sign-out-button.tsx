@@ -1,18 +1,29 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { Button } from '@repo/ui/components/ui/button'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { LogOutIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAuthClient } from '~/hooks/useAuthClient'
 
-export const SignOutButton = ({ onClick }: { onClick?: () => void }) => {
+export const SignOutButton = ({
+  className,
+  label = 'Logout',
+  onClick,
+}: {
+  className?: string
+  label?: string
+  onClick?: () => void
+}) => {
   const router = useRouter()
   const authClient = useAuthClient()
   const queryClient = useQueryClient()
   return (
-    <Button
+    <button
+      className={
+        className ??
+        'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-stone-900 transition-colors hover:bg-neutral-100'
+      }
       onClick={async () => {
         const res = await authClient.signOut()
         if (res.error) {
@@ -23,9 +34,10 @@ export const SignOutButton = ({ onClick }: { onClick?: () => void }) => {
           onClick?.()
         }
       }}
+      type="button"
     >
       <LogOutIcon className="w-4 h-4" />
-      Logout
-    </Button>
+      <span>{label}</span>
+    </button>
   )
 }

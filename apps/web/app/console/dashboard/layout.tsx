@@ -6,7 +6,10 @@ const DashboardLayout: React.FC<{
   children?: React.ReactNode
 }> = async ({ children }) => {
   return (
-    <DetailLayout breadcrumbs={<DashboardBreadcrumbs />}>
+    <DetailLayout
+      breadcrumbs={<DashboardBreadcrumbs />}
+      showHeaderOnIndex={false}
+    >
       {children}
     </DetailLayout>
   )

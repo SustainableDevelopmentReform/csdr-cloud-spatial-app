@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
 import { Input } from '@repo/ui/components/ui/input'
 import {
@@ -13,6 +14,8 @@ import { toast } from '@repo/ui/components/ui/sonner'
 import { useDeferredValue, useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useAccessControl } from '~/hooks/useAccessControl'
+import { ConsolePageHeader } from '../_components/console-page-header'
+import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
 import {
   formatOrganizationRole,
   organizationRoleSchema,
@@ -30,7 +33,6 @@ import {
   useWorkspaceInvitations,
   useWorkspaceMembers,
 } from './_hooks'
-import { Badge } from '@repo/ui/components/ui/badge'
 
 const slugify = (value: string): string =>
   value
@@ -108,7 +110,17 @@ const WorkspacePageClient = () => {
   }, [activeOrganization.data?.id, activeOrganization.data?.name])
 
   return (
-    <div className="max-w-6xl">
+    <div className="flex max-w-6xl flex-col gap-6">
+      <ConsolePageHeader
+        breadcrumbs={
+          <ConsoleSimpleBreadcrumbs
+            items={[
+              { href: '/console', label: 'Home' },
+              { label: 'Organization' },
+            ]}
+          />
+        }
+      />
       <div className="mb-8">
         <h1 className="mb-2 text-3xl font-medium">Workspace</h1>
         <p className="text-sm text-gray-600">

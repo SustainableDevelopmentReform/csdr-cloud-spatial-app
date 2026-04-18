@@ -1,14 +1,10 @@
 'use client'
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { createDashboardSchema } from '@repo/schemas/crud'
 import { useMemo } from 'react'
-import { useForm } from 'react-hook-form'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
-import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
-import { useAccessControl } from '../../../hooks/useAccessControl'
+import { ConsolePageHeader } from '../_components/console-page-header'
 import {
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
@@ -21,11 +17,11 @@ import { GeometriesSelect } from '../geometries/_components/geometries-select'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
 import { ProductRunSelect } from '../product/_components/product-run-select'
 import { ProductSelect } from '../product/_components/product-select'
-import { useCreateDashboard, useDashboardLink, useDashboards } from './_hooks'
-import { createEmptyDashboardContent } from './_components/dashboard-grid-editor'
+import { DashboardBreadcrumbs } from './_components/breadcrumbs'
 import { DashboardButton } from './_components/dashboard-button'
+import { DashboardCreateAction } from './_components/dashboard-create-action'
+import { useDashboardLink, useDashboards } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
-import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const DashboardFeature = () => {
   const {
@@ -37,9 +33,6 @@ const DashboardFeature = () => {
     isLoading,
     isFetchingNextPage,
   } = useDashboards(undefined, true)
-  const createDashboard = useCreateDashboard()
-  const { access } = useAccessControl()
-
   const dashboardLink = useDashboardLink()
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
@@ -69,26 +62,14 @@ const DashboardFeature = () => {
     return ['description', 'createdAt', 'updatedAt'] as const
   }, [])
 
-  const form = useForm({
-    resolver: zodResolver(createDashboardSchema),
-    defaultValues: {
-      content: createEmptyDashboardContent(),
-    },
-  })
-
   return (
-    <div>
+    <div className="flex flex-col gap-6">
+      <ConsolePageHeader
+        breadcrumbs={<DashboardBreadcrumbs />}
+        actions={<DashboardCreateAction />}
+      />
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Dashboards</h1>
-        <CrudFormDialog
-          form={form}
-          mutation={createDashboard}
-          buttonText="Add Dashboard"
-          entityName="Dashboard"
-          entityNamePlural="dashboards"
-          hideTrigger={!canCreateConsoleResource(access, 'dashboard')}
-          hiddenFields={['content', 'metadata']}
-        />
       </div>
       <div>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">

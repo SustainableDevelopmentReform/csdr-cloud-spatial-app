@@ -2,14 +2,17 @@ import React from 'react'
 import DetailLayout from '../../../components/detail-layout'
 import { IndicatorsBreadcrumbs } from './_components/breadcrumbs'
 
-const ProductLayout: React.FC<{
+const IndicatorLayout: React.FC<{
   children?: React.ReactNode
 }> = async ({ children }) => {
   return (
-    <DetailLayout breadcrumbs={<IndicatorsBreadcrumbs />}>
+    <DetailLayout
+      breadcrumbs={<IndicatorsBreadcrumbs />}
+      showHeaderOnIndex={false}
+    >
       {children}
     </DetailLayout>
   )
 }
 
-export default ProductLayout
+export default IndicatorLayout

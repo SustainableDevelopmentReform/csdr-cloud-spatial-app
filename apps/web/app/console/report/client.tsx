@@ -1,14 +1,10 @@
 'use client'
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { createReportSchema } from '@repo/schemas/crud'
 import { useMemo } from 'react'
-import { useForm } from 'react-hook-form'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
-import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
-import { useAccessControl } from '../../../hooks/useAccessControl'
+import { ConsolePageHeader } from '../_components/console-page-header'
 import {
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
@@ -21,10 +17,11 @@ import { GeometriesSelect } from '../geometries/_components/geometries-select'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
 import { ProductRunSelect } from '../product/_components/product-run-select'
 import { ProductSelect } from '../product/_components/product-select'
+import { ReportBreadcrumbs } from './_components/breadcrumbs'
 import { ReportButton } from './_components/report-button'
-import { useCreateReport, useReportLink, useReports } from './_hooks'
+import { ReportCreateAction } from './_components/report-create-action'
+import { useReportLink, useReports } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
-import { canCreateConsoleResource } from '../../../utils/access-control'
 
 const ReportFeature = () => {
   const {
@@ -36,9 +33,6 @@ const ReportFeature = () => {
     isLoading,
     isFetchingNextPage,
   } = useReports(undefined, true)
-  const createReport = useCreateReport()
-  const { access } = useAccessControl()
-
   const reportLink = useReportLink()
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
@@ -68,22 +62,14 @@ const ReportFeature = () => {
     return ['description', 'createdAt', 'updatedAt'] as const
   }, [])
 
-  const form = useForm({
-    resolver: zodResolver(createReportSchema),
-  })
-
   return (
-    <div>
+    <div className="flex flex-col gap-6">
+      <ConsolePageHeader
+        breadcrumbs={<ReportBreadcrumbs />}
+        actions={<ReportCreateAction />}
+      />
       <div className="flex justify-between">
         <h1 className="text-3xl font-medium mb-2">Reports</h1>
-        <CrudFormDialog
-          form={form}
-          mutation={createReport}
-          buttonText="Add Report"
-          entityName="Report"
-          entityNamePlural="reports"
-          hideTrigger={!canCreateConsoleResource(access, 'report')}
-        ></CrudFormDialog>
       </div>
       <div>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
