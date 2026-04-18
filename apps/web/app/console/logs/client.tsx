@@ -11,6 +11,7 @@ import {
 } from '@repo/ui/components/ui/select'
 import { useQueryWithSearchParams } from '~/hooks/useSearchParams'
 import { useAccessControl } from '~/hooks/useAccessControl'
+import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
 import {
@@ -129,150 +130,152 @@ const LogsPageClient = () => {
   const pageCount = activeData?.pageCount ?? 1
 
   return (
-    <div className="flex max-w-7xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <ConsolePageHeader
         breadcrumbs={
           <ConsoleSimpleBreadcrumbs
-            items={[{ href: '/console', label: 'Home' }, { label: 'Logs' }]}
+            items={[
+              { href: '/console', label: 'Home' },
+              { label: 'Audit Logs' },
+            ]}
           />
         }
       />
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="mb-2 text-3xl font-medium">Logs</h1>
-          <p className="text-sm text-gray-600">
-            Audit and read events for the active organization.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={tab === 'audit' ? 'default' : 'outline'}
-            onClick={() =>
-              setSearchParams({
-                page: 1,
-                tab: 'audit',
-              })
-            }
-          >
-            Audit
-          </Button>
-          <Button
-            variant={tab === 'read' ? 'default' : 'outline'}
-            onClick={() =>
-              setSearchParams({
-                page: 1,
-                tab: 'read',
-              })
-            }
-          >
-            Read
-          </Button>
-        </div>
-      </div>
-
-      <div className="mb-6 flex flex-wrap gap-3">
-        <Input
-          className="w-[180px]"
-          placeholder="Action"
-          value={query?.action ?? ''}
-          onChange={(event) =>
-            setSearchParams({
-              action: event.target.value || undefined,
-              page: 1,
-            })
-          }
-        />
-        <Input
-          className="w-[180px]"
-          placeholder="Resource type"
-          value={query?.resourceType ?? ''}
-          onChange={(event) =>
-            setSearchParams({
-              page: 1,
-              resourceType: event.target.value || undefined,
-            })
-          }
-        />
-        <Select
-          value={query?.decision ?? 'all'}
-          onValueChange={(value) => {
-            const decision =
-              value === 'allow' || value === 'deny' ? value : undefined
-
-            setSearchParams({
-              decision,
-              page: 1,
-            })
-          }}
-        >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Decision" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All decisions</SelectItem>
-            <SelectItem value="allow">Allow</SelectItem>
-            <SelectItem value="deny">Deny</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={String(query?.size ?? 25)}
-          onValueChange={(value) =>
-            setSearchParams({
-              page: 1,
-              size: Number(value),
-            })
-          }
-        >
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Page size" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="25">25 rows</SelectItem>
-            <SelectItem value="50">50 rows</SelectItem>
-            <SelectItem value="100">100 rows</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {!hasActiveOrganization ? (
-        <div className="text-sm text-gray-500">
-          Select an organization before reviewing logs.
-        </div>
-      ) : activeQuery.isLoading ? (
-        <div className="text-sm text-gray-500">Loading logs...</div>
-      ) : (
-        <LogTable entries={activeData?.data ?? []} />
-      )}
-
-      {hasActiveOrganization ? (
-        <div className="mt-6 flex items-center justify-end gap-2">
-          <div className="mr-2 text-sm text-gray-500">
-            Page {currentPage} of {pageCount}
+      <ConsoleCrudListFrame
+        title="Audit Logs"
+        description="Audit and read events for the active organization."
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant={tab === 'audit' ? 'default' : 'outline'}
+              onClick={() =>
+                setSearchParams({
+                  page: 1,
+                  tab: 'audit',
+                })
+              }
+            >
+              Audit
+            </Button>
+            <Button
+              variant={tab === 'read' ? 'default' : 'outline'}
+              onClick={() =>
+                setSearchParams({
+                  page: 1,
+                  tab: 'read',
+                })
+              }
+            >
+              Read
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            disabled={currentPage <= 1}
-            onClick={() =>
-              setSearchParams({
-                page: currentPage - 1,
-              })
-            }
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            disabled={currentPage >= pageCount}
-            onClick={() =>
-              setSearchParams({
-                page: currentPage + 1,
-              })
-            }
-          >
-            Next
-          </Button>
-        </div>
-      ) : null}
+        }
+        toolbar={
+          <div className="flex flex-wrap gap-3">
+            <Input
+              className="w-[180px]"
+              placeholder="Action"
+              value={query?.action ?? ''}
+              onChange={(event) =>
+                setSearchParams({
+                  action: event.target.value || undefined,
+                  page: 1,
+                })
+              }
+            />
+            <Input
+              className="w-[180px]"
+              placeholder="Resource type"
+              value={query?.resourceType ?? ''}
+              onChange={(event) =>
+                setSearchParams({
+                  page: 1,
+                  resourceType: event.target.value || undefined,
+                })
+              }
+            />
+            <Select
+              value={query?.decision ?? 'all'}
+              onValueChange={(value) => {
+                const decision =
+                  value === 'allow' || value === 'deny' ? value : undefined
+
+                setSearchParams({
+                  decision,
+                  page: 1,
+                })
+              }}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Decision" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All decisions</SelectItem>
+                <SelectItem value="allow">Allow</SelectItem>
+                <SelectItem value="deny">Deny</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={String(query?.size ?? 25)}
+              onValueChange={(value) =>
+                setSearchParams({
+                  page: 1,
+                  size: Number(value),
+                })
+              }
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Page size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25 rows</SelectItem>
+                <SelectItem value="50">50 rows</SelectItem>
+                <SelectItem value="100">100 rows</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      >
+        {!hasActiveOrganization ? (
+          <div className="text-sm text-gray-500">
+            Select an organization before reviewing logs.
+          </div>
+        ) : activeQuery.isLoading ? (
+          <div className="text-sm text-gray-500">Loading logs...</div>
+        ) : (
+          <LogTable entries={activeData?.data ?? []} />
+        )}
+
+        {hasActiveOrganization ? (
+          <div className="mt-6 flex items-center justify-end gap-2">
+            <div className="mr-2 text-sm text-gray-500">
+              Page {currentPage} of {pageCount}
+            </div>
+            <Button
+              variant="outline"
+              disabled={currentPage <= 1}
+              onClick={() =>
+                setSearchParams({
+                  page: currentPage - 1,
+                })
+              }
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              disabled={currentPage >= pageCount}
+              onClick={() =>
+                setSearchParams({
+                  page: currentPage + 1,
+                })
+              }
+            >
+              Next
+            </Button>
+          </div>
+        ) : null}
+      </ConsoleCrudListFrame>
     </div>
   )
 }
