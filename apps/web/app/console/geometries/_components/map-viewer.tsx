@@ -10,9 +10,14 @@ const REMOTE_MAP_STYLE_URL =
 
 export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
   const config = useConfig()
-  const { mapStyle, ...restProps } = props
+  const { mapStyle, canvasContextAttributes, ...restProps } = props
   const resolvedMapStyle =
     mapStyle ?? config.mapStyleUrl ?? REMOTE_MAP_STYLE_URL
+  const resolvedCanvasContextAttributes = {
+    ...canvasContextAttributes,
+    preserveDrawingBuffer:
+      canvasContextAttributes?.preserveDrawingBuffer ?? true,
+  }
 
   // Init pmtiles protocol
   useEffect(() => {
@@ -33,6 +38,7 @@ export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
       {...restProps}
       style={{ width: '100%', height: '100%' }}
       mapStyle={resolvedMapStyle}
+      canvasContextAttributes={resolvedCanvasContextAttributes}
       attributionControl={{ compact: false }}
     />
   )
