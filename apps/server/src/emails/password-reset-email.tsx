@@ -11,7 +11,7 @@ export function PasswordResetEmail(props: {
 
   return (
     <AuthEmailLayout
-      preview="Use this link to reset your CSDR Cloud Spatial password."
+      preview="Use this link to reset your Spatial Data Framework password."
       heading="Reset your password"
       lead={greeting}
       actionLabel="Reset password"

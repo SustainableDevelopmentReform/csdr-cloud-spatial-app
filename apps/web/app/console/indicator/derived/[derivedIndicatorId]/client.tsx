@@ -37,7 +37,7 @@ import {
   useUpdateDerivedIndicator,
   useUpdateDerivedIndicatorVisibility,
 } from '../../_hooks'
-import { ExpressionFieldDescription } from '../../client'
+import { ExpressionFieldDescription } from '../../_components/expression-field'
 
 const IndicatorDetails = () => {
   const derivedIndicatorQuery = useDerivedIndicator()

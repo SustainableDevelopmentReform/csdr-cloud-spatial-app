@@ -1,8 +1,8 @@
-# CSDR Cloud Spatial App
+# Spatial Data Framework
 
-This repository contains the CSDR Cloud Spatial platform: a web console and API for managing spatial datasets, geometries, derived products, dashboards, and reports.
+This repository contains the Spatial Data Framework platform: a web console and API for managing spatial datasets, geometries, derived products, dashboards, and reports.
 
-The codebase started as a fork of [Omnigate](https://github.com/azharalifauzi/omnigate) and has since been substantially rewritten for the CSDR domain.
+The codebase started as a fork of [Omnigate](https://github.com/azharalifauzi/omnigate) and has since been substantially rewritten for the Spatial Data Framework domain.
 
 ## What It Does
 
@@ -66,7 +66,7 @@ Local services:
 - SeaweedFS Filer UI: `http://localhost:8888`
 - SeaweedFS Master UI: `http://localhost:9333`
 
-SeaweedFS provides the local S3-compatible storage used for published report PDFs. The dev compose file also bootstraps the `csdr-dev-exports` bucket automatically.
+SeaweedFS provides the local S3-compatible storage used for published report PDFs. The dev compose file also bootstraps the `sdf-dev-exports` bucket automatically.
 
 The example environment file already contains sensible local defaults, including Mailpit SMTP settings, SeaweedFS S3 settings, and the seed user:
 
@@ -121,7 +121,7 @@ This repository is licensed under Apache-2.0 (see [LICENSE](./LICENSE)).
 Because this project originated as a fork of Omnigate, the `LICENSE` file also
 retains the original MIT attribution notice for any upstream-derived portions.
 The current codebase has diverged significantly and is now primarily
-CSDR-specific.
+Spatial Data Framework-specific.
 
 ## Known Rough Edges
 

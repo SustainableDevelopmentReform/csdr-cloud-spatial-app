@@ -1,13 +1,23 @@
+'use client'
+
 import React from 'react'
+import { useSelectedLayoutSegment } from 'next/navigation'
+import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
 
 const DetailLayout: React.FC<{
   children?: React.ReactNode
   breadcrumbs?: React.ReactNode
-}> = async ({ children, breadcrumbs }) => {
+  showHeaderOnIndex?: boolean
+}> = ({ children, breadcrumbs, showHeaderOnIndex = true }) => {
+  const selectedLayoutSegment = useSelectedLayoutSegment()
+  const shouldShowHeader = showHeaderOnIndex || selectedLayoutSegment !== null
+
   return (
     <main>
-      <div className="flex items-center justify-start gap-4">{breadcrumbs}</div>
-      <div className="pt-4">{children}</div>
+      {shouldShowHeader && breadcrumbs ? (
+        <ConsolePageHeader breadcrumbs={breadcrumbs} />
+      ) : null}
+      <div className={shouldShowHeader ? 'pt-4' : undefined}>{children}</div>
     </main>
   )
 }

@@ -24,7 +24,7 @@ export const env = createEnv({
     DATABASE_PORT: z.coerce.number().default(5431),
     DATABASE_USER: z.string().default('admin'),
     DATABASE_PASSWORD: z.string().default('admin'),
-    DATABASE_NAME: z.string().default('csdr-dev'),
+    DATABASE_NAME: z.string().default('sdf-dev'),
     TRUSTED_ORIGINS: z
       .string()
       .default('http://localhost:3000')

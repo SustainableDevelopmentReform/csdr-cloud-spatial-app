@@ -1,6 +1,6 @@
 # Web App
 
-`apps/web` is the Next.js App Router frontend for the CSDR Cloud Spatial platform.
+`apps/web` is the Next.js App Router frontend for the Spatial Data Framework platform.
 
 Use the root workspace commands for normal development:
 

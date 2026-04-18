@@ -20,6 +20,7 @@ import { hc } from 'hono/client'
 import { testClient } from 'hono/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import type { ApiRoutesType } from '~/app'
+import { ACTIVE_ORGANIZATION_HEADER } from '~/lib/request-actor'
 
 const FRONTEND_ORIGIN = 'http://localhost:3000'
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../drizzle/', import.meta.url))
@@ -198,8 +199,8 @@ const seedBaseData = async (db: DbModule['db']) => {
     .insert(schema.organization)
     .values({
       id: seededIds.organization,
-      slug: 'csdr',
-      name: 'CSDR',
+      slug: 'sdf',
+      name: 'Spatial Data Framework',
       createdAt: now,
       metadata: '{}',
     })
@@ -772,7 +773,7 @@ export const setupIsolatedTestFile = async (
         .where(eq(schema.session.userId, savedUser.id))
 
       const scopedHeaders = new Headers(headers)
-      scopedHeaders.set('x-csdr-active-organization-id', organizationId)
+      scopedHeaders.set(ACTIVE_ORGANIZATION_HEADER, organizationId)
 
       return scopedHeaders
     },

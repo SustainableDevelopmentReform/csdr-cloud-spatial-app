@@ -111,7 +111,7 @@ const plugins = [
     roles: appAdminRoles,
   }),
   twoFactor({
-    issuer: 'CSDR Cloud Spatial',
+    issuer: 'Spatial Data Framework',
     otpOptions: {
       sendOTP: async ({ user, otp }) => {
         // Better-auth recommends not awaiting the email sending to avoid timing attacks
@@ -218,7 +218,7 @@ const authConfig = {
       logAuthMessage(level, message)
     },
   },
-  appName: 'CSDR Cloud Spatial',
+  appName: 'Spatial Data Framework',
   secret: env.BETTER_AUTH_SECRET,
   baseURL: authBaseUrl,
   trustedOrigins: env.TRUSTED_ORIGINS,

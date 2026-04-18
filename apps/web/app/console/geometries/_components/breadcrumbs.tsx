@@ -41,13 +41,13 @@ export const GeometriesBreadcrumbs = () => {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/">Home</Link>
+            <Link href="/console">Home</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href={GEOMETRIES_BASE_PATH}>Geometries</Link>
+            <Link href={GEOMETRIES_BASE_PATH}>Boundaries</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {geometries && (

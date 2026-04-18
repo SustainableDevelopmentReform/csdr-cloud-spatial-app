@@ -2,6 +2,9 @@
 const nextConfig = {
   transpilePackages: ['@repo/ui', '@repo/schemas', '@repo/plot'],
   output: 'standalone',
+  devIndicators: {
+    position: 'bottom-right',
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

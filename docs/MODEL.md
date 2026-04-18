@@ -1,4 +1,4 @@
-# CSDR Cloud Spatial Data Model
+# Spatial Data Framework Data Model
 
 Simplified data model diagram - see [`schema.ts`](../apps/server/src/schemas/index.ts) for the full schema.
 
@@ -88,7 +88,7 @@ erDiagram
 
 ## Model Overview
 
-The CSDR data model tracks spatial data processing pipelines from source data through to statistical outputs.
+The Spatial Data Framework data model tracks spatial data processing pipelines from source data through to statistical outputs.
 
 ### Core Entities
 

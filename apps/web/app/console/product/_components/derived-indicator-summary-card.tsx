@@ -2,7 +2,7 @@ import { Textarea } from '@repo/ui/components/ui/textarea'
 import { DetailCard } from '../../_components/detail-cards'
 import { useDerivedIndicator } from '../../indicator/_hooks'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
-import { ExpressionFieldDescription } from '../../indicator/client'
+import { ExpressionFieldDescription } from '../../indicator/_components/expression-field'
 import { ProductOutputListItem } from '../_hooks'
 
 export const DerivedIndicatorSummaryCard = ({

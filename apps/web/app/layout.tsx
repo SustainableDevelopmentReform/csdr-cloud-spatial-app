@@ -7,9 +7,14 @@ import { env, getApiBaseUrl } from '~/env'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'CSDR Cloud Spatial App',
-  description: 'Data Explorer',
-  icons: '/favicon.svg',
+  title: 'Spatial Data Framework',
+  description: 'Spatial Data Framework',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+  },
 }
 
 // Note: Need to be force-dynamic to get the correct env variables at runtime
@@ -21,8 +26,8 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className="bg-neutral-100">
+      <body className={`${inter.className} min-h-screen bg-neutral-100`}>
         <Providers
           appUrl={env.APP_URL ?? ''}
           apiBaseUrl={getApiBaseUrl()}

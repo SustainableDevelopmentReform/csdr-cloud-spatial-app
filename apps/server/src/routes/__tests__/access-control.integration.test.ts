@@ -1704,7 +1704,7 @@ describe('access control integration', () => {
     expect(switchResponse.status).toBe(200)
 
     const switchedHeaders = new Headers(multiOrgHeaders)
-    switchedHeaders.delete('x-csdr-active-organization-id')
+    switchedHeaders.delete('x-sdf-active-organization-id')
 
     const secondOrgList = await expectJsonResponse<{
       data: { id: string }[]
@@ -1736,7 +1736,7 @@ describe('access control integration', () => {
     }>(
       await createAppClient({
         'x-api-key': requireValue(apiKeyResult.data?.key, 'api key'),
-        'x-csdr-active-organization-id': secondOrganizationId,
+        'x-sdf-active-organization-id': secondOrganizationId,
       }).api.v0.dataset.$get({
         query: {},
       }),
@@ -1833,7 +1833,7 @@ describe('access control integration', () => {
     expect(switchResponse.status).toBe(200)
 
     const switchedHeaders = new Headers(multiOrgHeaders)
-    switchedHeaders.delete('x-csdr-active-organization-id')
+    switchedHeaders.delete('x-sdf-active-organization-id')
 
     const secondOrgList = await expectJsonResponse<{
       data: { id: string }[]

@@ -6,7 +6,9 @@ const ReportLayout: React.FC<{
   children?: React.ReactNode
 }> = async ({ children }) => {
   return (
-    <DetailLayout breadcrumbs={<ReportBreadcrumbs />}>{children}</DetailLayout>
+    <DetailLayout breadcrumbs={<ReportBreadcrumbs />} showHeaderOnIndex={false}>
+      {children}
+    </DetailLayout>
   )
 }
 

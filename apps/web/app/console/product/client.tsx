@@ -1,17 +1,13 @@
 'use client'
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { createProductSchema } from '@repo/schemas/crud'
-import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
-import { useForm } from 'react-hook-form'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
-import CrudFormDialog from '../../../components/form/crud-form-dialog'
 import BaseCrudTable from '../../../components/table/crud-table'
-import { useAccessControl } from '../../../hooks/useAccessControl'
 import { SearchInput } from '../../../components/table/search-input'
+import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
+import { ConsolePageHeader } from '../_components/console-page-header'
 import {
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
@@ -23,14 +19,10 @@ import { GeometriesButton } from '../geometries/_components/geometries-button'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
 import { IndicatorButtons } from '../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
+import { ProductsBreadcrumbs } from './_components/breadcrumbs'
+import { ProductCreateAction } from './_components/product-create-action'
 import { ProductButton } from './_components/product-button'
-import {
-  ProductListItem,
-  useCreateProduct,
-  useProductLink,
-  useProducts,
-} from './_hooks'
-import { canCreateConsoleResource } from '../../../utils/access-control'
+import { ProductListItem, useProductLink, useProducts } from './_hooks'
 
 const columnHelper = createColumnHelper<ProductListItem>()
 
@@ -102,8 +94,6 @@ const ProductFeature = () => {
     isFetchingNextPage,
   } = useProducts(undefined, true)
   const productLink = useProductLink()
-  const createProduct = useCreateProduct()
-  const { access } = useAccessControl()
   const selectedDatasetIds = useMemo(
     () => normalizeFilterValues(query?.datasetId),
     [query?.datasetId],
@@ -121,117 +111,74 @@ const ProductFeature = () => {
     return ['createdAt'] as const
   }, [])
 
-  const form = useForm({
-    resolver: zodResolver(createProductSchema),
-  })
-
   return (
-    <div>
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
-          Products
-        </h1>
-        <CrudFormDialog
-          form={form}
-          mutation={createProduct}
-          entityName="Product"
-          entityNamePlural="Products"
-          buttonText="Add Product"
-          hideTrigger={!canCreateConsoleResource(access, 'product')}
-        >
-          <FormField
-            control={form.control}
-            name="datasetId"
-            render={({ field }) => (
-              <FormItem>
-                <DatasetSelect
-                  value={field.value}
-                  onChange={(selectedDataset) =>
-                    field.onChange(selectedDataset?.id)
-                  }
-                  isClearable
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="geometriesId"
-            render={({ field }) => (
-              <FormItem>
-                <GeometriesSelect
-                  value={field.value}
-                  onChange={(selectedGeometries) =>
-                    field.onChange(selectedGeometries?.id)
-                  }
-                  isClearable
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </CrudFormDialog>
-      </div>
-      <div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <SearchInput
-            className="w-full md:max-w-md"
-            placeholder="Search products"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
-          <div className="flex flex-wrap items-end justify-end gap-3">
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <DatasetSelect
-                title="Filter Datasets"
-                value={selectedDatasetIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    datasetId: selected.map((dataset) => dataset.id),
-                  })
-                }
-                isMulti
-                isClearable
-              />
-            </div>
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <GeometriesSelect
-                title="Filter Geometries"
-                value={selectedGeometriesIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    geometriesId: selected.map((geometries) => geometries.id),
-                  })
-                }
-                isMulti
-                isClearable
-              />
-            </div>
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <IndicatorsSelect
-                title="Filter Indicators"
-                value={selectedIndicatorIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    indicatorId: selected.map((indicator) => indicator.id),
-                  })
-                }
-                isMulti
-                isClearable
-              />
-            </div>
-            <GeographicBoundsPickerDialog
-              title="Area of Interest"
-              className="min-w-[220px] md:min-w-[260px]"
-              value={geographicBounds}
-              onChange={(bounds) =>
-                setSearchParams(toGeographicBoundsQuery(bounds))
-              }
-              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+    <div className="flex flex-col gap-6">
+      <ConsolePageHeader breadcrumbs={<ProductsBreadcrumbs />} />
+      <ConsoleCrudListFrame
+        title="Products"
+        description="Create and manage products in the system."
+        actions={<ProductCreateAction />}
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              className="w-full md:max-w-md"
+              placeholder="Search products"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
             />
+            <div className="flex flex-wrap items-end justify-end gap-3">
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <DatasetSelect
+                  title="Filter Datasets"
+                  value={selectedDatasetIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      datasetId: selected.map((dataset) => dataset.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <GeometriesSelect
+                  title="Filter Geometries"
+                  value={selectedGeometriesIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      geometriesId: selected.map((geometries) => geometries.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <IndicatorsSelect
+                  title="Filter Indicators"
+                  value={selectedIndicatorIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      indicatorId: selected.map((indicator) => indicator.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <GeographicBoundsPickerDialog
+                title="Area of Interest"
+                className="min-w-[220px] md:min-w-[260px]"
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
+                }
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+              />
+            </div>
           </div>
-        </div>
+        }
+      >
         <BaseCrudTable
           data={data?.data || []}
           isLoading={isLoading}
@@ -244,12 +191,12 @@ const ProductFeature = () => {
           onSortChange={setSearchParams}
         />
         <Pagination
-          className="justify-end mt-4"
+          className="justify-end"
           hasNextPage={!!hasNextPage}
           isLoading={isFetchingNextPage}
           onLoadMore={() => fetchNextPage()}
         />
-      </div>
+      </ConsoleCrudListFrame>
     </div>
   )
 }

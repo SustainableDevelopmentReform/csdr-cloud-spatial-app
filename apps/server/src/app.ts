@@ -22,7 +22,11 @@ import {
   logTwoFactorRouteResult,
   resolveAuthAuditLogContext,
 } from './lib/auth-security'
-import { loadRequestActor } from './lib/request-actor'
+import {
+  ACTIVE_ORGANIZATION_HEADER,
+  LEGACY_ACTIVE_ORGANIZATION_HEADER,
+  loadRequestActor,
+} from './lib/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
 import dataset from './routes/dataset'
@@ -44,7 +48,7 @@ const isProduction = env.NODE_ENV === 'production'
 const apiKeyOrganizationDocs = [
   'Use `x-api-key` header to authenticate requests.',
   'API keys authenticate as the owning user and are not tied to a single organization.',
-  'For users who belong to multiple organizations, set `x-csdr-active-organization-id` on each request to select the organization context.',
+  `For users who belong to multiple organizations, set \`${ACTIVE_ORGANIZATION_HEADER}\` on each request to select the organization context.`,
   "If no organization header is sent, the server falls back to the persisted active organization on the auth session, then to the user's first membership.",
 ].join('\n\n')
 
@@ -57,7 +61,13 @@ app.use(logger())
 app.use(
   cors({
     origin: env.TRUSTED_ORIGINS,
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      ACTIVE_ORGANIZATION_HEADER,
+      LEGACY_ACTIVE_ORGANIZATION_HEADER,
+      'x-organization-id',
+    ],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,
     exposeHeaders: ['Content-Type', 'Authorization'],
@@ -211,9 +221,9 @@ const v0ApiRoutes = v0ApiBase
     },
     info: {
       version: '0.0.1',
-      title: 'CSDR Cloud Spatial API',
+      title: 'Spatial Data Framework API',
       description:
-        'This is the API for the CSDR Cloud Spatial platform. Current is 0.0.1 alpha - expect breaking changes.\n\n## API keys and organization context\n\n' +
+        'This is the API for the Spatial Data Framework. Current is 0.0.1 alpha - expect breaking changes.\n\n## API keys and organization context\n\n' +
         apiKeyOrganizationDocs,
     },
     servers: [

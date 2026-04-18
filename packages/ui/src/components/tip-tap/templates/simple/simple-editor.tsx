@@ -271,7 +271,10 @@ export function SimpleEditor({
   }, [isMobile, mobileView])
 
   return (
-    <div className="simple-editor-wrapper">
+    <div
+      className="simple-editor-wrapper"
+      data-editable={editable ? 'true' : 'false'}
+    >
       <EditorContext.Provider value={{ editor }}>
         {editable ? (
           <Toolbar

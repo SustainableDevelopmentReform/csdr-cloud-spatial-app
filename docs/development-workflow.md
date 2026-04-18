@@ -25,7 +25,7 @@ What each step does:
 Notes:
 
 - SeaweedFS provides the local S3-compatible storage used for published report PDFs.
-- The dev compose file bootstraps the `csdr-dev-exports` bucket automatically.
+- The dev compose file bootstraps the `sdf-dev-exports` bucket automatically.
 - If report publishing fails because Chromium is unavailable, install Chromium locally or set `PDF_BROWSER_EXECUTABLE_PATH` in `.env`.
 
 ## Root Command Contract

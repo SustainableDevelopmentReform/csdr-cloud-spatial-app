@@ -9,19 +9,19 @@ For the full set of env variables, see the example env files, but do not copy th
 The minimum required env variables are:
 
 ```bash
-APP_URL=https://csdr.localhost
+APP_URL=https://sdf.localhost
 
 INTERNAL_FRONTEND_URL=http://localhost:3000
 INTERNAL_BACKEND_URL=http://localhost:4000
 MAP_STYLE_URL=
 
-TRUSTED_ORIGINS=https://csdr.localhost
+TRUSTED_ORIGINS=https://sdf.localhost
 
 DATABASE_HOST=localhost
 DATABASE_PORT=5431
 DATABASE_USER=admin
 DATABASE_PASSWORD=admin
-DATABASE_NAME=csdr-dev
+DATABASE_NAME=sdf-dev
 
 S3_BUCKET_NAME=
 AWS_REGION=
@@ -59,9 +59,9 @@ docker build -t csdr-cloud-spatial-app -f docker/single-file.Dockerfile .
 
 ## Running the app
 
-The web app need to be accessible on `APP_URL` at root (for example `https://csdr.localhost`).
+The web app need to be accessible on `APP_URL` at root (for example `https://sdf.localhost`).
 
-The backend app need to be accessible on `APP_URL` at `/api` (for example `https://csdr.localhost/api`). Note the path should not be re-written by a reverse proxy - the backend expects to receive requests at `/api`.
+The backend app need to be accessible on `APP_URL` at `/api` (for example `https://sdf.localhost/api`). Note the path should not be re-written by a reverse proxy - the backend expects to receive requests at `/api`.
 
 ### Run using locally built image
 
@@ -85,7 +85,7 @@ docker run --platform linux/amd64 --name csdr-cloud-spatial-app-web --env-file .
 
 ### Local development with caddy
 
-The app can be run locally (using `pnpm dev` or docker) with caddy as a reverse proxy, this also provides local TLS for testing. This emulates the production environment, with the web-app and backend running through the same hostname (e.g. `https://csdr.localhost`).
+The app can be run locally (using `pnpm dev` or docker) with caddy as a reverse proxy, this also provides local TLS for testing. This emulates the production environment, with the web-app and backend running through the same hostname (e.g. `https://sdf.localhost`).
 
 There is an example config file at [.env.example.caddy](../.env.example.caddy).
 
@@ -100,10 +100,10 @@ Using the single container deployment, the app can be run with the following com
 
 ```bash
 # To migrate the database
-docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/migrate/ && node index.js"
+docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=sdf-dev csdr-cloud-spatial-app sh -c "cd /app/backend/migrate/ && node index.js"
 
 # To seed the database
-docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=csdr-dev csdr-cloud-spatial-app sh -c "cd /app/backend/seed/ && node index.js"
+docker run --env-file .env --add-host=host.docker.internal:host-gateway -e DATABASE_HOST=host.docker.internal -e DATABASE_PORT=5431 -e DATABASE_USER=admin -e DATABASE_PASSWORD=admin -e DATABASE_NAME=sdf-dev csdr-cloud-spatial-app sh -c "cd /app/backend/seed/ && node index.js"
 ```
 
 **Note**: Before running the seed, you need to set values for `INITIAL_USER_NAME`, `INITIAL_USER_EMAIL`, and `INITIAL_USER_PASSWORD` environment variables.
@@ -115,7 +115,7 @@ At some stage we should automate this process when a new version of the image is
 
 Please manually create a AWS RDS snapshot of the production database - include the name of the latest migration that is about to be run
 
-- For example `csdr-dev-eks-app-db-pre-migration-0016-tiny-black-tom`
+- For example `sdf-dev-eks-app-db-pre-migration-0016-tiny-black-tom`
 
 Shell into the container and run the migrations:
 

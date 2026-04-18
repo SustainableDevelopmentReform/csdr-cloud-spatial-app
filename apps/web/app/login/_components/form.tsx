@@ -11,8 +11,8 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { Switch } from '@repo/ui/components/ui/switch'
 import { useMutation } from '@tanstack/react-query'
+import { Check } from 'lucide-react'
 import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
 import { isAuthErrorMessage } from '~/utils/auth-errors'
@@ -30,6 +30,11 @@ const formSchema = z.object({
 })
 
 type Data = z.infer<typeof formSchema>
+
+const inputClassName =
+  'h-9 rounded-lg border-neutral-200 bg-white text-sm text-neutral-950 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] placeholder:text-muted-foreground focus-visible:border-neutral-900 focus-visible:ring-0'
+
+const labelClassName = 'text-sm font-medium leading-4 text-neutral-950'
 
 const LoginForm = () => {
   const authClient = useAuthClient()
@@ -122,12 +127,12 @@ const LoginForm = () => {
           {notices.map((notice) => (
             <div
               key={notice.title}
-              className="rounded-md border border-[#1d3d35]/15 bg-[#1d3d35]/6 px-4 py-3"
+              className="rounded-lg bg-neutral-100 px-4 py-3"
             >
-              <div className="text-sm font-semibold text-[#173129]">
+              <div className="text-sm font-semibold text-neutral-950">
                 {notice.title}
               </div>
-              <div className="mt-1 text-sm leading-6 text-stone-600">
+              <div className="mt-1 text-sm leading-5 text-muted-foreground">
                 {notice.description}
               </div>
             </div>
@@ -137,7 +142,7 @@ const LoginForm = () => {
       <Form {...form}>
         <form
           method="post"
-          className="grid gap-4 w-full"
+          className="grid w-full gap-4"
           onSubmit={handleSubmit(onSubmit)}
         >
           <FormField
@@ -145,9 +150,14 @@ const LoginForm = () => {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel className={labelClassName}>Email</FormLabel>
                 <FormControl>
-                  <Input {...field} type="email" />
+                  <Input
+                    {...field}
+                    type="email"
+                    placeholder="Email"
+                    className={inputClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -159,17 +169,22 @@ const LoginForm = () => {
             render={({ field }) => (
               <FormItem>
                 <div className="mb-2 flex items-center justify-between">
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel className={labelClassName}>Password</FormLabel>
                   <Link
                     href="/forgot-password"
                     tabIndex={-1}
-                    className="text-sm text-blue-500"
+                    className="text-sm leading-5 text-muted-foreground underline"
                   >
                     Forgot password?
                   </Link>
                 </div>
                 <FormControl>
-                  <Input {...field} type="password" />
+                  <Input
+                    {...field}
+                    type="password"
+                    placeholder="Password"
+                    className={inputClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -179,24 +194,37 @@ const LoginForm = () => {
             control={control}
             name="remember"
             render={({ field }) => (
-              <FormItem className="flex items-center gap-2 space-y-0">
-                <FormLabel>Remember me</FormLabel>
-                <FormControl>
-                  <Switch
-                    {...field}
-                    value={field.value ? 'true' : 'false'}
-                    onCheckedChange={(checked) => {
-                      field.onChange(checked)
-                    }}
-                    className="mt-0!"
-                  />
-                </FormControl>
+              <FormItem className="space-y-0">
+                <div className="flex items-center justify-between gap-4">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(field.value)}
+                        onChange={(event) => {
+                          field.onChange(event.target.checked)
+                        }}
+                        className="peer sr-only"
+                      />
+                    </FormControl>
+                    <span className="flex size-4 items-center justify-center rounded-[4px] border border-neutral-900 bg-white text-transparent shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10),0px_1px_3px_0px_rgba(0,0,0,0.10)] transition-colors peer-checked:bg-neutral-900 peer-checked:text-neutral-50">
+                      <Check className="size-3" />
+                    </span>
+                    <span className="text-sm font-medium leading-4 text-neutral-950">
+                      Keep me signed in
+                    </span>
+                  </label>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button disabled={submitMutation.isPending} className="mt-1">
-            {submitMutation.isPending ? 'Loading...' : 'Log in'}
+          <Button
+            disabled={submitMutation.isPending}
+            animate={false}
+            className="mt-1 w-full rounded-lg bg-neutral-900 text-neutral-50 hover:bg-neutral-900/90"
+          >
+            {submitMutation.isPending ? 'Loading...' : 'Sign in'}
           </Button>
         </form>
       </Form>

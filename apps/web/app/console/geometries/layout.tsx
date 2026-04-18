@@ -6,7 +6,10 @@ const GeometriesLayout: React.FC<{
   children?: React.ReactNode
 }> = async ({ children }) => {
   return (
-    <DetailLayout breadcrumbs={<GeometriesBreadcrumbs />}>
+    <DetailLayout
+      breadcrumbs={<GeometriesBreadcrumbs />}
+      showHeaderOnIndex={false}
+    >
       {children}
     </DetailLayout>
   )
