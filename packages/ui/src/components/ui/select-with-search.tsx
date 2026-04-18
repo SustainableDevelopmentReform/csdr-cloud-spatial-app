@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import ReactSelect, {
   InputActionMeta,
   Props as ReactSelectProps,
@@ -29,7 +30,8 @@ export function EmptyResult() {
 export function SelectWithSearch<
   Option extends SelectOption,
   IsMulti extends boolean = false,
->({ onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+>({ instanceId, onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+  const generatedInstanceId = useId()
   const debounced = useDebounceCallback(onSearch ?? (() => {}), 300)
 
   const handleInputChange = (inputText: string, meta: InputActionMeta) => {
@@ -44,6 +46,7 @@ export function SelectWithSearch<
       classNames={getReactSelectClassNames<Option, IsMulti>()}
       getOptionLabel={(option) => option.name ?? option.id}
       getOptionValue={(option) => option.id}
+      instanceId={instanceId ?? generatedInstanceId}
       {...rest}
       filterOption={onSearch ? null : undefined}
       loadingMessage={() => 'Loading...'}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { GroupBase, InputActionMeta } from 'react-select'
 import CreatableSelect, { CreatableProps } from 'react-select/creatable'
 import { useDebounceCallback } from 'usehooks-ts'
@@ -25,7 +26,8 @@ export function EmptyResult() {
 export function SelectWithSearchWithCreate<
   Option extends SelectOption,
   IsMulti extends boolean = false,
->({ onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+>({ instanceId, onSearch, ...rest }: SelectWithSearchProps<Option, IsMulti>) {
+  const generatedInstanceId = useId()
   const debounced = useDebounceCallback(onSearch ?? (() => {}), 300)
   const handleInputChange = (inputText: string, meta: InputActionMeta) => {
     if (meta.action !== 'input-blur' && meta.action !== 'menu-close') {
@@ -37,6 +39,7 @@ export function SelectWithSearchWithCreate<
     <CreatableSelect<Option, IsMulti>
       unstyled
       classNames={getReactSelectClassNames<Option, IsMulti>()}
+      instanceId={instanceId ?? generatedInstanceId}
       getOptionLabel={(option) => {
         // Need to handle the create label (from formatCreateLabel)
         if (
