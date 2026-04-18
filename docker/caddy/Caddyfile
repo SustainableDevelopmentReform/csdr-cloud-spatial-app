@@ -3,7 +3,7 @@
 
 }
 
-csdr.localhost {
+sdf.localhost {
     tls internal
 
     # Forward /api/ to host.docker.internal:4000, preserving /api/ in the path

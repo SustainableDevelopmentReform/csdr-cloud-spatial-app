@@ -6,8 +6,8 @@ export function VerificationEmail(props: {
   verificationUrl: string
 }) {
   const greeting = props.userName
-    ? `${props.userName}, use the secure link below to confirm your email address and finish setting up your access to CSDR Cloud Spatial.`
-    : 'Use the secure link below to confirm your email address and finish setting up your access to CSDR Cloud Spatial.'
+    ? `${props.userName}, use the secure link below to confirm your email address and finish setting up your access to the Spatial Data Framework.`
+    : 'Use the secure link below to confirm your email address and finish setting up your access to the Spatial Data Framework.'
 
   return (
     <AuthEmailLayout

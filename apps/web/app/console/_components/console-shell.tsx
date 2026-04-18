@@ -161,7 +161,7 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
   return (
     <>
       {groups.map((group) => (
-        <SidebarGroup key={group.label} className="px-2 py-0">
+        <SidebarGroup key={group.label} className="px-2 py-1 not-first:mt-4">
           <SidebarGroupLabel className={groupLabelClassName}>
             {group.label}
           </SidebarGroupLabel>
@@ -236,7 +236,7 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                       />
                     </SidebarMenuButton>
                     {isOpen ? (
-                      <SidebarMenuSub className="mx-0 mt-1 gap-1 border-neutral-300 px-6 py-0.5">
+                      <SidebarMenuSub className="relative mx-0 mt-1 translate-x-0 gap-1 border-l-0 px-6 py-0.5 after:absolute after:bottom-0 after:left-4 after:top-0 after:w-px after:bg-neutral-300">
                         {item.children.map((child) => {
                           const ChildIcon = child.icon
 
@@ -291,7 +291,7 @@ const ConsoleShellFrame = ({
         collapsible="icon"
         className="border-r-0 bg-neutral-100 group-data-[side=left]:border-r-0 group-data-[side=right]:border-l-0"
       >
-        <SidebarHeader className="gap-0 bg-neutral-100">
+        <SidebarHeader className="gap-0 bg-neutral-100 p-2">
           <ConsoleSidebarOrganizationMenu />
         </SidebarHeader>
         <SidebarContent className="bg-neutral-100 py-2">
@@ -317,9 +317,7 @@ const ConsoleShellFrame = ({
         <SidebarRail />
       </Sidebar>
       <SidebarInset className="min-h-svh overflow-x-hidden bg-neutral-100">
-        <div className="flex flex-1 flex-col px-4 py-4 md:px-6 lg:px-8">
-          {children}
-        </div>
+        <div className="flex flex-1 flex-col px-4 pb-4">{children}</div>
       </SidebarInset>
     </>
   )

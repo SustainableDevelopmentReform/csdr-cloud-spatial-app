@@ -67,7 +67,7 @@ export function AuthEmailLayout(props: AuthEmailLayoutProps) {
                 color: palette.muted,
               }}
             >
-              CSDR Cloud Spatial
+              Spatial Data Framework
             </Text>
             <Heading
               style={{

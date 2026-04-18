@@ -2,7 +2,7 @@
 
 ## Summary
 
-This document defines the minimum viable access-control model for the CSDR Cloud Spatial Platform.
+This document defines the minimum viable access-control model for the Spatial Data Framework platform.
 
 It introduces:
 

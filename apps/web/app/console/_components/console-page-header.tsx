@@ -18,7 +18,7 @@ export const ConsolePageHeader = ({
   return (
     <header
       className={cn(
-        'flex min-h-16 flex-wrap items-center gap-3 px-4 md:flex-nowrap md:gap-0',
+        'flex min-h-16 flex-wrap items-center gap-3 md:flex-nowrap md:gap-0',
         className,
       )}
     >

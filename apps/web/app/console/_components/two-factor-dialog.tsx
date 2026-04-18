@@ -120,7 +120,7 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
     mutationFn: async () => {
       const res = await authClient.twoFactor.enable({
         password: setupPassword,
-        issuer: 'CSDR Cloud Spatial',
+        issuer: 'Spatial Data Framework',
       })
 
       if (res.error) {
@@ -326,7 +326,9 @@ export default function TwoFactorButton(props: TwoFactorButtonProps) {
                 <div className="rounded-md border border-gray-200 p-4 space-y-4">
                   <div>
                     <div className="text-xs text-gray-500">Issuer</div>
-                    <div>{setupDetails?.issuer ?? 'CSDR Cloud Spatial'}</div>
+                    <div>
+                      {setupDetails?.issuer ?? 'Spatial Data Framework'}
+                    </div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500">Account</div>

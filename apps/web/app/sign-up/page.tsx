@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
 import Link from '../../components/link'
+import AuthPageShell from '../_components/auth-page-shell'
 import SignupForm from './_components/form'
 
 const Page = () => {
@@ -12,10 +13,18 @@ const Page = () => {
   const { appUrl } = useConfig()
 
   return (
-    <div className="w-full px-10 max-w-lg mx-auto h-screen flex items-center flex-col justify-center">
-      <div className="font-bold text-2xl mb-8 -mt-8 w-full">
-        Create your account
-      </div>
+    <AuthPageShell
+      title="Sign up"
+      description="Create an account to unlock tailored content and stay connected with your community."
+      footer={
+        <div className="inline-flex justify-center gap-1 self-stretch text-center text-sm leading-5">
+          <div className="text-muted-foreground">Already have an account?</div>
+          <Link href="/login" className="text-neutral-900 underline">
+            Sign in
+          </Link>
+        </div>
+      }
+    >
       <SignupForm
         mutationFn={async (data) => {
           const res = await authClient.signUp.email({
@@ -39,13 +48,7 @@ const Page = () => {
           router.push('/')
         }}
       />
-      <div className="text-sm mt-12">
-        Already have an account?{' '}
-        <Link href="/login" className="text-blue-500">
-          Log in
-        </Link>
-      </div>
-    </div>
+    </AuthPageShell>
   )
 }
 

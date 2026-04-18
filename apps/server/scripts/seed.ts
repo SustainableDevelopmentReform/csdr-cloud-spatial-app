@@ -70,7 +70,9 @@ async function main(): Promise<void> {
       .where(eq(schema.organization.id, 'csdr'))
 
     if (existingDefaultOrganization.length > 0) {
-      console.info('CSDR organization already exists. Skipping seed.')
+      console.info(
+        'Spatial Data Framework organization already exists. Skipping seed.',
+      )
       return
     }
 
@@ -79,8 +81,8 @@ async function main(): Promise<void> {
         .insert(schema.organization)
         .values({
           id: 'csdr',
-          slug: 'csdr',
-          name: 'CSDR',
+          slug: 'sdf',
+          name: 'Spatial Data Framework',
           createdAt: new Date(),
           metadata: '{}',
         })

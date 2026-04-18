@@ -12,7 +12,7 @@ export function OTPEmail(props: { userName?: string | null; otp: string }) {
       heading="Use this verification code"
       lead={greeting}
       code={props.otp}
-      helperText="The code expires in a few minutes. Only enter it into the official CSDR Cloud Spatial sign-in screen."
+      helperText="The code expires in a few minutes. Only enter it into the official Spatial Data Framework sign-in screen."
     />
   )
 }

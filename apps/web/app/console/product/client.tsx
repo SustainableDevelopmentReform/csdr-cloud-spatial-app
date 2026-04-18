@@ -6,6 +6,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
+import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import {
   GeographicBoundsPickerDialog,
@@ -112,74 +113,72 @@ const ProductFeature = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ConsolePageHeader
-        breadcrumbs={<ProductsBreadcrumbs />}
+      <ConsolePageHeader breadcrumbs={<ProductsBreadcrumbs />} />
+      <ConsoleCrudListFrame
+        title="Products"
+        description="Create and manage products in the system."
         actions={<ProductCreateAction />}
-      />
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
-          Products
-        </h1>
-      </div>
-      <div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <SearchInput
-            className="w-full md:max-w-md"
-            placeholder="Search products"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
-          <div className="flex flex-wrap items-end justify-end gap-3">
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <DatasetSelect
-                title="Filter Datasets"
-                value={selectedDatasetIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    datasetId: selected.map((dataset) => dataset.id),
-                  })
-                }
-                isMulti
-                isClearable
-              />
-            </div>
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <GeometriesSelect
-                title="Filter Geometries"
-                value={selectedGeometriesIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    geometriesId: selected.map((geometries) => geometries.id),
-                  })
-                }
-                isMulti
-                isClearable
-              />
-            </div>
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <IndicatorsSelect
-                title="Filter Indicators"
-                value={selectedIndicatorIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    indicatorId: selected.map((indicator) => indicator.id),
-                  })
-                }
-                isMulti
-                isClearable
-              />
-            </div>
-            <GeographicBoundsPickerDialog
-              title="Area of Interest"
-              className="min-w-[220px] md:min-w-[260px]"
-              value={geographicBounds}
-              onChange={(bounds) =>
-                setSearchParams(toGeographicBoundsQuery(bounds))
-              }
-              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              className="w-full md:max-w-md"
+              placeholder="Search products"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
             />
+            <div className="flex flex-wrap items-end justify-end gap-3">
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <DatasetSelect
+                  title="Filter Datasets"
+                  value={selectedDatasetIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      datasetId: selected.map((dataset) => dataset.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <GeometriesSelect
+                  title="Filter Geometries"
+                  value={selectedGeometriesIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      geometriesId: selected.map((geometries) => geometries.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <IndicatorsSelect
+                  title="Filter Indicators"
+                  value={selectedIndicatorIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      indicatorId: selected.map((indicator) => indicator.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              <GeographicBoundsPickerDialog
+                title="Area of Interest"
+                className="min-w-[220px] md:min-w-[260px]"
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
+                }
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+              />
+            </div>
           </div>
-        </div>
+        }
+      >
         <BaseCrudTable
           data={data?.data || []}
           isLoading={isLoading}
@@ -192,12 +191,12 @@ const ProductFeature = () => {
           onSortChange={setSearchParams}
         />
         <Pagination
-          className="justify-end mt-4"
+          className="justify-end"
           hasNextPage={!!hasNextPage}
           isLoading={isFetchingNextPage}
           onLoadMore={() => fetchNextPage()}
         />
-      </div>
+      </ConsoleCrudListFrame>
     </div>
   )
 }

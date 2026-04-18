@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import Pagination from '~/components/table/pagination'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import {
   GeographicBoundsPickerDialog,
@@ -34,28 +35,28 @@ const GeometriesFeature = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ConsolePageHeader
-        breadcrumbs={<GeometriesBreadcrumbs />}
+      <ConsolePageHeader breadcrumbs={<GeometriesBreadcrumbs />} />
+      <ConsoleCrudListFrame
+        title="Boundaries"
+        description="Create and manage boundaries in the system."
         actions={<GeometriesCreateAction />}
-      />
-      <div className="flex justify-between">
-        <h1 className="mb-2 text-3xl font-medium">Boundaries</h1>
-      </div>
-      <div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <SearchInput
-            placeholder="Search boundaries"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
-          <GeographicBoundsPickerDialog
-            value={geographicBounds}
-            onChange={(bounds) =>
-              setSearchParams(toGeographicBoundsQuery(bounds))
-            }
-            onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
-          />
-        </div>
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              placeholder="Search boundaries"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <GeographicBoundsPickerDialog
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
+              }
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+            />
+          </div>
+        }
+      >
         <BaseCrudTable
           data={data?.data || []}
           isLoading={isLoading}
@@ -69,12 +70,12 @@ const GeometriesFeature = () => {
           onSortChange={setSearchParams}
         />
         <Pagination
-          className="justify-end mt-4"
+          className="justify-end"
           hasNextPage={!!hasNextPage}
           isLoading={isFetchingNextPage}
           onLoadMore={() => fetchNextPage()}
         />
-      </div>
+      </ConsoleCrudListFrame>
     </div>
   )
 }

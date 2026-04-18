@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_PASSWORD: admin
       POSTGRES_USER: admin
-      POSTGRES_DB: csdr-dev
+      POSTGRES_DB: sdf-dev
     ports:
       - 5431:5432
 
@@ -44,8 +44,8 @@ services:
       until AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api list-buckets >/dev/null 2>&1; do
         sleep 1;
       done;
-      if ! AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket csdr-dev-exports >/dev/null 2>&1; then
-        AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket csdr-dev-exports;
+      if ! AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket sdf-dev-exports >/dev/null 2>&1; then
+        AWS_ACCESS_KEY_ID=admin AWS_SECRET_ACCESS_KEY=key AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket sdf-dev-exports;
       fi
       "
 

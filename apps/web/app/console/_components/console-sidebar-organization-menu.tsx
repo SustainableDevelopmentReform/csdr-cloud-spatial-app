@@ -16,32 +16,49 @@ import { startTransition, useMemo } from 'react'
 import { useAccessControl } from '~/hooks/useAccessControl'
 import { useSwitchOrganization } from '~/hooks/useSwitchOrganization'
 
-const appName = 'CSDR'
-const appSubtitle = 'Cloud Spatial App'
+const appName = 'Spatial Data Framework'
+const appSubtitle = 'Spatial Data Framework'
 
 const OrganizationSummaryBlock = ({
+  interactive = false,
   organizationName,
+  showChevron = false,
+  showSubtitle = true,
 }: {
+  interactive?: boolean
   organizationName: string
+  showChevron?: boolean
+  showSubtitle?: boolean
 }) => {
   return (
-    <div className="flex w-full items-center gap-2 rounded-lg p-2 text-left transition-colors hover:bg-neutral-200 group-data-[collapsible=icon]:justify-center">
-      <Image
-        alt=""
-        className="size-8 shrink-0 rounded-[10px]"
-        height={32}
-        src="/favicon.svg"
-        width={32}
-      />
+    <div
+      className={cn(
+        'flex w-full items-center gap-2 rounded-lg p-2 text-left group-data-[collapsible=icon]:justify-center',
+        interactive && 'transition-colors hover:bg-neutral-200',
+      )}
+    >
+      <div className="flex h-8 shrink-0 items-center group-data-[collapsible=icon]:h-7">
+        <Image
+          alt="Global Ocean Accounts Partnership"
+          className="h-full w-auto max-w-none shrink-0"
+          height={356}
+          src="/branding/goap-logo.webp"
+          width={266}
+        />
+      </div>
       <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
         <div className="truncate text-sm leading-4 text-stone-900">
           {organizationName}
         </div>
-        <div className="truncate text-xs leading-3 text-stone-900">
-          {appSubtitle}
-        </div>
+        {showSubtitle ? (
+          <div className="truncate text-xs leading-3 text-stone-900">
+            {appSubtitle}
+          </div>
+        ) : null}
       </div>
-      <ChevronDownIcon className="size-4 shrink-0 text-stone-900 group-data-[collapsible=icon]:hidden" />
+      {showChevron ? (
+        <ChevronDownIcon className="size-4 shrink-0 text-stone-900 group-data-[collapsible=icon]:hidden" />
+      ) : null}
     </div>
   )
 }
@@ -52,14 +69,22 @@ export const ConsoleSidebarOrganizationMenu = () => {
   const switchOrganization = useSwitchOrganization(access.isSuperAdmin)
 
   const organizationsData = organizations.data ?? []
+  const hasActiveOrganization = activeOrganization.data !== null
   const organizationName = useMemo(() => {
     return activeOrganization.data?.name ?? appName
   }, [activeOrganization.data?.name])
 
-  if (!access.isAuthenticated || organizationsData.length === 0) {
+  if (
+    !access.isAuthenticated ||
+    organizationsData.length === 0 ||
+    !hasActiveOrganization
+  ) {
     return (
       <div className="w-full">
-        <OrganizationSummaryBlock organizationName={organizationName} />
+        <OrganizationSummaryBlock
+          organizationName={appName}
+          showSubtitle={false}
+        />
       </div>
     )
   }
@@ -72,7 +97,11 @@ export const ConsoleSidebarOrganizationMenu = () => {
           title="Switch organization"
           type="button"
         >
-          <OrganizationSummaryBlock organizationName={organizationName} />
+          <OrganizationSummaryBlock
+            interactive
+            organizationName={organizationName}
+            showChevron
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

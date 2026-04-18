@@ -8,8 +8,12 @@ import { db } from './db'
 import { ServerError } from './error'
 import { env } from '~/env'
 
+export const ACTIVE_ORGANIZATION_HEADER = 'x-sdf-active-organization-id'
+export const LEGACY_ACTIVE_ORGANIZATION_HEADER = 'x-csdr-active-organization-id'
+
 const ACTIVE_ORGANIZATION_HEADERS = [
-  'x-csdr-active-organization-id',
+  ACTIVE_ORGANIZATION_HEADER,
+  LEGACY_ACTIVE_ORGANIZATION_HEADER,
   'x-organization-id',
 ] as const
 

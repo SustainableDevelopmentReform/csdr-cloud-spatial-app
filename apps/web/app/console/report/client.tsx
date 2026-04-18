@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import {
   GeographicBoundsPickerDialog,
@@ -64,136 +65,138 @@ const ReportFeature = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ConsolePageHeader
-        breadcrumbs={<ReportBreadcrumbs />}
+      <ConsolePageHeader breadcrumbs={<ReportBreadcrumbs />} />
+      <ConsoleCrudListFrame
+        title="Reports"
+        description="Create and manage reports in the system."
         actions={<ReportCreateAction />}
-      />
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">Reports</h1>
-      </div>
-      <div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <SearchInput
-            className="w-full md:max-w-md"
-            placeholder="Search reports"
-            value={query?.search ?? ''}
-            onChange={(e) => setSearchParams({ search: e.target.value })}
-          />
-          <div className="flex flex-wrap items-end justify-end gap-3">
-            <div className="min-w-[220px] md:min-w-[260px]">
-              <IndicatorsSelect
-                title="Filter Indicators"
-                value={selectedIndicatorIds}
-                onChange={(selected) =>
-                  setSearchParams({
-                    indicatorId: selected.map((indicator) => indicator.id),
-                  })
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <SearchInput
+              className="w-full md:max-w-md"
+              placeholder="Search reports"
+              value={query?.search ?? ''}
+              onChange={(e) => setSearchParams({ search: e.target.value })}
+            />
+            <div className="flex flex-wrap items-end justify-end gap-3">
+              <div className="min-w-[220px] md:min-w-[260px]">
+                <IndicatorsSelect
+                  title="Filter Indicators"
+                  value={selectedIndicatorIds}
+                  onChange={(selected) =>
+                    setSearchParams({
+                      indicatorId: selected.map((indicator) => indicator.id),
+                    })
+                  }
+                  isMulti
+                  isClearable
+                />
+              </div>
+              {showProductFilter && (
+                <div className="min-w-[220px] md:min-w-[260px]">
+                  <ProductSelect
+                    title="Filter Products"
+                    value={selectedProductIds}
+                    onChange={(selected) =>
+                      setSearchParams({
+                        productId: selected.map((product) => product.id),
+                      })
+                    }
+                    isMulti
+                    isClearable
+                  />
+                </div>
+              )}
+              {showProductRunFilter && (
+                <div className="min-w-[220px] md:min-w-[260px]">
+                  <ProductRunSelect
+                    title="Filter Product Run"
+                    value={query?.productRunId}
+                    productId="*"
+                    onChange={(selected) =>
+                      setSearchParams({
+                        productRunId: selected?.id,
+                      })
+                    }
+                    isClearable
+                  />
+                </div>
+              )}
+              {showDatasetFilter && (
+                <div className="min-w-[220px] md:min-w-[260px]">
+                  <DatasetSelect
+                    title="Filter Datasets"
+                    value={selectedDatasetIds}
+                    onChange={(selected) =>
+                      setSearchParams({
+                        datasetId: selected.map((dataset) => dataset.id),
+                      })
+                    }
+                    isMulti
+                    isClearable
+                  />
+                </div>
+              )}
+              {showDatasetRunFilter && (
+                <div className="min-w-[220px] md:min-w-[260px]">
+                  <DatasetRunSelect
+                    title="Filter Dataset Run"
+                    value={query?.datasetRunId}
+                    datasetId="*"
+                    onChange={(selected) =>
+                      setSearchParams({
+                        datasetRunId: selected?.id,
+                      })
+                    }
+                    isClearable
+                  />
+                </div>
+              )}
+              {showGeometriesFilter && (
+                <div className="min-w-[220px] md:min-w-[260px]">
+                  <GeometriesSelect
+                    title="Filter Geometries"
+                    value={selectedGeometriesIds}
+                    onChange={(selected) =>
+                      setSearchParams({
+                        geometriesId: selected.map(
+                          (geometries) => geometries.id,
+                        ),
+                      })
+                    }
+                    isMulti
+                    isClearable
+                  />
+                </div>
+              )}
+              {showGeometriesRunFilter && (
+                <div className="min-w-[220px] md:min-w-[260px]">
+                  <GeometriesRunSelect
+                    title="Filter Geometries Run"
+                    value={query?.geometriesRunId}
+                    geometriesId="*"
+                    onChange={(selected) =>
+                      setSearchParams({
+                        geometriesRunId: selected?.id,
+                      })
+                    }
+                    isClearable
+                  />
+                </div>
+              )}
+              <GeographicBoundsPickerDialog
+                title="Area of Interest"
+                className="min-w-[220px] md:min-w-[260px]"
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
                 }
-                isMulti
-                isClearable
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
             </div>
-            {showProductFilter && (
-              <div className="min-w-[220px] md:min-w-[260px]">
-                <ProductSelect
-                  title="Filter Products"
-                  value={selectedProductIds}
-                  onChange={(selected) =>
-                    setSearchParams({
-                      productId: selected.map((product) => product.id),
-                    })
-                  }
-                  isMulti
-                  isClearable
-                />
-              </div>
-            )}
-            {showProductRunFilter && (
-              <div className="min-w-[220px] md:min-w-[260px]">
-                <ProductRunSelect
-                  title="Filter Product Run"
-                  value={query?.productRunId}
-                  productId="*"
-                  onChange={(selected) =>
-                    setSearchParams({
-                      productRunId: selected?.id,
-                    })
-                  }
-                  isClearable
-                />
-              </div>
-            )}
-            {showDatasetFilter && (
-              <div className="min-w-[220px] md:min-w-[260px]">
-                <DatasetSelect
-                  title="Filter Datasets"
-                  value={selectedDatasetIds}
-                  onChange={(selected) =>
-                    setSearchParams({
-                      datasetId: selected.map((dataset) => dataset.id),
-                    })
-                  }
-                  isMulti
-                  isClearable
-                />
-              </div>
-            )}
-            {showDatasetRunFilter && (
-              <div className="min-w-[220px] md:min-w-[260px]">
-                <DatasetRunSelect
-                  title="Filter Dataset Run"
-                  value={query?.datasetRunId}
-                  datasetId="*"
-                  onChange={(selected) =>
-                    setSearchParams({
-                      datasetRunId: selected?.id,
-                    })
-                  }
-                  isClearable
-                />
-              </div>
-            )}
-            {showGeometriesFilter && (
-              <div className="min-w-[220px] md:min-w-[260px]">
-                <GeometriesSelect
-                  title="Filter Geometries"
-                  value={selectedGeometriesIds}
-                  onChange={(selected) =>
-                    setSearchParams({
-                      geometriesId: selected.map((geometries) => geometries.id),
-                    })
-                  }
-                  isMulti
-                  isClearable
-                />
-              </div>
-            )}
-            {showGeometriesRunFilter && (
-              <div className="min-w-[220px] md:min-w-[260px]">
-                <GeometriesRunSelect
-                  title="Filter Geometries Run"
-                  value={query?.geometriesRunId}
-                  geometriesId="*"
-                  onChange={(selected) =>
-                    setSearchParams({
-                      geometriesRunId: selected?.id,
-                    })
-                  }
-                  isClearable
-                />
-              </div>
-            )}
-            <GeographicBoundsPickerDialog
-              title="Area of Interest"
-              className="min-w-[220px] md:min-w-[260px]"
-              value={geographicBounds}
-              onChange={(bounds) =>
-                setSearchParams(toGeographicBoundsQuery(bounds))
-              }
-              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
-            />
           </div>
-        </div>
+        }
+      >
         <BaseCrudTable
           data={data?.data || []}
           isLoading={isLoading}
@@ -205,12 +208,12 @@ const ReportFeature = () => {
           onSortChange={setSearchParams}
         />
         <Pagination
-          className="justify-end mt-4"
+          className="justify-end"
           hasNextPage={!!hasNextPage}
           isLoading={isFetchingNextPage}
           onLoadMore={() => fetchNextPage()}
         />
-      </div>
+      </ConsoleCrudListFrame>
     </div>
   )
 }

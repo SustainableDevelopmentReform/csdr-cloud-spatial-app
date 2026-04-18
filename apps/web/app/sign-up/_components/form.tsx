@@ -31,6 +31,11 @@ const createUserSchema = z
 
 type CreateUserData = z.infer<typeof createUserSchema>
 
+const inputClassName =
+  'h-9 rounded-lg border-neutral-200 bg-white text-sm text-neutral-950 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] placeholder:text-muted-foreground focus-visible:border-neutral-900 focus-visible:ring-0'
+
+const labelClassName = 'text-sm font-medium leading-4 text-neutral-950'
+
 const SignupForm = ({
   mutationFn,
 }: {
@@ -60,7 +65,7 @@ const SignupForm = ({
       <Form {...form}>
         <form
           method="post"
-          className="grid gap-4 w-full"
+          className="grid w-full gap-4"
           onSubmit={handleSubmit(onSubmit)}
         >
           <FormField
@@ -68,9 +73,13 @@ const SignupForm = ({
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Full name</FormLabel>
+                <FormLabel className={labelClassName}>Full name</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input
+                    {...field}
+                    placeholder="Full name"
+                    className={inputClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -81,9 +90,14 @@ const SignupForm = ({
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel className={labelClassName}>Email</FormLabel>
                 <FormControl>
-                  <Input {...field} type="email" />
+                  <Input
+                    {...field}
+                    type="email"
+                    placeholder="Email"
+                    className={inputClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -94,9 +108,14 @@ const SignupForm = ({
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <FormLabel className={labelClassName}>Password</FormLabel>
                 <FormControl>
-                  <Input {...field} type="password" />
+                  <Input
+                    {...field}
+                    type="password"
+                    placeholder="Password"
+                    className={inputClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -107,16 +126,27 @@ const SignupForm = ({
             name="passwordConfirmation"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password Confirmation</FormLabel>
+                <FormLabel className={labelClassName}>
+                  Confirm password
+                </FormLabel>
                 <FormControl>
-                  <Input {...field} type="password" />
+                  <Input
+                    {...field}
+                    type="password"
+                    placeholder="Confirm password"
+                    className={inputClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button disabled={submitMutation.isPending} className="mt-1">
-            {submitMutation.isPending ? 'Loading...' : 'Create your account'}
+          <Button
+            disabled={submitMutation.isPending}
+            animate={false}
+            className="mt-1 w-full rounded-lg bg-neutral-900 text-neutral-50 hover:bg-neutral-900/90"
+          >
+            {submitMutation.isPending ? 'Loading...' : 'Sign up'}
           </Button>
         </form>
       </Form>

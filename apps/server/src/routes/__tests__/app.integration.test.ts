@@ -22,7 +22,7 @@ describe('app routes', () => {
     }
 
     expect(docJson.openapi).toBe('3.0.0')
-    expect(docJson.info.title).toBe('CSDR Cloud Spatial API')
+    expect(docJson.info.title).toBe('Spatial Data Framework API')
     expect(docJson.servers[0]?.url).toBe('http://localhost')
 
     const scalarResponse = await app.request(
