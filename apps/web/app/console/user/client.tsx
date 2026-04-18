@@ -4,6 +4,7 @@ import { Button } from '@repo/ui/components/ui/button'
 import { Input } from '@repo/ui/components/ui/input'
 import { Search } from 'lucide-react'
 import Pagination from '~/components/table/pagination'
+import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import UserForm from './_components/form'
 import UsersTable from './_components/table'
 import { useUsers } from './_hooks'
@@ -20,42 +21,44 @@ const UserFeature = () => {
   } = useUsers()
 
   return (
-    <div>
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-medium mb-2">
-          Users ({data?.total ?? 0})
-        </h1>
-        <UserForm
-          key={`add-organization-form-${isOpen}`}
-          isOpen={isOpen}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-        >
-          <Button>Add user</Button>
-        </UserForm>
-      </div>
-      <div>
-        <div className="flex items-center mb-4 gap-4">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              const elements = new FormData(e.currentTarget)
-              setSearch(elements.get('search')?.toString() ?? '')
-            }}
-            className="max-w-sm relative w-full"
+    <div className="flex flex-col gap-6">
+      <ConsoleCrudListFrame
+        title="Users"
+        description={`${data?.total ?? 0} users in the system.`}
+        actions={
+          <UserForm
+            key={`add-organization-form-${isOpen}`}
+            isOpen={isOpen}
+            onOpen={() => setOpen(true)}
+            onClose={() => setOpen(false)}
           >
-            <Search className="absolute top-1/2 -translate-y-1/2 left-2 w-[18px] h-[18px] text-gray-600" />
-            <Input name="search" className="pl-8" placeholder="Search" />
-          </form>
-        </div>
+            <Button>Add user</Button>
+          </UserForm>
+        }
+        toolbar={
+          <div className="flex items-center gap-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const elements = new FormData(e.currentTarget)
+                setSearch(elements.get('search')?.toString() ?? '')
+              }}
+              className="relative w-full max-w-sm"
+            >
+              <Search className="absolute left-2 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-600" />
+              <Input name="search" className="pl-8" placeholder="Search" />
+            </form>
+          </div>
+        }
+      >
         <UsersTable data={data?.users || []} />
         <Pagination
-          className="justify-end mt-4"
+          className="mt-4 justify-end"
           hasNextPage={!!hasNextPage}
           isLoading={isFetchingNextPage}
           onLoadMore={() => fetchNextPage()}
         />
-      </div>
+      </ConsoleCrudListFrame>
     </div>
   )
 }

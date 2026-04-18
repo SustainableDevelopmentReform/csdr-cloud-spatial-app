@@ -28,17 +28,27 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
       : formatGlobalUserRole('user')
 
   return (
-    <ConsoleShell
-      canManageWorkspace={canManage}
-      canViewLogs={canReadLogs}
-      defaultSidebarOpen={defaultSidebarOpen}
-      isAuthenticated={isAuthenticated}
-      isSuperAdmin={access.isSuperAdmin}
-      userEmail={userEmail}
-      userRoleLabel={userRoleLabel}
-    >
-      {children}
-    </ConsoleShell>
+    <>
+      <style>{`
+        html,
+        body {
+          background: rgb(245, 245, 245);
+        }
+      `}</style>
+      <div className="min-h-screen bg-neutral-100">
+        <ConsoleShell
+          canManageWorkspace={canManage}
+          canViewLogs={canReadLogs}
+          defaultSidebarOpen={defaultSidebarOpen}
+          isAuthenticated={isAuthenticated}
+          isSuperAdmin={access.isSuperAdmin}
+          userEmail={userEmail}
+          userRoleLabel={userRoleLabel}
+        >
+          {children}
+        </ConsoleShell>
+      </div>
+    </>
   )
 }
 

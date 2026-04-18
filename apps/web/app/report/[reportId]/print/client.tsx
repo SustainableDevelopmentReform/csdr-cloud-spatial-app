@@ -48,7 +48,7 @@ const ReportPrintPage = ({
 
   if (reportQuery.isLoading) {
     return (
-      <main className="mx-auto max-w-[800px] px-8 py-10 text-sm text-muted-foreground">
+      <main className="mx-auto min-h-screen max-w-[800px] bg-white px-8 py-10 text-sm text-muted-foreground">
         Loading report…
       </main>
     )
@@ -56,7 +56,7 @@ const ReportPrintPage = ({
 
   if (!report) {
     return (
-      <main className="mx-auto max-w-[800px] px-8 py-10 text-sm text-muted-foreground">
+      <main className="mx-auto min-h-screen max-w-[800px] bg-white px-8 py-10 text-sm text-muted-foreground">
         Report not found.
       </main>
     )
@@ -66,7 +66,7 @@ const ReportPrintPage = ({
     <PrintReadinessProvider baseReady={preparedReportId === report.id}>
       {(isPrintReady) => (
         <main
-          className="mx-auto flex max-w-[800px] flex-col gap-8 px-8 py-10"
+          className="mx-auto flex min-h-screen max-w-[800px] flex-col gap-8 bg-white px-8 py-10"
           data-report-print-ready={isPrintReady ? 'true' : undefined}
         >
           <section>
