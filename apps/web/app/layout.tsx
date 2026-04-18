@@ -23,7 +23,11 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Providers appUrl={env.APP_URL ?? ''} apiBaseUrl={getApiBaseUrl()}>
+        <Providers
+          appUrl={env.APP_URL ?? ''}
+          apiBaseUrl={getApiBaseUrl()}
+          mapStyleUrl={env.MAP_STYLE_URL}
+        >
           {children}
         </Providers>
       </body>

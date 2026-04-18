@@ -13,6 +13,7 @@ APP_URL=https://csdr.localhost
 
 INTERNAL_FRONTEND_URL=http://localhost:3000
 INTERNAL_BACKEND_URL=http://localhost:4000
+MAP_STYLE_URL=
 
 TRUSTED_ORIGINS=https://csdr.localhost
 

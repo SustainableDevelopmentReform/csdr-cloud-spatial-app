@@ -3,8 +3,17 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol } from 'pmtiles'
 import { useEffect } from 'react'
+import { useConfig } from '../../../../components/providers'
+
+const REMOTE_MAP_STYLE_URL =
+  'https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004'
 
 export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
+  const config = useConfig()
+  const { mapStyle, ...restProps } = props
+  const resolvedMapStyle =
+    mapStyle ?? config.mapStyleUrl ?? REMOTE_MAP_STYLE_URL
+
   // Init pmtiles protocol
   useEffect(() => {
     const protocol = new Protocol()
@@ -21,9 +30,9 @@ export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
       //   fitBoundsOptions: { padding: 100 },
       // }}
       ref={props.ref}
-      {...props}
+      {...restProps}
       style={{ width: '100%', height: '100%' }}
-      mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
+      mapStyle={resolvedMapStyle}
       attributionControl={{ compact: false }}
     />
   )

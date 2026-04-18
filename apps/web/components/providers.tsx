@@ -37,9 +37,11 @@ export const queryClient = new QueryClient({
 export const ConfigContext = createContext<{
   appUrl: string
   apiBaseUrl: string
+  mapStyleUrl: string | undefined
 }>({
   appUrl: '',
   apiBaseUrl: '',
+  mapStyleUrl: undefined,
 })
 
 export const AuthClientContext = createContext<AuthClient | null>(null)
@@ -52,13 +54,19 @@ interface Props {
   children?: React.ReactNode
   appUrl: string
   apiBaseUrl: string
+  mapStyleUrl?: string
 }
 
-const Providers: React.FC<Props> = ({ children, appUrl, apiBaseUrl }) => {
+const Providers: React.FC<Props> = ({
+  children,
+  appUrl,
+  apiBaseUrl,
+  mapStyleUrl,
+}) => {
   const authClient = useMemo(() => createAuthClient(apiBaseUrl), [apiBaseUrl])
 
   return (
-    <ConfigContext.Provider value={{ appUrl, apiBaseUrl }}>
+    <ConfigContext.Provider value={{ appUrl, apiBaseUrl, mapStyleUrl }}>
       <AuthClientContext.Provider value={authClient}>
         <NuqsAdapter>
           <QueryClientProvider client={queryClient}>
