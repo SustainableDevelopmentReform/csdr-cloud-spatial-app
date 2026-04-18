@@ -1,6 +1,5 @@
 'use client'
 
-import { Separator } from '@repo/ui/components/ui/separator'
 import { SidebarTrigger } from '@repo/ui/components/ui/sidebar'
 import { cn } from '@repo/ui/lib/utils'
 import React from 'react'
@@ -19,18 +18,24 @@ export const ConsolePageHeader = ({
   return (
     <header
       className={cn(
-        'flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between',
+        'flex min-h-16 flex-wrap items-center gap-3 px-4 md:flex-nowrap md:gap-0',
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <SidebarTrigger className="shrink-0" />
-        <Separator orientation="vertical" className="hidden h-4 md:block" />
-        <div className="min-w-0 flex-1">{breadcrumbs}</div>
+      <div className="flex min-w-0 items-center gap-2">
+        <SidebarTrigger className="size-7 shrink-0 rounded-lg text-stone-900 hover:bg-transparent hover:text-stone-900 [&>svg]:size-4" />
+        <div className="flex w-2 items-center justify-start">
+          <div className="relative h-3.5 w-0">
+            <div className="absolute inset-y-0 left-0 border-l border-neutral-200" />
+          </div>
+        </div>
+        <div className="min-w-0">{breadcrumbs}</div>
       </div>
       {actions ? (
-        <div className="flex shrink-0 items-center gap-2 md:justify-end">
-          {actions}
+        <div className="flex flex-1 items-start justify-end gap-2.5">
+          <div className="flex flex-1 items-center justify-end gap-2">
+            {actions}
+          </div>
         </div>
       ) : null}
     </header>

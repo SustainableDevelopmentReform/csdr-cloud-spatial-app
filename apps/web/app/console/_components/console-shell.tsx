@@ -289,7 +289,7 @@ const ConsoleShellFrame = ({
     <>
       <Sidebar
         collapsible="icon"
-        className="border-r border-neutral-200 bg-neutral-100"
+        className="border-r-0 bg-neutral-100 group-data-[side=left]:border-r-0 group-data-[side=right]:border-l-0"
       >
         <SidebarHeader className="gap-0 bg-neutral-100">
           <ConsoleSidebarOrganizationMenu />
@@ -316,7 +316,7 @@ const ConsoleShellFrame = ({
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <SidebarInset className="min-h-svh overflow-x-hidden bg-white">
+      <SidebarInset className="min-h-svh overflow-x-hidden bg-neutral-100">
         <div className="flex flex-1 flex-col px-4 py-4 md:px-6 lg:px-8">
           {children}
         </div>

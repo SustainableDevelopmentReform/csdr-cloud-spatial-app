@@ -6,9 +6,10 @@ import {
   CardTitle,
 } from '@repo/ui/components/ui/card'
 import {
+  ArrowRightIcon,
   ArrowUpRightIcon,
   BarChartHorizontalBigIcon,
-  BookOpenIcon,
+  CircleAlertIcon,
   DatabaseIcon,
   FileBarChart2Icon,
   LayoutDashboardIcon,
@@ -81,8 +82,8 @@ const HomeActionCard = ({
               {description}
             </CardDescription>
           </div>
-          <div className="flex size-9 items-center justify-center rounded-lg text-stone-900 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-            <ArrowUpRightIcon className="size-4" />
+          <div className="flex size-9 items-center justify-center rounded-lg text-stone-900 transition-transform group-hover:translate-x-0.5">
+            <ArrowRightIcon className="size-4" strokeWidth={1.5} />
           </div>
         </CardHeader>
       </Card>
@@ -108,15 +109,18 @@ const Page = () => {
 
         <Card className="rounded-2xl border-zinc-300 py-0 shadow-none">
           <div className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-stone-900">
-                <BookOpenIcon className="size-5" />
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold leading-7 text-stone-900">
-                  Getting Started
-                </h2>
-                <p className="text-sm leading-5 text-neutral-500">
+            <div className="flex-1">
+              <div className="flex flex-col gap-1">
+                <div className="inline-flex items-center gap-2">
+                  <CircleAlertIcon
+                    className="size-5 shrink-0 text-stone-900"
+                    strokeWidth={1.75}
+                  />
+                  <h2 className="text-lg font-semibold leading-7 text-stone-900">
+                    Getting Started
+                  </h2>
+                </div>
+                <p className="max-w-[42rem] text-sm leading-5 text-neutral-500/80">
                   Learn how to use the SDF, explore example workflows, and
                   understand how data, analysis, and reporting connect.
                 </p>
@@ -125,7 +129,7 @@ const Page = () => {
             <Button
               asChild
               variant="ghost"
-              className="self-start md:self-center"
+              className="h-9 self-start rounded-lg px-3 py-2 text-sm font-medium leading-5 text-base-foreground hover:bg-transparent md:self-center"
             >
               <a
                 href="https://oceanaccounts.org/sdf/tech-demo/"
@@ -133,7 +137,7 @@ const Page = () => {
                 target="_blank"
               >
                 View Guide
-                <ArrowUpRightIcon className="size-4" />
+                <ArrowUpRightIcon className="size-4" strokeWidth={1.5} />
               </a>
             </Button>
           </div>
