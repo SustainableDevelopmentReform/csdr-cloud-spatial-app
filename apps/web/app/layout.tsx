@@ -26,8 +26,8 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className="bg-neutral-100">
+      <body className={`${inter.className} min-h-screen bg-neutral-100`}>
         <Providers
           appUrl={env.APP_URL ?? ''}
           apiBaseUrl={getApiBaseUrl()}
