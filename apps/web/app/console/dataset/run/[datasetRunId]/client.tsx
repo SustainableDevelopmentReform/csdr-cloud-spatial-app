@@ -80,6 +80,14 @@ const DatasetRunDetails = () => {
     }
   }, [datasetRun, form])
 
+  // console.log('datasetRun', datasetRun)
+  // console.log('dataType', datasetRun?.dataType)
+  // console.log('dataUrl', datasetRun?.dataUrl)
+  // TODO: Remove dev vars
+  const testDatasetType = 'stac-geoparquet'
+  const testDataUrl =
+    's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
+
   return (
     <ResourcePageState
       error={datasetRunQuery.error}
@@ -88,192 +96,181 @@ const DatasetRunDetails = () => {
       loadingMessage="Loading dataset run"
       notFoundMessage="Dataset run not found"
     >
-      <div className="w-[800px] max-w-full gap-8 flex flex-col">
-        {datasetRun && datasetRun.dataType && datasetRun.dataUrl && (
-          <DatasetRunMap
-            dataType={datasetRun?.dataType}
-            dataUrl={datasetRun?.dataUrl}
-          />
-        )}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <DatasetRunSummaryCard run={datasetRun} />
-          <div className="grid grid-cols-1 gap-4">
-            {datasetRun && (
-              <DetailCard
-                title={`${datasetRun?.productRunCount} ${pluralize(datasetRun?.productRunCount, 'product run', 'product runs')}`}
-                description="Used by Products Runs"
-                actionText="Open"
-                actionLink={productRunsLink(null, {
-                  datasetRunId: datasetRun?.id,
-                })}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {datasetRun && (
-              <ResourceUsageDetailCards
-                reportCount={datasetRun.reportCount}
-                dashboardCount={datasetRun.dashboardCount}
-                reportQuery={{ datasetRunId: datasetRun.id }}
-                dashboardQuery={{ datasetRunId: datasetRun.id }}
-              />
-            )}
+      {/* <div className="w-[800px] max-w-full gap-8 flex flex-col"> */}
+      {/* <div className="grid grid-cols-1 gap-4 max-w-full"> */}
+      {/* {datasetRun && datasetRun.dataType && datasetRun.dataUrl && ( */}
+      {datasetRun && testDatasetType && testDataUrl && (
+        <DatasetRunMap
+          dataType={datasetRun?.dataType}
+          dataUrl={datasetRun?.dataUrl}
+        />
+      )}
+      {/* </div> */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DatasetRunSummaryCard run={datasetRun} />
+        <div className="grid grid-cols-1 gap-4">
+          {datasetRun && (
+            <DetailCard
+              title={`${datasetRun?.productRunCount} ${pluralize(datasetRun?.productRunCount, 'product run', 'product runs')}`}
+              description="Used by Products Runs"
+              actionText="Open"
+              actionLink={productRunsLink(null, {
+                datasetRunId: datasetRun?.id,
+              })}
+              actionIcon={<ArrowUpRightIcon />}
+            />
+          )}
+          {datasetRun && (
+            <ResourceUsageDetailCards
+              reportCount={datasetRun.reportCount}
+              dashboardCount={datasetRun.dashboardCount}
+              reportQuery={{ datasetRunId: datasetRun.id }}
+              dashboardQuery={{ datasetRunId: datasetRun.id }}
+            />
+          )}
+        </div>
+      </div>
+      <CrudForm
+        form={form}
+        mutation={updateDatasetRun}
+        deleteMutation={deleteDatasetRun}
+        entityName="Dataset Run"
+        entityNamePlural="dataset runs"
+        actions={canEdit ? formActions : []}
+        hiddenFields={['visibility']}
+        readOnly={!canEdit}
+        successMessage="Updated Dataset Run"
+      >
+        <CrudFormRunFields form={form} readOnlyFields={'all'} />
+        <div className="grid gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <FormLabel>Bounds</FormLabel>
+            <GeographicBoundsPickerDialog
+              value={formBounds ?? null}
+              buttonText="Set from map"
+              disabled={!canEdit}
+              onChange={(bounds) =>
+                form.setValue('bounds', bounds, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              onClear={() =>
+                form.setValue('bounds', null, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="bounds.minX"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Min Longitude</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="any"
+                      disabled={!canEdit}
+                      className={!canEdit ? 'bg-gray-100' : ''}
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(
+                          event.target.value === ''
+                            ? undefined
+                            : Number(event.target.value),
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bounds.maxX"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Max Longitude</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="any"
+                      disabled={!canEdit}
+                      className={!canEdit ? 'bg-gray-100' : ''}
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(
+                          event.target.value === ''
+                            ? undefined
+                            : Number(event.target.value),
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bounds.minY"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Min Latitude</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="any"
+                      disabled={!canEdit}
+                      className={!canEdit ? 'bg-gray-100' : ''}
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(
+                          event.target.value === ''
+                            ? undefined
+                            : Number(event.target.value),
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bounds.maxY"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Max Latitude</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="any"
+                      disabled={!canEdit}
+                      className={!canEdit ? 'bg-gray-100' : ''}
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(
+                          event.target.value === ''
+                            ? undefined
+                            : Number(event.target.value),
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
-        <CrudForm
-          form={form}
-          mutation={updateDatasetRun}
-          deleteMutation={deleteDatasetRun}
-          entityName="Dataset Run"
-          entityNamePlural="dataset runs"
-          actions={canEdit ? formActions : []}
-          hiddenFields={['visibility']}
-          readOnly={!canEdit}
-          successMessage="Updated Dataset Run"
-        >
-          <CrudFormRunFields form={form} readOnlyFields={'all'} />
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <FormLabel>Bounds</FormLabel>
-              <GeographicBoundsPickerDialog
-                value={formBounds ?? null}
-                buttonText="Set from map"
-                disabled={!canEdit}
-                onChange={(bounds) =>
-                  form.setValue('bounds', bounds, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  })
-                }
-                onClear={() =>
-                  form.setValue('bounds', null, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  })
-                }
-              />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="bounds.minX"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Longitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        disabled={!canEdit}
-                        className={!canEdit ? 'bg-gray-100' : ''}
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === ''
-                              ? undefined
-                              : Number(event.target.value),
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bounds.maxX"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max Longitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        disabled={!canEdit}
-                        className={!canEdit ? 'bg-gray-100' : ''}
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === ''
-                              ? undefined
-                              : Number(event.target.value),
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bounds.minY"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Latitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        disabled={!canEdit}
-                        className={!canEdit ? 'bg-gray-100' : ''}
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === ''
-                              ? undefined
-                              : Number(event.target.value),
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bounds.maxY"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max Latitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        disabled={!canEdit}
-                        className={!canEdit ? 'bg-gray-100' : ''}
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === ''
-                              ? undefined
-                              : Number(event.target.value),
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        </CrudForm>
-      </div>
-
-        <CrudForm
-          form={form}
-          mutation={updateDatasetRun}
-          deleteMutation={deleteDatasetRun}
-          entityName="Dataset Run"
-          entityNamePlural="dataset runs"
-          actions={formActions}
-          successMessage="Updated Dataset Run"
-        >
-          <CrudFormRunFields form={form} readOnlyFields={'all'} />
-        </CrudForm>
-      </div>
+      </CrudForm>
     </ResourcePageState>
   )
 }

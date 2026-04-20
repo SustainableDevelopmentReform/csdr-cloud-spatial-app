@@ -567,7 +567,7 @@ export const DatasetRunMap = ({
   }
 
   return (
-    <div className="w-[800px] max-w-full gap-8 flex flex-col">
+    <div className="max-w-full gap-8 flex flex-col mb-4">
       <div className="rounded-lg overflow-hidden h-96 relative">
         <DeckGL
           ref={deckRef}
