@@ -1,5 +1,4 @@
 // Try to load all COGs for a dataset e.g. GMW. Don't show the grid if possible. See if Deck handles 1000s of small COGs. If this doesn't work then we can show the grid at lower zoom levels, and just load the COGs when zoomed in more.
-// TODO: Define how the user styles dataset layers.
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Map } from '@vis.gl/react-maplibre'
 import DeckGL from '@deck.gl/react'
@@ -12,35 +11,48 @@ import {
 } from '@deck.gl/core'
 import { TileLayer } from '@deck.gl/geo-layers'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import {
-  GeoArrowScatterplotLayer,
-  GeoArrowPolygonLayer,
-} from '@geoarrow/deck.gl-layers' // These error when using my custom PMTilesLayer for an unknown reason. Uncaught TypeError: Cannot read properties of undefined (reading 'BLEND_EQUATION_MINMAX')
 import { MVTLoader } from '@loaders.gl/mvt'
 import { load } from '@loaders.gl/core'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
 import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
-// import { PMTLayer } from "@maticoapp/deck.gl-pmtiles"; // 3 years old and only Deck.gl v8 support, not v9.
 import { useQuery } from '@tanstack/react-query'
 
-import { COGLayer, proj } from '@developmentseed/deck.gl-geotiff'
+import {
+  COGLayer,
+  MosaicLayer,
+  MultiCOGLayer,
+  proj,
+} from '@developmentseed/deck.gl-geotiff'
+import { RasterModule } from '@developmentseed/deck.gl-raster'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
 import { DatasetRunListItem } from '../_hooks'
-import { MapViewer } from '../../geometries/_components/map-viewer' // TODO: If this is generalised for datasets, move it out of geometries folder.
 
-// I think this is the way to do it! Use pmtiles package.
-// https://github.com/protomaps/PMTiles/issues/188 // This example is for raster PMTiles so I adapted it to vector.
 import * as pmtiles from 'pmtiles'
 
 type colorArray = [number, number, number, number]
-const fillColor: colorArray = [0, 0, 0, 0] // Transparent.
-// const outlineColor: colorArray = getComputedStyle(document.documentElement).getPropertyValue('--dataset'); // This seems hacky so don't use it.
-const outlineColor: colorArray = [30, 119, 179, 255] // This color is also defined in CSS as --dataset
+const fillColor: colorArray = [0, 0, 0, 0]
+const outlineColor: colorArray = [30, 119, 179, 255]
+const outlineColorGLSL = outlineColor
+  .slice(0, 3)
+  .map((v) => (v / 255).toFixed(3))
 const outlineWidth = 2
-const highlightFillColor: colorArray = [0, 255, 255, 128] // Semi-transparent cyan.
+const highlightFillColor: colorArray = [0, 255, 255, 128]
 
-// TODO: move PMTilesLayer to a seperate file or package.
+// This makes data blue, but blocky.
+// const DataColorize: RasterModule = {
+//   module: {
+//     name: 'dataColorize',
+//     inject: {
+//       'fs:DECKGL_FILTER_COLOR': `
+//         float val = color.r;
+//         bool isValid = val > 0.001 && val < 0.99;
+//         color = vec4(${outlineColorGLSL[0]}, ${outlineColorGLSL[1]}, ${outlineColorGLSL[2]}, isValid ? 0.85 : 0.0);
+//       `,
+//     },
+//   },
+// }
+
 class PMTilesLayer extends CompositeLayer {
   constructor(props) {
     super(props)
@@ -53,12 +65,9 @@ class PMTilesLayer extends CompositeLayer {
       id: `${this.props.id}-tiles`,
       getTileData: async (tile) => {
         const { x, y, z } = tile.index
-
         try {
           const response = await this.pmtiles.getZxy(z, x, y)
-
           if (response && response.data) {
-            // Parse MVT to GeoJSON
             const geojson = await load(response.data, MVTLoader, {
               mvt: {
                 coordinates: 'wgs84',
@@ -66,34 +75,23 @@ class PMTilesLayer extends CompositeLayer {
                 shape: 'geojson',
               },
             })
-            // console.log(geojson)
             // TODO: geojson shows tile edges.
             return geojson
           }
-
           return null
         } catch (error) {
           console.error(`Error loading tile ${z}/${x}/${y}:`, error)
           return null
         }
       },
-
       renderSubLayers: (props) => {
         return new GeoJsonLayer(props, {
           data: props.data,
-
-          // Interaction props
           pickable: this.props.pickable,
           autoHighlight: this.props.autoHighlight,
           highlightColor: this.props.highlightColor,
-
-          // Event handlers - pass through from parent
           onClick: this.props.onClick,
           onHover: this.props.onHover,
-          onDragStart: this.props.onDragStart,
-          onDrag: this.props.onDrag,
-          onDragEnd: this.props.onDragEnd,
-
           stroked: true,
           filled: true,
           getFillColor: this.props.getFillColor || fillColor,
@@ -102,7 +100,6 @@ class PMTilesLayer extends CompositeLayer {
           lineWidthMinPixels: 1,
         })
       },
-
       minZoom: 0,
       maxZoom: 14,
       tileSize: 512,
@@ -126,7 +123,6 @@ async function geoKeysParser(
   geoKeys: Record<string, any>,
 ): Promise<proj.ProjectionInfo> {
   const projDefinition = toProj4(geoKeys as GeoKeys)
-
   return {
     def: projDefinition.proj4,
     parsed: proj.parseCrs(projDefinition.proj4),
@@ -134,8 +130,35 @@ async function geoKeysParser(
   }
 }
 
-interface Feature {
-  [key: string]: any
+function bboxToFeatures(source: {
+  bbox: [number, number, number, number]
+  url: string
+}) {
+  const [minX, minY, maxX, maxY] = source.bbox
+  const props = { url: source.url }
+
+  const makePolygon = (x0: number, x1: number) => ({
+    type: 'Feature' as const,
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [x0, minY],
+          [x1, minY],
+          [x1, maxY],
+          [x0, maxY],
+          [x0, minY],
+        ],
+      ],
+    },
+    properties: props,
+  })
+
+  if (maxX >= 180 || minX <= -180) {
+    // TODO: Fix world-spanning bboxes nicer. This is just a rough guess.
+    return [makePolygon(-180, -179.17), makePolygon(179.2, 180)]
+  }
+  return [makePolygon(minX, maxX)]
 }
 
 export const DatasetRunMap = ({
@@ -144,34 +167,15 @@ export const DatasetRunMap = ({
 }: {
   dataType: Exclude<DatasetRunListItem['dataType'], null>
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
-  // datasetRunPMTilesUrl: Exclude<DatasetRunListItem['dataPmtilesUrl'], null> // TODO: This doesn't exist yet.
 }) => {
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
-  const handleSetSelectedFeature = useCallback((feature: Feature | null) => {
-    setSelectedFeature(feature)
-  }, [])
-  const [cogBounds, setCogBounds] = useState<
-    [number, number, number, number] | null
-  >(null)
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
+  const [assets, setAssets] = useState<string[] | undefined>(undefined)
+  const [selectedAsset, setSelectedAsset] = useState<string | undefined>(
+    undefined,
+  )
   const deckRef = useRef<any | null>(null)
-
-  const getTooltip = useCallback(({ object }: PickingInfo<Feature>) => {
-    // console.log('Tooltip object:', object);
-    return (
-      object && {
-        html: `<h2 style="color: '#000'">Message:</h2> <div>Test</div>`,
-        style: {
-          backgroundColor: '#fff',
-          fontSize: '0.8em',
-          padding: '16px',
-          borderRadius: '8px',
-        },
-      }
-    )
-  }, [])
 
   // For testing STAC-Geoparquet and PMTiles:
   // 1. STAC-Geoparquet datasets:
@@ -185,13 +189,13 @@ export const DatasetRunMap = ({
   //   's3://csdr-public-dev/geometries/cwa/0-0-1/runs/4d3ee1b8-285b-5c78-b62c-bb08f0abe637/CW_1970_1980_Areas.pmtiles'
   // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // These are all being written with arrow by the pipeline now and all work here :)
-  const gmw_v4_written_by_pipeline_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
-  const seagrass_written_by_pipeline_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
-  const ace_written_by_pipeline_s3 =
-    'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
-  dataUrl = seagrass_written_by_pipeline_s3
+  // const gmw_v4_written_by_pipeline_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
+  // const seagrass_written_by_pipeline_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
+  // const ace_written_by_pipeline_s3 =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
+  // dataUrl = seagrass_written_by_pipeline_s3
   // Just for dev. Dataurl will come from props.
   // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
   // Other test files:
@@ -207,12 +211,12 @@ export const DatasetRunMap = ({
   // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // Buildings. Massive PMTiles file on Source Coop.
   // This loads (slowly) despite being 236.41 GB!
-  let datasetRunPMTilesUrl =
-    'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
-      DatasetRunListItem['dataUrl'],
-      null
-    >
-  dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+  // let datasetRunPMTilesUrl =
+  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
+  //     DatasetRunListItem['dataUrl'],
+  //     null
+  //   >
+  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
   // Could use this to display PMTiles https://github.com/visgl/deck.gl/issues/8615#issuecomment-1992673335
 
   // For testing parquet points:
@@ -239,7 +243,6 @@ export const DatasetRunMap = ({
 
   function s3UrlToHttps(s3Url: string): string {
     if (s3Url.startsWith('s3://')) {
-      // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
       const s3UrlWithoutPrefix = s3Url.replace('s3://', '')
       const [bucket, ...pathParts] = s3UrlWithoutPrefix.split('/')
       const path = pathParts.join('/')
@@ -248,8 +251,17 @@ export const DatasetRunMap = ({
     return s3Url
   }
 
-  datasetRunPMTilesUrl = s3UrlToHttps(datasetRunPMTilesUrl)
+  // Test overrides (remove when wiring up real props)
+  const testDatasetType = 'stac-geoparquet'
+  const testDataUrl =
+    's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
+  dataType = testDatasetType as typeof dataType
+  dataUrl = testDataUrl as typeof dataUrl
 
+  // PMTiles is only relevant for geoparquet
+  let datasetRunPMTilesUrl =
+    'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles'
+  datasetRunPMTilesUrl = s3UrlToHttps(datasetRunPMTilesUrl)
   const renderPMTiles = dataType === 'geoparquet' && !!datasetRunPMTilesUrl
 
   const {
@@ -260,7 +272,6 @@ export const DatasetRunMap = ({
     queryKey: ['pmtiles-header', datasetRunPMTilesUrl],
     queryFn: async () => {
       if (!datasetRunPMTilesUrl) return null
-
       const p = new PMTiles(datasetRunPMTilesUrl)
       return p.getHeader()
     },
@@ -274,25 +285,66 @@ export const DatasetRunMap = ({
   } = useQuery<Table | null>({
     queryKey: ['parquet-arrow-table', dataUrl],
     queryFn: async () => {
-      let parquetArrowUrl = dataUrl
-
-      if (!parquetArrowUrl) return null
-
-      parquetArrowUrl = s3UrlToHttps(parquetArrowUrl)
-
+      if (!dataUrl) return null
+      const parquetArrowUrl = s3UrlToHttps(dataUrl)
       await initParquetWasm()
       const resp = await fetch(parquetArrowUrl)
       const arrayBuffer = await resp.arrayBuffer()
       const wasmTable = readParquet(new Uint8Array(arrayBuffer))
-      const parquetArrowTable = tableFromIPC(wasmTable.intoIPCStream())
-      return parquetArrowTable
+      return tableFromIPC(wasmTable.intoIPCStream())
     },
     enabled: dataType === 'stac-geoparquet' && !!dataUrl,
   })
 
-  // Use useMemo to compute map bounds based on loaded data.
+  const cogUrls = useMemo<string[]>(() => {
+    if (!parquetArrowTable || dataType !== 'stac-geoparquet') return []
+
+    const assetsVector = parquetArrowTable.getChild('assets')
+    if (!assetsVector) {
+      console.warn('[DatasetRunMap] No "assets" column found.')
+      return []
+    }
+
+    // Log available asset keys to help pick the right one
+    const assetFields = assetsVector.type?.children ?? []
+
+    const keysToTry = assetFields.map((f) => f.name)
+    console.log(keysToTry)
+    setAssets(keysToTry)
+
+    for (const assetKey of keysToTry) {
+      const assetChild = assetsVector.getChild(assetKey)
+      if (!assetChild) continue
+
+      const hrefChild = assetChild.getChild('href')
+      if (!hrefChild || hrefChild.length === 0) continue
+
+      const urls: string[] = []
+      for (let i = 0; i < hrefChild.length; i++) {
+        const val = hrefChild.get(i)
+        if (val) urls.push(s3UrlToHttps(String(val)))
+      }
+
+      if (urls.length > 0) {
+        console.log(
+          `[DatasetRunMap] Using ${urls.length} COG URLs from assets.${assetKey}.href`,
+        )
+        setSelectedAsset(assetKey)
+        return urls
+      }
+    }
+
+    console.warn(
+      '[DatasetRunMap] No href found in any asset. Asset keys available:',
+      keysToTry,
+    )
+    return []
+  }, [parquetArrowTable, dataType])
+
+  // Map bounds
+  // Derived from PMTiles header or parquet bbox column. No longer uses COG load callbacks.
+
   const mapBounds = useMemo(() => {
-    if (cogBounds) return cogBounds
     if (isLoadingPmtilesHeader && isLoadingParquetArrowTable) return undefined
 
     if (pmtilesHeader) {
@@ -305,12 +357,6 @@ export const DatasetRunMap = ({
     }
 
     if (parquetArrowTable) {
-      // Try to read bbox from metadata
-      const meta = parquetArrowTable.schema?.metadata
-      // Once we update the pipeline, the parquet metadata will include the overall bbox for the dataset, so we can just use that instead of computing it from all the row bboxes. For now, we compute it from the row bboxes.
-      // if (meta.get('bbox')) return JSON.parse(meta.get('bbox')) as [number, number, number, number];
-      console.log(parquetArrowTable.schema.fields)
-      // Compute overall bbox from all row bboxes
       const bboxesVector = parquetArrowTable.getChild('bbox')
       if (bboxesVector && bboxesVector.length > 0) {
         let minX = Infinity,
@@ -337,221 +383,140 @@ export const DatasetRunMap = ({
           return [minX, minY, maxX, maxY] as [number, number, number, number]
         }
       }
-      // fallback: just use the first row's bbox if available
-      if (bboxesVector && bboxesVector.length > 0) {
-        const arr = bboxesVector.get(0)?.toArray()
-        if (arr && arr.length === 4) {
-          return arr as [number, number, number, number]
-        }
-      }
     }
-    return undefined // Fallback that shouldn't occur.
+
+    return undefined
   }, [
-    cogBounds,
     isLoadingPmtilesHeader,
     isLoadingParquetArrowTable,
     pmtilesHeader,
     parquetArrowTable,
   ])
 
-  // TODO: Refactor this useEffect because we want to avoid useEffects.
   useEffect(() => {
-    // Compute DeckGL viewState from mapBounds
-    if (mapBounds) {
-      const viewport = new WebMercatorViewport({
-        // TODO: Make these dynamic based on the actual size of the map container. For now we just hardcode them to match the size of the Map component in the JSX below.
-        width: 800, // match your container width
-        height: 384, // match your container height (h-96 = 24*16)
-      })
-      const [[minLon, minLat, maxLon, maxLat]] = [mapBounds]
-      const { longitude, latitude, zoom } = viewport.fitBounds(
-        [
-          [minLon, minLat],
-          [maxLon, maxLat],
-        ],
-        { padding: 20 },
-      )
-      setViewState((prev) => ({
-        ...prev,
-        longitude,
-        latitude,
-        zoom,
-        pitch: 0,
-        bearing: 0,
-        transitionDuration: 0,
-      }))
-    }
+    if (!mapBounds) return
+    const viewport = new WebMercatorViewport({ width: 800, height: 384 })
+    const [[minLon, minLat, maxLon, maxLat]] = [mapBounds]
+    const { longitude, latitude, zoom } = viewport.fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat],
+      ],
+      { padding: 20 },
+    )
+    setViewState((prev) => ({
+      ...prev,
+      longitude,
+      latitude,
+      zoom,
+      pitch: 0,
+      bearing: 0,
+      transitionDuration: 0,
+    }))
   }, [mapBounds])
 
-  // Callback when the pointer clicks on an object in any pickable layer
-  // TODO: Can we just use handleSetSelectedFeature directly as the onClick handler? Do we need to do anything special to handle multiple layers or different feature schemas?
-  const onFeatureClick = useCallback(
-    (info: PickingInfo, event: any) => {
-      console.log('onFeatureClick called with info:', info)
-      if (!info.object) {
-        handleSetSelectedFeature(null)
-        return
-      } else {
-        const feature = info.object.toJSON()
-        handleSetSelectedFeature(feature)
-      }
+  // Layers
 
-      // TODO: Handle overlapping features e.g. ACE STAC-Geoparquet has many years with the same geom. Need to allow user to select which they want to view COGs for.
-      // console.log('Clicked:', info, event);
-      // // const clickedFeatures = deckRef.current.pickMultipleObjects(info.x, info.y, 0, [datasetLayerId])
-      // const clickedFeatures = deckRef.current.pickMultipleObjects({
-      //   x: info.x,
-      //   y: info.y,
-      //   radius: 0,
-      //   layerIds: [datasetLayerId]
-      // });
-      // const items = clickedFeatures.map((cf) => cf.object.toJSON());
-      // let tableRows = '';
-      // items.forEach((item, idx) => {
-      //   Object.entries(item).forEach(([key, value]) => {
-      //     tableRows += `<tr><td>${key}</td><td>${String(value)}</td></tr>`;
-      //   });
-      //   if (idx < items.length - 1) {
-      //     tableRows += `<tr><td colspan='2'><hr/></td></tr>`;
-      //   }
-      // });
-      // return {
-      //   html: `
-      //     <h2 style="color: #000">Selected Features</h2>
-      //     <table style="font-size:0.8em; background:#fff; border-radius:8px; padding:8px;">
-      //       <thead><tr><th>Key</th><th>Value</th></tr></thead>
-      //       <tbody>${tableRows}</tbody>
-      //     </table>
-      //   `,
-      //   style: {
-      //     backgroundColor: '#fff',
-      //     fontSize: '0.8em',
-      //     padding: '16px',
-      //     borderRadius: '8px',
-      //   }
-      // }
-    },
-    [handleSetSelectedFeature],
-  )
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+
+  const { availableYears, mosaicSources } = useMemo(() => {
+    if (!parquetArrowTable || cogUrls.length === 0) {
+      return { availableYears: [], mosaicSources: [] }
+    }
+
+    const bboxVector = parquetArrowTable.getChild('bbox')
+    const datetimeVector =
+      parquetArrowTable.getChild('datetime') ??
+      parquetArrowTable.getChild('start_datetime')
+
+    // Build rows with url, bbox, year
+    const rows = cogUrls.map((url, i) => {
+      const bboxVal = bboxVector?.get(i)
+      const bbox = (bboxVal?.toArray() as [number, number, number, number]) ?? [
+        0, 0, 0, 0,
+      ]
+      const datetimeVal = datetimeVector?.get(i)
+
+      const year =
+        datetimeVal != null ? new Date(Number(datetimeVal)).getFullYear() : null
+      return { url, bbox, year }
+    })
+
+    const availableYears = [
+      ...new Set(rows.map((r) => r.year).filter(Boolean) as number[]),
+    ].sort()
+    const targetYear = selectedYear ?? availableYears.at(-1) ?? null
+
+    const mosaicSources = rows
+      .filter((r) => r.year === targetYear)
+      .map(({ url, bbox }) => ({ url, bbox }))
+
+    return { availableYears, mosaicSources }
+  }, [parquetArrowTable, cogUrls, selectedYear])
 
   const layers = useMemo<LayersList>(() => {
     const layerList: LayersList = []
-    const datasetLayerId = 'dataset'
 
-    if (parquetArrowTable) {
-      const geometryVector =
-        parquetArrowTable?.getChild('geometry') ||
-        parquetArrowTable?.getChild('proj:geometry')
-      const sharedProps = {
-        id: datasetLayerId,
-        data: parquetArrowTable,
-        getFillColor: fillColor,
-        getLineColor: outlineColor,
-        lineWidthUnits: 'pixels' as any,
-        lineWidthMinPixels: 1,
-        pickable: true,
-        pickMultipleObjects: true,
-        onClick: onFeatureClick,
-        autoHighlight: true,
-        highlightColor: highlightFillColor,
-      }
-      if (geometryVector?.type?.typeId === 13) {
-        // Point layer
-        layerList.push(
-          new GeoArrowScatterplotLayer({
-            ...sharedProps,
-            getPosition: geometryVector,
-            stroked: true,
-            getLineWidth: (d: Feature) => {
-              const featureId = parquetArrowTable
-                ?.getChild('name')
-                ?.get(d.index)
-              const selectedFeatureId = selectedFeature?.['name']
-              if (featureId == selectedFeatureId) return 3
-              return outlineWidth
-            },
-            radiusUnits: 'pixels',
-            getRadius: (d: Feature) => {
-              const featureId = parquetArrowTable
-                ?.getChild('name')
-                ?.get(d.index)
-              const selectedFeatureId = selectedFeature?.['name']
-              if (featureId == selectedFeatureId) return 10
-              return 15
-            },
-          }),
-        )
-      } else if (geometryVector?.type?.typeId === 12) {
-        // Polygon layer
-        layerList.push(
-          new GeoArrowPolygonLayer({
-            ...sharedProps,
-            getPolygon: geometryVector,
-            getLineWidth: (d: Feature) => {
-              const featureId = parquetArrowTable?.getChild('id')?.get(d.index)
-              const selectedFeatureId = selectedFeature?.['id']
-              if (featureId == selectedFeatureId) return 5
-              return outlineWidth
-            },
-          }),
-        )
-      } else {
-        throw new Error('Unknown geometry type in GeoParquet')
-      }
-    }
-
-    if (renderPMTiles) {
-      const PMT = new PMTilesLayer({
-        id: datasetLayerId,
-        data: datasetRunPMTilesUrl,
-        showTileBorders: false,
-        pickable: true,
-        autoHighlight: true,
-        highlightColor: highlightFillColor,
-        onClick: (info: any) => {
-          console.log('Clicked feature:', info.object)
-          // onFeatureClick(info.object); // TODO
-        },
-
-        getFillColor: fillColor,
-        getLineColor: outlineColor,
-        getLineWidth: outlineWidth,
-      })
-
-      // console.log('Need to render PMTiles', !!pmtilesHeader)
-      // This PMTileLayer works but it renders the tile boundaries on the map.
-      // TODO: Style the PMTiles layer. Not possible with TileSourceLayer. Can do it with https://github.com/Matico-Platform/deck.gl-pmtiles.
-      layerList.push(PMT)
-    }
-
-    console.log('Selected feature:', selectedFeature)
-    // Add COG layer if selectedFeature is set
-    if (selectedFeature) {
-      const COG_URL =
-        'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/GMW_N00E008_v4019_mng_rgb.tif'
+    // stac-geoparquet: render all COGs as a mosaic
+    if (dataType === 'stac-geoparquet' && mosaicSources.length > 0) {
+      // Bbox outlines
       layerList.push(
-        new COGLayer({
-          id: 'cog-layer',
-          geotiff: COG_URL,
-          geoKeysParser,
-          onGeoTIFFLoad: (tiff, options) => {
-            const { west, south, east, north } = options.geographicBounds
-            setCogBounds([west, south, east, north])
+        new GeoJsonLayer({
+          id: 'mosaic-bboxes',
+          data: {
+            type: 'FeatureCollection',
+            features: mosaicSources.flatMap(bboxToFeatures),
           },
+          stroked: true,
+          filled: false,
+          getLineColor: outlineColor,
+          getLineWidth: 1,
+          lineWidthMinPixels: 1,
         }),
       )
-    } else {
-      setCogBounds(null)
+
+      // COG mosaic
+      layerList.push(
+        new MosaicLayer({
+          id: 'mosaic-layer',
+          sources: mosaicSources,
+          renderSource: (source, { signal }) =>
+            // Can also use MultiCOGLayer here.
+            new COGLayer({
+              id: `cog-${source.url}`,
+              geotiff: source.url,
+              geoKeysParser,
+              signal,
+            }),
+        }),
+      )
+    }
+
+    // TODO: Develop this further. Test with all vector datasets.
+    // geoparquet: render PMTiles
+    if (renderPMTiles) {
+      layerList.push(
+        new PMTilesLayer({
+          id: 'dataset',
+          data: datasetRunPMTilesUrl,
+          showTileBorders: false,
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: highlightFillColor,
+          onClick: (info: any) => {
+            console.log('Clicked feature:', info.object)
+          },
+          getFillColor: fillColor,
+          getLineColor: outlineColor,
+          getLineWidth: outlineWidth,
+        }),
+      )
     }
 
     return layerList
-  }, [
-    parquetArrowTable,
-    selectedFeature,
-    onFeatureClick,
-    renderPMTiles,
-    datasetRunPMTilesUrl,
-  ])
+  }, [dataType, cogUrls, renderPMTiles, datasetRunPMTilesUrl])
+
+  // Render
 
   if (pmtilesHeaderError || parquetArrowTableError) {
     return (
@@ -566,8 +531,61 @@ export const DatasetRunMap = ({
     )
   }
 
+  const isLoading =
+    (dataType === 'stac-geoparquet' && isLoadingParquetArrowTable) ||
+    (dataType === 'geoparquet' && isLoadingPmtilesHeader)
+
+  const loadingLabel =
+    dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'
+
+  // console.log(dataType, assetFields)
   return (
     <div className="max-w-full gap-8 flex flex-col mb-4">
+      {assets.length > 0 && (
+        <div className="flex gap-2 items-center text-sm">
+          <span className="text-gray-500">Available Assets:</span>
+          {assets.map((asset) => (
+            <p
+              key={asset}
+              className={
+                asset === selectedAsset ? 'font-semibold' : 'text-gray-500'
+              }
+            >
+              {asset}
+            </p>
+          ))}
+        </div>
+      )}
+      {dataType === 'stac-geoparquet' && cogUrls.length > 0 && (
+        <div className="absolute top-2 left-2 bg-white p-2 rounded shadow text-xs">
+          Showing mosaic of {cogUrls.length} COG
+          {cogUrls.length !== 1 ? 's' : ''}
+        </div>
+      )}
+      {availableYears.length > 0 && (
+        <div className="flex gap-2 items-center text-sm">
+          <span className="text-gray-500">Available Years of Data:</span>
+          {availableYears.map((year) => (
+            <p
+              key={year}
+              // disabled
+              // onClick={() => setSelectedYear(year)}
+              // className={`px-2 py-1 rounded ${
+              //   (selectedYear ?? availableYears.at(-1)) === year
+              //     ? 'bg-blue-600 text-white'
+              //     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              // }`}
+              className={`${
+                (selectedYear ?? availableYears.at(-1)) === year
+                  ? 'font-semibold'
+                  : 'text-gray-500'
+              }`}
+            >
+              {year}
+            </p>
+          ))}
+        </div>
+      )}
       <div className="rounded-lg overflow-hidden h-96 relative">
         <DeckGL
           ref={deckRef}
@@ -578,68 +596,28 @@ export const DatasetRunMap = ({
           controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
-          getTooltip={getTooltip}
-          initialViewState={{
-            longitude: 0.45,
-            latitude: 51.47,
-            zoom: 11,
-          }}
+          initialViewState={{ longitude: 0.45, latitude: 51.47, zoom: 11 }}
         >
-          {/* <MapViewer */}
           <Map
             style={{ width: '100%', height: '100%' }}
             mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
           />
         </DeckGL>
-        {!parquetArrowTable && !pmtilesHeader && (
+
+        {isLoading && (
           <div className="absolute top-14 left-2 bg-white p-2 rounded shadow">
-            Loading {dataType}...
+            Loading {loadingLabel}…
           </div>
         )}
-        {parquetArrowTable && dataType === 'stac-geoparquet' && (
-          <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
-            Click a STAC-Geoparquet Item to view its details and COGs.
-          </div>
-        )}
-        {parquetArrowTable && dataType === 'geoparquet' && (
-          <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
-            Click a feature to view its details.
-          </div>
-        )}
-        {selectedFeature && (
-          <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow">
-            <button onClick={() => handleSetSelectedFeature(null)}>
-              Clear Selection
-            </button>
-          </div>
-        )}
+
+        {dataType === 'stac-geoparquet' &&
+          !isLoadingParquetArrowTable &&
+          cogUrls.length === 0 && (
+            <div className="absolute top-2 left-2 bg-yellow-100 p-2 rounded shadow text-xs">
+              No COG URLs found — check console for available columns.
+            </div>
+          )}
       </div>
-      {selectedFeature && (
-        <div className="bg-white p-2 rounded-lg shadow">
-          <p>
-            Selected {dataType === 'stac-geoparquet' ? 'STAC Item' : 'feature'}{' '}
-            Details:
-          </p>
-          <table className="text-xs">
-            <thead>
-              <tr>
-                <th className="text-left pr-2">Key</th>
-                <th className="text-left">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(selectedFeature).map(([key, value]) => (
-                <tr key={key}>
-                  <td className="pr-2 align-top font-mono">{key}</td>
-                  <td className="align-top font-mono break-all">
-                    {String(value)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   )
 }
