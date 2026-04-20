@@ -21,7 +21,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   COGLayer,
   MosaicLayer,
-  MultiCOGLayer,
+  // MultiCOGLayer,
   proj,
 } from '@developmentseed/deck.gl-geotiff'
 import { RasterModule } from '@developmentseed/deck.gl-raster'
@@ -161,6 +161,16 @@ function bboxToFeatures(source: {
   return [makePolygon(minX, maxX)]
 }
 
+function s3UrlToHttps(s3Url: string): string {
+  if (s3Url.startsWith('s3://')) {
+    const s3UrlWithoutPrefix = s3Url.replace('s3://', '')
+    const [bucket, ...pathParts] = s3UrlWithoutPrefix.split('/')
+    const path = pathParts.join('/')
+    return `https://${bucket}.s3.amazonaws.com/${path}`
+  }
+  return s3Url
+}
+
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
@@ -177,61 +187,7 @@ export const DatasetRunMap = ({
   )
   const deckRef = useRef<any | null>(null)
 
-  // For testing STAC-Geoparquet and PMTiles:
-  // 1. STAC-Geoparquet datasets:
-  // const stac_parquet_arrow_s3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw-geoarrow.parquet'
-  // const stac_parquet_arrow_s3 =
-  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/gmw.parquet'
-
-  // 2. PMTiles datasets:
-  // let datasetRunPMTilesUrl =
-  //   // 's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
-  //   's3://csdr-public-dev/geometries/cwa/0-0-1/runs/4d3ee1b8-285b-5c78-b62c-bb08f0abe637/CW_1970_1980_Areas.pmtiles'
-  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
-  // These are all being written with arrow by the pipeline now and all work here :)
-  // const gmw_v4_written_by_pipeline_s3 =
-  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/gmw-v4/0-0-1/gmw.parquet'
-  // const seagrass_written_by_pipeline_s3 =
-  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
-  // const ace_written_by_pipeline_s3 =
-  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/ace/0-0-1/ace.parquet'
-  // dataUrl = seagrass_written_by_pipeline_s3
-  // Just for dev. Dataurl will come from props.
-  // dataType = 'stac-geoparquet' as Exclude<DatasetRunListItem['dataType'], null> // Just for dev. dataType will come from props.
-  // Other test files:
-  // Must use the "_native" version where the geometry column is GeoArrow:
-  // const GEOPARQUET_URL_POINTS =
-  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_cities_native.parquet'
-  // const GEOPARQUET_URL_POLYGONS =
-  //   'https://raw.githubusercontent.com/geoarrow/geoarrow-data/v0.2.0/natural-earth/files/natural-earth_countries_native.parquet'
-
-  // 3. Parquet files that shouldn't be loaded in the browser. We are using PMTiles for these instead.
-  // Reef. 500MB - breaks browser.
-  // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
-  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
-  // Buildings. Massive PMTiles file on Source Coop.
-  // This loads (slowly) despite being 236.41 GB!
-  // let datasetRunPMTilesUrl =
-  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
-  //     DatasetRunListItem['dataUrl'],
-  //     null
-  //   >
-  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
-  // Could use this to display PMTiles https://github.com/visgl/deck.gl/issues/8615#issuecomment-1992673335
-
-  // For testing parquet points:
-  // const GEOPARQUET_URL_POINTS_S3 = 'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/natural-earth_cities_native.parquet'
-  // dataUrl = GEOPARQUET_URL_POINTS_S3 // Just for dev. Dataurl should come from props.
-  // dataType = 'geoparquet' // Just for dev. dataType should come from props.
-
-  // // Datasets:
-  // STAC-Geoparquet datasets:
-  // - gmw: ['assets.mangrove.href']. Has id column.
-  // - ACE: Has many possible COG links. ['assets.classification.href']. Has id column. Data overlaps for the 2 years. Need to allow the user to select overlapping data.
-  // - seagrass: Has many possible COG links including ['assets.seagrass.href']. Has id column.
-  // Parquet datasets:
-  // - reef: No id or name.
-  // - buildings: we only index the bboxes of the sa2 building parquets. Maybe the user can click a bbox and load/vizualise that data from Source Coop? Has s2_code id column.
+  console.log(dataType, dataUrl)
 
   // if (dataType == 'stac-geoparquet') {
   //   console.log('Data is STAC-Geoparquet. Load parquet arrow table.')
@@ -240,23 +196,6 @@ export const DatasetRunMap = ({
   // } else {
   //   throw new Error(`Unsupported dataType: ${dataType}`) // TODO: Handle this better.
   // }
-
-  function s3UrlToHttps(s3Url: string): string {
-    if (s3Url.startsWith('s3://')) {
-      const s3UrlWithoutPrefix = s3Url.replace('s3://', '')
-      const [bucket, ...pathParts] = s3UrlWithoutPrefix.split('/')
-      const path = pathParts.join('/')
-      return `https://${bucket}.s3.amazonaws.com/${path}`
-    }
-    return s3Url
-  }
-
-  // Test overrides (remove when wiring up real props)
-  const testDatasetType = 'stac-geoparquet'
-  const testDataUrl =
-    's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
-  dataType = testDatasetType as typeof dataType
-  dataUrl = testDataUrl as typeof dataUrl
 
   // PMTiles is only relevant for geoparquet
   let datasetRunPMTilesUrl =
@@ -312,7 +251,14 @@ export const DatasetRunMap = ({
     console.log(keysToTry)
     setAssets(keysToTry)
 
-    for (const assetKey of keysToTry) {
+    // Prefer these keys if available
+    const preferredKeys = ['seagrass', 'classification', 'mangrove'] // The order of these is important.
+    const sortedKeys = [
+      ...keysToTry.filter((k) => preferredKeys.includes(k)),
+      ...keysToTry.filter((k) => !preferredKeys.includes(k)),
+    ]
+
+    for (const assetKey of sortedKeys) {
       const assetChild = assetsVector.getChild(assetKey)
       if (!assetChild) continue
 
@@ -454,6 +400,10 @@ export const DatasetRunMap = ({
     return { availableYears, mosaicSources }
   }, [parquetArrowTable, cogUrls, selectedYear])
 
+  const zoom = viewState && viewState.zoom ? viewState.zoom : 0
+  // Scale cogMinZoom by number of COGs: 0 at 0, up to 9 at 1000+
+  const cogMinZoom = Math.min(9, Math.round((mosaicSources.length / 1000) * 9))
+
   const layers = useMemo<LayersList>(() => {
     const layerList: LayersList = []
 
@@ -474,12 +424,19 @@ export const DatasetRunMap = ({
           lineWidthMinPixels: 1,
         }),
       )
+    }
 
+    if (
+      dataType === 'stac-geoparquet' &&
+      mosaicSources.length > 0 &&
+      zoom >= cogMinZoom
+    ) {
       // COG mosaic
       layerList.push(
         new MosaicLayer({
           id: 'mosaic-layer',
           sources: mosaicSources,
+          minZoom: cogMinZoom,
           renderSource: (source, { signal }) =>
             // Can also use MultiCOGLayer here.
             new COGLayer({
@@ -492,7 +449,7 @@ export const DatasetRunMap = ({
       )
     }
 
-    // TODO: Develop this further. Test with all vector datasets.
+    // TODO: Develop this further. Test with all vector datasets. (ACA Reef).
     // geoparquet: render PMTiles
     if (renderPMTiles) {
       layerList.push(
@@ -514,7 +471,7 @@ export const DatasetRunMap = ({
     }
 
     return layerList
-  }, [dataType, cogUrls, renderPMTiles, datasetRunPMTilesUrl])
+  }, [dataType, renderPMTiles, datasetRunPMTilesUrl, zoom, mosaicSources])
 
   // Render
 
@@ -538,54 +495,9 @@ export const DatasetRunMap = ({
   const loadingLabel =
     dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'
 
-  // console.log(dataType, assetFields)
+  console.log(dataType, assets)
   return (
-    <div className="max-w-full gap-8 flex flex-col mb-4">
-      {assets.length > 0 && (
-        <div className="flex gap-2 items-center text-sm">
-          <span className="text-gray-500">Available Assets:</span>
-          {assets.map((asset) => (
-            <p
-              key={asset}
-              className={
-                asset === selectedAsset ? 'font-semibold' : 'text-gray-500'
-              }
-            >
-              {asset}
-            </p>
-          ))}
-        </div>
-      )}
-      {dataType === 'stac-geoparquet' && cogUrls.length > 0 && (
-        <div className="absolute top-2 left-2 bg-white p-2 rounded shadow text-xs">
-          Showing mosaic of {cogUrls.length} COG
-          {cogUrls.length !== 1 ? 's' : ''}
-        </div>
-      )}
-      {availableYears.length > 0 && (
-        <div className="flex gap-2 items-center text-sm">
-          <span className="text-gray-500">Available Years of Data:</span>
-          {availableYears.map((year) => (
-            <p
-              key={year}
-              // disabled
-              // onClick={() => setSelectedYear(year)}
-              // className={`px-2 py-1 rounded ${
-              //   (selectedYear ?? availableYears.at(-1)) === year
-              //     ? 'bg-blue-600 text-white'
-              //     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              // }`}
-              className={`${
-                (selectedYear ?? availableYears.at(-1)) === year
-                  ? 'font-semibold'
-                  : 'text-gray-500'
-              }`}
-            >
-              {year}
-            </p>
-          ))}
-        </div>
-      )}
+    <div className="max-w-full flex flex-col mb-4">
       <div className="rounded-lg overflow-hidden h-96 relative">
         <DeckGL
           ref={deckRef}
@@ -605,18 +517,67 @@ export const DatasetRunMap = ({
         </DeckGL>
 
         {isLoading && (
-          <div className="absolute top-14 left-2 bg-white p-2 rounded shadow">
-            Loading {loadingLabel}…
+          <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
+            <span className="text-sm">Loading {loadingLabel}…</span>
           </div>
         )}
-
+        {dataType === 'stac-geoparquet' && mosaicSources.length > 0 && (
+          <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
+            <span className="text-sm">
+              Showing mosaic of {mosaicSources.length} COG
+              {mosaicSources.length !== 1 ? 's' : ''}.
+              {zoom < cogMinZoom && ` Zoom in to blue boxes to see data.`}
+            </span>
+          </div>
+        )}
         {dataType === 'stac-geoparquet' &&
           !isLoadingParquetArrowTable &&
-          cogUrls.length === 0 && (
-            <div className="absolute top-2 left-2 bg-yellow-100 p-2 rounded shadow text-xs">
+          mosaicSources.length === 0 && (
+            <div className="absolute top-2 left-2 bg-yellow-100 p-2 rounded shadow text-sm">
               No COG URLs found — check console for available columns.
             </div>
           )}
+      </div>
+      <div>
+        {assets && assets.length > 0 && (
+          <div className="flex gap-2 items-center text-sm">
+            <span className="text-gray-500">Available Assets:</span>
+            {assets.map((asset) => (
+              <p
+                key={asset}
+                className={
+                  asset === selectedAsset ? 'font-semibold' : 'text-gray-500'
+                }
+              >
+                {asset}
+              </p>
+            ))}
+          </div>
+        )}
+        {availableYears.length > 0 && (
+          <div className="flex gap-2 items-center text-sm">
+            <span className="text-gray-500">Available Years of Data:</span>
+            {availableYears.map((year) => (
+              <p
+                key={year}
+                // disabled
+                // onClick={() => setSelectedYear(year)}
+                // className={`px-2 py-1 rounded ${
+                //   (selectedYear ?? availableYears.at(-1)) === year
+                //     ? 'bg-blue-600 text-white'
+                //     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                // }`}
+                className={`${
+                  (selectedYear ?? availableYears.at(-1)) === year
+                    ? 'font-semibold'
+                    : 'text-gray-500'
+                }`}
+              >
+                {year}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

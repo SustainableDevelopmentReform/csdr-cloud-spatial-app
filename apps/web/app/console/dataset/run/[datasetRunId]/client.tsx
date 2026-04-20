@@ -80,13 +80,65 @@ const DatasetRunDetails = () => {
     }
   }, [datasetRun, form])
 
-  // console.log('datasetRun', datasetRun)
-  // console.log('dataType', datasetRun?.dataType)
-  // console.log('dataUrl', datasetRun?.dataUrl)
+  // 7 datasets:
   // TODO: Remove dev vars
-  const testDatasetType = 'stac-geoparquet'
-  const testDataUrl =
-    's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
+
+  // 1/7: DEP Mangrove:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS.
+
+  // // 2/7: GMW v3:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/gmw-v3/0-0-1/gmw.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS.
+
+  // // 3/7: GMW v4:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS.
+
+  // // 4/7: ACE:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // Doesn't error but doesn't display. Tif can't be shown in QGIS either.
+
+  // // 5/7: DEP Seagrass:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS.
+
+  // // 6/7: ACA Reef (?????? 500MB parquet file.):
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/aca/0-0-1/reefextent.parquet'
+  // const testDatasetType = 'geoparquet'
+  // 3. Parquet files that shouldn't be loaded in the browser. Use PMTiles for these instead?
+  // Reef. 500MB - breaks browser.
+  // dataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet" as Exclude<DatasetRunListItem['dataUrl'], null>
+  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
+
+  // // 7/7: Buildings: (PMTiles)
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/buildings/0-0-1/buildings.parquet'
+  // const testDatasetType = 'geoparquet'
+  // Buildings. Massive PMTiles file on Source Coop.
+  // This loads (slowly) despite being 236.41 GB!
+  // let datasetRunPMTilesUrl =
+  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles' as Exclude<
+  //     DatasetRunListItem['dataUrl'],
+  //     null
+  //   >
+
+  // 2. PMTiles datasets:
+  // let datasetRunPMTilesUrl =
+  //   // 's3://csdr-public-dev/geometries/aus-states/0-0-1/runs/51cfaf9e-0518-5b0b-b6a3-b63bef9f381b/STE_2021_AUST_GDA2020.pmtiles'
+  //   's3://csdr-public-dev/geometries/cwa/0-0-1/runs/4d3ee1b8-285b-5c78-b62c-bb08f0abe637/CW_1970_1980_Areas.pmtiles'
+  // dataType = 'geoparquet' as Exclude<DatasetRunListItem['dataType'], null>
 
   return (
     <ResourcePageState
@@ -96,16 +148,15 @@ const DatasetRunDetails = () => {
       loadingMessage="Loading dataset run"
       notFoundMessage="Dataset run not found"
     >
-      {/* <div className="w-[800px] max-w-full gap-8 flex flex-col"> */}
-      {/* <div className="grid grid-cols-1 gap-4 max-w-full"> */}
       {/* {datasetRun && datasetRun.dataType && datasetRun.dataUrl && ( */}
       {datasetRun && testDatasetType && testDataUrl && (
         <DatasetRunMap
-          dataType={datasetRun?.dataType}
-          dataUrl={datasetRun?.dataUrl}
+          // dataType={datasetRun?.dataType}
+          // dataUrl={datasetRun?.dataUrl}
+          dataType={testDatasetType}
+          dataUrl={testDataUrl}
         />
       )}
-      {/* </div> */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DatasetRunSummaryCard run={datasetRun} />
         <div className="grid grid-cols-1 gap-4">
