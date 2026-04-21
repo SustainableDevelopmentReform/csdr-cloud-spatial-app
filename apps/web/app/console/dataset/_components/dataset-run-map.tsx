@@ -12,6 +12,9 @@ import { useQuery } from '@tanstack/react-query'
 
 import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import loadEpsg from '@developmentseed/epsg/all'
+// @ts-expect-error — webpack asset/resource import
+import epsgCsvUrl from '@developmentseed/epsg/all.csv.gz'
+import type { ProjectionDefinition } from '@developmentseed/proj'
 import { parseWkt } from '@developmentseed/proj'
 import { DatasetRunListItem } from '../_hooks'
 
@@ -37,14 +40,11 @@ const outlineColor: colorArray = [30, 119, 179, 255]
 //   },
 // }
 
-async function epsgResolver(epsg: number) {
-  // TODO: See if we can do this without including this CSV in our app.
-  const epsgDb = await loadEpsg('/epsg-all.csv.gz')
-  const wkt = epsgDb.get(epsg)
-  if (!wkt) {
-    throw new Error(`EPSG code ${epsg} not found in database`)
-  }
-  return parseWkt(wkt)
+async function epsgResolver(epsg: number): Promise<ProjectionDefinition> {
+  const db = await loadEpsg(epsgCsvUrl)
+  const wkt = db.get(epsg)
+  if (!wkt) throw new Error(`EPSG code ${epsg} not found`)
+  return parseWkt(wkt) as ProjectionDefinition
 }
 
 function bboxToFeatures(source: {

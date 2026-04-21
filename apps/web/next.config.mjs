@@ -20,6 +20,11 @@ const nextConfig = {
         module: true,
       },
     }
+    // Emit the EPSG CSV as a static asset (used by @developmentseed/epsg)
+    config.module.rules.push({
+      test: /\/@developmentseed\/epsg\/dist\/all\.csv\.gz$/,
+      type: 'asset/resource',
+    })
     return config
   },
   devIndicators: {
