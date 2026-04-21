@@ -104,15 +104,14 @@ const DatasetRunDetails = () => {
   // WORKS.
 
   // // 4/7: ACE:
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
-  // const testDatasetType = 'stac-geoparquet'
+  const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
+  const testDatasetType = 'stac-geoparquet'
   // Doesn't error but doesn't display. Tif can't be shown in QGIS either?
 
   // // 5/7: DEP Seagrass:
-  const testDataUrl =
-    's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
-  const testDatasetType = 'stac-geoparquet'
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
+  // const testDatasetType = 'stac-geoparquet'
   // WORKS.
 
   // // 6/7: ACA Reef (?????? 500MB parquet file.):

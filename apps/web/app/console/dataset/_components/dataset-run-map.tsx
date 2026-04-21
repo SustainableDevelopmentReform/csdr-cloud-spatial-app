@@ -250,10 +250,14 @@ export const DatasetRunMap = ({
     parquetArrowTable,
   ])
 
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     if (!mapBounds) return
-    // TODO: This width and height are not true. They are dynamic. TODO: Fix this.
-    const viewport = new WebMercatorViewport({ width: 800, height: 384 })
+    const el = mapContainerRef.current
+    const width = el?.clientWidth ?? 800
+    const height = el?.clientHeight ?? 384
+    const viewport = new WebMercatorViewport({ width, height })
     const [minLon, minLat, maxLon, maxLat] = mapBounds
     const { longitude, latitude, zoom } = viewport.fitBounds(
       [
@@ -377,7 +381,10 @@ export const DatasetRunMap = ({
 
   return (
     <div className="max-w-full flex flex-col mb-4">
-      <div className="rounded-lg overflow-hidden h-96 relative">
+      <div
+        ref={mapContainerRef}
+        className="rounded-lg overflow-hidden h-96 relative"
+      >
         <DeckGL
           ref={deckRef}
           viewState={viewState}
