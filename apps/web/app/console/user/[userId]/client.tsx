@@ -64,6 +64,16 @@ const UserProfile = () => {
   const { data: user } = useUser(userId)
 
   const isSuspended = !!user?.banned
+  const emailVerificationStatus = user
+    ? user.emailVerified
+      ? 'Verified'
+      : 'Not verified'
+    : 'Unknown'
+  const twoFactorStatus = user
+    ? user.twoFactorEnabled
+      ? 'Enabled'
+      : 'Disabled'
+    : 'Unknown'
 
   const form = useForm<Data>({
     defaultValues: {
@@ -234,6 +244,18 @@ const UserProfile = () => {
           <FormItem>
             <FormLabel>Email</FormLabel>
             <Input disabled value={user?.email ?? ''} className="bg-gray-100" />
+          </FormItem>
+          <FormItem>
+            <FormLabel>Email verified</FormLabel>
+            <Input
+              disabled
+              value={emailVerificationStatus}
+              className="bg-gray-100"
+            />
+          </FormItem>
+          <FormItem>
+            <FormLabel>2FA status</FormLabel>
+            <Input disabled value={twoFactorStatus} className="bg-gray-100" />
           </FormItem>
 
           <FormField

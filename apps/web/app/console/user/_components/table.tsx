@@ -1,3 +1,4 @@
+import { Badge } from '@repo/ui/components/ui/badge'
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -19,6 +20,20 @@ interface UsersTableProps {
 
 const columnHelper = createColumnHelper<AdminUser>()
 
+const StatusBadge = ({
+  status,
+  enabledLabel,
+  disabledLabel,
+}: {
+  status: boolean
+  enabledLabel: string
+  disabledLabel: string
+}) => (
+  <Badge variant={status ? 'default' : 'destructive'}>
+    {status ? enabledLabel : disabledLabel}
+  </Badge>
+)
+
 const columns = [
   columnHelper.accessor('name', {
     header: () => <span>Name</span>,
@@ -37,6 +52,28 @@ const columns = [
       return formatGlobalUserRole(parsedRole.success ? parsedRole.data : 'user')
     },
     minSize: 160,
+  }),
+  columnHelper.accessor('emailVerified', {
+    header: () => <span>Email verified</span>,
+    cell: (info) => (
+      <StatusBadge
+        status={info.getValue()}
+        enabledLabel="Verified"
+        disabledLabel="Unverified"
+      />
+    ),
+    size: 140,
+  }),
+  columnHelper.accessor('twoFactorEnabled', {
+    header: () => <span>2FA</span>,
+    cell: (info) => (
+      <StatusBadge
+        status={info.getValue()}
+        enabledLabel="Enabled"
+        disabledLabel="Disabled"
+      />
+    ),
+    size: 120,
   }),
 
   columnHelper.accessor('createdAt', {

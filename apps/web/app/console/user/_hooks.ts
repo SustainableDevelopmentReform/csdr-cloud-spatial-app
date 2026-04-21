@@ -9,10 +9,14 @@ const adminUserSchema = z.object({
   banned: z.boolean().optional(),
   createdAt: z.union([z.string(), z.date()]).nullable().optional(),
   email: z.string(),
+  emailVerified: z.boolean(),
   id: z.string(),
   image: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   role: z.string().nullable().optional(),
+  // Better Auth's admin client types do not include this two-factor plugin field,
+  // but the runtime admin response includes it.
+  twoFactorEnabled: z.boolean(),
 })
 
 const listUsersResponseSchema = z.object({
