@@ -13,10 +13,6 @@ import { useQuery } from '@tanstack/react-query'
 import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import { DatasetRunListItem } from '../_hooks'
 
-// epsgResolver / loadEpsg / epsgCsvUrl / parseWkt are intentionally absent.
-// They broke GMW v3/v4 with a CRS mismatch. COGLayer's built-in geoKeysParser
-// handles all datasets correctly without any external EPSG database.
-
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
 
@@ -29,7 +25,7 @@ const valueLegend: Record<
   { label: string; color: [number, number, number] }
 > = {
   1: {
-    label: 'Present',
+    label: 'Data',
     color: [datasetColor[0], datasetColor[1], datasetColor[2]],
   },
   2: { label: 'Intertidal', color: [148, 65, 14] },
@@ -40,8 +36,8 @@ const valueLegend: Record<
 
 // ACE classification: 2=intertidal, 3=mangrove, 4=saltmarsh, 5=seagrass
 // Colors sourced from DEA Australia (RGB 0-1 for GLSL).
-// Value 1 is used by other datasets (gmw, seagrass, dep-mangrove) → datasetColor.
-// All other values (including 0, 255/nodata) → transparent.
+// Value 1 is used by other datasets (gmw, seagrass, dep-mangrove) = datasetColor.
+// All other values (including 0, 255/nodata) = transparent.
 const valueColors: Record<number, [number, number, number]> =
   Object.fromEntries(
     Object.entries(valueLegend).map(([k, v]) => [
@@ -64,7 +60,7 @@ function buildColormap(validValues: number[] | null): string {
   const lines: string[] = ['float byteVal = floor(color.r * 255.0 + 0.5);']
 
   if (validValues === null) {
-    // Fallback: any non-zero, non-255 → datasetColor
+    // Fallback: any non-zero, non-255 = datasetColor
     const fb = [
       datasetColor[0] / 255,
       datasetColor[1] / 255,
@@ -120,15 +116,22 @@ const fallbackColormapModule = {
 /**
  * Subclass COGLayer to append a colormap to the default render pipeline.
  * Pass `colormapAsset` prop to select the correct per-asset colormap.
- *
- * No epsgResolver is passed — COGLayer's built-in geoKeysParser handles CRS
- * for all datasets including GMW v3/v4.
  */
 class ColorMappedCOGLayer extends COGLayer {
   static layerName = 'ColorMappedCOGLayer'
 
   async _parseGeoTIFF() {
-    await super._parseGeoTIFF()
+    try {
+      await super._parseGeoTIFF()
+    } catch (err) {
+      const onCogError = (this.props as any).onCogError as
+        | ((msg: string) => void)
+        | undefined
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn('[ColorMappedCOGLayer] _parseGeoTIFF failed:', msg)
+      onCogError?.(msg)
+      return
+    }
 
     // Inject colormap shader module into the render pipeline
     const originalRenderTile = this.state.defaultRenderTile
@@ -191,12 +194,6 @@ function s3UrlToHttps(s3Url: string): string {
   return httpsUrl
 }
 
-/** Wrap a URL through the CORS proxy so geotiff.js range requests work (e.g. ACE/DEA). */
-// TODO: Remove this. Alex says to let this fail until DEA/GA fix CORS on their side.
-function proxyCogUrl(url: string): string {
-  return `/api/cog-proxy?url=${encodeURIComponent(url)}`
-}
-
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
@@ -215,6 +212,7 @@ export const DatasetRunMap = ({
     undefined,
   )
   const deckRef = useRef<any | null>(null)
+  const [cogError, setCogError] = useState<string | null>(null)
 
   if (dataType !== 'stac-geoparquet' && dataType !== 'geoparquet') {
     throw new Error(`Unsupported dataType: ${dataType}`)
@@ -276,8 +274,8 @@ export const DatasetRunMap = ({
       return []
     }
 
-    const assetFields = assetsVector.type?.children ?? []
-    const keysToTry = assetFields.map((f) => f.name)
+    const assetFields: any[] = assetsVector.type?.children ?? []
+    const keysToTry: string[] = assetFields.map((f) => f.name)
     setAssets(keysToTry)
 
     const preferredKeys = ['seagrass', 'classification', 'mangrove'] // The order of these is important.
@@ -302,7 +300,7 @@ export const DatasetRunMap = ({
       }
     }
 
-    console.warn(
+    console.error(
       '[DatasetRunMap] No href found in any asset. Available:',
       keysToTry,
     )
@@ -429,6 +427,7 @@ export const DatasetRunMap = ({
 
   const layers = useMemo<LayersList>(() => {
     if (dataType !== 'stac-geoparquet' || mosaicSources.length === 0) return []
+    setCogError(null)
 
     const layerList: LayersList = []
 
@@ -449,13 +448,13 @@ export const DatasetRunMap = ({
 
     if (zoom >= cogMinZoom) {
       if (mosaicSources.length === 1 && mosaicSources[0]) {
-        // Single COG — render directly without MosaicLayer for better tile loading
+        // Single COG — render without MosaicLayer
         layerList.push(
           new ColorMappedCOGLayer({
             id: `cog-single`,
-            geotiff: proxyCogUrl(mosaicSources[0].url),
+            geotiff: mosaicSources[0].url,
             colormapAsset: selectedAsset,
-            // No epsgResolver — geoKeysParser handles all datasets including GMW v3/v4
+            onCogError: setCogError,
           } as any),
         )
       } else {
@@ -467,10 +466,10 @@ export const DatasetRunMap = ({
             renderSource: (source, { signal }) =>
               new ColorMappedCOGLayer({
                 id: `cog-${source.url}`,
-                geotiff: proxyCogUrl(source.url),
+                geotiff: source.url,
                 signal,
                 colormapAsset: selectedAsset,
-                // No epsgResolver — geoKeysParser handles all datasets including GMW v3/v4
+                onCogError: setCogError,
               } as any),
           }),
         )
@@ -576,7 +575,7 @@ export const DatasetRunMap = ({
               ? assetLegendKeys[selectedAsset]
                   .map((key) => {
                     const entry = valueLegend[key]!
-                    // For value 1 ("Present"), use the asset name instead of the generic label
+                    // For value 1 ("Data"), use the asset name instead of the generic label
                     return key === 1
                       ? { ...entry, label: selectedAsset }
                       : entry
@@ -604,6 +603,18 @@ export const DatasetRunMap = ({
           </div>
         )}
       </div>
+      {/* TODO: Remove this once DEA/GA allow CORS for the ACE COGs */}
+      {cogError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded px-3 py-2 mt-2">
+          <strong>COG load error:</strong> {cogError}
+          {cogError.includes('Request outside of bounds bytes') ? (
+            <span className="block text-red-500 mt-1">
+              This is likely a CORS issue. The data server may not allow
+              cross-origin requests.
+            </span>
+          ) : null}
+        </div>
+      )}
       <div>
         {assets && assets.length > 0 && (
           <div className="flex gap-2 items-center text-sm">

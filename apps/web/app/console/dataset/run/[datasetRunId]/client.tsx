@@ -105,7 +105,7 @@ const DatasetRunDetails = () => {
   // // 4/7: ACE:
   // const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
   // const testDatasetType = 'stac-geoparquet'
-  // WORKS with proxy. Alex wants me to let it fail by removing proxy.
+  // WORKS with proxy. Removed proxy to let it fail until DEA/GA fix CORS on their side.
 
   // // 5/7: DEP Seagrass:
   // const testDataUrl =
