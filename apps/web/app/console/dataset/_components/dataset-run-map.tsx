@@ -1,44 +1,26 @@
-// Try to load all COGs for a dataset e.g. GMW. Don't show the grid if possible. See if Deck handles 1000s of small COGs. If this doesn't work then we can show the grid at lower zoom levels, and just load the COGs when zoomed in more.
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Map } from '@vis.gl/react-maplibre'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
+import { Map, Source, Layer } from '@vis.gl/react-maplibre'
+import maplibregl from 'maplibre-gl'
+import { Protocol } from 'pmtiles'
 import DeckGL from '@deck.gl/react'
-import {
-  MapViewState,
-  LayersList,
-  PickingInfo,
-  WebMercatorViewport,
-  CompositeLayer,
-} from '@deck.gl/core'
-import { TileLayer } from '@deck.gl/geo-layers'
+import { MapViewState, LayersList, WebMercatorViewport } from '@deck.gl/core'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import { MVTLoader } from '@loaders.gl/mvt'
-import { load } from '@loaders.gl/core'
 import initParquetWasm, { readParquet } from 'parquet-wasm'
 import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useQuery } from '@tanstack/react-query'
 
-import {
-  COGLayer,
-  MosaicLayer,
-  // MultiCOGLayer,
-  proj,
-} from '@developmentseed/deck.gl-geotiff'
-import { RasterModule } from '@developmentseed/deck.gl-raster'
+import { COGLayer, MosaicLayer, proj } from '@developmentseed/deck.gl-geotiff'
 import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
 import { DatasetRunListItem } from '../_hooks'
 
-import * as pmtiles from 'pmtiles'
+const protocol = new Protocol()
+maplibregl.addProtocol('pmtiles', protocol.tile)
 
 type colorArray = [number, number, number, number]
-const fillColor: colorArray = [0, 0, 0, 0]
 const outlineColor: colorArray = [30, 119, 179, 255]
-const outlineColorGLSL = outlineColor
-  .slice(0, 3)
-  .map((v) => (v / 255).toFixed(3))
-const outlineWidth = 2
-const highlightFillColor: colorArray = [0, 255, 255, 128]
 
+// TODO: Fix this to make rasters blue, and not blocky.
 // This makes data blue, but blocky.
 // const DataColorize: RasterModule = {
 //   module: {
@@ -52,72 +34,6 @@ const highlightFillColor: colorArray = [0, 255, 255, 128]
 //     },
 //   },
 // }
-
-class PMTilesLayer extends CompositeLayer {
-  constructor(props) {
-    super(props)
-    this.pmtiles = new pmtiles.PMTiles(props.data)
-  }
-
-  renderLayers() {
-    return new TileLayer({
-      showTileBorders: false,
-      id: `${this.props.id}-tiles`,
-      getTileData: async (tile) => {
-        const { x, y, z } = tile.index
-        try {
-          const response = await this.pmtiles.getZxy(z, x, y)
-          if (response && response.data) {
-            const geojson = await load(response.data, MVTLoader, {
-              mvt: {
-                coordinates: 'wgs84',
-                tileIndex: { x, y, z },
-                shape: 'geojson',
-              },
-            })
-            // TODO: geojson shows tile edges.
-            return geojson
-          }
-          return null
-        } catch (error) {
-          console.error(`Error loading tile ${z}/${x}/${y}:`, error)
-          return null
-        }
-      },
-      renderSubLayers: (props) => {
-        return new GeoJsonLayer(props, {
-          data: props.data,
-          pickable: this.props.pickable,
-          autoHighlight: this.props.autoHighlight,
-          highlightColor: this.props.highlightColor,
-          onClick: this.props.onClick,
-          onHover: this.props.onHover,
-          stroked: true,
-          filled: true,
-          getFillColor: this.props.getFillColor || fillColor,
-          getLineColor: this.props.getLineColor || outlineColor,
-          getLineWidth: this.props.getLineWidth || outlineWidth,
-          lineWidthMinPixels: 1,
-        })
-      },
-      minZoom: 0,
-      maxZoom: 14,
-      tileSize: 512,
-    })
-  }
-}
-
-PMTilesLayer.layerName = 'PMTilesLayer'
-PMTilesLayer.defaultProps = {
-  showTileBorders: false, // This doesn't work but does exist on TileSourceLayerProps https://github.com/visgl/loaders.gl/blob/35205e786cbbcf4bd91b74abe210f6c8e378b4cf/examples/website/tiles/components/tile-source-layer.ts#L81
-  data: undefined,
-  getFillColor: fillColor,
-  getLineColor: outlineColor,
-  getLineWidth: outlineWidth,
-  pickable: false,
-  autoHighlight: false, // Highlighting is also not working.
-  highlightColor: highlightFillColor,
-}
 
 async function geoKeysParser(
   geoKeys: Record<string, any>,
@@ -174,9 +90,12 @@ function s3UrlToHttps(s3Url: string): string {
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
+  pmTilesUrl,
 }: {
   dataType: Exclude<DatasetRunListItem['dataType'], null>
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
+  // TODO: Add pmTilesUrl to DatasetRunListItem.
+  pmTilesUrl: Exclude<DatasetRunListItem['pmTilesUrl'], null>
 }) => {
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
@@ -187,36 +106,39 @@ export const DatasetRunMap = ({
   )
   const deckRef = useRef<any | null>(null)
 
-  console.log(dataType, dataUrl)
+  if (dataType !== 'stac-geoparquet' && dataType !== 'geoparquet') {
+    throw new Error(`Unsupported dataType: ${dataType}`)
+  }
 
-  // if (dataType == 'stac-geoparquet') {
-  //   console.log('Data is STAC-Geoparquet. Load parquet arrow table.')
-  // } else if (dataType == 'geoparquet') {
-  //   console.log('Data is Geoparquet. Load PMTiles.')
-  // } else {
-  //   throw new Error(`Unsupported dataType: ${dataType}`) // TODO: Handle this better.
-  // }
+  const renderPMTiles = dataType === 'geoparquet' && !!pmTilesUrl
+  const pmTilesHttpsUrl = renderPMTiles
+    ? pmTilesUrl.includes('s3://')
+      ? s3UrlToHttps(pmTilesUrl)
+      : pmTilesUrl
+    : null
 
-  // PMTiles is only relevant for geoparquet
-  let datasetRunPMTilesUrl =
-    'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles'
-  datasetRunPMTilesUrl = s3UrlToHttps(datasetRunPMTilesUrl)
-  const renderPMTiles = dataType === 'geoparquet' && !!datasetRunPMTilesUrl
+  // PMTiles header (for map bounds and source layer name)
 
   const {
     data: pmtilesHeader,
     isLoading: isLoadingPmtilesHeader,
     error: pmtilesHeaderError,
-  } = useQuery<PMTilesHeader | null>({
-    queryKey: ['pmtiles-header', datasetRunPMTilesUrl],
+  } = useQuery<(PMTilesHeader & { sourceLayer: string }) | null>({
+    queryKey: ['pmtiles-header', pmTilesHttpsUrl],
     queryFn: async () => {
-      if (!datasetRunPMTilesUrl) return null
-      const p = new PMTiles(datasetRunPMTilesUrl)
-      return p.getHeader()
+      if (!pmTilesHttpsUrl) return null
+      const p = new PMTiles(pmTilesHttpsUrl)
+      const [header, metadata] = await Promise.all([
+        p.getHeader(),
+        p.getMetadata(),
+      ])
+      const sourceLayer = metadata?.vector_layers?.[0]?.id ?? 'data'
+      return { ...header, sourceLayer }
     },
     enabled: renderPMTiles,
   })
 
+  // STAC-GeoParquet (for COG mosaic)
   const {
     data: parquetArrowTable,
     isLoading: isLoadingParquetArrowTable,
@@ -244,14 +166,10 @@ export const DatasetRunMap = ({
       return []
     }
 
-    // Log available asset keys to help pick the right one
     const assetFields = assetsVector.type?.children ?? []
-
     const keysToTry = assetFields.map((f) => f.name)
-    console.log(keysToTry)
     setAssets(keysToTry)
 
-    // Prefer these keys if available
     const preferredKeys = ['seagrass', 'classification', 'mangrove'] // The order of these is important.
     const sortedKeys = [
       ...keysToTry.filter((k) => preferredKeys.includes(k)),
@@ -261,34 +179,27 @@ export const DatasetRunMap = ({
     for (const assetKey of sortedKeys) {
       const assetChild = assetsVector.getChild(assetKey)
       if (!assetChild) continue
-
       const hrefChild = assetChild.getChild('href')
       if (!hrefChild || hrefChild.length === 0) continue
-
       const urls: string[] = []
       for (let i = 0; i < hrefChild.length; i++) {
         const val = hrefChild.get(i)
         if (val) urls.push(s3UrlToHttps(String(val)))
       }
-
       if (urls.length > 0) {
-        console.log(
-          `[DatasetRunMap] Using ${urls.length} COG URLs from assets.${assetKey}.href`,
-        )
         setSelectedAsset(assetKey)
         return urls
       }
     }
 
     console.warn(
-      '[DatasetRunMap] No href found in any asset. Asset keys available:',
+      '[DatasetRunMap] No href found in any asset. Available:',
       keysToTry,
     )
     return []
   }, [parquetArrowTable, dataType])
 
   // Map bounds
-  // Derived from PMTiles header or parquet bbox column. No longer uses COG load callbacks.
 
   const mapBounds = useMemo(() => {
     if (isLoadingPmtilesHeader && isLoadingParquetArrowTable) return undefined
@@ -341,8 +252,9 @@ export const DatasetRunMap = ({
 
   useEffect(() => {
     if (!mapBounds) return
+    // TODO: This width and height are not true. They are dynamic. TODO: Fix this.
     const viewport = new WebMercatorViewport({ width: 800, height: 384 })
-    const [[minLon, minLat, maxLon, maxLat]] = [mapBounds]
+    const [minLon, minLat, maxLon, maxLat] = mapBounds
     const { longitude, latitude, zoom } = viewport.fitBounds(
       [
         [minLon, minLat],
@@ -361,8 +273,9 @@ export const DatasetRunMap = ({
     }))
   }, [mapBounds])
 
-  // Layers
+  // COG layers (deck.gl)
 
+  // TODO: Let user select year to visualise.
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
   const { availableYears, mosaicSources } = useMemo(() => {
@@ -375,14 +288,12 @@ export const DatasetRunMap = ({
       parquetArrowTable.getChild('datetime') ??
       parquetArrowTable.getChild('start_datetime')
 
-    // Build rows with url, bbox, year
     const rows = cogUrls.map((url, i) => {
       const bboxVal = bboxVector?.get(i)
       const bbox = (bboxVal?.toArray() as [number, number, number, number]) ?? [
         0, 0, 0, 0,
       ]
       const datetimeVal = datetimeVector?.get(i)
-
       const year =
         datetimeVal != null ? new Date(Number(datetimeVal)).getFullYear() : null
       return { url, bbox, year }
@@ -392,7 +303,6 @@ export const DatasetRunMap = ({
       ...new Set(rows.map((r) => r.year).filter(Boolean) as number[]),
     ].sort()
     const targetYear = selectedYear ?? availableYears.at(-1) ?? null
-
     const mosaicSources = rows
       .filter((r) => r.year === targetYear)
       .map(({ url, bbox }) => ({ url, bbox }))
@@ -400,45 +310,36 @@ export const DatasetRunMap = ({
     return { availableYears, mosaicSources }
   }, [parquetArrowTable, cogUrls, selectedYear])
 
-  const zoom = viewState && viewState.zoom ? viewState.zoom : 0
-  // Scale cogMinZoom by number of COGs: 0 at 0, up to 9 at 1000+
+  const zoom = viewState?.zoom ?? 0
   const cogMinZoom = Math.min(9, Math.round((mosaicSources.length / 1000) * 9))
 
   const layers = useMemo<LayersList>(() => {
+    if (dataType !== 'stac-geoparquet' || mosaicSources.length === 0) return []
+
     const layerList: LayersList = []
 
-    // stac-geoparquet: render all COGs as a mosaic
-    if (dataType === 'stac-geoparquet' && mosaicSources.length > 0) {
-      // Bbox outlines
-      layerList.push(
-        new GeoJsonLayer({
-          id: 'mosaic-bboxes',
-          data: {
-            type: 'FeatureCollection',
-            features: mosaicSources.flatMap(bboxToFeatures),
-          },
-          stroked: true,
-          filled: false,
-          getLineColor: outlineColor,
-          getLineWidth: 1,
-          lineWidthMinPixels: 1,
-        }),
-      )
-    }
+    layerList.push(
+      new GeoJsonLayer({
+        id: 'mosaic-bboxes',
+        data: {
+          type: 'FeatureCollection',
+          features: mosaicSources.flatMap(bboxToFeatures),
+        },
+        stroked: true,
+        filled: false,
+        getLineColor: outlineColor,
+        getLineWidth: 1,
+        lineWidthMinPixels: 1,
+      }),
+    )
 
-    if (
-      dataType === 'stac-geoparquet' &&
-      mosaicSources.length > 0 &&
-      zoom >= cogMinZoom
-    ) {
-      // COG mosaic
+    if (zoom >= cogMinZoom) {
       layerList.push(
         new MosaicLayer({
           id: 'mosaic-layer',
           sources: mosaicSources,
           minZoom: cogMinZoom,
           renderSource: (source, { signal }) =>
-            // Can also use MultiCOGLayer here.
             new COGLayer({
               id: `cog-${source.url}`,
               geotiff: source.url,
@@ -449,29 +350,8 @@ export const DatasetRunMap = ({
       )
     }
 
-    // TODO: Develop this further. Test with all vector datasets. (ACA Reef).
-    // geoparquet: render PMTiles
-    if (renderPMTiles) {
-      layerList.push(
-        new PMTilesLayer({
-          id: 'dataset',
-          data: datasetRunPMTilesUrl,
-          showTileBorders: false,
-          pickable: true,
-          autoHighlight: true,
-          highlightColor: highlightFillColor,
-          onClick: (info: any) => {
-            console.log('Clicked feature:', info.object)
-          },
-          getFillColor: fillColor,
-          getLineColor: outlineColor,
-          getLineWidth: outlineWidth,
-        }),
-      )
-    }
-
     return layerList
-  }, [dataType, renderPMTiles, datasetRunPMTilesUrl, zoom, mosaicSources])
+  }, [dataType, zoom, mosaicSources, cogMinZoom])
 
   // Render
 
@@ -495,7 +375,6 @@ export const DatasetRunMap = ({
   const loadingLabel =
     dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'
 
-  console.log(dataType, assets)
   return (
     <div className="max-w-full flex flex-col mb-4">
       <div className="rounded-lg overflow-hidden h-96 relative">
@@ -508,12 +387,33 @@ export const DatasetRunMap = ({
           controller={true}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
-          initialViewState={{ longitude: 0.45, latitude: 51.47, zoom: 11 }}
+          initialViewState={{ longitude: 0, latitude: 0, zoom: 0 }}
         >
           <Map
             style={{ width: '100%', height: '100%' }}
             mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
-          />
+          >
+            {renderPMTiles && pmTilesHttpsUrl && pmtilesHeader && (
+              <>
+                <Source
+                  id="pmtiles-source"
+                  type="vector"
+                  url={`pmtiles://${pmTilesHttpsUrl}`}
+                />
+                <Layer
+                  id="pmtiles-fill"
+                  type="fill"
+                  source="pmtiles-source"
+                  source-layer={pmtilesHeader.sourceLayer} // "data" for ACE Reef Extent, "building_footprints" for VIDA Buildings.
+                  paint={{
+                    'fill-color': `rgb(${outlineColor[0]}, ${outlineColor[1]}, ${outlineColor[2]})`,
+                    'fill-opacity': 0.8,
+                    'fill-antialias': false, // Need this to prevent seams between tiles
+                  }}
+                />
+              </>
+            )}
+          </Map>
         </DeckGL>
 
         {isLoading && (
@@ -560,18 +460,11 @@ export const DatasetRunMap = ({
             {availableYears.map((year) => (
               <p
                 key={year}
-                // disabled
-                // onClick={() => setSelectedYear(year)}
-                // className={`px-2 py-1 rounded ${
-                //   (selectedYear ?? availableYears.at(-1)) === year
-                //     ? 'bg-blue-600 text-white'
-                //     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                // }`}
-                className={`${
+                className={
                   (selectedYear ?? availableYears.at(-1)) === year
                     ? 'font-semibold'
                     : 'text-gray-500'
-                }`}
+                }
               >
                 {year}
               </p>
