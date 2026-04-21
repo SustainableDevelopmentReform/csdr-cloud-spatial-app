@@ -348,14 +348,16 @@ const UserProfile = () => {
         <div className="mb-6">
           <div className="font-medium">Delete user</div>
           <div className="mb-3">
-            Permanently remove the user from all organizations and applications.
+            Permanently remove the user account and revoke access. Domain
+            resources they created or published will remain, with user
+            attribution marked as unassigned.
           </div>
           <DeleteAlertDialog
             buttonVariant="destructive"
             buttonTitle="Delete user"
             confirmDialog={{
               title: 'Are you absolutely sure?',
-              description: `This action cannot be undone. This will permanently delete ${user?.name} account and remove ${user?.name} data from our servers.`,
+              description: `This action cannot be undone. This will permanently delete ${user?.name} account and revoke access, but domain resources they created or published will remain with unassigned attribution.`,
               buttonCancelTitle: 'Cancel',
             }}
             mutation={deleteUser}
