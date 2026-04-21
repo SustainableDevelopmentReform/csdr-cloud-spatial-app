@@ -10,8 +10,9 @@ import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useQuery } from '@tanstack/react-query'
 
-import { COGLayer, MosaicLayer, proj } from '@developmentseed/deck.gl-geotiff'
-import { GeoKeys, toProj4 } from 'geotiff-geokeys-to-proj4'
+import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
+import loadEpsg from '@developmentseed/epsg/all'
+import { parseWkt } from '@developmentseed/proj'
 import { DatasetRunListItem } from '../_hooks'
 
 const protocol = new Protocol()
@@ -21,6 +22,7 @@ type colorArray = [number, number, number, number]
 const outlineColor: colorArray = [30, 119, 179, 255]
 
 // TODO: Fix this to make rasters blue, and not blocky.
+// TODO: Make this visualise ACE classes.
 // This makes data blue, but blocky.
 // const DataColorize: RasterModule = {
 //   module: {
@@ -35,15 +37,14 @@ const outlineColor: colorArray = [30, 119, 179, 255]
 //   },
 // }
 
-async function geoKeysParser(
-  geoKeys: Record<string, any>,
-): Promise<proj.ProjectionInfo> {
-  const projDefinition = toProj4(geoKeys as GeoKeys)
-  return {
-    def: projDefinition.proj4,
-    parsed: proj.parseCrs(projDefinition.proj4),
-    coordinatesUnits: projDefinition.coordinatesUnits as proj.SupportedCrsUnit,
+async function epsgResolver(epsg: number) {
+  // TODO: See if we can do this without including this CSV in our app.
+  const epsgDb = await loadEpsg('/epsg-all.csv.gz')
+  const wkt = epsgDb.get(epsg)
+  if (!wkt) {
+    throw new Error(`EPSG code ${epsg} not found in database`)
   }
+  return parseWkt(wkt)
 }
 
 function bboxToFeatures(source: {
@@ -78,13 +79,19 @@ function bboxToFeatures(source: {
 }
 
 function s3UrlToHttps(s3Url: string): string {
+  let httpsUrl = s3Url
   if (s3Url.startsWith('s3://')) {
     const s3UrlWithoutPrefix = s3Url.replace('s3://', '')
     const [bucket, ...pathParts] = s3UrlWithoutPrefix.split('/')
     const path = pathParts.join('/')
-    return `https://${bucket}.s3.amazonaws.com/${path}`
+    httpsUrl = `https://${bucket}.s3.amazonaws.com/${path}`
   }
-  return s3Url
+  return httpsUrl
+}
+
+/** Wrap a URL through the CORS proxy so geotiff.js range requests work. */
+function proxyCogUrl(url: string): string {
+  return `/api/cog-proxy?url=${encodeURIComponent(url)}`
 }
 
 export const DatasetRunMap = ({
@@ -338,20 +345,31 @@ export const DatasetRunMap = ({
     )
 
     if (zoom >= cogMinZoom) {
-      layerList.push(
-        new MosaicLayer({
-          id: 'mosaic-layer',
-          sources: mosaicSources,
-          minZoom: cogMinZoom,
-          renderSource: (source, { signal }) =>
-            new COGLayer({
-              id: `cog-${source.url}`,
-              geotiff: source.url,
-              geoKeysParser,
-              signal,
-            }),
-        }),
-      )
+      if (mosaicSources.length === 1 && mosaicSources[0]) {
+        // Single COG — render directly without MosaicLayer for better tile loading
+        layerList.push(
+          new COGLayer({
+            id: `cog-single`,
+            geotiff: proxyCogUrl(mosaicSources[0].url),
+            epsgResolver,
+          }),
+        )
+      } else {
+        layerList.push(
+          new MosaicLayer({
+            id: 'mosaic-layer',
+            sources: mosaicSources,
+            minZoom: cogMinZoom,
+            renderSource: (source, { signal }) =>
+              new COGLayer({
+                id: `cog-${source.url}`,
+                geotiff: proxyCogUrl(source.url),
+                epsgResolver,
+                signal,
+              }),
+          }),
+        )
+      }
     }
 
     return layerList
@@ -395,6 +413,9 @@ export const DatasetRunMap = ({
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'default')}
           initialViewState={{ longitude: 0, latitude: 0, zoom: 0 }}
+          width="100%"
+          height="100%"
+          onError={(error) => console.warn('[DeckGL] error:', error)}
         >
           <Map
             style={{ width: '100%', height: '100%' }}
