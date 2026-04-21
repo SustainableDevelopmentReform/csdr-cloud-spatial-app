@@ -197,12 +197,11 @@ function s3UrlToHttps(s3Url: string): string {
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
-  pmTilesUrl,
+  dataPmtilesUrl,
 }: {
   dataType: Exclude<DatasetRunListItem['dataType'], null>
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
-  // TODO: Add pmTilesUrl to DatasetRunListItem.
-  pmTilesUrl: Exclude<DatasetRunListItem['pmTilesUrl'], null>
+  dataPmtilesUrl: DatasetRunListItem['dataPmtilesUrl']
 }) => {
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
@@ -218,11 +217,11 @@ export const DatasetRunMap = ({
     throw new Error(`Unsupported dataType: ${dataType}`)
   }
 
-  const renderPMTiles = dataType === 'geoparquet' && !!pmTilesUrl
+  const renderPMTiles = dataType === 'geoparquet' && !!dataPmtilesUrl
   const pmTilesHttpsUrl = renderPMTiles
-    ? pmTilesUrl.includes('s3://')
-      ? s3UrlToHttps(pmTilesUrl)
-      : pmTilesUrl
+    ? dataPmtilesUrl.includes('s3://')
+      ? s3UrlToHttps(dataPmtilesUrl)
+      : dataPmtilesUrl
     : null
 
   // PMTiles header (for map bounds and source layer name)

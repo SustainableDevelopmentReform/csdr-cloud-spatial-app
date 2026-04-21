@@ -158,6 +158,7 @@ export const datasetRun = pgTable(
   'dataset_run',
   {
     ...runBaseColumns,
+    dataPmtilesUrl: text('data_pmtiles_url'),
     dataType: datasetRunDataType('data_type'),
     bounds: polygon('bounds', { srid: 4326 }),
     datasetId: text('dataset_id')

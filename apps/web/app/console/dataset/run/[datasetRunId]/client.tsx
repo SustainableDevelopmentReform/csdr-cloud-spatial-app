@@ -80,55 +80,6 @@ const DatasetRunDetails = () => {
     }
   }, [datasetRun, form])
 
-  // 7 datasets:
-  // TODO: Remove dev vars
-
-  let pmTilesUrl = undefined
-
-  // 1/7: DEP Mangrove:
-  const testDataUrl =
-    's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
-  const testDatasetType = 'stac-geoparquet'
-  // WORKS.
-
-  // // 2/7: GMW v3:
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/gmw-v3/0-0-1/gmw.parquet'
-  // const testDatasetType = 'stac-geoparquet'
-  // WORKS.
-
-  // // 3/7: GMW v4:
-  // const testDataUrl = 's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
-  // const testDatasetType = 'stac-geoparquet'
-  // WORKS.
-
-  // // 4/7: ACE:
-  // const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
-  // const testDatasetType = 'stac-geoparquet'
-  // WORKS with proxy. Removed proxy to let it fail until DEA/GA fix CORS on their side.
-
-  // // 5/7: DEP Seagrass:
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
-  // const testDatasetType = 'stac-geoparquet'
-  // WORKS. (bit slow).
-
-  // // 6/7: ACA Reef:
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/aca/0-0-1/reefextent.parquet'
-  // const testDatasetType = 'geoparquet'
-  // pmTilesUrl =
-  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/aca/0-0-1/reefextent.pmtiles'
-  // WORKS. BUT need to add pmTilesUrl attr to dataset runs.
-
-  // // 7/7: Buildings: (PMTiles)
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/buildings/0-0-1/buildings.parquet'
-  // const testDatasetType = 'geoparquet'
-  // pmTilesUrl =
-  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles'
-  // WORKS. BUT need to add pmTilesUrl attr to dataset runs.
-
   return (
     <ResourcePageState
       error={datasetRunQuery.error}
@@ -137,14 +88,11 @@ const DatasetRunDetails = () => {
       loadingMessage="Loading dataset run"
       notFoundMessage="Dataset run not found"
     >
-      {/* {datasetRun && datasetRun.dataType && datasetRun.dataUrl && ( */}
-      {datasetRun && testDatasetType && testDataUrl && (
+      {datasetRun && datasetRun.dataType && datasetRun.dataUrl && (
         <DatasetRunMap
-          // dataType={datasetRun?.dataType}
-          // dataUrl={datasetRun?.dataUrl}
-          dataType={testDatasetType}
-          dataUrl={testDataUrl}
-          pmTilesUrl={pmTilesUrl}
+          dataType={datasetRun?.dataType}
+          dataUrl={datasetRun?.dataUrl}
+          pmTilesUrl={datasetRun?.dataPmtilesUrl}
         />
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
