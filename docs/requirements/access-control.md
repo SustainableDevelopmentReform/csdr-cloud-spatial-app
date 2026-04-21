@@ -134,7 +134,7 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 - Can change resource visibility between `private` and `public` (subject to dependency validation where applicable).
 - Cannot move a resource into or out of `global` (requires `super_admin`).
 - Can invite/remove users and assign organization roles.
-- Can view organization audit/read logs.
+- Can view organization audit logs.
 - Required to use MFA.
 
 #### `org_creator`

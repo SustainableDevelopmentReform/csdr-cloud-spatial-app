@@ -1,11 +1,13 @@
 import { symmetricDecrypt } from 'better-auth/crypto'
-import { desc, eq, like } from 'drizzle-orm'
+import { setCookieToHeader } from 'better-auth/cookies'
+import { desc, eq, isNull, like } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { twoFactor, user, verification } from '~/schemas/db'
 import { setupIsolatedTestFile } from '~/test-utils/integration'
 
 const FRONTEND_ORIGIN = 'http://localhost:3000'
 const {
+  app,
   auth,
   createAppClient,
   createSessionHeaders,
@@ -19,6 +21,57 @@ async function latestVerification(pattern: string) {
     where: like(verification.identifier, pattern),
     orderBy: desc(verification.createdAt),
   })
+}
+
+const requireValue = <T>(value: T | null | undefined, label: string): T => {
+  if (value === null || value === undefined) {
+    throw new Error(`Missing ${label}`)
+  }
+
+  return value
+}
+
+const postAuthJson = async (
+  path: string,
+  body: Record<string, unknown>,
+  initialHeaders?: HeadersInit,
+): Promise<Response> => {
+  const headers = new Headers(initialHeaders)
+  headers.set('content-type', 'application/json')
+  headers.set('origin', FRONTEND_ORIGIN)
+
+  return app.request(path, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+}
+
+const getAuth = (path: string, initialHeaders?: HeadersInit) =>
+  app.request(path, {
+    headers: new Headers(initialHeaders),
+  })
+
+const createAppAuthHeaders = async (options: {
+  email: string
+  name: string
+  password: string
+}) => {
+  const headers = new Headers()
+  const updateSessionCookies = setCookieToHeader(headers)
+  const response = await postAuthJson('/api/auth/sign-up/email', {
+    email: options.email,
+    name: options.name,
+    password: options.password,
+  })
+
+  if (response.status !== 200) {
+    throw new Error(`Failed to sign up through app: ${await response.text()}`)
+  }
+
+  updateSessionCookies({ response })
+
+  return headers
 }
 
 describe('auth integration', () => {
@@ -102,13 +155,28 @@ describe('auth integration', () => {
 
     expect(signUpResult.error).toBeNull()
 
-    const resetClient = createTestAuthClient()
-    const resetRequestResult = await resetClient.client.requestPasswordReset({
-      email: 'reset@example.com',
-      redirectTo: `${FRONTEND_ORIGIN}/reset-password`,
-    })
+    const resetRequestResponse = await postAuthJson(
+      '/api/auth/request-password-reset',
+      {
+        email: 'reset@example.com',
+        redirectTo: `${FRONTEND_ORIGIN}/reset-password`,
+      },
+    )
 
-    expect(resetRequestResult.error).toBeNull()
+    expect(resetRequestResponse.status).toBe(200)
+    const resetRequestAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/request-password-reset'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'request_password_reset'),
+          eq(table.decision, 'allow'),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(resetRequestAuditLog).toMatchObject({
+      resourceId: 'reset@example.com',
+    })
 
     const resetVerification = await latestVerification('reset-password:%')
 
@@ -118,13 +186,30 @@ describe('auth integration', () => {
       'reset-password:',
       '',
     )
-    const resetResult = await resetClient.client.resetPassword({
+    const resetResponse = await postAuthJson('/api/auth/reset-password', {
       token: resetToken,
       newPassword: 'new-password123',
     })
 
-    expect(resetResult.error).toBeNull()
-    expect(resetResult.data).toEqual({ status: true })
+    expect(resetResponse.status).toBe(200)
+    expect(await resetResponse.json()).toEqual({ status: true })
+    const resetPasswordAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/reset-password'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'reset_password'),
+          eq(table.decision, 'allow'),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(resetPasswordAuditLog?.details).toMatchObject({
+      body: {
+        newPassword: '[REDACTED]',
+        token: '[REDACTED]',
+      },
+      statusCode: 200,
+    })
 
     const oldSessionResult = await signedInClient.client.getSession()
     expect(oldSessionResult.error).toBeNull()
@@ -156,12 +241,33 @@ describe('auth integration', () => {
     const headers = await test.getAuthHeaders({ userId: profileUser.id })
     const { client } = createTestAuthClient(headers)
 
-    const updateResult = await client.updateUser({
-      name: 'Updated Name',
-    })
+    const updateResponse = await postAuthJson(
+      '/api/auth/update-user',
+      {
+        name: 'Updated Name',
+      },
+      headers,
+    )
 
-    expect(updateResult.error).toBeNull()
-    expect(updateResult.data).toEqual({ status: true })
+    expect(updateResponse.status).toBe(200)
+    expect(await updateResponse.json()).toEqual({ status: true })
+    const updateAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/update-user'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'update_user'),
+          eq(table.actorUserId, profileUser.id),
+          eq(table.resourceId, profileUser.id),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(updateAuditLog?.details).toMatchObject({
+      body: {
+        name: 'Updated Name',
+      },
+      statusCode: 200,
+    })
 
     const sessionResult = await client.getSession()
 
@@ -170,38 +276,80 @@ describe('auth integration', () => {
       user: { name: 'Updated Name' },
     })
 
-    const escalationResult = await client.updateUser({
-      role: 'admin',
-    } as never)
+    const escalationResponse = await postAuthJson(
+      '/api/auth/update-user',
+      {
+        role: 'admin',
+      },
+      headers,
+    )
 
-    expect(escalationResult.error?.status).toBe(400)
-    expect(escalationResult.error?.message).toContain(
+    expect(escalationResponse.status).toBe(400)
+    expect(await escalationResponse.text()).toContain(
       'role is not allowed to be set',
     )
+    const escalationAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/update-user'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'update_user'),
+          eq(table.actorUserId, profileUser.id),
+          eq(table.resourceId, profileUser.id),
+          eq(table.decision, 'deny'),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(escalationAuditLog).toBeDefined()
   })
 
   it('changes passwords through the authenticated endpoint', async () => {
-    const { client } = createTestAuthClient()
-
-    const signUpResult = await client.signUp.email({
+    const appAuthHeaders = await createAppAuthHeaders({
       email: 'change-password@example.com',
-      password: 'password123',
       name: 'Test User',
+      password: 'password123',
     })
 
-    expect(signUpResult.error).toBeNull()
+    const changePasswordResponse = await postAuthJson(
+      '/api/auth/change-password',
+      {
+        currentPassword: 'password123',
+        newPassword: 'better-password123',
+      },
+      appAuthHeaders,
+    )
 
-    const changePasswordResult = await client.changePassword({
-      currentPassword: 'password123',
-      newPassword: 'better-password123',
-    })
-
-    expect(changePasswordResult.error).toBeNull()
-    expect(changePasswordResult.data).toMatchObject({
+    expect(changePasswordResponse.status).toBe(200)
+    expect(await changePasswordResponse.json()).toMatchObject({
       token: null,
       user: {
         email: 'change-password@example.com',
       },
+    })
+    const changePasswordUser = await db.query.user.findFirst({
+      where: eq(user.email, 'change-password@example.com'),
+    })
+    const changePasswordUserId = requireValue(
+      changePasswordUser?.id,
+      'change password user id',
+    )
+    const changePasswordAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/change-password'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'change_password'),
+          eq(table.actorUserId, changePasswordUserId),
+          eq(table.resourceId, changePasswordUserId),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(changePasswordAuditLog?.details).toMatchObject({
+      body: {
+        currentPassword: '[REDACTED]',
+        newPassword: '[REDACTED]',
+      },
+      statusCode: 200,
     })
 
     const oldPasswordResult = await createTestAuthClient().client.signIn.email({
@@ -375,6 +523,88 @@ describe('auth integration', () => {
     }).api.v0.dataset.$get({ query: {} })
 
     expect(deletedKeyResponse.status).toBe(401)
+  })
+
+  it('writes audit logs for super-admin Better Auth admin routes', async () => {
+    const superAdminHeaders = await createSessionHeaders({
+      email: 'admin-audit@example.com',
+      role: 'super_admin',
+    })
+
+    const createUserResponse = await postAuthJson(
+      '/api/auth/admin/create-user',
+      {
+        email: 'created-by-super-admin-audit@example.com',
+        name: 'Created By Super Admin Audit',
+        password: 'password123',
+      },
+      superAdminHeaders,
+    )
+
+    expect(createUserResponse.status).toBe(200)
+    const createUserAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/admin/create-user'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'admin_create_user'),
+          eq(table.decision, 'allow'),
+          eq(table.resourceId, 'created-by-super-admin-audit@example.com'),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(createUserAuditLog).toBeDefined()
+
+    const createdUser = await db.query.user.findFirst({
+      where: eq(user.email, 'created-by-super-admin-audit@example.com'),
+    })
+    const createdUserId = requireValue(createdUser?.id, 'created user id')
+    const setPasswordResponse = await postAuthJson(
+      '/api/auth/admin/set-user-password',
+      {
+        userId: createdUserId,
+        newPassword: 'new-password123',
+      },
+      superAdminHeaders,
+    )
+
+    expect(setPasswordResponse.status).toBe(200)
+    const setPasswordAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/admin/set-user-password'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'admin_set_user_password'),
+          eq(table.decision, 'allow'),
+          eq(table.resourceId, createdUserId),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(setPasswordAuditLog?.details).toMatchObject({
+      body: {
+        newPassword: '[REDACTED]',
+        userId: createdUserId,
+      },
+      statusCode: 200,
+    })
+
+    const listUsersResponse = await getAuth(
+      '/api/auth/admin/list-users',
+      superAdminHeaders,
+    )
+
+    expect(listUsersResponse.status).toBe(200)
+    const listUsersAuditLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/auth/admin/list-users'),
+          eq(table.resourceType, 'auth'),
+          eq(table.action, 'admin_list_users'),
+          eq(table.decision, 'allow'),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(listUsersAuditLog).toBeDefined()
   })
 
   it('enforces application resource authorization and admin auth endpoints', async () => {

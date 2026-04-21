@@ -1,10 +1,6 @@
-import PageAuthGuard from '~/components/page-auth-guard'
-import UserFeature from './client'
+import { redirect } from 'next/navigation'
+import { USERS_BASE_PATH } from '~/lib/paths'
 
 export default () => {
-  return (
-    <PageAuthGuard roles={['super_admin']}>
-      <UserFeature />
-    </PageAuthGuard>
-  )
+  redirect(USERS_BASE_PATH)
 }

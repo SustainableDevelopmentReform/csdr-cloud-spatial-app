@@ -1,7 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { authMiddleware } from '~/middlewares/auth'
 import { db } from '~/lib/db'
+import { ServerError } from '~/lib/error'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -9,8 +10,16 @@ import {
   validationErrorResponse,
 } from '~/lib/openapi'
 import { generateJsonResponse } from '~/lib/response'
-import { auditLog, readLog } from '~/schemas/db'
+import { auditLog } from '~/schemas/db'
 import { requireOwnedInsertContext } from '~/lib/authorization'
+import {
+  persistAccessLog,
+  shouldPersistDeniedDecisionLog,
+} from '~/lib/access-log'
+import {
+  requireAuthenticatedActor,
+  requireMfaIfNeeded,
+} from '~/lib/request-actor'
 
 const logQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
@@ -18,12 +27,20 @@ const logQuerySchema = z.object({
   resourceType: z.string().optional(),
   action: z.string().optional(),
   decision: z.enum(['allow', 'deny']).optional(),
+  requestKind: z.enum(['mutating', 'read']).optional(),
 })
 
 const logEntrySchema = z.object({
   id: z.string(),
   createdAt: z.iso.datetime(),
   actorUserId: z.string().nullable(),
+  actorUser: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string(),
+    })
+    .nullable(),
   actorRole: z.string().nullable(),
   activeOrganizationId: z.string().nullable(),
   targetOrganizationId: z.string().nullable(),
@@ -49,22 +66,155 @@ const buildAuditLogFilters = (
       : undefined,
     query.action ? eq(auditLog.action, query.action) : undefined,
     query.decision ? eq(auditLog.decision, query.decision) : undefined,
+    buildRequestKindFilter(query.requestKind),
   )
 
-const buildReadLogFilters = (
-  organizationId: string,
+const buildSuperAdminAuditLogFilters = (
   query: z.infer<typeof logQuerySchema>,
 ) =>
   and(
-    eq(readLog.targetOrganizationId, organizationId),
+    isNull(auditLog.targetOrganizationId),
     query.resourceType
-      ? eq(readLog.resourceType, query.resourceType)
+      ? eq(auditLog.resourceType, query.resourceType)
       : undefined,
-    query.action ? eq(readLog.action, query.action) : undefined,
-    query.decision ? eq(readLog.decision, query.decision) : undefined,
+    query.action ? eq(auditLog.action, query.action) : undefined,
+    query.decision ? eq(auditLog.decision, query.decision) : undefined,
+    buildRequestKindFilter(query.requestKind),
   )
 
+const buildRequestKindFilter = (
+  requestKind: z.infer<typeof logQuerySchema>['requestKind'],
+) => {
+  if (requestKind === 'mutating') {
+    return inArray(auditLog.requestMethod, ['POST', 'PUT', 'PATCH', 'DELETE'])
+  }
+
+  if (requestKind === 'read') {
+    return inArray(auditLog.requestMethod, ['GET', 'HEAD'])
+  }
+
+  return undefined
+}
+
+const requireSuperAdmin = (
+  actor: ReturnType<typeof requireAuthenticatedActor>,
+) => {
+  if (!actor.isSuperAdmin) {
+    throw new ServerError({
+      statusCode: 403,
+      message: 'User is not authorized',
+    })
+  }
+
+  requireMfaIfNeeded(actor)
+}
+
 const app = createOpenAPIApp()
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/audit/super-admin',
+      description: 'List super-admin audit logs without a target organization.',
+      request: {
+        query: logQuerySchema,
+      },
+      responses: {
+        200: {
+          description:
+            'List super-admin audit logs without a target organization.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(
+                z.object({
+                  pageCount: z.number().int(),
+                  totalCount: z.number().int(),
+                  data: z.array(logEntrySchema),
+                }),
+              ),
+            },
+          },
+        },
+        401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('User is not authorized'),
+        422: validationErrorResponse,
+      },
+    }),
+    async (c) => {
+      const requestActor = c.get('requestActor')
+
+      try {
+        const actor = requireAuthenticatedActor(requestActor)
+        requireSuperAdmin(actor)
+
+        const query = c.req.valid('query')
+        const page = query.page ?? 1
+        const size = query.size ?? 25
+        const offset = (page - 1) * size
+        const filters = buildSuperAdminAuditLogFilters(query)
+        const totalCount = await db.$count(auditLog, filters)
+        const data = await db.query.auditLog.findMany({
+          where: filters,
+          orderBy: desc(auditLog.createdAt),
+          limit: size,
+          offset,
+          with: {
+            actorUser: {
+              columns: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        })
+
+        await persistAccessLog({
+          actor,
+          action: 'read',
+          decision: 'allow',
+          request: c.req.raw,
+          resourceType: 'auditLog',
+          resourceId: null,
+          statusCode: 200,
+          targetOrganizationId: null,
+          details: {
+            scope: 'super_admin',
+          },
+        })
+
+        return generateJsonResponse(
+          c,
+          {
+            pageCount: Math.ceil(totalCount / size),
+            totalCount,
+            data,
+          },
+          200,
+        )
+      } catch (error) {
+        if (
+          error instanceof ServerError &&
+          shouldPersistDeniedDecisionLog(error.response.statusCode)
+        ) {
+          await persistAccessLog({
+            actor: requestActor,
+            action: 'read',
+            decision: 'deny',
+            request: c.req.raw,
+            resourceType: 'auditLog',
+            resourceId: null,
+            statusCode: error.response.statusCode,
+            targetOrganizationId: null,
+            details: {
+              scope: 'super_admin',
+            },
+          })
+        }
+
+        throw error
+      }
+    },
+  )
   .openapi(
     createRoute({
       method: 'get',
@@ -107,61 +257,15 @@ const app = createOpenAPIApp()
         orderBy: desc(auditLog.createdAt),
         limit: size,
         offset,
-      })
-
-      return generateJsonResponse(
-        c,
-        {
-          pageCount: Math.ceil(totalCount / size),
-          totalCount,
-          data,
-        },
-        200,
-      )
-    },
-  )
-  .openapi(
-    createRoute({
-      method: 'get',
-      path: '/read',
-      description: 'List organization-scoped read logs.',
-      middleware: [authMiddleware({ permission: 'read:readLog' })],
-      request: {
-        query: logQuerySchema,
-      },
-      responses: {
-        200: {
-          description: 'List organization-scoped read logs.',
-          content: {
-            'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  pageCount: z.number().int(),
-                  totalCount: z.number().int(),
-                  data: z.array(logEntrySchema),
-                }),
-              ),
+        with: {
+          actorUser: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
         },
-        401: jsonErrorResponse('Unauthorized'),
-        403: jsonErrorResponse('User is not authorized'),
-        422: validationErrorResponse,
-      },
-    }),
-    async (c) => {
-      const query = c.req.valid('query')
-      const { activeOrganizationId } = requireOwnedInsertContext(c)
-      const page = query.page ?? 1
-      const size = query.size ?? 25
-      const offset = (page - 1) * size
-      const filters = buildReadLogFilters(activeOrganizationId, query)
-      const totalCount = await db.$count(readLog, filters)
-      const data = await db.query.readLog.findMany({
-        where: filters,
-        orderBy: desc(readLog.createdAt),
-        limit: size,
-        offset,
       })
 
       return generateJsonResponse(

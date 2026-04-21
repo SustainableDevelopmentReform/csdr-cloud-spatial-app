@@ -4,6 +4,7 @@ import { env } from './env'
 const protectedConsolePrefixes = [
   '/console/logs',
   '/console/me',
+  '/console/super-admin',
   '/console/user',
   '/console/workspace',
 ] as const

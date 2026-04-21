@@ -35,7 +35,6 @@ export const permissionResourceTypes = [
   'productRun',
   'productOutput',
   'auditLog',
-  'readLog',
 ] as const
 
 export type PermissionResourceType = (typeof permissionResourceTypes)[number]
@@ -59,10 +58,7 @@ const creatorWritableResourceTypes = new Set<PermissionResourceType>([
   'report',
   'dashboard',
 ])
-const logResourceTypes = new Set<PermissionResourceType>([
-  'auditLog',
-  'readLog',
-])
+const logResourceTypes = new Set<PermissionResourceType>(['auditLog'])
 
 const permissionResourceByName = new Map<string, PermissionResourceType>(
   permissionResourceTypes.map((resourceType) => [resourceType, resourceType]),
@@ -449,7 +445,6 @@ export const readAccessRecord = async (
       return record ? readAccessRecord('productRun', record.productRunId) : null
     }
     case 'auditLog':
-    case 'readLog':
       return null
   }
 }

@@ -44,9 +44,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
-import { DeleteAlertDialog } from '../../../../components/form/delete-alert-dialog'
-import { USERS_BASE_PATH } from '../../../../lib/paths'
-import { useUnsavedChangesWarning } from '../../../../hooks/useUnsavedChangesWarning'
+import { DeleteAlertDialog } from '~/components/form/delete-alert-dialog'
+import { USERS_BASE_PATH } from '~/lib/paths'
+import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
 
 const formSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),

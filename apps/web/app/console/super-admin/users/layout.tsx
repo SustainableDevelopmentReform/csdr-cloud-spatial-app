@@ -1,5 +1,5 @@
 import React from 'react'
-import DetailLayout from '../../../components/detail-layout'
+import DetailLayout from '~/components/detail-layout'
 import { UserBreadcrumbs } from './_components/breadcrumbs'
 
 const UserDetailLayout: React.FC<{

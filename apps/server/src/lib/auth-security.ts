@@ -1,8 +1,6 @@
-import { eq } from 'drizzle-orm'
-import { organization, invitation } from '~/schemas/db'
+import { RateLimiterMemory } from 'rate-limiter-flexible'
 import { getRequestIp, persistAccessLog } from './access-log'
 import { db } from './db'
-import { RateLimiterMemory } from 'rate-limiter-flexible'
 import { ServerError } from './error'
 import {
   type RequestActor,
@@ -62,31 +60,69 @@ const MFA_PROTECTED_ORGANIZATION_PATHS = new Set([
 ])
 
 const AUTH_ORGANIZATION_TARGET_PATHS = new Set([
+  '/api/auth/organization/update',
+  '/api/auth/organization/delete',
   '/api/auth/organization/set-active',
   '/api/auth/organization/invite-member',
   '/api/auth/organization/remove-member',
   '/api/auth/organization/update-member-role',
+  '/api/auth/organization/leave',
+])
+
+const AUTH_INVITATION_TARGET_PATHS = new Set([
+  '/api/auth/organization/accept-invitation',
+  '/api/auth/organization/cancel-invitation',
+  '/api/auth/organization/reject-invitation',
 ])
 
 const AUTH_ADMIN_PATH_PREFIX = '/api/auth/admin/'
+const AUTH_PATH_PREFIX = '/api/auth/'
 
-const AUTH_LOG_ACTIONS = new Map<string, string>([
+const AUTH_LOG_SKIPPED_PATHS = new Set([
+  '/api/auth/open-api/generate-schema',
+  '/api/auth/scalar',
+])
+
+const AUTH_ACTION_ALIASES = new Map<string, string>([
   ['/api/auth/sign-in/email', 'sign_in'],
-  ['/api/auth/sign-out', 'sign_out'],
-  ['/api/auth/two-factor/enable', 'two_factor_enable'],
-  ['/api/auth/two-factor/disable', 'two_factor_disable'],
+  ['/api/auth/sign-up/email', 'sign_up'],
+  ['/api/auth/reset-password/:token', 'reset_password_callback'],
   ['/api/auth/two-factor/verify-totp', 'two_factor_verify'],
   ['/api/auth/two-factor/verify-otp', 'two_factor_verify'],
   ['/api/auth/two-factor/verify-backup-code', 'two_factor_verify'],
-  ['/api/auth/two-factor/send-otp', 'two_factor_send_otp'],
   ['/api/auth/two-factor/generate-backup-codes', 'backup_codes_regenerate'],
-  ['/api/auth/api-key/create', 'api_key_create'],
-  ['/api/auth/api-key/delete', 'api_key_delete'],
   ['/api/auth/organization/set-active', 'set_active_organization'],
   ['/api/auth/organization/invite-member', 'invite_member'],
   ['/api/auth/organization/accept-invitation', 'accept_invitation'],
   ['/api/auth/organization/remove-member', 'remove_member'],
   ['/api/auth/organization/update-member-role', 'update_member_role'],
+])
+
+const SELF_AUTH_LOG_ACTIONS = new Set([
+  'sign_out',
+  'update_user',
+  'update_session',
+  'change_password',
+  'change_email',
+  'delete_user',
+  'verify_password',
+  'revoke_session',
+  'revoke_sessions',
+  'revoke_other_sessions',
+  'link_social',
+  'unlink_account',
+  'two_factor_enable',
+  'two_factor_disable',
+  'two_factor_get_totp_uri',
+  'two_factor_send_otp',
+  'two_factor_verify',
+  'backup_codes_regenerate',
+  'api_key_create',
+  'api_key_get',
+  'api_key_list',
+  'api_key_update',
+  'api_key_delete',
+  'set_active_organization',
 ])
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -96,6 +132,48 @@ const getStringValue = (body: AuthRequestBody, key: string): string | null => {
   const value = body?.[key]
 
   return typeof value === 'string' ? value : null
+}
+
+const getRequestStringValue = (options: {
+  body: AuthRequestBody
+  searchParams: URLSearchParams
+  key: string
+}): string | null =>
+  getStringValue(options.body, options.key) ??
+  options.searchParams.get(options.key)
+
+const sanitizeAuthAuditPath = (path: string): string => {
+  const resetPasswordPrefix = '/api/auth/reset-password/'
+
+  if (path.startsWith(resetPasswordPrefix)) {
+    return '/api/auth/reset-password/:token'
+  }
+
+  return path
+}
+
+const deriveAuthAuditAction = (path: string): string | null => {
+  if (!path.startsWith(AUTH_PATH_PREFIX)) {
+    return null
+  }
+
+  if (AUTH_LOG_SKIPPED_PATHS.has(path)) {
+    return null
+  }
+
+  const alias = AUTH_ACTION_ALIASES.get(path)
+
+  if (alias) {
+    return alias
+  }
+
+  const normalizedAction = path
+    .slice(AUTH_PATH_PREFIX.length)
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase()
+
+  return normalizedAction || null
 }
 
 const resolveExistingOrganizationId = async (
@@ -141,12 +219,20 @@ const redactSensitiveValue = (value: unknown): unknown => {
     return Object.fromEntries(
       Object.entries(value).map(([key, nestedValue]) => {
         const normalizedKey = key.toLowerCase()
+        const compactKey = normalizedKey.replace(/[^a-z0-9]+/g, '')
         if (
           normalizedKey.includes('password') ||
           normalizedKey.includes('token') ||
           normalizedKey.includes('secret') ||
+          normalizedKey.includes('credential') ||
+          normalizedKey.includes('authorization') ||
+          compactKey.includes('apikey') ||
+          compactKey.includes('passcode') ||
+          compactKey.includes('backupcode') ||
+          compactKey.includes('recoverycode') ||
+          compactKey.includes('totp') ||
+          compactKey === 'otp' ||
           normalizedKey === 'code' ||
-          normalizedKey.includes('backupcode') ||
           normalizedKey === 'key'
         ) {
           return [key, '[REDACTED]']
@@ -164,22 +250,71 @@ const resolveAuthTargetOrganizationId = async (options: {
   actor: RequestActor | null
   body: AuthRequestBody
   path: string
+  searchParams: URLSearchParams
 }): Promise<string | null> => {
-  if (options.path === '/api/auth/organization/accept-invitation') {
+  if (AUTH_INVITATION_TARGET_PATHS.has(options.path)) {
     return resolveInvitationOrganizationId(
-      getStringValue(options.body, 'invitationId'),
+      getRequestStringValue({
+        body: options.body,
+        key: 'invitationId',
+        searchParams: options.searchParams,
+      }),
     )
   }
 
   if (AUTH_ORGANIZATION_TARGET_PATHS.has(options.path)) {
     const organizationId = await resolveExistingOrganizationId(
-      getStringValue(options.body, 'organizationId'),
+      getRequestStringValue({
+        body: options.body,
+        key: 'organizationId',
+        searchParams: options.searchParams,
+      }),
     )
 
     return organizationId ?? options.actor?.activeOrganizationId ?? null
   }
 
   return null
+}
+
+const resolveAuthAuditResourceId = (options: {
+  action: string
+  actor: RequestActor | null
+  body: AuthRequestBody
+  searchParams: URLSearchParams
+}): string | null => {
+  const explicitResourceKeys = [
+    'invitationId',
+    'memberIdOrEmail',
+    'userId',
+    'keyId',
+    'organizationId',
+    'id',
+  ]
+  const explicitResourceId =
+    explicitResourceKeys
+      .map((key) =>
+        getRequestStringValue({
+          body: options.body,
+          key,
+          searchParams: options.searchParams,
+        }),
+      )
+      .find((value) => value !== null) ?? null
+
+  if (explicitResourceId) {
+    return explicitResourceId
+  }
+
+  if (SELF_AUTH_LOG_ACTIONS.has(options.action)) {
+    return options.actor?.user.id ?? null
+  }
+
+  return getRequestStringValue({
+    body: options.body,
+    key: 'email',
+    searchParams: options.searchParams,
+  })
 }
 
 export function logAuthSecurity(
@@ -225,8 +360,9 @@ export const resolveAuthAuditLogContext = async (options: {
   body: AuthRequestBody
   request: Request
 }): Promise<AuthAuditLogContext> => {
-  const path = new URL(options.request.url).pathname
-  const action = AUTH_LOG_ACTIONS.get(path) ?? null
+  const url = new URL(options.request.url)
+  const path = sanitizeAuthAuditPath(url.pathname)
+  const action = deriveAuthAuditAction(path)
 
   if (!action) {
     return {
@@ -236,16 +372,19 @@ export const resolveAuthAuditLogContext = async (options: {
     }
   }
 
-  const invitationId = getStringValue(options.body, 'invitationId')
-  const memberIdOrEmail = getStringValue(options.body, 'memberIdOrEmail')
-
   return {
     action,
-    resourceId: invitationId ?? memberIdOrEmail,
+    resourceId: resolveAuthAuditResourceId({
+      action,
+      actor: options.actor,
+      body: options.body,
+      searchParams: url.searchParams,
+    }),
     targetOrganizationId: await resolveAuthTargetOrganizationId({
       actor: options.actor,
       body: options.body,
       path,
+      searchParams: url.searchParams,
     }),
   }
 }
@@ -274,8 +413,8 @@ export async function persistAuthAuditLog(options: {
     action: logContext.action,
     decision:
       options.statusCode >= 200 && options.statusCode < 400 ? 'allow' : 'deny',
-    destination: 'audit',
     request: options.request,
+    requestPath: sanitizeAuthAuditPath(new URL(options.request.url).pathname),
     resourceType: 'auth',
     resourceId: logContext.resourceId,
     statusCode: options.statusCode,

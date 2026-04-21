@@ -43,7 +43,7 @@ describe('app routes', () => {
       {
         status: 404,
         message:
-          "Endpoint you're looking for is not found: http://localhost/api/v0/does-not-exist",
+          "Endpoint you're looking for is not found: http://localhost/api/v0/does-not-exist. See API docs at http://localhost/api/v0/scalar or return to the web UI home at http://localhost:3000/console.",
       },
     )
     expect(missingRouteJson.data).toBeNull()

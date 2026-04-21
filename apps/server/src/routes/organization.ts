@@ -150,7 +150,7 @@ const runLoggedSuperAdminAction = async <TResponse extends Response>(options: {
   const requestActor = options.c.get('requestActor')
   const logContext: OrganizationRouteLogContext = {
     resourceId: null,
-    targetOrganizationId: requestActor?.activeOrganizationId ?? null,
+    targetOrganizationId: null,
   }
 
   try {
@@ -165,8 +165,7 @@ const runLoggedSuperAdminAction = async <TResponse extends Response>(options: {
       resourceType: options.resourceType,
       resourceId: logContext.resourceId,
       statusCode: response.status,
-      targetOrganizationId:
-        logContext.targetOrganizationId ?? actor.activeOrganizationId ?? null,
+      targetOrganizationId: logContext.targetOrganizationId,
     })
 
     return response

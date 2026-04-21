@@ -52,6 +52,8 @@ import {
   LOGS_BASE_PATH,
   PRODUCTS_BASE_PATH,
   REPORTS_BASE_PATH,
+  SUPER_ADMIN_AUDIT_LOGS_BASE_PATH,
+  SUPER_ADMIN_ORGANIZATIONS_BASE_PATH,
   USERS_BASE_PATH,
   WORKSPACE_BASE_PATH,
 } from '~/lib/paths'
@@ -414,15 +416,6 @@ export const ConsoleShell = ({
           label: 'Organization Settings',
         })
 
-        if (isSuperAdmin) {
-          adminItems.push({
-            kind: 'link',
-            href: USERS_BASE_PATH,
-            icon: UsersIcon,
-            label: 'Users',
-          })
-        }
-
         if (canViewLogs) {
           adminItems.push({
             kind: 'link',
@@ -435,6 +428,32 @@ export const ConsoleShell = ({
         groups.push({
           label: 'Admin',
           items: adminItems,
+        })
+      }
+
+      if (isSuperAdmin) {
+        groups.push({
+          label: 'Super admin',
+          items: [
+            {
+              kind: 'link',
+              href: SUPER_ADMIN_ORGANIZATIONS_BASE_PATH,
+              icon: Building2Icon,
+              label: 'Organizations',
+            },
+            {
+              kind: 'link',
+              href: USERS_BASE_PATH,
+              icon: UsersIcon,
+              label: 'Users',
+            },
+            {
+              kind: 'link',
+              href: SUPER_ADMIN_AUDIT_LOGS_BASE_PATH,
+              icon: ClipboardListIcon,
+              label: 'Audit Logs',
+            },
+          ],
         })
       }
 

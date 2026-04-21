@@ -644,45 +644,6 @@ export const auditLog = pgTable(
   ],
 )
 
-export const readLog = pgTable(
-  'read_log',
-  {
-    id: text('id').primaryKey(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    actorUserId: text('actor_user_id').references(() => user.id, {
-      onDelete: 'set null',
-    }),
-    actorRole: text('actor_role'),
-    activeOrganizationId: text('active_organization_id').references(
-      () => organization.id,
-      {
-        onDelete: 'set null',
-      },
-    ),
-    targetOrganizationId: text('target_organization_id').references(
-      () => organization.id,
-      {
-        onDelete: 'set null',
-      },
-    ),
-    resourceType: text('resource_type').notNull(),
-    resourceId: text('resource_id'),
-    action: text('action').notNull(),
-    decision: text('decision').notNull(),
-    requestPath: text('request_path').notNull(),
-    requestMethod: text('request_method').notNull(),
-    ipAddress: text('ip_address'),
-    userAgent: text('user_agent'),
-    details: jsonb('details'),
-  },
-  (table) => [
-    index('read_log_created_at_idx').on(table.createdAt),
-    index('read_log_target_organization_id_idx').on(table.targetOrganizationId),
-    index('read_log_actor_user_id_idx').on(table.actorUserId),
-    index('read_log_resource_idx').on(table.resourceType, table.resourceId),
-  ],
-)
-
 export const reportIndicatorUsage = pgTable(
   'report_indicator_usage',
   {
@@ -760,6 +721,13 @@ export const dashboardIndicatorUsage = pgTable(
 )
 
 // Relations
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+  actorUser: one(user, {
+    fields: [auditLog.actorUserId],
+    references: [user.id],
+  }),
+}))
+
 export const datasetRelations = relations(dataset, ({ many, one }) => ({
   runs: many(datasetRun),
   mainRun: one(datasetRun, {
