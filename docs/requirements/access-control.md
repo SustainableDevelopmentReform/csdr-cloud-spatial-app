@@ -62,7 +62,7 @@ This is designed for implementation using the existing `better-auth` organizatio
 Each top-level ACL resource must include:
 
 - `organizationId` (required)
-- `createdByUserId` (required)
+- `createdByUserId` (required on creation; nullable after user deletion)
 - `visibility` (enum: `private`, `public`, `global`)
 
 ### Child resources (inherited access; no independent ACL)
@@ -269,6 +269,10 @@ Rules:
 ## Ownership and Removal Rules
 
 - Resource ownership is tracked via `createdByUserId`.
+- If a user account is deleted:
+  - Existing resources remain in the organization.
+  - Creator/publisher attribution is set to null.
+  - Resources with null attribution are manageable by org admins and super admins only.
 - If a user is removed from an organization:
   - Access is revoked immediately.
   - Their existing resources remain in the organization.
@@ -390,7 +394,7 @@ For resources created before org ACL fields exist, migration must:
 ## MVP Acceptance Criteria
 
 1. New signup creates a personal org workspace with email verification and assigns the creator as `org_creator`.
-2. All top-level ACL resources require `organizationId`, `createdByUserId`, and valid visibility (`private`/`public`/`global`).
+2. All top-level ACL resources require `organizationId`, a creator at creation time, and valid visibility (`private`/`public`/`global`); creator attribution may become null after user deletion.
 3. `org_viewer` cannot create, edit, or delete any resources.
 4. `org_creator` can create `dashboard` and `report`, and can edit/delete only their own dashboards and reports.
 5. `org_creator` cannot change visibility of any resource.

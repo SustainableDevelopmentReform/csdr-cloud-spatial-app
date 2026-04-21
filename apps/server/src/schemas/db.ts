@@ -41,11 +41,9 @@ const topLevelAclColumns = {
     .references(() => organization.id, {
       onDelete: 'restrict',
     }),
-  createdByUserId: text('created_by_user_id')
-    .notNull()
-    .references(() => user.id, {
-      onDelete: 'restrict',
-    }),
+  createdByUserId: text('created_by_user_id').references(() => user.id, {
+    onDelete: 'set null',
+  }),
   visibility: resourceVisibilityEnum('visibility').default('private').notNull(),
 }
 
@@ -568,7 +566,7 @@ export const report = pgTable(
     content: jsonb('content'),
     publishedAt: timestamp('published_at'),
     publishedByUserId: text('published_by_user_id').references(() => user.id, {
-      onDelete: 'restrict',
+      onDelete: 'set null',
     }),
     publishedPdfKey: text('published_pdf_key'),
   },

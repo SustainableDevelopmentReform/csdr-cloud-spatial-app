@@ -46,7 +46,7 @@ type AppContext = Context<{ Variables: AuthType }>
 
 type AccessRecord = {
   organizationId: string
-  createdByUserId: string
+  createdByUserId: string | null
   visibility: AppVisibility
 }
 
@@ -237,7 +237,10 @@ export const assertCanWriteResource = (options: {
     options.actor.organizationRole === 'org_creator' &&
     creatorWritableResourceTypes.has(options.resource)
   ) {
-    if (options.ownerUserId && options.ownerUserId !== options.actor.user.id) {
+    if (
+      options.ownerUserId !== undefined &&
+      options.ownerUserId !== options.actor.user.id
+    ) {
       throw unauthorizedError(
         'Org creators can only manage dashboards and reports they created.',
       )

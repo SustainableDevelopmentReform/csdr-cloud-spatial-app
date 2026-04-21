@@ -239,6 +239,13 @@
       "when": 1775650112568,
       "tag": "0033_fancy_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1776766842186,
+      "tag": "0034_hesitant_baron_strucker",
+      "breakpoints": true
     }
   ]
 }
