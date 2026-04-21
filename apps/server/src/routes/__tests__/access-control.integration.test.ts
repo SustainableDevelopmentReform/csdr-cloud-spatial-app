@@ -4,9 +4,17 @@ import { eq, isNull } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   auditLog,
+  dashboard,
   product,
+  productRun,
   productOutputSummary,
   dataset,
+  datasetRun,
+  derivedIndicator,
+  geometries,
+  geometriesRun,
+  indicator,
+  indicatorCategory,
   report,
   reportIndicatorUsage,
   invitation,
@@ -244,6 +252,230 @@ describe('access control integration', () => {
           entry.targetOrganizationId === null,
       ),
     ).toBe(true)
+  })
+
+  it('keeps domain resources and nulls user attribution when an account is hard-deleted', async () => {
+    const ownerEmail = 'deleted-resource-owner@example.com'
+    await createSessionHeaders({
+      email: ownerEmail,
+      organizationRole: 'org_creator',
+    })
+
+    const deletedOwner = await db.query.user.findFirst({
+      where: eq(user.email, ownerEmail),
+    })
+    const deletedOwnerId = requireValue(
+      deletedOwner?.id,
+      'deleted owner user id',
+    )
+    const now = new Date('2025-04-01T00:00:00.000Z')
+
+    await db
+      .update(dataset)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(dataset.id, seededIds.dataset))
+    await db
+      .update(geometries)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(geometries.id, seededIds.geometries))
+    await db
+      .update(product)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(product.id, seededIds.product))
+    await db
+      .update(indicatorCategory)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(indicatorCategory.id, seededIds.indicatorCategory))
+    await db
+      .update(indicator)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(indicator.id, seededIds.indicator))
+    await db
+      .update(derivedIndicator)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(derivedIndicator.id, seededIds.derivedIndicator))
+    await db
+      .update(report)
+      .set({
+        createdByUserId: deletedOwnerId,
+        publishedAt: now,
+        publishedByUserId: deletedOwnerId,
+        publishedPdfKey: 'reports/deleted-owner.pdf',
+      })
+      .where(eq(report.id, seededIds.report))
+    await db
+      .update(dashboard)
+      .set({ createdByUserId: deletedOwnerId })
+      .where(eq(dashboard.id, seededIds.dashboard))
+
+    await db.insert(report).values({
+      id: 'orphan-draft-report',
+      name: 'Orphan Draft Report',
+      description: null,
+      content: null,
+      metadata: null,
+      createdAt: now,
+      updatedAt: now,
+      organizationId: seededIds.organization,
+      createdByUserId: deletedOwnerId,
+      visibility: 'private',
+    })
+
+    await db.insert(auditLog).values({
+      id: 'deleted-owner-audit-log',
+      createdAt: now,
+      actorUserId: deletedOwnerId,
+      actorRole: 'user',
+      activeOrganizationId: seededIds.organization,
+      targetOrganizationId: seededIds.organization,
+      resourceType: 'dataset',
+      resourceId: seededIds.dataset,
+      action: 'write',
+      decision: 'allow',
+      requestPath: '/test/deleted-owner/audit',
+      requestMethod: 'POST',
+      ipAddress: null,
+      userAgent: null,
+      details: null,
+    })
+    await db.insert(auditLog).values({
+      id: 'deleted-owner-read-log',
+      createdAt: now,
+      actorUserId: deletedOwnerId,
+      actorRole: 'user',
+      activeOrganizationId: seededIds.organization,
+      targetOrganizationId: seededIds.organization,
+      resourceType: 'dataset',
+      resourceId: seededIds.dataset,
+      action: 'read',
+      decision: 'allow',
+      requestPath: '/test/deleted-owner/read',
+      requestMethod: 'GET',
+      ipAddress: null,
+      userAgent: null,
+      details: null,
+    })
+
+    const adminAuthClient = createTestAuthClient(superAdminHeaders)
+    const deleteResult = await adminAuthClient.client.admin.removeUser({
+      userId: deletedOwnerId,
+    })
+
+    expect(deleteResult.error).toBeNull()
+
+    const retainedDataset = await db.query.dataset.findFirst({
+      where: eq(dataset.id, seededIds.dataset),
+    })
+    const retainedGeometries = await db.query.geometries.findFirst({
+      where: eq(geometries.id, seededIds.geometries),
+    })
+    const retainedProduct = await db.query.product.findFirst({
+      where: eq(product.id, seededIds.product),
+    })
+    const retainedIndicatorCategory =
+      await db.query.indicatorCategory.findFirst({
+        where: eq(indicatorCategory.id, seededIds.indicatorCategory),
+      })
+    const retainedIndicator = await db.query.indicator.findFirst({
+      where: eq(indicator.id, seededIds.indicator),
+    })
+    const retainedDerivedIndicator = await db.query.derivedIndicator.findFirst({
+      where: eq(derivedIndicator.id, seededIds.derivedIndicator),
+    })
+    const retainedReport = await db.query.report.findFirst({
+      where: eq(report.id, seededIds.report),
+    })
+    const retainedDraftReport = await db.query.report.findFirst({
+      where: eq(report.id, 'orphan-draft-report'),
+    })
+    const retainedDashboard = await db.query.dashboard.findFirst({
+      where: eq(dashboard.id, seededIds.dashboard),
+    })
+    const retainedAuditLog = await db.query.auditLog.findFirst({
+      where: eq(auditLog.id, 'deleted-owner-audit-log'),
+    })
+    const retainedReadLog = await db.query.auditLog.findFirst({
+      where: eq(auditLog.id, 'deleted-owner-read-log'),
+    })
+
+    expect(retainedDataset?.createdByUserId).toBeNull()
+    expect(retainedGeometries?.createdByUserId).toBeNull()
+    expect(retainedProduct?.createdByUserId).toBeNull()
+    expect(retainedIndicatorCategory?.createdByUserId).toBeNull()
+    expect(retainedIndicator?.createdByUserId).toBeNull()
+    expect(retainedDerivedIndicator?.createdByUserId).toBeNull()
+    expect(retainedReport?.createdByUserId).toBeNull()
+    expect(retainedReport?.publishedByUserId).toBeNull()
+    expect(retainedDraftReport?.createdByUserId).toBeNull()
+    expect(retainedDashboard?.createdByUserId).toBeNull()
+    expect(retainedAuditLog?.actorUserId).toBeNull()
+    expect(retainedReadLog?.actorUserId).toBeNull()
+
+    await expect(
+      db.query.datasetRun.findFirst({
+        where: eq(datasetRun.id, seededIds.datasetRun),
+      }),
+    ).resolves.toBeDefined()
+    await expect(
+      db.query.geometriesRun.findFirst({
+        where: eq(geometriesRun.id, seededIds.geometriesRun),
+      }),
+    ).resolves.toBeDefined()
+    await expect(
+      db.query.productRun.findFirst({
+        where: eq(productRun.id, seededIds.productRun),
+      }),
+    ).resolves.toBeDefined()
+
+    await expectJsonResponse(
+      await createAppClient(creatorHeaders).api.v0.report[':id'].$patch({
+        param: { id: 'orphan-draft-report' },
+        json: {
+          name: 'Blocked Orphan Report Update',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+    await expectJsonResponse(
+      await createAppClient(creatorHeaders).api.v0.dashboard[':id'].$patch({
+        param: { id: seededIds.dashboard },
+        json: {
+          name: 'Blocked Orphan Dashboard Update',
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.report[':id'].$patch({
+        param: { id: 'orphan-draft-report' },
+        json: {
+          name: 'Admin Orphan Report Update',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Report updated',
+      },
+    )
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.dashboard[':id'].$patch({
+        param: { id: seededIds.dashboard },
+        json: {
+          name: 'Admin Orphan Dashboard Update',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dashboard updated',
+      },
+    )
   })
 
   it('lets super admins list all organizations and activate an organization they do not already belong to', async () => {

@@ -140,7 +140,11 @@ const IndicatorDetails = () => {
               <FormItem>
                 <FormLabel>Units</FormLabel>
                 <FormControl>
-                  <Input {...field} disabled={!canEdit} />
+                  <Input
+                    {...field}
+                    disabled={!canEdit}
+                    value={field.value ?? ''}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -104,7 +104,12 @@ export const ExpressionField = ({
             indicators={indicators}
           />
           <FormControl>
-            <Textarea {...field} className="font-mono" disabled={disabled} />
+            <Textarea
+              {...field}
+              className="font-mono"
+              disabled={disabled}
+              value={field.value ?? ''}
+            />
           </FormControl>
           <FormMessage />
           {error ? (

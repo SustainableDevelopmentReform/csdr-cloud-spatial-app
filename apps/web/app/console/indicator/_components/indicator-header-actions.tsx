@@ -61,7 +61,7 @@ export const IndicatorHeaderActions = ({
             <FormItem>
               <FormLabel>Unit</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -99,7 +99,7 @@ export const IndicatorHeaderActions = ({
             <FormItem>
               <FormLabel>Unit</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>

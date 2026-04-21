@@ -4,8 +4,6 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import pg from 'pg'
 import { describe, expect, it } from 'vitest'
-import { collectAccessControlMigrationReport } from '../../scripts/access-control-migration-report'
-import { buildMigrationReportPayload } from '../../scripts/migrate'
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../drizzle/', import.meta.url))
 const ACCESS_CONTROL_MIGRATION_PREFIX = '0029_'
@@ -101,27 +99,6 @@ describe('database migrations', () => {
     await withSchema('fresh', async (client, schemaName) => {
       await applyMigrationFiles(client, schemaName, await listMigrationFiles())
 
-      expect(
-        await collectAccessControlMigrationReport({
-          client,
-          schemaName,
-        }),
-      ).toEqual({
-        resourceUpdateCounts: {
-          dashboard: 0,
-          dataset: 0,
-          derivedIndicator: 0,
-          geometries: 0,
-          indicator: 0,
-          indicatorCategory: 0,
-          product: 0,
-          report: 0,
-        },
-        bootstrapOrganizationAssignmentCount: 0,
-        bootstrapUserAssignmentCount: 0,
-        noOp: true,
-      })
-
       const organizationResult = await client.query<{ count: string }>(
         `SELECT COUNT(*)::text AS "count" FROM ${quoteIdentifier(schemaName)}."organization"`,
       )
@@ -145,27 +122,6 @@ describe('database migrations', () => {
       await client.query(
         `INSERT INTO ${quoteIdentifier(schemaName)}."dataset" ("id", "name") VALUES ('legacy-dataset', 'Legacy Dataset')`,
       )
-
-      expect(
-        await collectAccessControlMigrationReport({
-          client,
-          schemaName,
-        }),
-      ).toEqual({
-        resourceUpdateCounts: {
-          dashboard: 0,
-          dataset: 1,
-          derivedIndicator: 0,
-          geometries: 0,
-          indicator: 0,
-          indicatorCategory: 0,
-          product: 0,
-          report: 0,
-        },
-        bootstrapOrganizationAssignmentCount: 1,
-        bootstrapUserAssignmentCount: 1,
-        noOp: false,
-      })
 
       await applyMigrationFiles(client, schemaName, accessControlMigrations)
 
@@ -214,27 +170,6 @@ describe('database migrations', () => {
           role: 'org_admin',
         },
       ])
-
-      expect(
-        await collectAccessControlMigrationReport({
-          client,
-          schemaName,
-        }),
-      ).toEqual({
-        resourceUpdateCounts: {
-          dashboard: 0,
-          dataset: 0,
-          derivedIndicator: 0,
-          geometries: 0,
-          indicator: 0,
-          indicatorCategory: 0,
-          product: 0,
-          report: 0,
-        },
-        bootstrapOrganizationAssignmentCount: 0,
-        bootstrapUserAssignmentCount: 0,
-        noOp: true,
-      })
     })
   })
 
@@ -300,27 +235,6 @@ describe('database migrations', () => {
         `INSERT INTO ${quoteIdentifier(schemaName)}."dataset" ("id", "name") VALUES ('legacy-fallback-dataset', 'Legacy Fallback Dataset')`,
       )
 
-      expect(
-        await collectAccessControlMigrationReport({
-          client,
-          schemaName,
-        }),
-      ).toEqual({
-        resourceUpdateCounts: {
-          dashboard: 0,
-          dataset: 1,
-          derivedIndicator: 0,
-          geometries: 0,
-          indicator: 0,
-          indicatorCategory: 0,
-          product: 0,
-          report: 0,
-        },
-        bootstrapOrganizationAssignmentCount: 1,
-        bootstrapUserAssignmentCount: 1,
-        noOp: false,
-      })
-
       await applyMigrationFiles(client, schemaName, accessControlMigrations)
 
       const organizationResult = await client.query<{
@@ -352,38 +266,6 @@ describe('database migrations', () => {
           createdByUserId: 'fallback-user',
         },
       ])
-    })
-  })
-
-  it('builds a structured JSON migration report payload', async () => {
-    await withSchema('script-report', async (client, schemaName) => {
-      await applyMigrationFiles(client, schemaName, await listMigrationFiles())
-
-      const report = await collectAccessControlMigrationReport({
-        client,
-        schemaName,
-      })
-
-      expect(report).toEqual({
-        resourceUpdateCounts: {
-          dashboard: 0,
-          dataset: 0,
-          derivedIndicator: 0,
-          geometries: 0,
-          indicator: 0,
-          indicatorCategory: 0,
-          product: 0,
-          report: 0,
-        },
-        bootstrapOrganizationAssignmentCount: 0,
-        bootstrapUserAssignmentCount: 0,
-        noOp: true,
-      })
-
-      expect(buildMigrationReportPayload(report)).toEqual({
-        event: 'database_migrations_completed',
-        report,
-      })
     })
   })
 })

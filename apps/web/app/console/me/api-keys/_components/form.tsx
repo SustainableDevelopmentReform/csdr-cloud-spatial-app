@@ -149,7 +149,7 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
                       <FormItem>
                         <FormLabel>Full name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -162,7 +162,11 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
                       <FormItem>
                         <FormLabel>Expires in (hours)</FormLabel>
                         <FormControl>
-                          <Input {...field} type="number" />
+                          <Input
+                            {...field}
+                            type="number"
+                            value={field.value ?? ''}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

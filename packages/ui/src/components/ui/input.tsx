@@ -3,6 +3,8 @@ import * as React from 'react'
 import { cn } from '@repo/ui/lib/utils'
 
 function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+  const valueProps = 'value' in props ? { value: props.value ?? '' } : {}
+
   return (
     <input
       type={type}
@@ -14,6 +16,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         className,
       )}
       {...props}
+      {...valueProps}
     />
   )
 }

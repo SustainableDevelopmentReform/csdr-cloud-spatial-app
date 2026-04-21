@@ -110,7 +110,7 @@ const GeometryOutputFeature = () => {
                         value={
                           typeof field.value === 'object'
                             ? JSON.stringify(field.value, null, 2)
-                            : field.value
+                            : (field.value ?? '')
                         }
                         onChange={(e) => {
                           try {

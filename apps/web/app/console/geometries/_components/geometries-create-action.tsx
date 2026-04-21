@@ -43,7 +43,7 @@ export const GeometriesCreateAction = () => {
           <FormItem>
             <FormLabel>Source URL</FormLabel>
             <FormControl>
-              <Input {...field} />
+              <Input {...field} value={field.value ?? ''} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -56,7 +56,7 @@ export const GeometriesCreateAction = () => {
           <FormItem>
             <FormLabel>Source Metadata URL</FormLabel>
             <FormControl>
-              <Input {...field} />
+              <Input {...field} value={field.value ?? ''} />
             </FormControl>
             <FormMessage />
           </FormItem>

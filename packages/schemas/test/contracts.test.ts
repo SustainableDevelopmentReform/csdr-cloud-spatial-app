@@ -335,27 +335,28 @@ describe('chartConfigurationSchema', () => {
 
 describe('crud schemas', () => {
   it('accepts usage counts on full detail schemas', () => {
-    expect(
-      fullMeasuredIndicatorSchema.parse({
-        id: 'indicator-1',
-        name: 'Forest cover',
-        description: null,
-        metadata: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-        organizationId: 'org-1',
-        createdByUserId: 'user-1',
-        visibility: 'private',
-        unit: '%',
-        category: null,
-        displayOrder: null,
-        categoryId: null,
-        type: 'measured',
-        productCount: 1,
-        reportCount: 2,
-        dashboardCount: 3,
-      }).reportCount,
-    ).toBe(2)
+    const measuredIndicator = fullMeasuredIndicatorSchema.parse({
+      id: 'indicator-1',
+      name: 'Forest cover',
+      description: null,
+      metadata: null,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      organizationId: 'org-1',
+      createdByUserId: null,
+      visibility: 'private',
+      unit: '%',
+      category: null,
+      displayOrder: null,
+      categoryId: null,
+      type: 'measured',
+      productCount: 1,
+      reportCount: 2,
+      dashboardCount: 3,
+    })
+
+    expect(measuredIndicator.createdByUserId).toBeNull()
+    expect(measuredIndicator.reportCount).toBe(2)
 
     expect(
       fullProductSchema.parse({

@@ -31,7 +31,7 @@ export const visibilitySchema = z.enum(['private', 'public', 'global'])
 
 export const baseAclResourceSchema = baseResourceSchema.extend({
   organizationId: z.string(),
-  createdByUserId: z.string(),
+  createdByUserId: z.string().nullable(),
   visibility: visibilitySchema,
 })
 

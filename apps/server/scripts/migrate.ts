@@ -4,12 +4,6 @@ import { fileURLToPath } from 'node:url'
 import type pg from 'pg'
 import * as schema from '~/schemas/db'
 import { env } from '../src/env'
-import {
-  type AccessControlMigrationReport,
-  collectAccessControlMigrationReport,
-} from './access-control-migration-report'
-
-type MigrationLogger = Pick<Console, 'info'>
 
 const buildClientConfig = (): pg.ClientConfig => ({
   connectionString: env.DATABASE_URL,
@@ -26,14 +20,11 @@ const buildClientConfig = (): pg.ClientConfig => ({
 
 export const runMigrations = async (options?: {
   clientConfig?: pg.ClientConfig
-  databaseSchema?: string
-  logger?: MigrationLogger
-}): Promise<AccessControlMigrationReport> => {
+}): Promise<void> => {
   const clientModule = await import('pg')
   const client = new clientModule.default.Client(
     options?.clientConfig ?? buildClientConfig(),
   )
-  const logger = options?.logger ?? console
 
   await client.connect()
 
@@ -47,31 +38,13 @@ export const runMigrations = async (options?: {
       [env.ACCESS_CONTROL_BOOTSTRAP_USER_ID],
     )
 
-    const report = await collectAccessControlMigrationReport({
-      client,
-      schemaName: options?.databaseSchema ?? env.DATABASE_SCHEMA,
-    })
     const db = drizzle(client, { schema })
 
     await migrate(db, { migrationsFolder: './drizzle' })
-
-    logger.info(JSON.stringify(buildMigrationReportPayload(report)))
-
-    return report
   } finally {
     await client.end()
   }
 }
-
-export const buildMigrationReportPayload = (
-  report: AccessControlMigrationReport,
-): {
-  event: 'database_migrations_completed'
-  report: AccessControlMigrationReport
-} => ({
-  event: 'database_migrations_completed',
-  report,
-})
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   void runMigrations()
