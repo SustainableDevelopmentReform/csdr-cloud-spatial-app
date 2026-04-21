@@ -14,7 +14,6 @@ import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import loadEpsg from '@developmentseed/epsg/all'
 // @ts-expect-error — webpack asset/resource import
 import epsgCsvUrl from '@developmentseed/epsg/all.csv.gz'
-import type { ProjectionDefinition } from '@developmentseed/proj'
 import { parseWkt } from '@developmentseed/proj'
 import { DatasetRunListItem } from '../_hooks'
 
@@ -22,29 +21,141 @@ const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
 
 type colorArray = [number, number, number, number]
-const outlineColor: colorArray = [30, 119, 179, 255]
+const datasetColor: colorArray = [30, 119, 179, 255]
 
-// TODO: Fix this to make rasters blue, and not blocky.
-// TODO: Make this visualise ACE classes.
-// This makes data blue, but blocky.
-// const DataColorize: RasterModule = {
-//   module: {
-//     name: 'dataColorize',
-//     inject: {
-//       'fs:DECKGL_FILTER_COLOR': `
-//         float val = color.r;
-//         bool isValid = val > 0.001 && val < 0.99;
-//         color = vec4(${outlineColorGLSL[0]}, ${outlineColorGLSL[1]}, ${outlineColorGLSL[2]}, isValid ? 0.85 : 0.0);
-//       `,
-//     },
-//   },
-// }
+// Human-readable labels and RGB colors (0-255) for the legend
+const valueLegend: Record<
+  number,
+  { label: string; color: [number, number, number] }
+> = {
+  1: {
+    label: 'Present',
+    color: [datasetColor[0], datasetColor[1], datasetColor[2]],
+  },
+  2: { label: 'Intertidal', color: [148, 65, 14] },
+  3: { label: 'Mangrove', color: [41, 223, 58] },
+  4: { label: 'Saltmarsh', color: [219, 228, 54] },
+  5: { label: 'Seagrass', color: [14, 131, 78] },
+}
 
-async function epsgResolver(epsg: number): Promise<ProjectionDefinition> {
+// ACE classification: 2=intertidal, 3=mangrove, 4=saltmarsh, 5=seagrass
+// Colors sourced from DEA Australia (RGB 0-1 for GLSL).
+// Value 1 is used by other datasets (gmw, seagrass, dep-mangrove) → datasetColor.
+// All other values (including 0, 255/nodata) → transparent.
+const valueColors: Record<number, [number, number, number]> =
+  Object.fromEntries(
+    Object.entries(valueLegend).map(([k, v]) => [
+      k,
+      v.color.map((c) => c / 255) as [number, number, number],
+    ]),
+  )
+
+// Which legend entries to show per selected asset
+const assetLegendKeys: Record<string, number[]> = {
+  classification: [2, 3, 4, 5],
+  seagrass: [1],
+  mangrove: [1],
+  gmw_v3_and_v4: [1],
+  'dep-mangrove': [1, 2],
+}
+
+// Build GLSL colormap: byte values are normalized to [0,1] in r8unorm textures
+function buildColormap(validValues: number[] | null): string {
+  const lines: string[] = ['float byteVal = floor(color.r * 255.0 + 0.5);']
+
+  if (validValues === null) {
+    // Fallback: any non-zero, non-255 → datasetColor
+    const fb = [
+      datasetColor[0] / 255,
+      datasetColor[1] / 255,
+      datasetColor[2] / 255,
+    ] as const
+    lines.push('if (byteVal > 0.0 && byteVal < 255.0) {')
+    lines.push(
+      `  color = vec4(${fb[0].toFixed(4)}, ${fb[1].toFixed(4)}, ${fb[2].toFixed(4)}, 0.85);`,
+    )
+    lines.push('} else {')
+    lines.push('  color = vec4(0.0, 0.0, 0.0, 0.0);')
+    lines.push('}')
+  } else {
+    let first = true
+    for (const val of validValues) {
+      const c = valueColors[val]
+      if (!c) continue
+      const kw = first ? 'if' : '} else if'
+      lines.push(`${kw} (byteVal == ${val}.0) {`)
+      lines.push(
+        `  color = vec4(${c[0].toFixed(4)}, ${c[1].toFixed(4)}, ${c[2].toFixed(4)}, 0.85);`,
+      )
+      first = false
+    }
+    lines.push('} else {')
+    lines.push('  color = vec4(0.0, 0.0, 0.0, 0.0);')
+    lines.push('}')
+  }
+
+  return lines.join('\n')
+}
+
+// Pre-build a colormap module per asset, plus a catch-all fallback
+const colormapModules: Record<
+  string,
+  { module: { name: string; inject: Record<string, string> } }
+> = {}
+for (const [asset, keys] of Object.entries(assetLegendKeys)) {
+  colormapModules[asset] = {
+    module: {
+      name: `colormap-${asset}`,
+      inject: { 'fs:DECKGL_FILTER_COLOR': buildColormap(keys) },
+    },
+  }
+}
+const fallbackColormapModule = {
+  module: {
+    name: 'colormap-fallback',
+    inject: { 'fs:DECKGL_FILTER_COLOR': buildColormap(null) },
+  },
+}
+
+/**
+ * Subclass COGLayer to append a colormap to the default render pipeline.
+ * Pass `colormapAsset` prop to select the correct per-asset colormap.
+ */
+class ColorMappedCOGLayer extends COGLayer {
+  static layerName = 'ColorMappedCOGLayer'
+
+  async _parseGeoTIFF() {
+    // The webpack alias for @developmentseed/proj (see next.config.mjs) wraps
+    // parseWkt to handle COGs with unknown CRS units (e.g. GMW v3), so we can
+    // call super directly.
+    await super._parseGeoTIFF()
+
+    // Inject colormap shader module into the render pipeline
+    const originalRenderTile = this.state.defaultRenderTile
+    if (originalRenderTile) {
+      const asset = (this.props as any).colormapAsset as string | undefined
+      const colormapMod =
+        (asset && colormapModules[asset]) ?? fallbackColormapModule
+      this.setState({
+        defaultRenderTile: (data: any) => {
+          const result = originalRenderTile(data)
+          if (result.renderPipeline) {
+            result.renderPipeline.push(colormapMod)
+          }
+          return result
+        },
+      })
+    }
+  }
+}
+
+async function epsgResolver(
+  epsg: number,
+): Promise<ReturnType<typeof parseWkt>> {
   const db = await loadEpsg(epsgCsvUrl)
   const wkt = db.get(epsg)
   if (!wkt) throw new Error(`EPSG code ${epsg} not found`)
-  return parseWkt(wkt) as ProjectionDefinition
+  return parseWkt(wkt)
 }
 
 function bboxToFeatures(source: {
@@ -338,7 +449,7 @@ export const DatasetRunMap = ({
         },
         stroked: true,
         filled: false,
-        getLineColor: outlineColor,
+        getLineColor: datasetColor,
         getLineWidth: 1,
         lineWidthMinPixels: 1,
       }),
@@ -348,11 +459,12 @@ export const DatasetRunMap = ({
       if (mosaicSources.length === 1 && mosaicSources[0]) {
         // Single COG — render directly without MosaicLayer for better tile loading
         layerList.push(
-          new COGLayer({
+          new ColorMappedCOGLayer({
             id: `cog-single`,
             geotiff: proxyCogUrl(mosaicSources[0].url),
             epsgResolver,
-          }),
+            colormapAsset: selectedAsset,
+          } as any),
         )
       } else {
         layerList.push(
@@ -361,19 +473,20 @@ export const DatasetRunMap = ({
             sources: mosaicSources,
             minZoom: cogMinZoom,
             renderSource: (source, { signal }) =>
-              new COGLayer({
+              new ColorMappedCOGLayer({
                 id: `cog-${source.url}`,
                 geotiff: proxyCogUrl(source.url),
                 epsgResolver,
                 signal,
-              }),
+                colormapAsset: selectedAsset,
+              } as any),
           }),
         )
       }
     }
 
     return layerList
-  }, [dataType, zoom, mosaicSources, cogMinZoom])
+  }, [dataType, zoom, mosaicSources, cogMinZoom, selectedAsset])
 
   // Render
 
@@ -434,7 +547,7 @@ export const DatasetRunMap = ({
                   source="pmtiles-source"
                   source-layer={pmtilesHeader.sourceLayer} // "data" for ACE Reef Extent, "building_footprints" for VIDA Buildings.
                   paint={{
-                    'fill-color': `rgb(${outlineColor[0]}, ${outlineColor[1]}, ${outlineColor[2]})`,
+                    'fill-color': `rgb(${datasetColor[0]}, ${datasetColor[1]}, ${datasetColor[2]})`,
                     'fill-opacity': 0.8,
                     'fill-antialias': false, // Need this to prevent seams between tiles
                   }}
@@ -465,6 +578,39 @@ export const DatasetRunMap = ({
               No COG URLs found — check console for available columns.
             </div>
           )}
+        {!isLoading && selectedAsset && (
+          <div className="absolute bottom-2 left-2 bg-white/90 px-3 py-2 rounded shadow text-xs space-y-1">
+            {(assetLegendKeys[selectedAsset]
+              ? assetLegendKeys[selectedAsset]
+                  .map((key) => {
+                    const entry = valueLegend[key]!
+                    // For value 1 ("Present"), use the asset name instead
+                    return key === 1
+                      ? { ...entry, label: selectedAsset }
+                      : entry
+                  })
+                  .filter(Boolean)
+              : [
+                  {
+                    label: selectedAsset,
+                    color: [
+                      datasetColor[0],
+                      datasetColor[1],
+                      datasetColor[2],
+                    ] as [number, number, number],
+                  },
+                ]
+            ).map((entry) => (
+              <div key={entry.label} className="flex items-center gap-2">
+                <span
+                  className="inline-block w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: `rgb(${entry.color.join(',')})` }}
+                />
+                <span>{entry.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div>
         {assets && assets.length > 0 && (

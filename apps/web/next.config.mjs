@@ -25,6 +25,7 @@ const nextConfig = {
       test: /\/@developmentseed\/epsg\/dist\/all\.csv\.gz$/,
       type: 'asset/resource',
     })
+
     return config
   },
   devIndicators: {

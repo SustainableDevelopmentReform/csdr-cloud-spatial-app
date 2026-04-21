@@ -89,42 +89,36 @@ const DatasetRunDetails = () => {
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
   // const testDatasetType = 'stac-geoparquet'
-  // WORKS.
 
   // // 2/7: GMW v3:
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/gmw-v3/0-0-1/gmw.parquet'
   // const testDatasetType = 'stac-geoparquet'
-  // WORKS.
+  // Doesn't work. Missing CRS. To fix in pipeline?
 
   // // 3/7: GMW v4:
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
-  // const testDatasetType = 'stac-geoparquet'
-  // WORKS.
+  const testDataUrl = 's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
+  const testDatasetType = 'stac-geoparquet'
+  // Doesn't work. Missing CRS. To fix in pipeline?
 
   // // 4/7: ACE:
-  const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
-  const testDatasetType = 'stac-geoparquet'
-  // Doesn't error but doesn't display. Tif can't be shown in QGIS either?
+  // const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS with proxy. Alex wants me to let it fail by removing proxy.
 
   // // 5/7: DEP Seagrass:
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
   // const testDatasetType = 'stac-geoparquet'
-  // WORKS.
+  // WORKS (but is a bit slow).
 
   // // 6/7: ACA Reef (?????? 500MB parquet file.):
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/aca/0-0-1/reefextent.parquet'
   // const testDatasetType = 'geoparquet'
-  // 3. Parquet files that shouldn't be loaded in the browser. Use PMTiles for these instead?
-  // Reef. 500MB - breaks browser.
-  // const testDataUrl = "https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/viz-test/reefextent.parquet"
-  // const testDatasetType = 'geoparquet'
   // pmTilesUrl =
   //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/aca/0-0-1/reefextent.pmtiles'
-  // WORKS.
+  // WORKS. BUT need to add pmTilesUrl attr to dataset runs.
 
   // // 7/7: Buildings: (PMTiles)
   // const testDataUrl =
@@ -132,7 +126,6 @@ const DatasetRunDetails = () => {
   // const testDatasetType = 'geoparquet'
   // pmTilesUrl =
   //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles'
-  // This loads (slowly) despite being 236.41 GB!
   // WORKS. BUT need to add pmTilesUrl attr to dataset runs.
 
   return (
