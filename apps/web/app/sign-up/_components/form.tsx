@@ -79,6 +79,7 @@ const SignupForm = ({
                     {...field}
                     placeholder="Full name"
                     className={inputClassName}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -97,6 +98,7 @@ const SignupForm = ({
                     type="email"
                     placeholder="Email"
                     className={inputClassName}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -115,6 +117,7 @@ const SignupForm = ({
                     type="password"
                     placeholder="Password"
                     className={inputClassName}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -135,6 +138,7 @@ const SignupForm = ({
                     type="password"
                     placeholder="Confirm password"
                     className={inputClassName}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />

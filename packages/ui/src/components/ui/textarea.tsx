@@ -6,6 +6,8 @@ const Textarea = ({
   className,
   ...props
 }: React.ComponentPropsWithRef<'textarea'>) => {
+  const valueProps = 'value' in props ? { value: props.value ?? '' } : {}
+
   return (
     <textarea
       className={cn(
@@ -13,6 +15,7 @@ const Textarea = ({
         className,
       )}
       {...props}
+      {...valueProps}
     />
   )
 }

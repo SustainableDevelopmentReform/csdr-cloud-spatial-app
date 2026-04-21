@@ -111,7 +111,7 @@ const GeometriesRunFeature = () => {
                 <FormItem>
                   <FormLabel>Data PMTiles URL</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
