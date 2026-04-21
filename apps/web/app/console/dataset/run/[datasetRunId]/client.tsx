@@ -86,20 +86,21 @@ const DatasetRunDetails = () => {
   let pmTilesUrl = undefined
 
   // 1/7: DEP Mangrove:
-  // const testDataUrl =
-  //   's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
-  // const testDatasetType = 'stac-geoparquet'
+  const testDataUrl =
+    's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
+  const testDatasetType = 'stac-geoparquet'
+  // WORKS.
 
   // // 2/7: GMW v3:
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/gmw-v3/0-0-1/gmw.parquet'
   // const testDatasetType = 'stac-geoparquet'
-  // Doesn't work. Missing CRS. To fix in pipeline?
+  // WORKS.
 
   // // 3/7: GMW v4:
-  const testDataUrl = 's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
-  const testDatasetType = 'stac-geoparquet'
-  // Doesn't work. Missing CRS. To fix in pipeline?
+  // const testDataUrl = 's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS.
 
   // // 4/7: ACE:
   // const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
@@ -110,9 +111,9 @@ const DatasetRunDetails = () => {
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
   // const testDatasetType = 'stac-geoparquet'
-  // WORKS (but is a bit slow).
+  // WORKS. (bit slow).
 
-  // // 6/7: ACA Reef (?????? 500MB parquet file.):
+  // // 6/7: ACA Reef:
   // const testDataUrl =
   //   's3://csdr-public-dev/datasets/aca/0-0-1/reefextent.parquet'
   // const testDatasetType = 'geoparquet'

@@ -11,11 +11,11 @@ import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useQuery } from '@tanstack/react-query'
 
 import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
-import loadEpsg from '@developmentseed/epsg/all'
-// @ts-expect-error — webpack asset/resource import
-import epsgCsvUrl from '@developmentseed/epsg/all.csv.gz'
-import { parseWkt } from '@developmentseed/proj'
 import { DatasetRunListItem } from '../_hooks'
+
+// epsgResolver / loadEpsg / epsgCsvUrl / parseWkt are intentionally absent.
+// They broke GMW v3/v4 with a CRS mismatch. COGLayer's built-in geoKeysParser
+// handles all datasets correctly without any external EPSG database.
 
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
@@ -120,14 +120,14 @@ const fallbackColormapModule = {
 /**
  * Subclass COGLayer to append a colormap to the default render pipeline.
  * Pass `colormapAsset` prop to select the correct per-asset colormap.
+ *
+ * No epsgResolver is passed — COGLayer's built-in geoKeysParser handles CRS
+ * for all datasets including GMW v3/v4.
  */
 class ColorMappedCOGLayer extends COGLayer {
   static layerName = 'ColorMappedCOGLayer'
 
   async _parseGeoTIFF() {
-    // The webpack alias for @developmentseed/proj (see next.config.mjs) wraps
-    // parseWkt to handle COGs with unknown CRS units (e.g. GMW v3), so we can
-    // call super directly.
     await super._parseGeoTIFF()
 
     // Inject colormap shader module into the render pipeline
@@ -147,15 +147,6 @@ class ColorMappedCOGLayer extends COGLayer {
       })
     }
   }
-}
-
-async function epsgResolver(
-  epsg: number,
-): Promise<ReturnType<typeof parseWkt>> {
-  const db = await loadEpsg(epsgCsvUrl)
-  const wkt = db.get(epsg)
-  if (!wkt) throw new Error(`EPSG code ${epsg} not found`)
-  return parseWkt(wkt)
 }
 
 function bboxToFeatures(source: {
@@ -200,7 +191,8 @@ function s3UrlToHttps(s3Url: string): string {
   return httpsUrl
 }
 
-/** Wrap a URL through the CORS proxy so geotiff.js range requests work. */
+/** Wrap a URL through the CORS proxy so geotiff.js range requests work (e.g. ACE/DEA). */
+// TODO: Remove this. Alex says to let this fail until DEA/GA fix CORS on their side.
 function proxyCogUrl(url: string): string {
   return `/api/cog-proxy?url=${encodeURIComponent(url)}`
 }
@@ -462,8 +454,8 @@ export const DatasetRunMap = ({
           new ColorMappedCOGLayer({
             id: `cog-single`,
             geotiff: proxyCogUrl(mosaicSources[0].url),
-            epsgResolver,
             colormapAsset: selectedAsset,
+            // No epsgResolver — geoKeysParser handles all datasets including GMW v3/v4
           } as any),
         )
       } else {
@@ -476,9 +468,9 @@ export const DatasetRunMap = ({
               new ColorMappedCOGLayer({
                 id: `cog-${source.url}`,
                 geotiff: proxyCogUrl(source.url),
-                epsgResolver,
                 signal,
                 colormapAsset: selectedAsset,
+                // No epsgResolver — geoKeysParser handles all datasets including GMW v3/v4
               } as any),
           }),
         )
@@ -584,7 +576,7 @@ export const DatasetRunMap = ({
               ? assetLegendKeys[selectedAsset]
                   .map((key) => {
                     const entry = valueLegend[key]!
-                    // For value 1 ("Present"), use the asset name instead
+                    // For value 1 ("Present"), use the asset name instead of the generic label
                     return key === 1
                       ? { ...entry, label: selectedAsset }
                       : entry
