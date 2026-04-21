@@ -143,7 +143,7 @@ class ColorMappedCOGLayer extends COGLayer {
         defaultRenderTile: (data: any) => {
           const result = originalRenderTile(data)
           if (result.renderPipeline) {
-            result.renderPipeline.push(colormapMod)
+            result.renderPipeline.push(colormapMod as any)
           }
           return result
         },
@@ -239,7 +239,7 @@ export const DatasetRunMap = ({
         p.getHeader(),
         p.getMetadata(),
       ])
-      const sourceLayer = metadata?.vector_layers?.[0]?.id ?? 'data'
+      const sourceLayer = (metadata as any)?.vector_layers?.[0]?.id ?? 'data'
       return { ...header, sourceLayer }
     },
     enabled: renderPMTiles,

@@ -92,7 +92,7 @@ const DatasetRunDetails = () => {
         <DatasetRunMap
           dataType={datasetRun?.dataType}
           dataUrl={datasetRun?.dataUrl}
-          pmTilesUrl={datasetRun?.dataPmtilesUrl}
+          dataPmtilesUrl={datasetRun?.dataPmtilesUrl}
         />
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
