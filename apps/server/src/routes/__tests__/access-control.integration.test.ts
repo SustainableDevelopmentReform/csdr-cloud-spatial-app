@@ -1,8 +1,9 @@
 process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC = 'true'
 
-import { eq } from 'drizzle-orm'
+import { eq, isNull } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  auditLog,
   product,
   productOutputSummary,
   dataset,
@@ -180,6 +181,69 @@ describe('access control integration', () => {
         message: 'User is not authorized',
       },
     )
+
+    const superAdminOrganizationListLog = await db.query.auditLog.findFirst({
+      where: (table, { and, eq, isNull }) =>
+        and(
+          eq(table.requestPath, '/api/v0/organization'),
+          eq(table.requestMethod, 'GET'),
+          eq(table.resourceType, 'organization'),
+          eq(table.action, 'list'),
+          eq(table.decision, 'allow'),
+          isNull(table.resourceId),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(superAdminOrganizationListLog).toBeDefined()
+    expect(superAdminOrganizationListLog?.activeOrganizationId).toBe(
+      seededIds.organization,
+    )
+
+    const orgScopedOrganizationListLogs = await expectJsonResponse<{
+      data: {
+        requestPath: string
+        targetOrganizationId: string | null
+      }[]
+    }>(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
+        query: {
+          action: 'list',
+          resourceType: 'organization',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    expect(orgScopedOrganizationListLogs.data.data).toEqual([])
+
+    const superAdminOrganizationListLogs = await expectJsonResponse<{
+      data: {
+        requestPath: string
+        targetOrganizationId: string | null
+      }[]
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          action: 'list',
+          resourceType: 'organization',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    expect(
+      superAdminOrganizationListLogs.data.data.some(
+        (entry) =>
+          entry.requestPath === '/api/v0/organization' &&
+          entry.targetOrganizationId === null,
+      ),
+    ).toBe(true)
   })
 
   it('lets super admins list all organizations and activate an organization they do not already belong to', async () => {
@@ -1569,30 +1633,13 @@ describe('access control integration', () => {
       ),
     ).toBe(true)
 
-    const readLogsJson = await expectJsonResponse<{
-      data: {
-        resourceType: string
-        action: string
-        decision: string
-        requestPath: string
-      }[]
-    }>(
-      await createAppClient(orgAdminHeaders).api.v0.logs.read.$get({
-        query: {},
-      }),
-      {
-        status: 200,
-        message: 'OK',
-      },
-    )
-
     expect(
-      readLogsJson.data.data.some(
+      auditLogsJson.data.data.some(
         (entry) => entry.resourceType === 'auditLog' && entry.action === 'read',
       ),
     ).toBe(true)
     expect(
-      readLogsJson.data.data.some(
+      auditLogsJson.data.data.some(
         (entry) =>
           entry.resourceType === 'member' &&
           entry.action === 'list' &&
@@ -1600,7 +1647,30 @@ describe('access control integration', () => {
       ),
     ).toBe(true)
 
-    const datasetRunReadLog = await db.query.readLog.findFirst({
+    const mutatingAuditLogsJson = await expectJsonResponse<{
+      data: {
+        requestMethod: string
+      }[]
+    }>(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
+        query: {
+          requestKind: 'mutating',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(mutatingAuditLogsJson.data.data.length).toBeGreaterThan(0)
+    expect(
+      mutatingAuditLogsJson.data.data.every((entry) =>
+        ['POST', 'PUT', 'PATCH', 'DELETE'].includes(entry.requestMethod),
+      ),
+    ).toBe(true)
+
+    const datasetRunAuditLog = await db.query.auditLog.findFirst({
       where: (table, { and, eq }) =>
         and(
           eq(table.requestPath, `/api/v0/dataset/${seededIds.dataset}/runs`),
@@ -1608,9 +1678,9 @@ describe('access control integration', () => {
           eq(table.decision, 'allow'),
         ),
     })
-    expect(datasetRunReadLog).toBeDefined()
+    expect(datasetRunAuditLog).toBeDefined()
 
-    const geometriesRunReadLog = await db.query.readLog.findFirst({
+    const geometriesRunAuditLog = await db.query.auditLog.findFirst({
       where: (table, { and, eq }) =>
         and(
           eq(
@@ -1621,7 +1691,308 @@ describe('access control integration', () => {
           eq(table.decision, 'allow'),
         ),
     })
-    expect(geometriesRunReadLog).toBeDefined()
+    expect(geometriesRunAuditLog).toBeDefined()
+  })
+
+  it('includes actor user summaries in organization audit logs', async () => {
+    await db.insert(auditLog).values({
+      id: 'org-actor-summary-log',
+      createdAt: new Date('2025-01-04T00:00:00.000Z'),
+      actorUserId: seededIds.adminUser,
+      actorRole: 'org_admin',
+      activeOrganizationId: seededIds.organization,
+      targetOrganizationId: seededIds.organization,
+      resourceType: 'dataset',
+      resourceId: seededIds.dataset,
+      action: 'read',
+      decision: 'allow',
+      requestPath: `/api/v0/dataset/${seededIds.dataset}`,
+      requestMethod: 'GET',
+      ipAddress: null,
+      userAgent: null,
+      details: {
+        statusCode: 200,
+      },
+    })
+
+    const auditLogsJson = await expectJsonResponse<{
+      data: {
+        id: string
+        actorUserId: string | null
+        actorUser: {
+          id: string
+          name: string
+          email: string
+        } | null
+      }[]
+    }>(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
+        query: {
+          action: 'read',
+          resourceType: 'dataset',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const actorSummaryLog = auditLogsJson.data.data.find(
+      (entry) => entry.id === 'org-actor-summary-log',
+    )
+    expect(actorSummaryLog).toMatchObject({
+      actorUserId: seededIds.adminUser,
+      actorUser: {
+        id: seededIds.adminUser,
+        name: 'Seed Admin',
+        email: 'seed-admin@example.com',
+      },
+    })
+  })
+
+  it('exposes target-organization-less audit logs only to super admins', async () => {
+    await db.insert(auditLog).values([
+      {
+        id: 'unscoped-sign-in-log',
+        createdAt: new Date('2025-01-01T00:00:00.000Z'),
+        actorUserId: null,
+        actorRole: null,
+        activeOrganizationId: null,
+        targetOrganizationId: null,
+        resourceType: 'auth',
+        resourceId: null,
+        action: 'sign_in',
+        decision: 'allow',
+        requestPath: '/api/auth/sign-in/email',
+        requestMethod: 'POST',
+        ipAddress: null,
+        userAgent: null,
+        details: {
+          statusCode: 200,
+        },
+      },
+      {
+        id: 'unscoped-api-key-log',
+        createdAt: new Date('2025-01-02T00:00:00.000Z'),
+        actorUserId: seededIds.adminUser,
+        actorRole: 'super_admin',
+        activeOrganizationId: seededIds.organization,
+        targetOrganizationId: null,
+        resourceType: 'auth',
+        resourceId: null,
+        action: 'api_key_create',
+        decision: 'allow',
+        requestPath: '/api/auth/api-key/create',
+        requestMethod: 'POST',
+        ipAddress: null,
+        userAgent: null,
+        details: {
+          statusCode: 200,
+        },
+      },
+      {
+        id: 'org-scoped-auth-log',
+        createdAt: new Date('2025-01-03T00:00:00.000Z'),
+        actorUserId: seededIds.adminUser,
+        actorRole: 'super_admin',
+        activeOrganizationId: seededIds.organization,
+        targetOrganizationId: seededIds.organization,
+        resourceType: 'auth',
+        resourceId: null,
+        action: 'sign_in',
+        decision: 'allow',
+        requestPath: '/api/auth/sign-in/email',
+        requestMethod: 'POST',
+        ipAddress: null,
+        userAgent: null,
+        details: {
+          statusCode: 200,
+        },
+      },
+    ])
+
+    await expectJsonResponse(
+      await createAppClient().api.v0.logs.audit['super-admin'].$get({
+        query: {},
+      }),
+      {
+        status: 401,
+        message: 'User is not authenticated',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {},
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+
+    const filteredLogsJson = await expectJsonResponse<{
+      pageCount: number
+      totalCount: number
+      data: {
+        id: string
+        action: string
+        targetOrganizationId: string | null
+      }[]
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          action: 'sign_in',
+          decision: 'allow',
+          resourceType: 'auth',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(filteredLogsJson.data).toMatchObject({
+      pageCount: 1,
+      totalCount: 1,
+    })
+    expect(filteredLogsJson.data.data).toEqual([
+      expect.objectContaining({
+        id: 'unscoped-sign-in-log',
+        action: 'sign_in',
+        targetOrganizationId: null,
+      }),
+    ])
+
+    const auditLogReadEntry = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/v0/logs/audit/super-admin'),
+          eq(table.resourceType, 'auditLog'),
+          eq(table.action, 'read'),
+          eq(table.decision, 'allow'),
+          isNull(table.targetOrganizationId),
+        ),
+    })
+    expect(auditLogReadEntry?.details).toMatchObject({
+      scope: 'super_admin',
+      statusCode: 200,
+    })
+
+    const superAdminReadLogsJson = await expectJsonResponse<{
+      data: {
+        requestMethod: string
+        resourceType: string
+      }[]
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          requestKind: 'read',
+          resourceType: 'auditLog',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(superAdminReadLogsJson.data.data.length).toBeGreaterThan(0)
+    expect(
+      superAdminReadLogsJson.data.data.every(
+        (entry) =>
+          entry.resourceType === 'auditLog' && entry.requestMethod === 'GET',
+      ),
+    ).toBe(true)
+
+    const superAdminAuth = createTestAuthClient(superAdminHeaders)
+    const superAdminSession = await superAdminAuth.client.getSession()
+    expect(superAdminSession.error).toBeNull()
+    const superAdminUserId = requireValue(
+      superAdminSession.data?.user.id,
+      'super admin user id',
+    )
+    await db
+      .update(session)
+      .set({
+        activeOrganizationId: null,
+      })
+      .where(eq(session.userId, superAdminUserId))
+
+    const superAdminNoOrganizationHeaders = new Headers(superAdminHeaders)
+    superAdminNoOrganizationHeaders.delete('x-sdf-active-organization-id')
+
+    const firstPageJson = await expectJsonResponse<{
+      pageCount: number
+      totalCount: number
+      data: {
+        id: string
+        targetOrganizationId: string | null
+      }[]
+    }>(
+      await createAppClient(superAdminNoOrganizationHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          decision: 'allow',
+          page: 1,
+          resourceType: 'auth',
+          size: 1,
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(firstPageJson.data).toMatchObject({
+      pageCount: 2,
+      totalCount: 2,
+    })
+    expect(firstPageJson.data.data).toEqual([
+      expect.objectContaining({
+        id: 'unscoped-api-key-log',
+        targetOrganizationId: null,
+      }),
+    ])
+
+    const secondPageJson = await expectJsonResponse<{
+      data: {
+        id: string
+        targetOrganizationId: string | null
+      }[]
+    }>(
+      await createAppClient(superAdminNoOrganizationHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          decision: 'allow',
+          page: 2,
+          resourceType: 'auth',
+          size: 1,
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(secondPageJson.data.data).toEqual([
+      expect.objectContaining({
+        id: 'unscoped-sign-in-log',
+        targetOrganizationId: null,
+      }),
+    ])
   })
 
   it('supports active-organization switching and keeps API keys scoped to the owner membership context', async () => {

@@ -20,12 +20,10 @@ import {
   formatOrganizationRole,
   organizationRoleSchema,
 } from '~/utils/access-control'
-import { useAdminUserSearch } from '../user/_hooks'
+import { useAdminUserSearch } from '~/app/console/super-admin/users/_hooks'
 import {
   useAddWorkspaceMember,
-  useAdminOrganizations,
   useCancelWorkspaceInvitation,
-  useCreateOrganization,
   useInviteWorkspaceMember,
   useRemoveWorkspaceMember,
   useUpdateWorkspaceOrganization,
@@ -34,15 +32,8 @@ import {
   useWorkspaceMembers,
 } from './_hooks'
 
-const slugify = (value: string): string =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-
 const WorkspacePageClient = () => {
-  const { access, activeOrganization, organizations } = useAccessControl()
+  const { access, activeOrganization } = useAccessControl()
   const activeOrganizationId = activeOrganization.data?.id ?? null
   const hasActiveOrganization = activeOrganization.data !== null
   const members = useWorkspaceMembers(
@@ -55,7 +46,6 @@ const WorkspacePageClient = () => {
     hasActiveOrganization,
     access.isSuperAdmin,
   )
-  const adminOrganizations = useAdminOrganizations(access.isSuperAdmin)
   const inviteMember = useInviteWorkspaceMember(
     activeOrganizationId,
     access.isSuperAdmin,
@@ -80,12 +70,9 @@ const WorkspacePageClient = () => {
     activeOrganizationId,
     access.isSuperAdmin,
   )
-  const createOrganization = useCreateOrganization()
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] =
     useState<z.infer<typeof organizationRoleSchema>>('org_viewer')
-  const [organizationName, setOrganizationName] = useState('')
-  const [organizationSlug, setOrganizationSlug] = useState('')
   const [organizationNameDraft, setOrganizationNameDraft] = useState('')
   const [existingUserSearch, setExistingUserSearch] = useState('')
   const deferredExistingUserSearch = useDeferredValue(existingUserSearch)
@@ -134,104 +121,6 @@ const WorkspacePageClient = () => {
           )}
         </p>
       </div>
-
-      {access.isSuperAdmin ? (
-        <section className="mb-8 border-b border-gray-200 pb-8">
-          <h2 className="mb-4 text-xl font-medium">Organizations</h2>
-          <div className="mb-6 grid max-w-md gap-3">
-            <Input
-              placeholder="Organization name"
-              value={organizationName}
-              onChange={(event) => {
-                const nextName = event.target.value
-                setOrganizationName(nextName)
-                if (organizationSlug.trim() === '') {
-                  setOrganizationSlug(slugify(nextName))
-                }
-              }}
-            />
-            <Input
-              placeholder="organization-slug"
-              value={organizationSlug}
-              onChange={(event) =>
-                setOrganizationSlug(slugify(event.target.value))
-              }
-            />
-            <Button
-              className="w-fit"
-              disabled={
-                createOrganization.isPending ||
-                organizationName.trim() === '' ||
-                organizationSlug.trim() === ''
-              }
-              onClick={() => {
-                createOrganization.mutate(
-                  {
-                    name: organizationName.trim(),
-                    slug: organizationSlug.trim(),
-                  },
-                  {
-                    onSuccess: async () => {
-                      setOrganizationName('')
-                      setOrganizationSlug('')
-                      toast.success('Organization created')
-                      await Promise.all([
-                        adminOrganizations.refetch(),
-                        organizations.refetch(),
-                      ])
-                    },
-                    onError: (error) => {
-                      toast.error(error.message)
-                    },
-                  },
-                )
-              }}
-            >
-              {createOrganization.isPending
-                ? 'Creating...'
-                : 'Create organization'}
-            </Button>
-          </div>
-
-          {adminOrganizations.isLoading ? (
-            <div className="text-sm text-gray-500">
-              Loading organizations...
-            </div>
-          ) : null}
-
-          {adminOrganizations.data && adminOrganizations.data.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Slug</th>
-                    <th className="px-3 py-2 font-medium">Members</th>
-                    <th className="px-3 py-2 font-medium">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminOrganizations.data.map((organization) => (
-                    <tr
-                      key={organization.id}
-                      className="border-b border-gray-100"
-                    >
-                      <td className="px-3 py-2">{organization.name}</td>
-                      <td className="px-3 py-2">
-                        <code>{organization.slug}</code>
-                      </td>
-                      <td className="px-3 py-2">{organization.memberCount}</td>
-                      <td className="px-3 py-2">
-                        {new Date(organization.createdAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
 
       <section className="mb-8 border-b border-gray-200 pb-8">
         <h2 className="mb-4 text-xl font-medium">Organization settings</h2>

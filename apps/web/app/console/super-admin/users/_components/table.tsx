@@ -6,12 +6,12 @@ import {
 } from '@tanstack/react-table'
 import React from 'react'
 import Link from '~/components/link'
-import Table from '../../../../components/table/table'
-import { USERS_BASE_PATH } from '../../../../lib/paths'
+import Table from '~/components/table/table'
+import { USERS_BASE_PATH } from '~/lib/paths'
 import {
   formatGlobalUserRole,
   globalUserRoleSchema,
-} from '../../../../utils/access-control'
+} from '~/utils/access-control'
 import { AdminUser } from '../_hooks'
 
 interface UsersTableProps {

@@ -11,7 +11,11 @@ export const REPORTS_BASE_PATH = '/console/report'
 export const INDICATORS_BASE_PATH = '/console/indicator'
 export const INDICATORS_DERIVED_BASE_PATH = '/console/indicator/derived'
 export const INDICATORS_MEASURED_BASE_PATH = '/console/indicator/measured'
-export const USERS_BASE_PATH = '/console/user'
+export const SUPER_ADMIN_AUDIT_LOGS_BASE_PATH =
+  '/console/super-admin/audit-logs'
+export const SUPER_ADMIN_ORGANIZATIONS_BASE_PATH =
+  '/console/super-admin/organizations'
+export const USERS_BASE_PATH = '/console/super-admin/users'
 export const WORKSPACE_BASE_PATH = '/console/workspace'
 export const LOGS_BASE_PATH = '/console/logs'
 export const LOGIN_BASE_PATH = '/login'

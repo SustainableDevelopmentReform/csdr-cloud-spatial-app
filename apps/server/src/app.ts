@@ -45,6 +45,7 @@ import logs from './routes/logs'
 import organization from './routes/organization'
 
 const isProduction = env.NODE_ENV === 'production'
+const webUiHomeUrl = new URL('/console', env.APP_URL).toString()
 const apiKeyOrganizationDocs = [
   'Use `x-api-key` header to authenticate requests.',
   'API keys authenticate as the owning user and are not tied to a single organization.',
@@ -293,7 +294,7 @@ app.notFound((c) =>
     c,
     null,
     404,
-    "Endpoint you're looking for is not found: " + c.req.url,
+    `Endpoint you're looking for is not found: ${c.req.url}. See API docs at ${new URL('/api/v0/scalar', c.req.url).toString()} or return to the web UI home at ${webUiHomeUrl}.`,
   ),
 )
 

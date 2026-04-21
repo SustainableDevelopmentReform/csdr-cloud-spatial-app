@@ -9,15 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
+import { ConsoleCrudListFrame } from '~/app/console/_components/console-crud-list-frame'
+import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
+import { ConsoleSimpleBreadcrumbs } from '~/app/console/_components/console-simple-breadcrumbs'
 import { useQueryWithSearchParams } from '~/hooks/useSearchParams'
-import { useAccessControl } from '~/hooks/useAccessControl'
-import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
-import { ConsolePageHeader } from '../_components/console-page-header'
-import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
-import { LogTable } from './_components/log-table'
-import { logPageQuerySchema, useAuditLogs } from './_hooks'
+import { LogTable } from '../../logs/_components/log-table'
+import { logPageQuerySchema, useSuperAdminAuditLogs } from '../../logs/_hooks'
 
-const LogsPageClient = () => {
+const SuperAdminAuditLogsPageClient = () => {
   const { query, setSearchParams } = useQueryWithSearchParams(
     logPageQuerySchema,
     {
@@ -26,15 +25,7 @@ const LogsPageClient = () => {
     },
     true,
   )
-  const { access, activeOrganization } = useAccessControl()
-  const activeOrganizationId = activeOrganization.data?.id ?? null
-
-  const hasActiveOrganization = activeOrganizationId !== null
-  const auditLogs = useAuditLogs(
-    activeOrganizationId,
-    query,
-    hasActiveOrganization,
-  )
+  const auditLogs = useSuperAdminAuditLogs(query)
   const activeData = auditLogs.data
   const currentPage = query?.page ?? 1
   const pageCount = activeData?.pageCount ?? 1
@@ -53,7 +44,7 @@ const LogsPageClient = () => {
       />
       <ConsoleCrudListFrame
         title="Audit Logs"
-        description="Audit events for the active organization."
+        description="Audit events that are not attached to an organization."
         toolbar={
           <div className="flex flex-wrap gap-3">
             <Input
@@ -141,51 +132,42 @@ const LogsPageClient = () => {
           </div>
         }
       >
-        {!hasActiveOrganization ? (
-          <div className="text-sm text-gray-500">
-            Select an organization before reviewing logs.
-          </div>
-        ) : auditLogs.isLoading ? (
+        {auditLogs.isLoading ? (
           <div className="text-sm text-gray-500">Loading logs...</div>
         ) : (
-          <LogTable
-            entries={activeData?.data ?? []}
-            showUserLinks={access.isSuperAdmin}
-          />
+          <LogTable entries={activeData?.data ?? []} showUserLinks />
         )}
 
-        {hasActiveOrganization ? (
-          <div className="mt-6 flex items-center justify-end gap-2">
-            <div className="mr-2 text-sm text-gray-500">
-              Page {currentPage} of {pageCount}
-            </div>
-            <Button
-              variant="outline"
-              disabled={currentPage <= 1}
-              onClick={() =>
-                setSearchParams({
-                  page: currentPage - 1,
-                })
-              }
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              disabled={currentPage >= pageCount}
-              onClick={() =>
-                setSearchParams({
-                  page: currentPage + 1,
-                })
-              }
-            >
-              Next
-            </Button>
+        <div className="mt-6 flex items-center justify-end gap-2">
+          <div className="mr-2 text-sm text-gray-500">
+            Page {currentPage} of {pageCount}
           </div>
-        ) : null}
+          <Button
+            variant="outline"
+            disabled={currentPage <= 1}
+            onClick={() =>
+              setSearchParams({
+                page: currentPage - 1,
+              })
+            }
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            disabled={currentPage >= pageCount}
+            onClick={() =>
+              setSearchParams({
+                page: currentPage + 1,
+              })
+            }
+          >
+            Next
+          </Button>
+        </div>
       </ConsoleCrudListFrame>
     </div>
   )
 }
 
-export default LogsPageClient
+export default SuperAdminAuditLogsPageClient

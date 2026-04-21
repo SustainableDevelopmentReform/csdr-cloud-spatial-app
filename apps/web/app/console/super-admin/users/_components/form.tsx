@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import { QueryKey } from '~/utils/apiClient'
 import { useAuthClient } from '~/hooks/useAuthClient'
-import SignupForm from '../../../sign-up/_components/form'
+import SignupForm from '~/app/sign-up/_components/form'
 
 interface UserFormProps {
   children?: React.ReactNode
