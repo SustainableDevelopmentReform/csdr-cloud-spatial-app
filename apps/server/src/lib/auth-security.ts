@@ -79,6 +79,7 @@ const AUTH_ADMIN_PATH_PREFIX = '/api/auth/admin/'
 const AUTH_PATH_PREFIX = '/api/auth/'
 
 const AUTH_LOG_SKIPPED_PATHS = new Set([
+  '/api/auth/get-session',
   '/api/auth/open-api/generate-schema',
   '/api/auth/scalar',
 ])

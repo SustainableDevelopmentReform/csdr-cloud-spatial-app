@@ -47,8 +47,8 @@ export const useQueryWithSearchParams = <
       : localQueryState
 
     return schema.safeParse({
-      ...params,
       ...override,
+      ...params,
     })
   }, [schema, searchParams, override, localQueryState, syncWithUrl])
 

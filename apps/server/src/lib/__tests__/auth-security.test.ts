@@ -59,11 +59,13 @@ describe('resolveAuthAuditLogContext', () => {
     })
   })
 
-  it('audits get-session requests', async () => {
+  it('skips get-session requests', async () => {
     await expect(
       resolveContextForPath('/api/auth/get-session'),
     ).resolves.toMatchObject({
-      action: 'get_session',
+      action: null,
+      resourceId: null,
+      targetOrganizationId: null,
     })
   })
 })

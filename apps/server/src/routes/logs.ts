@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
 import { authMiddleware } from '~/middlewares/auth'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -60,6 +60,7 @@ const buildAuditLogFilters = (
   query: z.infer<typeof logQuerySchema>,
 ) =>
   and(
+    excludeGetSessionAuditLogs(),
     eq(auditLog.targetOrganizationId, organizationId),
     query.resourceType
       ? eq(auditLog.resourceType, query.resourceType)
@@ -73,6 +74,7 @@ const buildSuperAdminAuditLogFilters = (
   query: z.infer<typeof logQuerySchema>,
 ) =>
   and(
+    excludeGetSessionAuditLogs(),
     isNull(auditLog.targetOrganizationId),
     query.resourceType
       ? eq(auditLog.resourceType, query.resourceType)
@@ -95,6 +97,12 @@ const buildRequestKindFilter = (
 
   return undefined
 }
+
+const excludeGetSessionAuditLogs = () =>
+  and(
+    ne(auditLog.action, 'get_session'),
+    ne(auditLog.requestPath, '/api/auth/get-session'),
+  )
 
 const requireSuperAdmin = (
   actor: ReturnType<typeof requireAuthenticatedActor>,

@@ -1822,6 +1822,50 @@ describe('access control integration', () => {
       },
     )
 
+    await db.insert(auditLog).values({
+      id: 'org-get-session-audit-log',
+      createdAt: new Date('2025-01-05T00:00:00.000Z'),
+      actorUserId: seededIds.adminUser,
+      actorRole: 'org_admin',
+      activeOrganizationId: seededIds.organization,
+      targetOrganizationId: seededIds.organization,
+      resourceType: 'auth',
+      resourceId: seededIds.adminUser,
+      action: 'get_session',
+      decision: 'allow',
+      requestPath: '/api/auth/get-session',
+      requestMethod: 'GET',
+      ipAddress: null,
+      userAgent: null,
+      details: {
+        statusCode: 200,
+      },
+    })
+
+    const getSessionAuditLogsJson = await expectJsonResponse<{
+      pageCount: number
+      totalCount: number
+      data: {
+        id: string
+      }[]
+    }>(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
+        query: {
+          action: 'get_session',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(getSessionAuditLogsJson.data).toMatchObject({
+      pageCount: 0,
+      totalCount: 0,
+    })
+    expect(getSessionAuditLogsJson.data.data).toEqual([])
+
     const auditLogsJson = await expectJsonResponse<{
       data: {
         resourceType: string
@@ -2044,6 +2088,26 @@ describe('access control integration', () => {
       },
     ])
 
+    await db.insert(auditLog).values({
+      id: 'unscoped-get-session-log',
+      createdAt: new Date('2025-01-04T00:00:00.000Z'),
+      actorUserId: seededIds.adminUser,
+      actorRole: 'super_admin',
+      activeOrganizationId: seededIds.organization,
+      targetOrganizationId: null,
+      resourceType: 'auth',
+      resourceId: seededIds.adminUser,
+      action: 'get_session',
+      decision: 'allow',
+      requestPath: '/api/auth/get-session',
+      requestMethod: 'GET',
+      ipAddress: null,
+      userAgent: null,
+      details: {
+        statusCode: 200,
+      },
+    })
+
     await expectJsonResponse(
       await createAppClient().api.v0.logs.audit['super-admin'].$get({
         query: {},
@@ -2065,6 +2129,32 @@ describe('access control integration', () => {
         message: 'User is not authorized',
       },
     )
+
+    const superAdminGetSessionLogsJson = await expectJsonResponse<{
+      pageCount: number
+      totalCount: number
+      data: {
+        id: string
+      }[]
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          action: 'get_session',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(superAdminGetSessionLogsJson.data).toMatchObject({
+      pageCount: 0,
+      totalCount: 0,
+    })
+    expect(superAdminGetSessionLogsJson.data.data).toEqual([])
 
     const filteredLogsJson = await expectJsonResponse<{
       pageCount: number
