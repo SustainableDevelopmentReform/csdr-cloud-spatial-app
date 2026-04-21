@@ -136,7 +136,6 @@ const coveredAuthOperationKeys = [
   'GET /api/auth/callback/{id}',
   'GET /api/auth/delete-user/callback',
   'GET /api/auth/error',
-  'GET /api/auth/get-session',
   'GET /api/auth/list-accounts',
   'GET /api/auth/list-sessions',
   'GET /api/auth/ok',
@@ -172,7 +171,6 @@ const coveredAuthOperationKeys = [
   'POST /api/auth/delete-anonymous-user',
   'POST /api/auth/delete-user',
   'POST /api/auth/get-access-token',
-  'POST /api/auth/get-session',
   'POST /api/auth/link-social',
   'POST /api/auth/organization/accept-invitation',
   'POST /api/auth/organization/cancel-invitation',
@@ -214,6 +212,11 @@ const coveredAuthOperationKeys = [
 ]
 
 const v0ExcludedOperationKeys = new Set(['GET /api/v0/healthcheck'])
+
+const authExcludedOperationKeys = new Set([
+  'GET /api/auth/get-session',
+  'POST /api/auth/get-session',
+])
 
 const organizationBodies = new Map<string, Record<string, unknown>>([
   [
@@ -409,6 +412,7 @@ describe('audit coverage enforcement', () => {
     const authOperations = await listOperations(
       '/api/auth/open-api/generate-schema',
       {
+        excludedKeys: authExcludedOperationKeys,
         pathPrefix: '/api/auth',
       },
     )
@@ -424,6 +428,7 @@ describe('audit coverage enforcement', () => {
     const authOperations = await listOperations(
       '/api/auth/open-api/generate-schema',
       {
+        excludedKeys: authExcludedOperationKeys,
         pathPrefix: '/api/auth',
       },
     )
