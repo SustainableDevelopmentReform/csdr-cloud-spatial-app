@@ -157,6 +157,7 @@ const LoginForm = () => {
                     type="email"
                     placeholder="Email"
                     className={inputClassName}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -184,6 +185,7 @@ const LoginForm = () => {
                     type="password"
                     placeholder="Password"
                     className={inputClassName}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />

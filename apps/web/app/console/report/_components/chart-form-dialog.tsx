@@ -1897,6 +1897,7 @@ export const ChartFormDialog = ({
                                   suggestedTitle || 'Optional chart title'
                                 }
                                 {...field}
+                                value={field.value ?? ''}
                                 onChange={(e) => {
                                   field.onChange(e)
                                   // Once the user manually edits the title, stop
@@ -1917,6 +1918,7 @@ export const ChartFormDialog = ({
                               <Input
                                 placeholder="Optional description"
                                 {...field}
+                                value={field.value ?? ''}
                               />
                               <FormMessage />
                             </FormItem>

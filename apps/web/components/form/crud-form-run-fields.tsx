@@ -56,6 +56,7 @@ export const CrudFormRunFields = <
               <FormControl>
                 <Input
                   {...field}
+                  value={field.value ?? ''}
                   disabled={isReadOnlyField('dataUrl')}
                   className={isReadOnlyField('dataUrl') ? 'bg-gray-100' : ''}
                 />
@@ -111,6 +112,7 @@ export const CrudFormRunFields = <
                 <Input
                   {...field}
                   type="number"
+                  value={field.value ?? ''}
                   disabled={isReadOnlyField('dataSize')}
                   className={isReadOnlyField('dataSize') ? 'bg-gray-100' : ''}
                 />
@@ -130,6 +132,7 @@ export const CrudFormRunFields = <
               <FormControl>
                 <Input
                   {...field}
+                  value={field.value ?? ''}
                   disabled={isReadOnlyField('dataEtag')}
                   className={isReadOnlyField('dataEtag') ? 'bg-gray-100' : ''}
                 />
@@ -149,6 +152,7 @@ export const CrudFormRunFields = <
               <FormControl>
                 <Input
                   {...field}
+                  value={field.value ?? ''}
                   disabled={isReadOnlyField('imageCode')}
                   className={isReadOnlyField('imageCode') ? 'bg-gray-100' : ''}
                 />
@@ -168,6 +172,7 @@ export const CrudFormRunFields = <
               <FormControl>
                 <Input
                   {...field}
+                  value={field.value ?? ''}
                   disabled={isReadOnlyField('imageTag')}
                   className={isReadOnlyField('imageTag') ? 'bg-gray-100' : ''}
                 />
@@ -187,6 +192,7 @@ export const CrudFormRunFields = <
               <FormControl>
                 <Input
                   {...field}
+                  value={field.value ?? ''}
                   disabled={isReadOnlyField('provenanceUrl')}
                   className={
                     isReadOnlyField('provenanceUrl') ? 'bg-gray-100' : ''
@@ -216,7 +222,7 @@ export const CrudFormRunFields = <
                   value={
                     typeof field.value === 'object'
                       ? JSON.stringify(field.value, null, 2)
-                      : field.value
+                      : (field.value ?? '')
                   }
                 />
               </FormControl>

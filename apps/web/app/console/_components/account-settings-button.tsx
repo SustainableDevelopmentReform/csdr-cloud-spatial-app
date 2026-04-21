@@ -250,7 +250,7 @@ const AccountSettingsButton = ({
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -299,7 +299,11 @@ const AccountSettingsButton = ({
                     <FormItem>
                       <FormLabel>Current password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" />
+                        <Input
+                          {...field}
+                          type="password"
+                          value={field.value ?? ''}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -312,7 +316,11 @@ const AccountSettingsButton = ({
                     <FormItem>
                       <FormLabel>New password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" />
+                        <Input
+                          {...field}
+                          type="password"
+                          value={field.value ?? ''}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -325,7 +333,11 @@ const AccountSettingsButton = ({
                     <FormItem>
                       <FormLabel>Confirm new password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" />
+                        <Input
+                          {...field}
+                          type="password"
+                          value={field.value ?? ''}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

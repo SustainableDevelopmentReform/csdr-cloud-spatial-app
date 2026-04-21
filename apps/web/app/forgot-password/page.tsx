@@ -94,7 +94,11 @@ export default function ForgotPasswordPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input {...field} type="email" />
+                      <Input
+                        {...field}
+                        type="email"
+                        value={field.value ?? ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -103,7 +103,11 @@ export default function VerifyEmailPendingPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input {...field} type="email" />
+                      <Input
+                        {...field}
+                        type="email"
+                        value={field.value ?? ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

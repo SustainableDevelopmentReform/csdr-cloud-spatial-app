@@ -235,7 +235,7 @@ const UserProfile = () => {
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input {...field} value={field.value ?? ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
