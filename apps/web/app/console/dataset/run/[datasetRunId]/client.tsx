@@ -32,11 +32,12 @@ import {
   useSetDatasetMainRun,
   useUpdateDatasetRun,
 } from '../../../dataset/_hooks'
+import type { DatasetRunDetail } from '../../../dataset/_hooks'
 import { useProductRunsLink } from '../../../product/_hooks'
 
 const DatasetRunDetails = () => {
   const datasetRunQuery = useDatasetRun()
-  const datasetRun = datasetRunQuery.data
+  const datasetRun = datasetRunQuery.data as DatasetRunDetail | null | undefined
   const updateDatasetRun = useUpdateDatasetRun()
   const { access } = useAccessControl()
   const canEdit = canManageConsoleChildResource({
@@ -80,6 +81,12 @@ const DatasetRunDetails = () => {
     }
   }, [datasetRun, form])
 
+  const mapDataType = datasetRun?.dataType
+  const mapShouldRender: boolean =
+    !!datasetRun?.dataUrl &&
+    ((mapDataType === 'geoparquet' && !!datasetRun.dataPmtilesUrl) ||
+      mapDataType === 'stac-geoparquet')
+
   return (
     <ResourcePageState
       error={datasetRunQuery.error}
@@ -88,11 +95,11 @@ const DatasetRunDetails = () => {
       loadingMessage="Loading dataset run"
       notFoundMessage="Dataset run not found"
     >
-      {datasetRun && datasetRun.dataType && datasetRun.dataUrl && (
+      {mapShouldRender && mapDataType && (
         <DatasetRunMap
-          dataType={datasetRun?.dataType}
-          dataUrl={datasetRun?.dataUrl}
-          dataPmtilesUrl={datasetRun?.dataPmtilesUrl}
+          dataType={mapDataType}
+          dataUrl={datasetRun.dataUrl!}
+          dataPmtilesUrl={datasetRun.dataPmtilesUrl}
         />
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

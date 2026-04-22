@@ -1,3 +1,4 @@
+'use client' // Redundant but explicit.
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { Map, Source, Layer } from '@vis.gl/react-maplibre'
 import maplibregl from 'maplibre-gl'
@@ -16,8 +17,7 @@ import { DatasetRunListItem } from '../_hooks'
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
 
-type colorArray = [number, number, number, number]
-const datasetColor: colorArray = [30, 119, 179, 255]
+const datasetColor: [number, number, number, number] = [30, 119, 179, 255]
 
 // Human-readable labels and RGB colors (0-255) for the legend
 const valueLegend: Record<
@@ -199,23 +199,15 @@ export const DatasetRunMap = ({
   dataUrl,
   dataPmtilesUrl,
 }: {
-  dataType: Exclude<DatasetRunListItem['dataType'], null>
+  dataType: DatasetRunListItem['dataType'] // Parent checks this type
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
   dataPmtilesUrl: DatasetRunListItem['dataPmtilesUrl']
 }) => {
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
-  const [assets, setAssets] = useState<string[] | undefined>(undefined)
-  const [selectedAsset, setSelectedAsset] = useState<string | undefined>(
-    undefined,
-  )
   const deckRef = useRef<any | null>(null)
   const [cogError, setCogError] = useState<string | null>(null)
-
-  if (dataType !== 'stac-geoparquet' && dataType !== 'geoparquet') {
-    throw new Error(`Unsupported dataType: ${dataType}`)
-  }
 
   const renderPMTiles = dataType === 'geoparquet' && !!dataPmtilesUrl
   const pmTilesHttpsUrl = renderPMTiles
@@ -257,6 +249,12 @@ export const DatasetRunMap = ({
       const parquetArrowUrl = s3UrlToHttps(dataUrl)
       await initParquetWasm()
       const resp = await fetch(parquetArrowUrl)
+      if (!resp.ok) {
+        // Error gets caught by parquetArrowTableError and displayed in the UI
+        throw new Error(
+          `Failed to fetch Parquet file: ${resp.status} ${resp.statusText} (${parquetArrowUrl})`,
+        )
+      }
       const arrayBuffer = await resp.arrayBuffer()
       const wasmTable = readParquet(new Uint8Array(arrayBuffer))
       return tableFromIPC(wasmTable.intoIPCStream())
@@ -264,23 +262,23 @@ export const DatasetRunMap = ({
     enabled: dataType === 'stac-geoparquet' && !!dataUrl,
   })
 
-  const cogUrls = useMemo<string[]>(() => {
-    if (!parquetArrowTable || dataType !== 'stac-geoparquet') return []
+  const { cogUrls, assets, initialAsset } = useMemo(() => {
+    if (!parquetArrowTable || dataType !== 'stac-geoparquet')
+      return { cogUrls: [], assets: [], initialAsset: undefined }
 
     const assetsVector = parquetArrowTable.getChild('assets')
     if (!assetsVector) {
       console.warn('[DatasetRunMap] No "assets" column found.')
-      return []
+      return { cogUrls: [], assets: [], initialAsset: undefined }
     }
 
     const assetFields: any[] = assetsVector.type?.children ?? []
-    const keysToTry: string[] = assetFields.map((f) => f.name)
-    setAssets(keysToTry)
+    const assetKeys: string[] = assetFields.map((f) => f.name)
 
     const preferredKeys = ['seagrass', 'classification', 'mangrove'] // The order of these is important.
     const sortedKeys = [
-      ...keysToTry.filter((k) => preferredKeys.includes(k)),
-      ...keysToTry.filter((k) => !preferredKeys.includes(k)),
+      ...assetKeys.filter((k) => preferredKeys.includes(k)),
+      ...assetKeys.filter((k) => !preferredKeys.includes(k)),
     ]
 
     for (const assetKey of sortedKeys) {
@@ -294,17 +292,19 @@ export const DatasetRunMap = ({
         if (val) urls.push(s3UrlToHttps(String(val)))
       }
       if (urls.length > 0) {
-        setSelectedAsset(assetKey)
-        return urls
+        return { cogUrls: urls, assets: assetKeys, initialAsset: assetKey }
       }
     }
 
     console.error(
       '[DatasetRunMap] No href found in any asset. Available:',
-      keysToTry,
+      assetKeys,
     )
-    return []
+    return { cogUrls: [], assets: assetKeys, initialAsset: undefined }
   }, [parquetArrowTable, dataType])
+
+  // TODO: When user can pick assets, replace this with state initialized from initialAsset
+  const selectedAsset = initialAsset
 
   // Map bounds
 

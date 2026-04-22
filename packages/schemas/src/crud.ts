@@ -216,7 +216,7 @@ export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
 /* DATASET RESOURCE SCHEMAS */
 export const baseDatasetRunSchema = baseRunResourceSchema
   .extend({
-    dataPmtilesUrl: z.string().nullable().optional(),
+    dataPmtilesUrl: z.string().nullable(),
     dataset: baseIdResourceSchemaWithMainRunId,
     bounds: resourceBoundsSchema.nullable().optional(),
   })
