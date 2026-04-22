@@ -266,6 +266,7 @@ export const datasetRunQuerySchema = geographicBoundsQuerySchema
 
 export const createDatasetRunSchema = baseCreateRunResourceSchema.extend({
   datasetId: z.string(),
+  dataPmtilesUrl: z.string().optional(),
   bounds: resourceBoundsSchema.nullable().optional(),
 })
 
