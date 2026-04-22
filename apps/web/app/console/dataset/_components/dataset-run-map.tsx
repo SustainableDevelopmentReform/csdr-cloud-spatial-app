@@ -14,10 +14,18 @@ import { useQuery } from '@tanstack/react-query'
 import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import { DatasetRunListItem } from '../_hooks'
 
+// This map either renders a PMTiles vector tile source with a simple style, or a COG mosaic using deck.gl's COGLayer and MosaicLayer.
+
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
 
-const datasetColor: [number, number, number, number] = [30, 119, 179, 255]
+const datasetOpacity = 0.85
+const datasetColor: [number, number, number, number] = [
+  30,
+  119,
+  179,
+  255 * datasetOpacity,
+]
 
 // Human-readable labels and RGB colors (0-255) for the legend
 const valueLegend: Record<
@@ -47,6 +55,7 @@ const valueColors: Record<number, [number, number, number]> =
   )
 
 // Which legend entries to show per selected asset
+// TODO: This is not robust if other datasets with the same asset name, but different values is added.
 const assetLegendKeys: Record<string, number[]> = {
   classification: [2, 3, 4, 5],
   seagrass: [1],
@@ -56,38 +65,38 @@ const assetLegendKeys: Record<string, number[]> = {
 }
 
 // Build GLSL colormap: byte values are normalized to [0,1] in r8unorm textures
+function glslVec4(r: number, g: number, b: number, a: number): string {
+  return `vec4(${r.toFixed(4)}, ${g.toFixed(4)}, ${b.toFixed(4)}, ${a.toFixed(1)})`
+}
+
 function buildColormap(validValues: number[] | null): string {
   const lines: string[] = ['float byteVal = floor(color.r * 255.0 + 0.5);']
+  const transparent = 'color = vec4(0.0, 0.0, 0.0, 0.0);'
 
   if (validValues === null) {
     // Fallback: any non-zero, non-255 = datasetColor
-    const fb = [
-      datasetColor[0] / 255,
-      datasetColor[1] / 255,
-      datasetColor[2] / 255,
-    ] as const
-    lines.push('if (byteVal > 0.0 && byteVal < 255.0) {')
+    // Fallback is not very robust. No categories or continuous distinction between any valid data.
+    const r = datasetColor[0] / 255
+    const g = datasetColor[1] / 255
+    const b = datasetColor[2] / 255
     lines.push(
-      `  color = vec4(${fb[0].toFixed(4)}, ${fb[1].toFixed(4)}, ${fb[2].toFixed(4)}, 0.85);`,
+      `if (byteVal > 0.0 && byteVal < 255.0) {`,
+      `  color = ${glslVec4(r, g, b, datasetOpacity)};`,
+      `} else {`,
+      `  ${transparent}`,
+      `}`,
     )
-    lines.push('} else {')
-    lines.push('  color = vec4(0.0, 0.0, 0.0, 0.0);')
-    lines.push('}')
   } else {
-    let first = true
-    for (const val of validValues) {
-      const c = valueColors[val]
+    for (let i = 0; i < validValues.length; i++) {
+      const c = valueColors[validValues[i]!]
       if (!c) continue
-      const kw = first ? 'if' : '} else if'
-      lines.push(`${kw} (byteVal == ${val}.0) {`)
+      const kw = i === 0 ? 'if' : '} else if'
       lines.push(
-        `  color = vec4(${c[0].toFixed(4)}, ${c[1].toFixed(4)}, ${c[2].toFixed(4)}, 0.85);`,
+        `${kw} (byteVal == ${validValues[i]}.0) {`,
+        `  color = ${glslVec4(c[0], c[1], c[2], datasetOpacity)};`,
       )
-      first = false
     }
-    lines.push('} else {')
-    lines.push('  color = vec4(0.0, 0.0, 0.0, 0.0);')
-    lines.push('}')
+    lines.push(`} else {`, `  ${transparent}`, `}`)
   }
 
   return lines.join('\n')
@@ -178,7 +187,8 @@ function bboxToFeatures(source: {
 
   if (maxX >= 180 || minX <= -180) {
     // TODO: Fix world-spanning bboxes nicer. This is just a rough guess.
-    return [makePolygon(-180, -179.17), makePolygon(179.2, 180)]
+    // Not robust, but grid cells are different for each dataset, and for each of the east-west hemispheres.
+    return [makePolygon(-180, -179.17), makePolygon(179.17, 180)]
   }
   return [makePolygon(minX, maxX)]
 }
@@ -306,84 +316,6 @@ export const DatasetRunMap = ({
   // TODO: When user can pick assets, replace this with state initialized from initialAsset
   const selectedAsset = initialAsset
 
-  // Map bounds
-
-  const mapBounds = useMemo(() => {
-    if (isLoadingPmtilesHeader && isLoadingParquetArrowTable) return undefined
-
-    if (pmtilesHeader) {
-      return [
-        pmtilesHeader.minLon,
-        pmtilesHeader.minLat,
-        pmtilesHeader.maxLon,
-        pmtilesHeader.maxLat,
-      ] as [number, number, number, number]
-    }
-
-    if (parquetArrowTable) {
-      const bboxesVector = parquetArrowTable.getChild('bbox')
-      if (bboxesVector && bboxesVector.length > 0) {
-        let minX = Infinity,
-          minY = Infinity,
-          maxX = -Infinity,
-          maxY = -Infinity
-        for (let i = 0; i < bboxesVector.length; i++) {
-          const bboxVal = bboxesVector.get(i)
-          if (!bboxVal) continue
-          const arr = bboxVal.toArray()
-          if (arr.length !== 4) continue
-          const [x0, y0, x1, y1] = arr
-          minX = Math.min(minX, x0)
-          minY = Math.min(minY, y0)
-          maxX = Math.max(maxX, x1)
-          maxY = Math.max(maxY, y1)
-        }
-        if (
-          isFinite(minX) &&
-          isFinite(minY) &&
-          isFinite(maxX) &&
-          isFinite(maxY)
-        ) {
-          return [minX, minY, maxX, maxY] as [number, number, number, number]
-        }
-      }
-    }
-
-    return undefined
-  }, [
-    isLoadingPmtilesHeader,
-    isLoadingParquetArrowTable,
-    pmtilesHeader,
-    parquetArrowTable,
-  ])
-
-  const mapContainerRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!mapBounds) return
-    const el = mapContainerRef.current
-    const width = el?.clientWidth ?? 800
-    const height = el?.clientHeight ?? 384
-    const viewport = new WebMercatorViewport({ width, height })
-    const [minLon, minLat, maxLon, maxLat] = mapBounds
-    const { longitude, latitude, zoom } = viewport.fitBounds(
-      [
-        [minLon, minLat],
-        [maxLon, maxLat],
-      ],
-      { padding: 20 },
-    )
-    setViewState((prev) => ({
-      ...prev,
-      longitude,
-      latitude,
-      zoom,
-      pitch: 0,
-      bearing: 0,
-      transitionDuration: 0,
-    }))
-  }, [mapBounds])
-
   // COG layers (deck.gl)
 
   // TODO: Let user select year to visualise.
@@ -421,6 +353,92 @@ export const DatasetRunMap = ({
     return { availableYears, mosaicSources }
   }, [parquetArrowTable, cogUrls, selectedYear])
 
+  // Map bounds
+
+  const mapBounds = useMemo(() => {
+    if (isLoadingPmtilesHeader && isLoadingParquetArrowTable) return undefined
+
+    // For PMTiles
+    if (pmtilesHeader) {
+      return [
+        pmtilesHeader.minLon,
+        pmtilesHeader.minLat,
+        pmtilesHeader.maxLon,
+        pmtilesHeader.maxLat,
+      ] as [number, number, number, number]
+    }
+
+    // For STAC-GeoParquet: derive bounds from year-filtered mosaicSources
+    if (mosaicSources.length > 0) {
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity
+      for (const source of mosaicSources) {
+        const [x0, y0, x1, y1] = source.bbox
+        minX = Math.min(minX, x0)
+        minY = Math.min(minY, y0)
+        maxX = Math.max(maxX, x1)
+        maxY = Math.max(maxY, y1)
+      }
+      if (
+        isFinite(minX) &&
+        isFinite(minY) &&
+        isFinite(maxX) &&
+        isFinite(maxY)
+      ) {
+        return [minX, minY, maxX, maxY] as [number, number, number, number]
+      }
+    }
+
+    return undefined // TODO: Error here?
+  }, [
+    isLoadingPmtilesHeader,
+    isLoadingParquetArrowTable,
+    pmtilesHeader,
+    mosaicSources,
+  ])
+
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapDimensionsRef = useRef<{ width: number; height: number }>({
+    width: 800,
+    height: 384,
+  })
+  const mapContainerCallbackRef = (el: HTMLDivElement | null) => {
+    mapContainerRef.current = el
+    if (el) {
+      mapDimensionsRef.current = {
+        width: el.clientWidth,
+        height: el.clientHeight,
+      }
+    }
+  }
+
+  // Set map view once data is loaded.
+  // useEffect needed because we are synchronising React state with DOM dimensions in response to a data change.
+  useEffect(() => {
+    if (!mapBounds) return
+    const { width, height } = mapDimensionsRef.current
+    const viewport = new WebMercatorViewport({ width, height })
+    const [minLon, minLat, maxLon, maxLat] = mapBounds
+    const { longitude, latitude, zoom } = viewport.fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat],
+      ],
+      { padding: 20 },
+    )
+    setViewState((prev) => ({
+      ...prev,
+      longitude,
+      latitude,
+      zoom,
+      pitch: 0,
+      bearing: 0,
+      transitionDuration: 0,
+    }))
+  }, [mapBounds])
+
   const zoom = viewState?.zoom ?? 0
   const cogMinZoom = Math.min(9, Math.round((mosaicSources.length / 1000) * 9))
 
@@ -439,7 +457,12 @@ export const DatasetRunMap = ({
         },
         stroked: true,
         filled: false,
-        getLineColor: datasetColor,
+        getLineColor: [
+          datasetColor[0],
+          datasetColor[1],
+          datasetColor[2],
+          255 * (datasetOpacity / 3),
+        ],
         getLineWidth: 1,
         lineWidthMinPixels: 1,
       }),
@@ -497,13 +520,10 @@ export const DatasetRunMap = ({
     (dataType === 'stac-geoparquet' && isLoadingParquetArrowTable) ||
     (dataType === 'geoparquet' && isLoadingPmtilesHeader)
 
-  const loadingLabel =
-    dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'
-
   return (
     <div className="max-w-full flex flex-col mb-4">
       <div
-        ref={mapContainerRef}
+        ref={mapContainerCallbackRef}
         className="rounded-lg overflow-hidden h-96 relative"
       >
         <DeckGL
@@ -538,7 +558,7 @@ export const DatasetRunMap = ({
                   source-layer={pmtilesHeader.sourceLayer} // "data" for ACE Reef Extent, "building_footprints" for VIDA Buildings.
                   paint={{
                     'fill-color': `rgb(${datasetColor[0]}, ${datasetColor[1]}, ${datasetColor[2]})`,
-                    'fill-opacity': 0.8,
+                    'fill-opacity': datasetOpacity,
                     'fill-antialias': false, // Need this to prevent seams between tiles
                   }}
                 />
@@ -549,14 +569,18 @@ export const DatasetRunMap = ({
 
         {isLoading && (
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
-            <span className="text-sm">Loading {loadingLabel}…</span>
+            <span className="text-sm">
+              Loading{' '}
+              {dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'}…
+            </span>
           </div>
         )}
         {dataType === 'stac-geoparquet' && mosaicSources.length > 0 && (
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
             <span className="text-sm">
-              Showing mosaic of {mosaicSources.length} COG
-              {mosaicSources.length !== 1 ? 's' : ''}.
+              {mosaicSources.length === 1
+                ? 'Showing single COG.'
+                : `Showing mosaic of ${mosaicSources.length} COGs.`}
               {zoom < cogMinZoom && ` Zoom in to blue boxes to see data.`}
             </span>
           </div>
@@ -566,6 +590,14 @@ export const DatasetRunMap = ({
           mosaicSources.length === 0 && (
             <div className="absolute top-2 left-2 bg-yellow-100 p-2 rounded shadow text-sm">
               No COG URLs found — check console for available columns.
+            </div>
+          )}
+        {!isLoading &&
+          dataType === 'geoparquet' &&
+          pmTilesHttpsUrl &&
+          pmtilesHeader && (
+            <div className="absolute top-2 left-2 bg-white p-2 rounded shadow text-sm">
+              <span>Showing PMTiles - zoom in for more detail.</span>
             </div>
           )}
         {!isLoading && selectedAsset && (
@@ -614,7 +646,8 @@ export const DatasetRunMap = ({
           ) : null}
         </div>
       )}
-      <div>
+      <div className="mt-2">
+        {/* TODO: Allow user to select these? */}
         {assets && assets.length > 0 && (
           <div className="flex gap-2 items-center text-sm">
             <span className="text-gray-500">Available Assets:</span>
