@@ -27,8 +27,8 @@ import { DatasetRunListItem } from '../_hooks'
  *   "type": "raster",
  *   "display": "categorical",
  *   "values": {
- *     "1": { "color": "rgba(0, 196, 23, 1)", "label": "Mangrove 1" },
- *     "2": { "color": "rgba(47, 255, 0, 1)", "label": "Mangrove 2" }
+ *     "1": { "color": "rgba(86, 173, 60, 1)", "label": "Mangrove (Open)" },
+ *     "2": { "color": "rgba(46, 139, 87, 1)", "label": "Mangrove (Closed)" }
  *   }
  * }
  * ```
@@ -38,7 +38,7 @@ import { DatasetRunListItem } from '../_hooks'
  * {
  *   "type": "vector-polygon",
  *   "display": "simple",
- *   "color": "rgba(93, 255, 112, 1)",
+ *   "color": "rgba(209, 255, 93, 1)",
  *   "label": "Reef"
  * }
  * ```
@@ -222,10 +222,10 @@ class ColorMappedCOGLayer extends COGLayer {
 
   /** Access custom props that are not part of COGLayer's type system. */
   private get customProps(): ColorMappedCOGLayerProps {
-    // The base COGLayer type doesn't include our custom fields, but they exist at runtime.
-    // The generic mismatch is internal to deck.gl (MinimalDataT vs DefaultDataT).
-    const props: Record<string, unknown> = this.props
-    return props as ColorMappedCOGLayerProps
+    // deck.gl passes our custom fields through at runtime but the base type doesn't declare them.
+    // The MinimalDataT/DefaultDataT generic mismatch in the library prevents a direct cast,
+    // so we assert through the widest safe type (object) to reach our intersection type.
+    return this.props as object as ColorMappedCOGLayerProps
   }
 
   async _parseGeoTIFF() {
@@ -243,9 +243,10 @@ class ColorMappedCOGLayer extends COGLayer {
     if (!originalRenderTile) return
 
     const colormapMod = this.customProps.colormapModule
+    type RenderTileFn = NonNullable<typeof originalRenderTile>
+    type TileData = Parameters<RenderTileFn>[0]
     this.setState({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      defaultRenderTile: (data: any) => {
+      defaultRenderTile: (data: TileData) => {
         const result = originalRenderTile(data) as {
           renderPipeline?: ColormapModule[]
         }
