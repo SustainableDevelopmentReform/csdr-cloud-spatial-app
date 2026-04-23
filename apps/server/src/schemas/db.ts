@@ -84,6 +84,7 @@ export const dataset = pgTable(
     ...coreBaseResourceColumns((): AnyPgColumn => datasetRun.id),
     sourceUrl: text('source_url'),
     sourceMetadataUrl: text('source_metadata_url'),
+    style: jsonb('style'),
   },
   (table) => [
     // Substring search indexes require the pg_trgm extension.
@@ -158,6 +159,7 @@ export const datasetRun = pgTable(
   'dataset_run',
   {
     ...runBaseColumns,
+    dataPmtilesUrl: text('data_pmtiles_url'),
     dataType: datasetRunDataType('data_type'),
     bounds: polygon('bounds', { srid: 4326 }),
     datasetId: text('dataset_id')

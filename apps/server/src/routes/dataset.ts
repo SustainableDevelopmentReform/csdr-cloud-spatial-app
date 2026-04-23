@@ -53,6 +53,7 @@ export const baseDatasetQuery = {
     mainRunId: true,
     sourceUrl: true,
     sourceMetadataUrl: true,
+    style: true,
   },
 } satisfies QueryForTable<'dataset'>
 

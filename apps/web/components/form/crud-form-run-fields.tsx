@@ -142,6 +142,52 @@ export const CrudFormRunFields = <
           )}
         />
       )}
+      {shouldShowField('dataPmtilesUrl' as keyof Data) && (
+        <FormField
+          control={form.control}
+          name={'dataPmtilesUrl' as Path<Data>}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data PMTiles URL</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="s3://bucket/path/to/file.pmtiles"
+                  disabled={isReadOnlyField('dataPmtilesUrl' as keyof Data)}
+                  className={
+                    isReadOnlyField('dataPmtilesUrl' as keyof Data)
+                      ? 'bg-gray-100'
+                      : ''
+                  }
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+      {shouldShowField('style' as keyof Data) && (
+        <FormField
+          control={form.control}
+          name={'style' as Path<Data>}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data Style</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  // placeholder="" // TODO: It would be nice to show an example style JSON.
+                  disabled={isReadOnlyField('style' as keyof Data)}
+                  className={
+                    isReadOnlyField('style' as keyof Data) ? 'bg-gray-100' : ''
+                  }
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
       {shouldShowField('imageCode') && (
         <FormField
           control={form.control}

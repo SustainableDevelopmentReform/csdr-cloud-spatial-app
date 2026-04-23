@@ -34,6 +34,7 @@ import {
 export const baseDatasetRunQuery = {
   columns: {
     ...baseRunColumns,
+    dataPmtilesUrl: true,
     bounds: true,
   },
   with: {
@@ -41,6 +42,7 @@ export const baseDatasetRunQuery = {
       columns: {
         ...idColumns,
         mainRunId: true,
+        style: true,
       },
     },
   },

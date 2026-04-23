@@ -253,6 +253,20 @@
       "when": 1776774517890,
       "tag": "0035_cheerful_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1776833031880,
+      "tag": "0036_panoramic_apocalypse",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1776901749652,
+      "tag": "0037_overjoyed_ravenous",
+      "breakpoints": true
     }
   ]
 }
