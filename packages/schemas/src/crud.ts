@@ -217,7 +217,9 @@ export const updateIndicatorCategorySchema = baseUpdateResourceSchema.extend({
 export const baseDatasetRunSchema = baseRunResourceSchema
   .extend({
     dataPmtilesUrl: z.string().nullable().optional(),
-    dataset: baseIdResourceSchemaWithMainRunId,
+    dataset: baseIdResourceSchemaWithMainRunId.extend({
+      style: z.any().nullable().optional(),
+    }),
     bounds: resourceBoundsSchema.nullable().optional(),
   })
   .openapi('DatasetRunBase')
@@ -235,6 +237,7 @@ export const baseDatasetSchema = baseAclResourceSchema
     mainRunId: z.string().nullable(),
     sourceUrl: z.string().nullable(),
     sourceMetadataUrl: z.string().nullable(),
+    style: z.any().nullable(),
   })
   .openapi('DatasetBase')
 
@@ -256,10 +259,12 @@ export const datasetQuerySchema = geographicBoundsQuerySchema.extend({
 export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
   sourceMetadataUrl: z.string().optional(),
+  style: z.any().nullable().optional(),
 })
 
 export const updateDatasetSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
+  style: z.any().nullable().optional(),
 })
 
 export const datasetRunQuerySchema = geographicBoundsQuerySchema

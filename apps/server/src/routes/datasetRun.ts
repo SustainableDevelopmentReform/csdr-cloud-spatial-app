@@ -42,6 +42,7 @@ export const baseDatasetRunQuery = {
       columns: {
         ...idColumns,
         mainRunId: true,
+        style: true,
       },
     },
   },

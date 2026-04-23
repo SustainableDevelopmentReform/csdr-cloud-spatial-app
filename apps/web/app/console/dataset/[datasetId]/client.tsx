@@ -2,6 +2,14 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateDatasetSchema } from '@repo/schemas/crud'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
@@ -137,7 +145,45 @@ const DatasetDetails = () => {
           entityNamePlural="datasets"
           readOnly={!canEdit}
           successMessage="Updated Dataset"
-        />
+        >
+          <FormField
+            control={form.control}
+            name="style"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Style (JSON)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder='{"type":"raster","display":"categorical","asset":"mangroves","values":{"1":{"color":"rgba(0,196,23,1)","label":"Mangrove"}}}'
+                    className="font-mono text-xs"
+                    rows={4}
+                    disabled={!canEdit}
+                    value={
+                      field.value != null
+                        ? typeof field.value === 'string'
+                          ? field.value
+                          : JSON.stringify(field.value, null, 2)
+                        : ''
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      if (!raw.trim()) {
+                        field.onChange(null)
+                        return
+                      }
+                      try {
+                        field.onChange(JSON.parse(raw))
+                      } catch {
+                        field.onChange(raw)
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CrudForm>
       </div>
     </ResourcePageState>
   )

@@ -14,86 +14,137 @@ import { useQuery } from '@tanstack/react-query'
 import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import { DatasetRunListItem } from '../_hooks'
 
-// This map either renders a PMTiles vector tile source with a simple style, or a COG mosaic using deck.gl's COGLayer and MosaicLayer.
+// --- Types ---
+
+/**
+ * Visualization style for a dataset. Stored as a nullable JSON column on the
+ * dataset model.
+ *
+ * Raster / COG (STAC-GeoParquet) example:
+ * ```json
+ * {
+ *   "asset": "mangroves",
+ *   "type": "raster",
+ *   "display": "categorical",
+ *   "values": {
+ *     "1": { "color": "rgba(0, 196, 23, 1)", "label": "Mangrove 1" },
+ *     "2": { "color": "rgba(47, 255, 0, 1)", "label": "Mangrove 2" }
+ *   }
+ * }
+ * ```
+ *
+ * Vector / PMTiles (GeoParquet) example:
+ * ```json
+ * {
+ *   "type": "vector-polygon",
+ *   "display": "simple",
+ *   "color": "rgba(93, 255, 112, 1)",
+ *   "label": "Reef"
+ * }
+ * ```
+ *
+ * When null/undefined the map falls back to rendering with the default blue.
+ */
+export type DatasetStyle = {
+  /** Which STAC asset to render (raster only). */
+  asset?: string
+  /** "raster" for COG/STAC-GeoParquet, "vector-polygon" for PMTiles. */
+  type?: 'raster' | 'vector-polygon'
+  /** "categorical" (pixel-value map) or "simple" (single colour). */
+  display?: 'categorical' | 'simple'
+  /** CSS colour for simple/single-colour rendering (PMTiles fill, COG fallback). */
+  color?: string
+  /** Human-readable label for simple/single-colour rendering. */
+  label?: string
+  /** Pixel-value → {label, CSS colour} for categorical COG rendering. Keys are string-encoded integers. */
+  values?: Record<string, { label: string; color: string }>
+}
+
+type ResolvedCategory = {
+  value: number
+  label: string
+  rgb: [number, number, number]
+}
+
+type ColormapModule = {
+  module: { name: string; inject: Record<string, string> }
+}
+
+/** Custom props for ColorMappedCOGLayer, not part of deck.gl's type system. */
+type ColorMappedCOGProps = {
+  colormapModule: ColormapModule
+  onCogError?: (msg: string) => void
+}
+
+// --- Constants ---
+
+// This map either renders a PMTiles vector tile source with a simple style,
+// or a COG mosaic using deck.gl's COGLayer and MosaicLayer.
 
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
 
-const datasetOpacity = 0.85
-const datasetColor: [number, number, number, number] = [
-  30,
-  119,
-  179,
-  255 * datasetOpacity,
-]
+const DEFAULT_COLOR = 'rgba(30, 119, 179, 1)'
+const DEFAULT_LABEL = 'Data'
+const DATASET_OPACITY = 0.85
 
-// Human-readable labels and RGB colors (0-255) for the legend
-const valueLegend: Record<
-  number,
-  { label: string; color: [number, number, number] }
-> = {
-  1: {
-    label: 'Data',
-    color: [datasetColor[0], datasetColor[1], datasetColor[2]],
-  },
-  2: { label: 'Intertidal', color: [148, 65, 14] },
-  3: { label: 'Mangrove', color: [41, 223, 58] },
-  4: { label: 'Saltmarsh', color: [219, 228, 54] },
-  5: { label: 'Seagrass', color: [14, 131, 78] },
-}
+// --- Pure helpers ---
 
-// ACE classification: 2=intertidal, 3=mangrove, 4=saltmarsh, 5=seagrass
-// Colors sourced from DEA Australia (RGB 0-1 for GLSL).
-// Value 1 is used by other datasets (gmw, seagrass, dep-mangrove) = datasetColor.
-// All other values (including 0, 255/nodata) = transparent.
-const valueColors: Record<number, [number, number, number]> =
-  Object.fromEntries(
-    Object.entries(valueLegend).map(([k, v]) => [
-      k,
-      v.color.map((c) => c / 255) as [number, number, number],
-    ]),
+/** Parse a CSS colour string (hex or rgba) to an [r,g,b] tuple. */
+function parseColorToRgb(color: string): [number, number, number] {
+  // rgba(r, g, b, a) or rgb(r, g, b)
+  const rgbaMatch = color.match(
+    /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/,
   )
-
-// Which legend entries to show per selected asset
-// TODO: This is not robust if other datasets with the same asset name, but different values is added.
-const assetLegendKeys: Record<string, number[]> = {
-  classification: [2, 3, 4, 5],
-  seagrass: [1],
-  mangrove: [1],
-  gmw_v3_and_v4: [1],
-  'dep-mangrove': [1, 2],
+  if (rgbaMatch) {
+    return [
+      parseInt(rgbaMatch[1]!, 10),
+      parseInt(rgbaMatch[2]!, 10),
+      parseInt(rgbaMatch[3]!, 10),
+    ]
+  }
+  // #rrggbb or #rgb
+  const h = color.replace('#', '')
+  return [
+    parseInt(h.substring(0, 2), 16) || 0,
+    parseInt(h.substring(2, 4), 16) || 0,
+    parseInt(h.substring(4, 6), 16) || 0,
+  ]
 }
 
-// Build GLSL colormap: byte values are normalized to [0,1] in r8unorm textures
 function glslVec4(r: number, g: number, b: number, a: number): string {
   return `vec4(${r.toFixed(4)}, ${g.toFixed(4)}, ${b.toFixed(4)}, ${a.toFixed(1)})`
 }
 
-function buildColormap(validValues: number[] | null): string {
+/**
+ * Build a GLSL colormap snippet for the deck.gl render pipeline.
+ * If categories are provided, each pixel value maps to its colour.
+ * Otherwise any non-zero, non-255 pixel renders as the fallback colour.
+ */
+function buildColormap(
+  categories: ResolvedCategory[] | null,
+  fallbackRgb: [number, number, number],
+): string {
   const lines: string[] = ['float byteVal = floor(color.r * 255.0 + 0.5);']
   const transparent = 'color = vec4(0.0, 0.0, 0.0, 0.0);'
 
-  if (validValues === null) {
-    // Fallback: any non-zero, non-255 = datasetColor
-    // Fallback is not very robust. No categories or continuous distinction between any valid data.
-    const r = datasetColor[0] / 255
-    const g = datasetColor[1] / 255
-    const b = datasetColor[2] / 255
+  if (!categories || categories.length === 0) {
+    const [r, g, b] = fallbackRgb.map((c) => c / 255)
     lines.push(
       `if (byteVal > 0.0 && byteVal < 255.0) {`,
-      `  color = ${glslVec4(r, g, b, datasetOpacity)};`,
+      `  color = ${glslVec4(r!, g!, b!, DATASET_OPACITY)};`,
       `} else {`,
       `  ${transparent}`,
       `}`,
     )
   } else {
-    for (let i = 0; i < validValues.length; i++) {
-      const c = valueColors[validValues[i]!]
-      if (!c) continue
+    for (let i = 0; i < categories.length; i++) {
+      const cat = categories[i]!
+      const [r, g, b] = cat.rgb.map((c) => c / 255)
       const kw = i === 0 ? 'if' : '} else if'
       lines.push(
-        `${kw} (byteVal == ${validValues[i]}.0) {`,
-        `  color = ${glslVec4(c[0], c[1], c[2], datasetOpacity)};`,
+        `${kw} (byteVal == ${cat.value}.0) {`,
+        `  color = ${glslVec4(r!, g!, b!, DATASET_OPACITY)};`,
       )
     }
     lines.push(`} else {`, `  ${transparent}`, `}`)
@@ -102,62 +153,18 @@ function buildColormap(validValues: number[] | null): string {
   return lines.join('\n')
 }
 
-// Pre-build a colormap module per asset, plus a catch-all fallback
-const colormapModules: Record<
-  string,
-  { module: { name: string; inject: Record<string, string> } }
-> = {}
-for (const [asset, keys] of Object.entries(assetLegendKeys)) {
-  colormapModules[asset] = {
+function makeColormapModule(
+  name: string,
+  categories: ResolvedCategory[] | null,
+  fallbackRgb: [number, number, number],
+): ColormapModule {
+  return {
     module: {
-      name: `colormap-${asset}`,
-      inject: { 'fs:DECKGL_FILTER_COLOR': buildColormap(keys) },
+      name,
+      inject: {
+        'fs:DECKGL_FILTER_COLOR': buildColormap(categories, fallbackRgb),
+      },
     },
-  }
-}
-const fallbackColormapModule = {
-  module: {
-    name: 'colormap-fallback',
-    inject: { 'fs:DECKGL_FILTER_COLOR': buildColormap(null) },
-  },
-}
-
-/**
- * Subclass COGLayer to append a colormap to the default render pipeline.
- * Pass `colormapAsset` prop to select the correct per-asset colormap.
- */
-class ColorMappedCOGLayer extends COGLayer {
-  static layerName = 'ColorMappedCOGLayer'
-
-  async _parseGeoTIFF() {
-    try {
-      await super._parseGeoTIFF()
-    } catch (err) {
-      const onCogError = (this.props as any).onCogError as
-        | ((msg: string) => void)
-        | undefined
-      const msg = err instanceof Error ? err.message : String(err)
-      console.warn('[ColorMappedCOGLayer] _parseGeoTIFF failed:', msg)
-      onCogError?.(msg)
-      return
-    }
-
-    // Inject colormap shader module into the render pipeline
-    const originalRenderTile = this.state.defaultRenderTile
-    if (originalRenderTile) {
-      const asset = (this.props as any).colormapAsset as string | undefined
-      const colormapMod =
-        (asset && colormapModules[asset]) ?? fallbackColormapModule
-      this.setState({
-        defaultRenderTile: (data: any) => {
-          const result = originalRenderTile(data)
-          if (result.renderPipeline) {
-            result.renderPipeline.push(colormapMod as any)
-          }
-          return result
-        },
-      })
-    }
   }
 }
 
@@ -194,30 +201,108 @@ function bboxToFeatures(source: {
 }
 
 function s3UrlToHttps(s3Url: string): string {
-  let httpsUrl = s3Url
-  if (s3Url.startsWith('s3://')) {
-    const s3UrlWithoutPrefix = s3Url.replace('s3://', '')
-    const [bucket, ...pathParts] = s3UrlWithoutPrefix.split('/')
-    const path = pathParts.join('/')
-    httpsUrl = `https://${bucket}.s3.amazonaws.com/${path}`
-  }
-  return httpsUrl
+  if (!s3Url.startsWith('s3://')) return s3Url
+  const withoutPrefix = s3Url.replace('s3://', '')
+  const [bucket, ...pathParts] = withoutPrefix.split('/')
+  return `https://${bucket}.s3.amazonaws.com/${pathParts.join('/')}`
 }
+
+// --- ColorMappedCOGLayer ---
+
+/** Props that COGLayer actually receives at runtime, including our custom fields. */
+type ColorMappedCOGLayerProps = ConstructorParameters<typeof COGLayer>[0] &
+  ColorMappedCOGProps
+
+/**
+ * Subclass COGLayer to append a colormap to the default render pipeline.
+ * Accepts `colormapModule` and `onCogError` as custom props.
+ */
+class ColorMappedCOGLayer extends COGLayer {
+  static layerName = 'ColorMappedCOGLayer'
+
+  /** Access custom props that are not part of COGLayer's type system. */
+  private get customProps(): ColorMappedCOGLayerProps {
+    // The base COGLayer type doesn't include our custom fields, but they exist at runtime.
+    // The generic mismatch is internal to deck.gl (MinimalDataT vs DefaultDataT).
+    const props: Record<string, unknown> = this.props
+    return props as ColorMappedCOGLayerProps
+  }
+
+  async _parseGeoTIFF() {
+    try {
+      await super._parseGeoTIFF()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn('[ColorMappedCOGLayer] _parseGeoTIFF failed:', msg)
+      this.customProps.onCogError?.(msg)
+      return
+    }
+
+    // Inject colormap shader module into the render pipeline
+    const originalRenderTile = this.state.defaultRenderTile
+    if (!originalRenderTile) return
+
+    const colormapMod = this.customProps.colormapModule
+    this.setState({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      defaultRenderTile: (data: any) => {
+        const result = originalRenderTile(data) as {
+          renderPipeline?: ColormapModule[]
+        }
+        result.renderPipeline?.push(colormapMod)
+        return result
+      },
+    })
+  }
+}
+
+// --- Component ---
 
 export const DatasetRunMap = ({
   dataType,
   dataUrl,
   dataPmtilesUrl,
+  datasetStyle,
 }: {
-  dataType: DatasetRunListItem['dataType'] // Parent checks this type
+  dataType: DatasetRunListItem['dataType']
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
   dataPmtilesUrl: DatasetRunListItem['dataPmtilesUrl']
+  /** Visualization style. If omitted, for raster data, all valid pixels render as the default blue. For vector data, all features render as the default blue. */
+  datasetStyle?: DatasetStyle | null
 }) => {
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
-  const deckRef = useRef<any | null>(null)
   const [cogError, setCogError] = useState<string | null>(null)
+
+  // --- Resolve visualization style ---
+
+  /** Which asset to render from STAC-GeoParquet. If omitted, picks first available. */
+  const datasetAsset = datasetStyle?.asset ?? null
+
+  const { baseRgb, resolvedCategories, colormapModule } = useMemo(() => {
+    const rgb = parseColorToRgb(datasetStyle?.color ?? DEFAULT_COLOR)
+
+    const cats: ResolvedCategory[] | null = datasetStyle?.values
+      ? Object.entries(datasetStyle.values)
+          .map(([k, v]) => ({
+            value: parseInt(k, 10),
+            label: v.label,
+            rgb: parseColorToRgb(v.color),
+          }))
+          .filter((c) => !isNaN(c.value))
+      : null
+
+    const mod = makeColormapModule(
+      `colormap-${datasetAsset ?? 'default'}`,
+      cats,
+      rgb,
+    )
+
+    return { baseRgb: rgb, resolvedCategories: cats, colormapModule: mod }
+  }, [datasetAsset, datasetStyle])
+
+  // --- Data fetching ---
 
   const renderPMTiles = dataType === 'geoparquet' && !!dataPmtilesUrl
   const pmTilesHttpsUrl = renderPMTiles
@@ -227,7 +312,6 @@ export const DatasetRunMap = ({
     : null
 
   // PMTiles header (for map bounds and source layer name)
-
   const {
     data: pmtilesHeader,
     isLoading: isLoadingPmtilesHeader,
@@ -241,7 +325,9 @@ export const DatasetRunMap = ({
         p.getHeader(),
         p.getMetadata(),
       ])
-      const sourceLayer = (metadata as any)?.vector_layers?.[0]?.id ?? 'data'
+      // PMTiles metadata type is untyped - cast needed to access TileJSON fields.
+      const meta = metadata as { vector_layers?: { id: string }[] } | undefined
+      const sourceLayer = meta?.vector_layers?.[0]?.id ?? 'data'
       return { ...header, sourceLayer }
     },
     enabled: renderPMTiles,
@@ -260,7 +346,6 @@ export const DatasetRunMap = ({
       await initParquetWasm()
       const resp = await fetch(parquetArrowUrl)
       if (!resp.ok) {
-        // Error gets caught by parquetArrowTableError and displayed in the UI
         throw new Error(
           `Failed to fetch Parquet file: ${resp.status} ${resp.statusText} (${parquetArrowUrl})`,
         )
@@ -272,6 +357,8 @@ export const DatasetRunMap = ({
     enabled: dataType === 'stac-geoparquet' && !!dataUrl,
   })
 
+  // --- Derive COG URLs and asset selection ---
+
   const { cogUrls, assets, initialAsset } = useMemo(() => {
     if (!parquetArrowTable || dataType !== 'stac-geoparquet')
       return { cogUrls: [], assets: [], initialAsset: undefined }
@@ -282,16 +369,17 @@ export const DatasetRunMap = ({
       return { cogUrls: [], assets: [], initialAsset: undefined }
     }
 
-    const assetFields: any[] = assetsVector.type?.children ?? []
-    const assetKeys: string[] = assetFields.map((f) => f.name)
+    const assetFields = (assetsVector.type?.children ?? []) as {
+      name: string
+    }[]
+    const assetKeys = assetFields.map((f) => f.name)
 
-    const preferredKeys = ['seagrass', 'classification', 'mangrove'] // The order of these is important.
-    const sortedKeys = [
-      ...assetKeys.filter((k) => preferredKeys.includes(k)),
-      ...assetKeys.filter((k) => !preferredKeys.includes(k)),
-    ]
+    // If datasetAsset is specified, try it first; otherwise try all assets.
+    const keysToTry = datasetAsset
+      ? [datasetAsset, ...assetKeys.filter((k) => k !== datasetAsset)]
+      : assetKeys
 
-    for (const assetKey of sortedKeys) {
+    for (const assetKey of keysToTry) {
       const assetChild = assetsVector.getChild(assetKey)
       if (!assetChild) continue
       const hrefChild = assetChild.getChild('href')
@@ -311,12 +399,12 @@ export const DatasetRunMap = ({
       assetKeys,
     )
     return { cogUrls: [], assets: assetKeys, initialAsset: undefined }
-  }, [parquetArrowTable, dataType])
+  }, [parquetArrowTable, dataType, datasetAsset])
 
   // TODO: When user can pick assets, replace this with state initialized from initialAsset
   const selectedAsset = initialAsset
 
-  // COG layers (deck.gl)
+  // --- Year filtering and mosaic sources ---
 
   // TODO: Let user select year to visualise.
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
@@ -333,9 +421,9 @@ export const DatasetRunMap = ({
 
     const rows = cogUrls.map((url, i) => {
       const bboxVal = bboxVector?.get(i)
-      const bbox = (bboxVal?.toArray() as [number, number, number, number]) ?? [
-        0, 0, 0, 0,
-      ]
+      const bbox = (bboxVal?.toArray() as
+        | [number, number, number, number]
+        | undefined) ?? [0, 0, 0, 0]
       const datetimeVal = datetimeVector?.get(i)
       const year =
         datetimeVal != null ? new Date(Number(datetimeVal)).getFullYear() : null
@@ -353,12 +441,11 @@ export const DatasetRunMap = ({
     return { availableYears, mosaicSources }
   }, [parquetArrowTable, cogUrls, selectedYear])
 
-  // Map bounds
+  // --- Map bounds ---
 
   const mapBounds = useMemo(() => {
     if (isLoadingPmtilesHeader && isLoadingParquetArrowTable) return undefined
 
-    // For PMTiles
     if (pmtilesHeader) {
       return [
         pmtilesHeader.minLon,
@@ -368,7 +455,6 @@ export const DatasetRunMap = ({
       ] as [number, number, number, number]
     }
 
-    // For STAC-GeoParquet: derive bounds from year-filtered mosaicSources
     if (mosaicSources.length > 0) {
       let minX = Infinity,
         minY = Infinity,
@@ -391,7 +477,7 @@ export const DatasetRunMap = ({
       }
     }
 
-    return undefined // TODO: Error here?
+    return undefined
   }, [
     isLoadingPmtilesHeader,
     isLoadingParquetArrowTable,
@@ -399,13 +485,10 @@ export const DatasetRunMap = ({
     mosaicSources,
   ])
 
-  const mapContainerRef = useRef<HTMLDivElement | null>(null)
-  const mapDimensionsRef = useRef<{ width: number; height: number }>({
-    width: 800,
-    height: 384,
-  })
+  // --- Fit map to bounds ---
+
+  const mapDimensionsRef = useRef({ width: 800, height: 384 })
   const mapContainerCallbackRef = (el: HTMLDivElement | null) => {
-    mapContainerRef.current = el
     if (el) {
       mapDimensionsRef.current = {
         width: el.clientWidth,
@@ -414,8 +497,7 @@ export const DatasetRunMap = ({
     }
   }
 
-  // Set map view once data is loaded.
-  // useEffect needed because we are synchronising React state with DOM dimensions in response to a data change.
+  // useEffect needed: synchronising React state with DOM dimensions in response to a data change.
   useEffect(() => {
     if (!mapBounds) return
     const { width, height } = mapDimensionsRef.current
@@ -439,6 +521,8 @@ export const DatasetRunMap = ({
     }))
   }, [mapBounds])
 
+  // --- COG deck.gl layers ---
+
   const zoom = viewState?.zoom ?? 0
   const cogMinZoom = Math.min(9, Math.round((mosaicSources.length / 1000) * 9))
 
@@ -458,10 +542,10 @@ export const DatasetRunMap = ({
         stroked: true,
         filled: false,
         getLineColor: [
-          datasetColor[0],
-          datasetColor[1],
-          datasetColor[2],
-          255 * (datasetOpacity / 3),
+          baseRgb[0],
+          baseRgb[1],
+          baseRgb[2],
+          255 * (DATASET_OPACITY / 3),
         ],
         getLineWidth: 1,
         lineWidthMinPixels: 1,
@@ -469,15 +553,26 @@ export const DatasetRunMap = ({
     )
 
     if (zoom >= cogMinZoom) {
+      /** Build props for ColorMappedCOGLayer, merging our custom fields with deck.gl's. */
+      const cogLayerProps = (
+        overrides: Record<string, string | AbortSignal | undefined>,
+      ) =>
+        ({
+          colormapModule,
+          onCogError: setCogError,
+          ...overrides,
+          // Cast through the subclass constructor type to satisfy deck.gl-geotiff's
+          // broken MinimalDataT/DefaultDataT generics.
+        }) as ConstructorParameters<typeof ColorMappedCOGLayer>[0]
+
       if (mosaicSources.length === 1 && mosaicSources[0]) {
-        // Single COG — render without MosaicLayer
         layerList.push(
-          new ColorMappedCOGLayer({
-            id: `cog-single`,
-            geotiff: mosaicSources[0].url,
-            colormapAsset: selectedAsset,
-            onCogError: setCogError,
-          } as any),
+          new ColorMappedCOGLayer(
+            cogLayerProps({
+              id: 'cog-single',
+              geotiff: mosaicSources[0].url,
+            }),
+          ),
         )
       } else {
         layerList.push(
@@ -486,22 +581,33 @@ export const DatasetRunMap = ({
             sources: mosaicSources,
             minZoom: cogMinZoom,
             renderSource: (source, { signal }) =>
-              new ColorMappedCOGLayer({
-                id: `cog-${source.url}`,
-                geotiff: source.url,
-                signal,
-                colormapAsset: selectedAsset,
-                onCogError: setCogError,
-              } as any),
+              new ColorMappedCOGLayer(
+                cogLayerProps({
+                  id: `cog-${source.url}`,
+                  geotiff: source.url,
+                  signal,
+                }),
+              ),
           }),
         )
       }
     }
 
     return layerList
-  }, [dataType, zoom, mosaicSources, cogMinZoom, selectedAsset])
+  }, [dataType, zoom, mosaicSources, cogMinZoom, colormapModule, baseRgb])
 
-  // Render
+  // --- Legend entries ---
+
+  const legendEntries = useMemo(() => {
+    if (resolvedCategories && resolvedCategories.length > 0) {
+      return resolvedCategories.map((c) => ({ label: c.label, rgb: c.rgb }))
+    }
+    // Fallback: single entry with the asset name (COG) or configured label.
+    const label = datasetStyle?.label ?? selectedAsset ?? DEFAULT_LABEL
+    return [{ label, rgb: baseRgb }]
+  }, [resolvedCategories, datasetStyle?.label, selectedAsset, baseRgb])
+
+  // --- Render ---
 
   if (pmtilesHeaderError || parquetArrowTableError) {
     return (
@@ -520,6 +626,11 @@ export const DatasetRunMap = ({
     (dataType === 'stac-geoparquet' && isLoadingParquetArrowTable) ||
     (dataType === 'geoparquet' && isLoadingPmtilesHeader)
 
+  const showLegend =
+    !isLoading &&
+    ((dataType === 'stac-geoparquet' && !!selectedAsset) ||
+      (dataType === 'geoparquet' && renderPMTiles && !!pmtilesHeader))
+
   return (
     <div className="max-w-full flex flex-col mb-4">
       <div
@@ -527,10 +638,9 @@ export const DatasetRunMap = ({
         className="rounded-lg overflow-hidden h-96 relative"
       >
         <DeckGL
-          ref={deckRef}
           viewState={viewState}
-          onViewStateChange={({ viewState }) =>
-            setViewState(viewState as MapViewState)
+          onViewStateChange={({ viewState: vs }) =>
+            setViewState(vs as MapViewState)
           }
           controller={true}
           layers={layers}
@@ -555,11 +665,11 @@ export const DatasetRunMap = ({
                   id="pmtiles-fill"
                   type="fill"
                   source="pmtiles-source"
-                  source-layer={pmtilesHeader.sourceLayer} // "data" for ACE Reef Extent, "building_footprints" for VIDA Buildings.
+                  source-layer={pmtilesHeader.sourceLayer}
                   paint={{
-                    'fill-color': `rgb(${datasetColor[0]}, ${datasetColor[1]}, ${datasetColor[2]})`,
-                    'fill-opacity': datasetOpacity,
-                    'fill-antialias': false, // Need this to prevent seams between tiles
+                    'fill-color': `rgb(${baseRgb[0]}, ${baseRgb[1]}, ${baseRgb[2]})`,
+                    'fill-opacity': DATASET_OPACITY,
+                    'fill-antialias': false,
                   }}
                 />
               </>
@@ -571,7 +681,8 @@ export const DatasetRunMap = ({
           <div className="absolute top-2 left-2 bg-white p-2 rounded shadow">
             <span className="text-sm">
               Loading{' '}
-              {dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'}…
+              {dataType === 'stac-geoparquet' ? 'STAC-GeoParquet' : 'PMTiles'}
+              ...
             </span>
           </div>
         )}
@@ -581,7 +692,7 @@ export const DatasetRunMap = ({
               {mosaicSources.length === 1
                 ? 'Showing single COG.'
                 : `Showing mosaic of ${mosaicSources.length} COGs.`}
-              {zoom < cogMinZoom && ` Zoom in to blue boxes to see data.`}
+              {zoom < cogMinZoom && ' Zoom in to blue boxes to see data.'}
             </span>
           </div>
         )}
@@ -589,7 +700,7 @@ export const DatasetRunMap = ({
           !isLoadingParquetArrowTable &&
           mosaicSources.length === 0 && (
             <div className="absolute top-2 left-2 bg-yellow-100 p-2 rounded shadow text-sm">
-              No COG URLs found — check console for available columns.
+              No COG URLs found - check console for available columns.
             </div>
           )}
         {!isLoading &&
@@ -600,33 +711,15 @@ export const DatasetRunMap = ({
               <span>Showing PMTiles - zoom in for more detail.</span>
             </div>
           )}
-        {!isLoading && selectedAsset && (
+        {showLegend && (
           <div className="absolute bottom-2 left-2 bg-white/90 px-3 py-2 rounded shadow text-xs space-y-1">
-            {(assetLegendKeys[selectedAsset]
-              ? assetLegendKeys[selectedAsset]
-                  .map((key) => {
-                    const entry = valueLegend[key]!
-                    // For value 1 ("Data"), use the asset name instead of the generic label
-                    return key === 1
-                      ? { ...entry, label: selectedAsset }
-                      : entry
-                  })
-                  .filter(Boolean)
-              : [
-                  {
-                    label: selectedAsset,
-                    color: [
-                      datasetColor[0],
-                      datasetColor[1],
-                      datasetColor[2],
-                    ] as [number, number, number],
-                  },
-                ]
-            ).map((entry) => (
+            {legendEntries.map((entry) => (
               <div key={entry.label} className="flex items-center gap-2">
                 <span
                   className="inline-block w-3 h-3 rounded-sm"
-                  style={{ backgroundColor: `rgb(${entry.color.join(',')})` }}
+                  style={{
+                    backgroundColor: `rgb(${entry.rgb.join(',')})`,
+                  }}
                 />
                 <span>{entry.label}</span>
               </div>
@@ -647,7 +740,6 @@ export const DatasetRunMap = ({
         </div>
       )}
       <div className="mt-2">
-        {/* TODO: Allow user to select these? */}
         {assets && assets.length > 0 && (
           <div className="flex gap-2 items-center text-sm">
             <span className="text-gray-500">Available Assets:</span>

@@ -1,0 +1,1 @@
+ALTER TABLE "dataset" ADD COLUMN "style" jsonb;

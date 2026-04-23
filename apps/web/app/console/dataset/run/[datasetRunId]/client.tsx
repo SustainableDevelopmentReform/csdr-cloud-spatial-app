@@ -81,6 +81,119 @@ const DatasetRunDetails = () => {
     }
   }, [datasetRun, form])
 
+  // The style is stored on the parent dataset, accessed via the run's relation.
+  const datasetStyle = datasetRun?.dataset?.style ?? null
+
+  //  // 7 datasets:
+  // // TODO: Remove dev vars
+
+  // let testPmtilesUrl = undefined
+
+  // const mangroveGreen = 'rgba(46, 139, 87, 1)'
+
+  // 1/7: DEP Mangrove:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/dep-mangrove/0-0-1/dep-mangrove.parquet'
+  // // const testDatasetType = 'stac-geoparquet'
+  // const testStyle = {
+  //   "asset": "mangroves",
+  //   "type": "raster",
+  //   "display": "categorical",
+  //   "values": {
+  //     "1": { "color": mangroveGreen, "label": "Mangrove 1" }, // TODO: finalise label
+  //     "2": { "color": "rgba(47, 255, 0, 1)", "label": "Mangrove 2" }, // TODO: finalise label
+  //   }
+  // }
+  // {
+  //   "asset": "mangroves",
+  //   "type": "raster",
+  //   "display": "categorical",
+  //   "values": {
+  //     "1": { "color": "rgba(46, 139, 87, 1)", "label": "Mangrove 1" },
+  //     "2": { "color": "rgba(47, 255, 0, 1)", "label": "Mangrove 2" }
+  //   }
+  // }
+
+  // // 2/7: GMW v3:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/gmw-v3/0-0-1/gmw.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // const testStyle = {
+  //   "asset": "mangrove",
+  //   "type": "raster",
+  //   "display": "categorical",
+  //   "values": {
+  //     "1": { "color": mangroveGreen, "label": "Mangrove" },
+  //   }
+  // }
+
+  // // 3/7: GMW v4:
+  // const testDataUrl = 's3://csdr-public-dev/datasets/gmw-v4/0-0-1/gmw.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // const testStyle = {
+  //   "asset": "mangrove",
+  //   "type": "raster",
+  //   "display": "categorical",
+  //   "values": {
+  //     "1": { "color": mangroveGreen, "label": "Mangrove" },
+  //   }
+  // }
+
+  // // 4/7: ACE:
+  // const testDataUrl = 's3://csdr-public-dev/datasets/ace/0-0-1/ace.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // WORKS with proxy. Removed proxy to let it fail until DEA/GA fix CORS on their side.
+  // const testStyle = {
+  //   "asset": "classification",
+  //   "type": "raster",
+  //   "display": "categorical",
+  //   "values": {
+  //     "2": { "label": "Intertidal", "color": "rgba(148, 65, 14, 1)" },
+  //     "3": { "label": "Mangrove", "color": "rgba(41, 223, 58, 1)" },
+  //     "4": { "label": "Saltmarsh", "color": "rgba(219, 228, 54, 1)" },
+  //     "5": { "label": "Seagrass", "color": "rgba(14, 131, 78, 1)" },
+  //   }
+  // }
+
+  // // 5/7: DEP Seagrass:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/seagrass/0-0-1/dep_s2_seagrass.parquet'
+  // const testDatasetType = 'stac-geoparquet'
+  // const testStyle = {
+  //   "asset": "seagrass",
+  //   "type": "raster",
+  //   "display": "categorical",
+  //   "values": {
+  //     "1": { "color": "rgba(0, 190, 196, 1)", "label": "Seagrass" },
+  //   }
+  // }
+
+  // // 6/7: ACA Reef:
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/aca/0-0-1/reefextent.parquet'
+  // const testDatasetType = 'geoparquet'
+  // testPmtilesUrl =
+  //   'https://csdr-public-dev.s3.ap-southeast-2.amazonaws.com/datasets/aca/0-0-1/reefextent.pmtiles'
+  // const testStyle = {
+  //   "type": "vector-polygon",
+  //   "display": "simple",
+  //   "color": "rgba(209, 255, 93, 1)",
+  //   "label": "Reef",
+  // }
+
+  // // 7/7: Buildings: (PMTiles)
+  // const testDataUrl =
+  //   's3://csdr-public-dev/datasets/buildings/0-0-1/buildings.parquet'
+  // const testDatasetType = 'geoparquet'
+  // testPmtilesUrl =
+  //   'https://data.source.coop/vida/google-microsoft-open-buildings/pmtiles/go_ms_building_footprints.pmtiles'
+  // const testStyle = {
+  //   "type": "vector-polygon",
+  //   "display": "simple",
+  //   "color": "rgba(142, 78, 32, 1)",
+  //   "label": "Buildings",
+  // }
+
   const mapDataType = datasetRun?.dataType
   const mapShouldRender: boolean =
     !!datasetRun?.dataUrl &&
@@ -100,6 +213,11 @@ const DatasetRunDetails = () => {
           dataType={mapDataType}
           dataUrl={datasetRun.dataUrl!}
           dataPmtilesUrl={datasetRun.dataPmtilesUrl}
+          datasetStyle={datasetStyle}
+          // dataType={testDatasetType}
+          // dataUrl={testDataUrl}
+          // dataPmtilesUrl={testPmtilesUrl}
+          // datasetStyle={testStyle}
         />
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

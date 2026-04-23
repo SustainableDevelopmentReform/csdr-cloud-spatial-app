@@ -166,6 +166,28 @@ export const CrudFormRunFields = <
           )}
         />
       )}
+      {shouldShowField('style' as keyof Data) && (
+        <FormField
+          control={form.control}
+          name={'style' as Path<Data>}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data Style</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  // placeholder="" // TODO: It would be nice to show an example style JSON.
+                  disabled={isReadOnlyField('style' as keyof Data)}
+                  className={
+                    isReadOnlyField('style' as keyof Data) ? 'bg-gray-100' : ''
+                  }
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
       {shouldShowField('imageCode') && (
         <FormField
           control={form.control}
