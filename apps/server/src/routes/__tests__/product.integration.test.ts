@@ -215,6 +215,66 @@ describe('product route', () => {
       },
     )
 
+    const createdRunJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0['product-run'].$post({
+        json: {
+          productId: createdJson.data.id,
+          datasetRunId: seededIds.datasetRun,
+          geometriesRunId: seededIds.geometriesRun,
+          name: 'Created product run',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Product run created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.product[':id'].$patch({
+        param: { id: seededIds.product },
+        json: {
+          mainRunId: createdRunJson.data.id,
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get product',
+      },
+    )
+
+    const mainRunJson = await expectJsonResponse<{
+      mainRun: { id: string } | null
+    }>(
+      await adminClient.api.v0.product[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mainRunId: createdRunJson.data.id,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Product updated',
+      },
+    )
+    expect(mainRunJson.data.mainRun?.id).toBe(createdRunJson.data.id)
+
+    const clearedMainRunJson = await expectJsonResponse<{
+      mainRun: { id: string } | null
+    }>(
+      await adminClient.api.v0.product[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mainRunId: null,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Product updated',
+      },
+    )
+    expect(clearedMainRunJson.data.mainRun).toBeNull()
+
     await expectJsonResponse(
       await adminClient.api.v0.product[':id'].$delete({
         param: { id: createdJson.data.id },

@@ -1,3 +1,4 @@
+import type { Context } from 'hono'
 import { createRoute, z } from '@hono/zod-openapi'
 import {
   baseProductOutputSchema,
@@ -10,6 +11,7 @@ import {
 import { DrizzleQueryError, eq, inArray } from 'drizzle-orm'
 import Papa from 'papaparse'
 import { DatabaseError } from 'pg'
+import type { AuthType } from '~/lib/auth'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -18,14 +20,13 @@ import {
   jsonErrorResponse,
   validationErrorResponse,
 } from '~/lib/openapi'
-import { assertResourceWritable } from '~/lib/authorization'
+import {
+  assertResourceReadable,
+  assertResourceWritable,
+} from '~/lib/authorization'
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
-import {
-  geometryOutput,
-  productOutput,
-  productOutputDependency,
-} from '../schemas/db'
+import { productOutput, productOutputDependency } from '../schemas/db'
 import {
   baseColumns,
   createPayload,
@@ -111,6 +112,111 @@ type ParsedBaseProductOutput = Omit<
 > & {
   indicator: ParsedMeasuredIndicator | ParsedDerivedIndicator | null
   derivedIndicator?: undefined
+}
+
+type AppContext = Context<{ Variables: AuthType }>
+
+const productOutputRelationshipError = (message: string, description: string) =>
+  new ServerError({
+    statusCode: 400,
+    message,
+    description,
+  })
+
+const uniqueStrings = (values: string[]) => Array.from(new Set(values))
+
+const assertProductOutputReferences = async (options: {
+  c: AppContext
+  productRunId: string
+  geometryOutputIds: string[]
+  indicatorIds: string[]
+  message: string
+}) => {
+  const productRunRecord = await db.query.productRun.findFirst({
+    where: (table, { eq }) => eq(table.id, options.productRunId),
+    columns: {
+      id: true,
+      geometriesRunId: true,
+    },
+  })
+
+  if (!productRunRecord) {
+    throw productOutputNotFoundError()
+  }
+
+  for (const indicatorId of uniqueStrings(options.indicatorIds)) {
+    await assertResourceReadable({
+      c: options.c,
+      resource: 'indicator',
+      resourceId: indicatorId,
+      scope: 'explorer',
+      notFoundError: productOutputNotFoundError,
+    })
+  }
+
+  const geometryOutputIds = uniqueStrings(options.geometryOutputIds)
+  if (geometryOutputIds.length === 0) {
+    return
+  }
+
+  if (!productRunRecord.geometriesRunId) {
+    throw productOutputRelationshipError(
+      options.message,
+      'Product run must be linked to a geometries run before product outputs can reference geometry outputs.',
+    )
+  }
+
+  const geometriesRunId = productRunRecord.geometriesRunId
+  const matchingGeometryOutputs = await db.query.geometryOutput.findMany({
+    columns: {
+      id: true,
+    },
+    where: (table, { and, eq, inArray }) =>
+      and(
+        inArray(table.id, geometryOutputIds),
+        eq(table.geometriesRunId, geometriesRunId),
+      ),
+  })
+
+  if (matchingGeometryOutputs.length !== geometryOutputIds.length) {
+    throw productOutputRelationshipError(
+      options.message,
+      'Geometry output must belong to the product run geometries run.',
+    )
+  }
+}
+
+const assertProductOutputReadableReferences = async (
+  c: AppContext,
+  record: ParsedBaseProductOutput,
+) => {
+  if (
+    record.geometryOutput &&
+    record.geometryOutput.geometriesRun.id !==
+      record.productRun.geometriesRun?.id
+  ) {
+    throw productOutputNotFoundError()
+  }
+
+  if (record.indicator?.type === 'measured') {
+    await assertResourceReadable({
+      c,
+      resource: 'indicator',
+      resourceId: record.indicator.id,
+      scope: 'explorer',
+      notFoundError: productOutputNotFoundError,
+    })
+  }
+
+  if (record.indicator?.type === 'derived') {
+    await assertResourceReadable({
+      c,
+      resource: 'derivedIndicator',
+      resourceId: record.indicator.id,
+      scope: 'explorer',
+      notFoundError: productOutputNotFoundError,
+    })
+  }
 }
 
 const parseBaseProductOutput = (
@@ -291,6 +397,12 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const record = await fetchFullProductOutputOrThrow(id)
 
+      await assertProductOutputReadableReferences(c, record)
+
+      for (const dependency of record.dependencyProductOutputs) {
+        await assertProductOutputReadableReferences(c, dependency)
+      }
+
       const geometryOutput = record.geometryOutput
         ? await fetchFullGeometryOutputOrThrow(record.geometryOutput.id)
         : undefined
@@ -336,6 +448,13 @@ const app = createOpenAPIApp()
         resource: 'productRun',
         resourceId: payload.productRunId,
         notFoundError: productOutputNotFoundError,
+      })
+      await assertProductOutputReferences({
+        c,
+        productRunId: payload.productRunId,
+        geometryOutputIds: [payload.geometryOutputId],
+        indicatorIds: [payload.indicatorId],
+        message: 'Failed to create productOutput',
       })
       const timePointDate = new Date(payload.timePoint)
 
@@ -405,6 +524,15 @@ const app = createOpenAPIApp()
         resource: 'productRun',
         resourceId: payload.productRunId,
         notFoundError: productOutputNotFoundError,
+      })
+      await assertProductOutputReferences({
+        c,
+        productRunId: payload.productRunId,
+        geometryOutputIds: payload.outputs.map(
+          (output) => output.geometryOutputId,
+        ),
+        indicatorIds: [payload.indicatorId],
+        message: 'Failed to create productOutput',
       })
       const timePointDate = new Date(payload.timePoint)
 
@@ -522,6 +650,13 @@ const app = createOpenAPIApp()
         resourceId: productRunId,
         notFoundError: productOutputNotFoundError,
       })
+      await assertProductOutputReferences({
+        c,
+        productRunId,
+        geometryOutputIds: [],
+        indicatorIds: indicatorMappings.map((mapping) => mapping.indicatorId),
+        message: 'Failed to import product outputs',
+      })
 
       const productRunRecord = await db.query.productRun.findFirst({
         where: (productRunTable, { eq }) =>
@@ -585,10 +720,11 @@ const app = createOpenAPIApp()
             columns: {
               id: true,
             },
-            where: inArray(
-              geometryOutput.id,
-              Array.from(geometryIdentifiers.values()),
-            ),
+            where: (table, { and, eq, inArray }) =>
+              and(
+                inArray(table.id, Array.from(geometryIdentifiers.values())),
+                eq(table.geometriesRunId, geometryIdPrefix),
+              ),
           })
         : []
 

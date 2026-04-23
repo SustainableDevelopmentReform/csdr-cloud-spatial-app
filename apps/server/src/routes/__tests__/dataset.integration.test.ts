@@ -214,6 +214,64 @@ describe('dataset route', () => {
       },
     )
 
+    const createdRunJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: createdJson.data.id,
+          name: 'Created dataset run',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.dataset[':id'].$patch({
+        param: { id: seededIds.dataset },
+        json: {
+          mainRunId: createdRunJson.data.id,
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get dataset',
+      },
+    )
+
+    const mainRunJson = await expectJsonResponse<{
+      mainRun: { id: string } | null
+    }>(
+      await adminClient.api.v0.dataset[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mainRunId: createdRunJson.data.id,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset updated',
+      },
+    )
+    expect(mainRunJson.data.mainRun?.id).toBe(createdRunJson.data.id)
+
+    const clearedMainRunJson = await expectJsonResponse<{
+      mainRun: { id: string } | null
+    }>(
+      await adminClient.api.v0.dataset[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mainRunId: null,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Dataset updated',
+      },
+    )
+    expect(clearedMainRunJson.data.mainRun).toBeNull()
+
     await expectJsonResponse(
       await adminClient.api.v0.dataset[':id'].$delete({
         param: { id: createdJson.data.id },

@@ -1,6 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { dashboardIndicatorUsage, product, productOutput } from '~/schemas/db'
+import {
+  dashboardIndicatorUsage,
+  dataset,
+  datasetRun,
+  geometries,
+  geometriesRun,
+  indicator,
+  organization,
+  product,
+  productOutput,
+  productRun,
+  productRunAssignedDerivedIndicator,
+  productRunAssignedDerivedIndicatorDependency,
+} from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import {
   expectBoundsToMatch,
@@ -15,6 +28,173 @@ const { createAppClient, createSessionHeaders, db } =
 
 let adminClient: ReturnType<typeof createAppClient>
 let memberClient: ReturnType<typeof createAppClient>
+
+const createExtraDatasetRun = async (suffix: string) => {
+  const now = new Date('2025-03-01T00:00:00.000Z')
+  const datasetId = `${suffix}-dataset`
+  const datasetRunId = `${suffix}-dataset-run`
+
+  await db.insert(dataset).values({
+    id: datasetId,
+    name: `${suffix} dataset`,
+    description: null,
+    metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
+    createdAt: now,
+    updatedAt: now,
+    sourceUrl: null,
+    sourceMetadataUrl: null,
+    mainRunId: null,
+  })
+
+  await db.insert(datasetRun).values({
+    id: datasetRunId,
+    name: `${suffix} dataset run`,
+    description: null,
+    metadata: null,
+    createdAt: now,
+    updatedAt: now,
+    datasetId,
+    imageCode: null,
+    imageTag: null,
+    provenanceJson: null,
+    provenanceUrl: null,
+    dataUrl: null,
+    dataType: 'parquet',
+    dataSize: null,
+    dataEtag: null,
+  })
+
+  return datasetRunId
+}
+
+const createExtraGeometriesRun = async (suffix: string) => {
+  const now = new Date('2025-03-01T00:00:00.000Z')
+  const geometriesId = `${suffix}-geometries`
+  const geometriesRunId = `${suffix}-geometries-run`
+
+  await db.insert(geometries).values({
+    id: geometriesId,
+    name: `${suffix} geometries`,
+    description: null,
+    metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
+    createdAt: now,
+    updatedAt: now,
+    sourceUrl: null,
+    sourceMetadataUrl: null,
+    mainRunId: null,
+  })
+
+  await db.insert(geometriesRun).values({
+    id: geometriesRunId,
+    name: `${suffix} geometries run`,
+    description: null,
+    metadata: null,
+    createdAt: now,
+    updatedAt: now,
+    geometriesId,
+    imageCode: null,
+    imageTag: null,
+    provenanceJson: null,
+    provenanceUrl: null,
+    dataUrl: null,
+    dataPmtilesUrl: null,
+    dataType: 'geoparquet',
+    dataSize: null,
+    dataEtag: null,
+  })
+
+  return {
+    geometriesId,
+    geometriesRunId,
+  }
+}
+
+const createProductRunFixture = async (options: {
+  suffix: string
+  geometriesId: string
+  geometriesRunId: string
+  organizationId?: string
+}) => {
+  const now = new Date('2025-03-01T00:00:00.000Z')
+  const organizationId = options.organizationId ?? seededIds.organization
+  const productId = `${options.suffix}-product`
+  const productRunId = `${options.suffix}-product-run`
+
+  if (organizationId !== seededIds.organization) {
+    await db.insert(organization).values({
+      id: organizationId,
+      slug: organizationId,
+      name: `${options.suffix} organization`,
+      createdAt: now,
+      metadata: '{}',
+    })
+  }
+
+  await db.insert(product).values({
+    id: productId,
+    name: `${options.suffix} product`,
+    description: null,
+    metadata: null,
+    organizationId,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
+    createdAt: now,
+    updatedAt: now,
+    datasetId: seededIds.dataset,
+    geometriesId: options.geometriesId,
+    mainRunId: null,
+  })
+
+  await db.insert(productRun).values({
+    id: productRunId,
+    name: `${options.suffix} product run`,
+    description: null,
+    metadata: null,
+    createdAt: now,
+    updatedAt: now,
+    productId,
+    datasetRunId: seededIds.datasetRun,
+    geometriesRunId: options.geometriesRunId,
+    imageCode: null,
+    imageTag: null,
+    provenanceJson: null,
+    provenanceUrl: null,
+    dataUrl: null,
+    dataType: 'parquet',
+    dataSize: null,
+    dataEtag: null,
+  })
+
+  return productRunId
+}
+
+const createUnrelatedIndicator = async () => {
+  const now = new Date('2025-03-01T00:00:00.000Z')
+  const indicatorId = 'unrelated-product-run-indicator'
+
+  await db.insert(indicator).values({
+    id: indicatorId,
+    name: 'Unrelated Product Run Indicator',
+    categoryId: seededIds.indicatorCategory,
+    description: null,
+    unit: 'count',
+    displayOrder: 5,
+    metadata: null,
+    organizationId: seededIds.organization,
+    createdByUserId: seededIds.adminUser,
+    visibility: 'private',
+    createdAt: now,
+    updatedAt: now,
+  })
+
+  return indicatorId
+}
 
 beforeEach(async () => {
   adminClient = createAppClient(
@@ -481,6 +661,201 @@ describe('product-run route', () => {
         message: 'Product run deleted',
       },
     )
+  })
+
+  it('rejects product runs whose upstream runs do not match the product', async () => {
+    const foreignDatasetRunId = await createExtraDatasetRun(
+      'product-run-foreign-dataset',
+    )
+    const foreignGeometries = await createExtraGeometriesRun(
+      'product-run-foreign-geometries',
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'].$post({
+        json: {
+          productId: seededIds.product,
+          datasetRunId: foreignDatasetRunId,
+          geometriesRunId: seededIds.geometriesRun,
+          name: 'Mismatched dataset product run',
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to create productRun',
+        description:
+          'Dataset run must belong to the dataset declared by the product.',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'].$post({
+        json: {
+          productId: seededIds.product,
+          datasetRunId: seededIds.datasetRun,
+          geometriesRunId: foreignGeometries.geometriesRunId,
+          name: 'Mismatched geometries product run',
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to create productRun',
+        description:
+          'Geometries run must belong to the geometries declared by the product.',
+      },
+    )
+  })
+
+  it('rejects unsafe derived indicator dependency assignments', async () => {
+    const duplicateDependency = {
+      indicatorId: seededIds.indicator,
+      sourceProductRunId: seededIds.productRun,
+    }
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$post({
+        param: { id: seededIds.productRun },
+        json: {
+          derivedIndicatorId: seededIds.derivedIndicator,
+          dependencies: [duplicateDependency, duplicateDependency],
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to assign derived indicator',
+        description:
+          'Each derived indicator dependency can only be assigned once.',
+      },
+    )
+
+    const unrelatedIndicatorId = await createUnrelatedIndicator()
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$post({
+        param: { id: seededIds.productRun },
+        json: {
+          derivedIndicatorId: seededIds.derivedIndicator,
+          dependencies: [
+            {
+              indicatorId: unrelatedIndicatorId,
+              sourceProductRunId: seededIds.productRun,
+            },
+          ],
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to assign derived indicator',
+        description:
+          'Assigned dependency indicator must be required by the derived indicator.',
+      },
+    )
+
+    const foreignGeometries = await createExtraGeometriesRun(
+      'derived-source-foreign-geometries',
+    )
+    const differentGeometriesProductRunId = await createProductRunFixture({
+      suffix: 'derived-source-foreign-geometries',
+      geometriesId: foreignGeometries.geometriesId,
+      geometriesRunId: foreignGeometries.geometriesRunId,
+    })
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$post({
+        param: { id: seededIds.productRun },
+        json: {
+          derivedIndicatorId: seededIds.derivedIndicator,
+          dependencies: [
+            {
+              indicatorId: seededIds.indicator,
+              sourceProductRunId: differentGeometriesProductRunId,
+            },
+          ],
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to assign derived indicator',
+        description:
+          'Dependency source product run must use the same geometries run as the target product run.',
+      },
+    )
+
+    const privateForeignProductRunId = await createProductRunFixture({
+      suffix: 'derived-source-private-foreign',
+      geometriesId: seededIds.geometries,
+      geometriesRunId: seededIds.geometriesRun,
+      organizationId: 'private-foreign-product-run-org',
+    })
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'][
+        'derived-indicators'
+      ].$post({
+        param: { id: seededIds.productRun },
+        json: {
+          derivedIndicatorId: seededIds.derivedIndicator,
+          dependencies: [
+            {
+              indicatorId: seededIds.indicator,
+              sourceProductRunId: privateForeignProductRunId,
+            },
+          ],
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get productRun',
+      },
+    )
+  })
+
+  it('revalidates persisted derived dependencies before compute', async () => {
+    const foreignGeometries = await createExtraGeometriesRun(
+      'persisted-derived-foreign-geometries',
+    )
+    const differentGeometriesProductRunId = await createProductRunFixture({
+      suffix: 'persisted-derived-foreign-geometries',
+      geometriesId: foreignGeometries.geometriesId,
+      geometriesRunId: foreignGeometries.geometriesRunId,
+    })
+    const assignedDerivedIndicatorId = 'persisted-invalid-derived-assignment'
+
+    await db.insert(productRunAssignedDerivedIndicator).values({
+      id: assignedDerivedIndicatorId,
+      productRunId: seededIds.productRun,
+      derivedIndicatorId: seededIds.derivedIndicator,
+    })
+
+    await db.insert(productRunAssignedDerivedIndicatorDependency).values({
+      assignedDerivedIndicatorId,
+      indicatorId: seededIds.indicator,
+      sourceProductRunId: differentGeometriesProductRunId,
+    })
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'][
+        'compute-derived-indicators'
+      ].$post({
+        param: { id: seededIds.productRun },
+      }),
+      {
+        status: 400,
+        message: 'Failed to compute derived indicators',
+        description:
+          'Dependency source product run must use the same geometries run as the target product run.',
+      },
+    )
+
+    const derivedOutputCount = await db.$count(
+      productOutput,
+      eq(productOutput.derivedIndicatorId, seededIds.derivedIndicator),
+    )
+    expect(derivedOutputCount).toBe(0)
   })
 
   it('filters product outputs by intersecting linked geometry outputs', async () => {

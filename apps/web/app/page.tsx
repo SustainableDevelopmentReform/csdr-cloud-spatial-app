@@ -1,7 +1,14 @@
+import type { Metadata } from 'next'
 import { Button } from '@repo/ui/components/ui/button'
 import Link from '~/components/link'
 import { getUserServerSession } from '~/utils/getUserServerSession'
 import { redirect } from 'next/navigation'
+
+export const metadata: Metadata = {
+  other: {
+    'strix-verification': 'strix-verify-4a978e68630b6f6f2273f1fc935f358b',
+  },
+}
 
 export default async function Page() {
   const data = await getUserServerSession()

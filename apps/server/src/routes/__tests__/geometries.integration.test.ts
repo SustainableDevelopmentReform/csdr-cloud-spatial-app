@@ -212,6 +212,64 @@ describe('geometries route', () => {
       },
     )
 
+    const createdRunJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0['geometries-run'].$post({
+        json: {
+          geometriesId: createdJson.data.id,
+          name: 'Created geometries run',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Geometries run created',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0.geometries[':id'].$patch({
+        param: { id: seededIds.geometries },
+        json: {
+          mainRunId: createdRunJson.data.id,
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get geometries',
+      },
+    )
+
+    const mainRunJson = await expectJsonResponse<{
+      mainRun: { id: string } | null
+    }>(
+      await adminClient.api.v0.geometries[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mainRunId: createdRunJson.data.id,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Geometries updated',
+      },
+    )
+    expect(mainRunJson.data.mainRun?.id).toBe(createdRunJson.data.id)
+
+    const clearedMainRunJson = await expectJsonResponse<{
+      mainRun: { id: string } | null
+    }>(
+      await adminClient.api.v0.geometries[':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mainRunId: null,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Geometries updated',
+      },
+    )
+    expect(clearedMainRunJson.data.mainRun).toBeNull()
+
     await expectJsonResponse(
       await adminClient.api.v0.geometries[':id'].$delete({
         param: { id: createdJson.data.id },
