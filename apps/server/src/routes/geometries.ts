@@ -9,7 +9,7 @@ import {
   updateGeometriesSchema,
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
-import { and, desc, eq, exists, inArray, notInArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -45,6 +45,7 @@ import {
 import {
   baseAclColumns,
   createOwnedPayload,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -66,6 +67,18 @@ export const fullGeometriesQuery = {
     mainRun: baseGeometriesRunQuery,
   },
 } satisfies QueryForTable<'geometries'>
+
+export const parseFullGeometries = <
+  T extends InferQueryModel<'geometries', typeof fullGeometriesQuery>,
+>(
+  record: T,
+) => ({
+  ...record,
+  mainRun:
+    record.mainRun && record.mainRun.geometries.id === record.id
+      ? record.mainRun
+      : null,
+})
 
 const geometriesNotFoundError = () =>
   new ServerError({
@@ -95,7 +108,12 @@ const fetchFullGeometries = async (id: string, organizationId: string) => {
     fetchChartUsageCounts({ type: 'geometries', id }),
   ])
 
-  return { ...record, runCount, productCount, ...usageCounts }
+  return {
+    ...parseFullGeometries(record),
+    runCount,
+    productCount,
+    ...usageCounts,
+  }
 }
 
 export const fetchFullGeometriesOrThrow = async (
@@ -447,6 +465,20 @@ const app = createOpenAPIApp()
         resourceId: id,
         notFoundError: geometriesNotFoundError,
       })
+      const mainRunId = payload.mainRunId
+      if (mainRunId) {
+        const mainRun = await db.query.geometriesRun.findFirst({
+          where: (table, { and, eq }) =>
+            and(eq(table.id, mainRunId), eq(table.geometriesId, id)),
+          columns: {
+            id: true,
+          },
+        })
+
+        if (!mainRun) {
+          throw geometriesNotFoundError()
+        }
+      }
 
       const [record] = await db
         .update(geometries)

@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, exists, inArray, notInArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -86,7 +86,10 @@ export const parseFullDataset = <
   record: T,
 ) => ({
   ...record,
-  mainRun: record.mainRun ? parseBaseDatasetRun(record.mainRun) : null,
+  mainRun:
+    record.mainRun && record.mainRun.dataset.id === record.id
+      ? parseBaseDatasetRun(record.mainRun)
+      : null,
 })
 
 const fetchFullDataset = async (id: string, organizationId: string) => {
@@ -460,6 +463,20 @@ const app = createOpenAPIApp()
         resourceId: id,
         notFoundError: datasetNotFoundError,
       })
+      const mainRunId = payload.mainRunId
+      if (mainRunId) {
+        const mainRun = await db.query.datasetRun.findFirst({
+          where: (table, { and, eq }) =>
+            and(eq(table.id, mainRunId), eq(table.datasetId, id)),
+          columns: {
+            id: true,
+          },
+        })
+
+        if (!mainRun) {
+          throw datasetNotFoundError()
+        }
+      }
 
       const [record] = await db
         .update(dataset)

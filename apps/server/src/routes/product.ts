@@ -62,7 +62,7 @@ import {
 } from '../schemas/util'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 import { fullDatasetQuery, parseFullDataset } from './dataset'
-import { fullGeometriesQuery } from './geometries'
+import { fullGeometriesQuery, parseFullGeometries } from './geometries'
 import {
   baseProductRunQuery,
   fullProductRunQuery,
@@ -109,7 +109,10 @@ export const parseBaseProduct = <
 ) => {
   return {
     ...record,
-    mainRun: record.mainRun ? parseBaseProductRun(record.mainRun) : null,
+    mainRun:
+      record.mainRun && record.mainRun.product.id === record.id
+        ? parseBaseProductRun(record.mainRun)
+        : null,
   }
 }
 
@@ -121,7 +124,13 @@ export const parseFullProduct = <
   return {
     ...record,
     dataset: record.dataset ? parseFullDataset(record.dataset) : null,
-    mainRun: record.mainRun ? parseFullProductRun(record.mainRun) : null,
+    geometries: record.geometries
+      ? parseFullGeometries(record.geometries)
+      : null,
+    mainRun:
+      record.mainRun && record.mainRun.product.id === record.id
+        ? parseFullProductRun(record.mainRun)
+        : null,
   }
 }
 
@@ -577,6 +586,20 @@ const app = createOpenAPIApp()
         resourceId: id,
         notFoundError: productNotFoundError,
       })
+      const mainRunId = payload.mainRunId
+      if (mainRunId) {
+        const mainRun = await db.query.productRun.findFirst({
+          where: (table, { and, eq }) =>
+            and(eq(table.id, mainRunId), eq(table.productId, id)),
+          columns: {
+            id: true,
+          },
+        })
+
+        if (!mainRun) {
+          throw productNotFoundError()
+        }
+      }
 
       const [record] = await db
         .update(product)

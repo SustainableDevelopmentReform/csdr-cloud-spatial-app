@@ -1,3 +1,4 @@
+import type { Context } from 'hono'
 import { createRoute, z } from '@hono/zod-openapi'
 import {
   assignedDerivedIndicatorWithDependenciesSchema,
@@ -16,7 +17,6 @@ import {
   count,
   desc,
   eq,
-  exists,
   inArray,
   isNotNull,
   isNull,
@@ -27,12 +27,16 @@ import {
   sql,
 } from 'drizzle-orm'
 import { evaluate } from 'mathjs'
+import type { AuthType } from '~/lib/auth'
 import {
   ensureAssignedDerivedIndicatorNotUsedByCharts,
   ensureProductRunNotUsedByCharts,
   fetchChartUsageCounts,
 } from '~/lib/chartUsage'
-import { assertResourceWritable } from '~/lib/authorization'
+import {
+  assertResourceReadable,
+  assertResourceWritable,
+} from '~/lib/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -50,6 +54,7 @@ import {
 import { authMiddleware } from '~/middlewares/auth'
 import { generateJsonResponse } from '../lib/response'
 import {
+  derivedIndicatorToIndicator,
   geometryOutput,
   product,
   productOutput,
@@ -79,6 +84,10 @@ import {
   parseFullMeasuredIndicator,
 } from './indicator'
 import { baseProductOutputQuery } from './productOutput'
+
+const getExportIndicatorType = (
+  hasDerivedIndicator: boolean,
+): 'derived' | 'measured' => (hasDerivedIndicator ? 'derived' : 'measured')
 
 const baseProductRunOutputSummaryQuery = {
   columns: {
@@ -267,6 +276,177 @@ const productRunNotFoundError = () =>
     message: 'Failed to get productRun',
     description: "productRun you're looking for is not found",
   })
+
+type AppContext = Context<{ Variables: AuthType }>
+type DerivedDependency = {
+  indicatorId: string
+  sourceProductRunId: string
+}
+
+const productRunRelationshipError = (message: string, description: string) =>
+  new ServerError({
+    statusCode: 400,
+    message,
+    description,
+  })
+
+const assertProductRunUpstreams = async (options: {
+  productId: string
+  datasetRunId?: string
+  geometriesRunId?: string
+}) => {
+  const productRecord = await db.query.product.findFirst({
+    where: (table, { eq }) => eq(table.id, options.productId),
+    columns: {
+      id: true,
+      datasetId: true,
+      geometriesId: true,
+    },
+  })
+
+  if (!productRecord) {
+    throw productRunNotFoundError()
+  }
+
+  const datasetRunId = options.datasetRunId
+  if (datasetRunId) {
+    const datasetRunRecord = await db.query.datasetRun.findFirst({
+      where: (table, { eq }) => eq(table.id, datasetRunId),
+      columns: {
+        id: true,
+        datasetId: true,
+      },
+    })
+
+    if (!datasetRunRecord) {
+      throw productRunNotFoundError()
+    }
+
+    if (datasetRunRecord.datasetId !== productRecord.datasetId) {
+      throw productRunRelationshipError(
+        'Failed to create productRun',
+        'Dataset run must belong to the dataset declared by the product.',
+      )
+    }
+  }
+
+  const geometriesRunId = options.geometriesRunId
+  if (geometriesRunId) {
+    const geometriesRunRecord = await db.query.geometriesRun.findFirst({
+      where: (table, { eq }) => eq(table.id, geometriesRunId),
+      columns: {
+        id: true,
+        geometriesId: true,
+      },
+    })
+
+    if (!geometriesRunRecord) {
+      throw productRunNotFoundError()
+    }
+
+    if (geometriesRunRecord.geometriesId !== productRecord.geometriesId) {
+      throw productRunRelationshipError(
+        'Failed to create productRun',
+        'Geometries run must belong to the geometries declared by the product.',
+      )
+    }
+  }
+}
+
+const assertDerivedDependencies = async (options: {
+  c: AppContext
+  targetProductRunId: string
+  derivedIndicatorId: string
+  dependencies: DerivedDependency[]
+  message: string
+}) => {
+  await assertResourceReadable({
+    c: options.c,
+    resource: 'derivedIndicator',
+    resourceId: options.derivedIndicatorId,
+    scope: 'explorer',
+    notFoundError: productRunNotFoundError,
+  })
+
+  const targetProductRun = await db.query.productRun.findFirst({
+    where: (table, { eq }) => eq(table.id, options.targetProductRunId),
+    columns: {
+      id: true,
+      geometriesRunId: true,
+    },
+  })
+
+  if (!targetProductRun) {
+    throw productRunNotFoundError()
+  }
+
+  const dependencyRows = await db
+    .select({ indicatorId: derivedIndicatorToIndicator.indicatorId })
+    .from(derivedIndicatorToIndicator)
+    .where(
+      eq(
+        derivedIndicatorToIndicator.derivedIndicatorId,
+        options.derivedIndicatorId,
+      ),
+    )
+  const requiredIndicatorIds = new Set(
+    dependencyRows.map((row) => row.indicatorId),
+  )
+  const seenIndicatorIds = new Set<string>()
+
+  for (const dependency of options.dependencies) {
+    if (seenIndicatorIds.has(dependency.indicatorId)) {
+      throw productRunRelationshipError(
+        options.message,
+        'Each derived indicator dependency can only be assigned once.',
+      )
+    }
+
+    seenIndicatorIds.add(dependency.indicatorId)
+
+    if (!requiredIndicatorIds.has(dependency.indicatorId)) {
+      throw productRunRelationshipError(
+        options.message,
+        'Assigned dependency indicator must be required by the derived indicator.',
+      )
+    }
+
+    await assertResourceReadable({
+      c: options.c,
+      resource: 'indicator',
+      resourceId: dependency.indicatorId,
+      scope: 'explorer',
+      notFoundError: productRunNotFoundError,
+    })
+
+    await assertResourceReadable({
+      c: options.c,
+      resource: 'productRun',
+      resourceId: dependency.sourceProductRunId,
+      scope: 'explorer',
+      notFoundError: productRunNotFoundError,
+    })
+
+    const sourceProductRun = await db.query.productRun.findFirst({
+      where: (table, { eq }) => eq(table.id, dependency.sourceProductRunId),
+      columns: {
+        id: true,
+        geometriesRunId: true,
+      },
+    })
+
+    if (!sourceProductRun) {
+      throw productRunNotFoundError()
+    }
+
+    if (sourceProductRun.geometriesRunId !== targetProductRun.geometriesRunId) {
+      throw productRunRelationshipError(
+        options.message,
+        'Dependency source product run must use the same geometries run as the target product run.',
+      )
+    }
+  }
+}
 
 const fetchFullProductRun = async (id: string) => {
   const record = await db.query.productRun.findFirst({
@@ -539,15 +719,15 @@ const app = createOpenAPIApp()
       })
 
       const dataWithIndicatorName = data.map((output) => ({
-        ...output,
+        id: output.id,
         indicatorId: output.indicatorId ?? output.derivedIndicatorId ?? null,
         indicatorName:
           output.indicator?.name ?? output.derivedIndicator?.name ?? null,
-        indicatorType: output.derivedIndicator
-          ? ('derived' as const)
-          : ('measured' as const),
-        geometryOutputName: output.geometryOutput?.name ?? undefined,
+        indicatorType: getExportIndicatorType(Boolean(output.derivedIndicator)),
+        timePoint: output.timePoint,
         geometryOutputId: output.geometryOutputId ?? undefined,
+        geometryOutputName: output.geometryOutput?.name ?? undefined,
+        value: output.value,
       }))
 
       return generateJsonResponse(
@@ -614,6 +794,11 @@ const app = createOpenAPIApp()
           notFoundError: productRunNotFoundError,
         })
       }
+      await assertProductRunUpstreams({
+        productId: payload.productId,
+        datasetRunId: payload.datasetRunId,
+        geometriesRunId: payload.geometriesRunId,
+      })
       const [newProductRun] = await db
         .insert(productRun)
         .values(createPayload(payload))
@@ -769,6 +954,13 @@ const app = createOpenAPIApp()
       const { derivedIndicatorId, dependencies } = c.req.valid('json')
 
       await fetchFullProductRunOrThrow(id)
+      await assertDerivedDependencies({
+        c,
+        targetProductRunId: id,
+        derivedIndicatorId,
+        dependencies,
+        message: 'Failed to assign derived indicator',
+      })
 
       // Generate a unique ID for the assigned derived indicator
       const assignedId = crypto.randomUUID()
@@ -1238,6 +1430,19 @@ const app = createOpenAPIApp()
 
       for (const assignedDerivedIndicator of assignedDerivedIndicators) {
         const derivedIndicatorId = assignedDerivedIndicator.derivedIndicator.id
+        await assertDerivedDependencies({
+          c,
+          targetProductRunId: id,
+          derivedIndicatorId,
+          dependencies: assignedDerivedIndicator.dependencies.map(
+            (dependency) => ({
+              indicatorId: dependency.indicator.id,
+              sourceProductRunId: dependency.sourceProductRun.id,
+            }),
+          ),
+          message: 'Failed to compute derived indicators',
+        })
+
         const derivedIndicator = await db.query.derivedIndicator.findFirst({
           where: (derivedIndicator, { eq }) =>
             eq(derivedIndicator.id, derivedIndicatorId),
