@@ -58,6 +58,7 @@ export const baseRunColumns = {
   dataType: true,
   dataSize: true,
   dataEtag: true,
+  workflowDag: true,
 } as const
 
 export const createPayload = <T extends { name?: string; id?: string }>(
