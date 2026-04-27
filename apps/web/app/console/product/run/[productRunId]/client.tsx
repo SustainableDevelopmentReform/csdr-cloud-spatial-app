@@ -29,6 +29,7 @@ import {
   useUpdateProductRun,
 } from '../../_hooks'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
 
 const ProductRunDetails = () => {
   const productRunQuery = useProductRun()
@@ -154,6 +155,10 @@ const ProductRunDetails = () => {
             <CrudFormRunFields form={form} readOnlyFields={'all'} />
           </CrudForm>
         )}
+        <WorkflowDagChart
+          workflowDag={productRun?.workflowDag}
+          runType="product"
+        />
       </div>
     </ResourcePageState>
   )
