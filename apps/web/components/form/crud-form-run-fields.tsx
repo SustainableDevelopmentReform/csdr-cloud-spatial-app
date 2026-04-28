@@ -277,6 +277,33 @@ export const CrudFormRunFields = <
           )}
         />
       )}
+      {shouldShowField('workflowDag') && (
+        <FormField
+          control={form.control}
+          name={'workflowDag' as Path<Data>}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Workflow DAG</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  className={cn(
+                    'font-mono',
+                    isReadOnlyField('workflowDag') ? 'bg-gray-100' : '',
+                  )}
+                  disabled={isReadOnlyField('workflowDag')}
+                  value={
+                    typeof field.value === 'object'
+                      ? JSON.stringify(field.value, null, 2)
+                      : (field.value ?? '')
+                  }
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </>
   )
 }

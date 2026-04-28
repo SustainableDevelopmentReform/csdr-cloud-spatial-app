@@ -25,6 +25,7 @@ import { ResourceUsageDetailCards } from '../../../_components/resource-usage-de
 import { DatasetRunSummaryCard } from '../../../dataset/_components/dataset-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { DatasetRunMap } from '../../../dataset/_components/dataset-run-map'
+import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
 import {
   useDatasetRun,
   useDatasetRunsLink,
@@ -271,6 +272,10 @@ const DatasetRunDetails = () => {
           </div>
         </div>
       </CrudForm>
+      <WorkflowDagChart
+        workflowDag={datasetRun?.workflowDag}
+        runType="dataset"
+      />
     </ResourcePageState>
   )
 }

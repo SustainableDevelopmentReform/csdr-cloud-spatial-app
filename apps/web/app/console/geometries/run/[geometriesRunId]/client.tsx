@@ -19,6 +19,7 @@ import { useProductRunsLink } from '../../../product/_hooks'
 import GeometriesMapViewer from '../../_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
 import {
   useDeleteGeometriesRun,
   useGeometriesRun,
@@ -145,6 +146,10 @@ const GeometriesRunDetails = () => {
             />
           </FormItem>
         </CrudForm>
+        <WorkflowDagChart
+          workflowDag={geometriesRun?.workflowDag}
+          runType="geometries"
+        />
       </div>
     </ResourcePageState>
   )
