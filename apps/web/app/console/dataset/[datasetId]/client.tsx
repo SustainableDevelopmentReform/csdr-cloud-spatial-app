@@ -32,6 +32,8 @@ import { ResourcePageState } from '../../_components/resource-page-state'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import { DatasetRunSummaryCard } from '../_components/dataset-run-summary-card'
+import { DatasetRunMap } from '../_components/dataset-run-map'
+import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
 import {
   useDataset,
   useDatasetRunsLink,
@@ -104,6 +106,17 @@ const DatasetDetails = () => {
         {requiresOrganizationSwitch ? (
           <ActiveOrganizationWriteWarning visibility={dataset?.visibility} />
         ) : null}
+        {dataset?.mainRun?.dataUrl &&
+          ((dataset.mainRun.dataType === 'geoparquet' &&
+            dataset.mainRun.dataPmtilesUrl) ||
+            dataset.mainRun.dataType === 'stac-geoparquet') && (
+            <DatasetRunMap
+              dataType={dataset.mainRun.dataType}
+              dataUrl={dataset.mainRun.dataUrl}
+              dataPmtilesUrl={dataset.mainRun.dataPmtilesUrl}
+              datasetStyle={dataset.style ?? null}
+            />
+          )}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <DatasetRunSummaryCard run={dataset?.mainRun} mainRun />
           <div className="grid grid-cols-1 gap-4">
@@ -183,6 +196,13 @@ const DatasetDetails = () => {
               </FormItem>
             )}
           />
+          {dataset?.mainRun && (
+            <WorkflowDagChart
+              workflowDag={dataset.mainRun.workflowDag}
+              runType="dataset"
+              isMainRoute
+            />
+          )}
         </CrudForm>
       </div>
     </ResourcePageState>
