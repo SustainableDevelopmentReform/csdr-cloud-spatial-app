@@ -270,12 +270,12 @@ const DatasetRunDetails = () => {
               )}
             />
           </div>
+          <WorkflowDagChart
+            workflowDag={datasetRun?.workflowDag}
+            runType="dataset"
+          />
         </div>
       </CrudForm>
-      <WorkflowDagChart
-        workflowDag={datasetRun?.workflowDag}
-        runType="dataset"
-      />
     </ResourcePageState>
   )
 }
