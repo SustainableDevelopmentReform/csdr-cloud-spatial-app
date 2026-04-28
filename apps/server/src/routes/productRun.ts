@@ -133,7 +133,7 @@ export const baseProductRunQuery = {
   },
   with: {
     product: {
-      columns: idColumnsWithMainRunId,
+      columns: { ...idColumnsWithMainRunId, organizationId: true },
     },
     datasetRun: {
       columns: idColumns,
