@@ -21,6 +21,10 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
   const isAuthenticated = access.isAuthenticated
   const defaultSidebarOpen = cookieStore.get('sidebar_state')?.value !== 'false'
   const userEmail = session.user?.email ?? null
+  const showEmailVerificationWarning =
+    isAuthenticated && session.user?.emailVerified !== true
+  const showSuperAdminTwoFactorWarning =
+    access.isSuperAdmin && session.user?.twoFactorEnabled !== true
   const userRoleLabel = access.isSuperAdmin
     ? formatGlobalUserRole('super_admin')
     : access.organizationRole
@@ -42,6 +46,8 @@ const ConsoleLayout: React.FC<{ children: React.ReactNode }> = async ({
           defaultSidebarOpen={defaultSidebarOpen}
           isAuthenticated={isAuthenticated}
           isSuperAdmin={access.isSuperAdmin}
+          showEmailVerificationWarning={showEmailVerificationWarning}
+          showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
           userEmail={userEmail}
           userRoleLabel={userRoleLabel}
         >

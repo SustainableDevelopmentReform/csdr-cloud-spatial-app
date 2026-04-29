@@ -54,35 +54,12 @@ const passwordSchema = z
 type ProfileData = z.infer<typeof profileSchema>
 type PasswordData = z.infer<typeof passwordSchema>
 
-const AccountSettingsButton = ({
-  className,
-  hideTrigger = false,
-  icon,
-  label = 'Account Details',
-  onOpenChange,
-  onClose,
-  open: openProp,
-}: AccountSettingsProps) => {
+export const AccountSettingsContent = () => {
   const authClient = useAuthClient()
   const router = useRouter()
   const { appUrl } = useConfig()
   const { data } = authClient.useSession()
   const user = data?.user
-  const [internalOpen, setInternalOpen] = useState(false)
-  const isControlled = openProp !== undefined
-  const isOpen = openProp ?? internalOpen
-
-  const setOpen = (open: boolean) => {
-    if (!isControlled) {
-      setInternalOpen(open)
-    }
-
-    onOpenChange?.(open)
-
-    if (!open) {
-      onClose?.()
-    }
-  }
 
   const profileForm = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
@@ -190,6 +167,193 @@ const AccountSettingsButton = ({
 
   return (
     <>
+      <div className="text-lg font-semibold mb-4">Account Details</div>
+
+      {!user?.emailVerified ? (
+        <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <div className="text-sm font-medium">Verification pending</div>
+          <div className="text-sm mt-1">
+            Some environments require a verified email before another credential
+            sign-in can complete.
+          </div>
+          <Button
+            className="mt-4"
+            disabled={resendVerificationMutation.isPending}
+            onClick={() => resendVerificationMutation.mutate()}
+          >
+            {resendVerificationMutation.isPending
+              ? 'Sending...'
+              : 'Resend email'}
+          </Button>
+        </div>
+      ) : null}
+
+      <Form {...profileForm}>
+        <form
+          className="grid gap-3"
+          onSubmit={profileForm.handleSubmit((values) =>
+            handleUpdateProfile.mutate(values),
+          )}
+        >
+          <FormItem>
+            <FormLabel>Email</FormLabel>
+            <Input disabled value={user?.email ?? ''} className="bg-gray-100" />
+          </FormItem>
+          <FormField
+            control={profileForm.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value ?? ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={profileForm.control}
+            name="image"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Profile image URL</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Optional image URL"
+                    value={field.value ?? ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="flex justify-end mt-3">
+            <Button className="rounded-lg w-40" type="submit">
+              {handleUpdateProfile.isPending ? 'Loading...' : 'Save changes'}
+            </Button>
+          </div>
+        </form>
+      </Form>
+
+      <div className="border-t border-gray-200 mt-6 pt-6">
+        <div className="text-lg font-semibold mb-4">Change password</div>
+        <Form {...passwordForm}>
+          <form
+            className="grid gap-3"
+            onSubmit={passwordForm.handleSubmit((values) =>
+              changePasswordMutation.mutate(values),
+            )}
+          >
+            <FormField
+              control={passwordForm.control}
+              name="currentPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current password</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="password"
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={passwordForm.control}
+              name="newPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>New password</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="password"
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={passwordForm.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm new password</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="password"
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={passwordForm.control}
+              name="revokeOtherSessions"
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-2 space-y-0">
+                  <FormLabel>Revoke other sessions</FormLabel>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end mt-3">
+              <Button className="rounded-lg w-40" type="submit">
+                {changePasswordMutation.isPending
+                  ? 'Loading...'
+                  : 'Update password'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
+    </>
+  )
+}
+
+const AccountSettingsButton = ({
+  className,
+  hideTrigger = false,
+  icon,
+  label = 'Account Details',
+  onOpenChange,
+  onClose,
+  open: openProp,
+}: AccountSettingsProps) => {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const isOpen = openProp ?? internalOpen
+
+  const setOpen = (open: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(open)
+    }
+
+    onOpenChange?.(open)
+
+    if (!open) {
+      onClose?.()
+    }
+  }
+
+  return (
+    <>
       {hideTrigger ? null : (
         <button
           className={className ?? 'mb-2 block w-full text-left'}
@@ -207,168 +371,7 @@ const AccountSettingsButton = ({
         }}
       >
         <DialogContent className="max-w-xl p-6">
-          <div className="text-lg font-semibold mb-4">Account Details</div>
-
-          {!user?.emailVerified ? (
-            <div className="mb-6 rounded-md border border-gray-200 p-4">
-              <div className="text-sm font-medium">Verification pending</div>
-              <div className="text-sm text-gray-500 mt-1">
-                Some environments require a verified email before another
-                credential sign-in can complete.
-              </div>
-              <Button
-                className="mt-4"
-                disabled={resendVerificationMutation.isPending}
-                onClick={() => resendVerificationMutation.mutate()}
-              >
-                {resendVerificationMutation.isPending
-                  ? 'Sending...'
-                  : 'Resend email'}
-              </Button>
-            </div>
-          ) : null}
-
-          <Form {...profileForm}>
-            <form
-              className="grid gap-3"
-              onSubmit={profileForm.handleSubmit((values) =>
-                handleUpdateProfile.mutate(values),
-              )}
-            >
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  disabled
-                  value={user?.email ?? ''}
-                  className="bg-gray-100"
-                />
-              </FormItem>
-              <FormField
-                control={profileForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={profileForm.control}
-                name="image"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Profile image URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Optional image URL"
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end mt-3">
-                <Button className="rounded-lg w-40" type="submit">
-                  {handleUpdateProfile.isPending
-                    ? 'Loading...'
-                    : 'Save changes'}
-                </Button>
-              </div>
-            </form>
-          </Form>
-
-          <div className="border-t border-gray-200 mt-6 pt-6">
-            <div className="text-lg font-semibold mb-4">Change password</div>
-            <Form {...passwordForm}>
-              <form
-                className="grid gap-3"
-                onSubmit={passwordForm.handleSubmit((values) =>
-                  changePasswordMutation.mutate(values),
-                )}
-              >
-                <FormField
-                  control={passwordForm.control}
-                  name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current password</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          value={field.value ?? ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={passwordForm.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>New password</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          value={field.value ?? ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={passwordForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm new password</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          value={field.value ?? ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={passwordForm.control}
-                  name="revokeOtherSessions"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2 space-y-0">
-                      <FormLabel>Revoke other sessions</FormLabel>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end mt-3">
-                  <Button className="rounded-lg w-40" type="submit">
-                    {changePasswordMutation.isPending
-                      ? 'Loading...'
-                      : 'Update password'}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </div>
+          <AccountSettingsContent />
         </DialogContent>
       </Dialog>
     </>
