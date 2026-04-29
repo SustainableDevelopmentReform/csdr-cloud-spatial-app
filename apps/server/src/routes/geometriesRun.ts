@@ -53,7 +53,7 @@ export const baseGeometriesRunQuery = {
   },
   with: {
     geometries: {
-      columns: idColumnsWithMainRunId,
+      columns: { ...idColumnsWithMainRunId, organizationId: true },
     },
   },
 } satisfies QueryForTable<'geometriesRun'>

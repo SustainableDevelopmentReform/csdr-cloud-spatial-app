@@ -145,11 +145,11 @@ const GeometriesRunDetails = () => {
               className="bg-gray-100"
             />
           </FormItem>
+          <WorkflowDagChart
+            workflowDag={geometriesRun?.workflowDag}
+            runType="geometries"
+          />
         </CrudForm>
-        <WorkflowDagChart
-          workflowDag={geometriesRun?.workflowDag}
-          runType="geometries"
-        />
       </div>
     </ResourcePageState>
   )

@@ -153,12 +153,12 @@ const ProductRunDetails = () => {
             successMessage="Updated Product Run"
           >
             <CrudFormRunFields form={form} readOnlyFields={'all'} />
+            <WorkflowDagChart
+              workflowDag={productRun?.workflowDag}
+              runType="product"
+            />
           </CrudForm>
         )}
-        <WorkflowDagChart
-          workflowDag={productRun?.workflowDag}
-          runType="product"
-        />
       </div>
     </ResourcePageState>
   )

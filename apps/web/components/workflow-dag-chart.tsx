@@ -34,17 +34,21 @@ interface WorkflowStep {
 interface WorkflowDagChartProps {
   workflowDag: unknown
   runType: 'dataset' | 'geometries' | 'product'
+  isMainRoute?: boolean
 }
 
 export function WorkflowDagChart({
   workflowDag,
   runType,
+  isMainRoute,
 }: WorkflowDagChartProps) {
   if (!workflowDag || !Array.isArray(workflowDag) || workflowDag.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          No workflow graph JSON available for this {runType} run.
+          {isMainRoute
+            ? `No workflow graph JSON available for the main run for this ${runType}.`
+            : `No workflow graph JSON available for this ${runType} run.`}
         </CardContent>
       </Card>
     )

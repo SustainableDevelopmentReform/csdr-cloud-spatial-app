@@ -25,6 +25,7 @@ import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import GeometriesMapViewer from '../_components/geometries-map-viewer'
 import { GeometriesRunSummaryCard } from '../_components/geometries-run-summary-card'
+import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
 import {
   useDeleteGeometries,
   useGeometries,
@@ -149,7 +150,15 @@ const GeometriesDetails = () => {
           entityNamePlural="geometries sets"
           readOnly={!canEdit}
           successMessage="Updated Geometries"
-        />
+        >
+          {geometries?.mainRun && (
+            <WorkflowDagChart
+              workflowDag={geometries.mainRun.workflowDag}
+              runType="geometries"
+              isMainRoute
+            />
+          )}
+        </CrudForm>
       </div>
     </ResourcePageState>
   )

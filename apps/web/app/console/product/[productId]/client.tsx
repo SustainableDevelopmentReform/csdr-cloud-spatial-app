@@ -26,6 +26,7 @@ import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
 import { RefreshProductSummary } from '../_components/refresh-product-summary'
+import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
 import {
   useDeleteProduct,
   usePreviewProductVisibility,
@@ -162,7 +163,15 @@ const ProductDetails = () => {
             actions={formActions}
             readOnly={!canEdit}
             successMessage="Updated Product"
-          />
+          >
+            {product?.mainRun && (
+              <WorkflowDagChart
+                workflowDag={product.mainRun.workflowDag}
+                runType="product"
+                isMainRoute
+              />
+            )}
+          </CrudForm>
         )}
       </div>
     </ResourcePageState>
