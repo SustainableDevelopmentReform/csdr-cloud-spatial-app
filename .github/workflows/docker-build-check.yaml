@@ -1,0 +1,46 @@
+name: Docker Build Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .dockerignore
+      - docker/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+      - apps/server/package.json
+      - apps/web/package.json
+      - apps/web/next.config.mjs
+      - packages/*/package.json
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Docker build
+        uses: docker/build-push-action@v6.15.0
+        with:
+          context: .
+          file: docker/single-file.Dockerfile
+          push: false
+          tags: csdr-cloud-spatial-app:ci
+          build-args: |
+            APP_VERSION=0.0.0-ci.${{ github.run_number }}
+            APP_COMMIT=${{ github.sha }}
+            APP_BUILD_TIME=${{ github.event.repository.updated_at }}
+            APP_IMAGE=csdr-cloud-spatial-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

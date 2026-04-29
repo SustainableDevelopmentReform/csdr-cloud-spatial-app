@@ -23,7 +23,7 @@ env:
 jobs:
   validate-build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -59,21 +59,3 @@ jobs:
 
       - name: Production build
         run: pnpm build
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3.10.0
-
-      - name: Docker build
-        uses: docker/build-push-action@v6.15.0
-        with:
-          context: .
-          file: docker/single-file.Dockerfile
-          push: false
-          tags: csdr-cloud-spatial-app:ci
-          build-args: |
-            APP_VERSION=0.0.0-ci.${{ github.run_number }}
-            APP_COMMIT=${{ github.sha }}
-            APP_BUILD_TIME=${{ github.event.repository.updated_at }}
-            APP_IMAGE=csdr-cloud-spatial-app:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
