@@ -6,6 +6,8 @@ const services = [
     command: 'node',
     args: ['/app/frontend/standalone/apps/web/server.js'],
     env: {
+      INTERNAL_BACKEND_URL: 'http://localhost:4000',
+      INTERNAL_FRONTEND_URL: 'http://localhost:3000',
       PORT: '3000',
     },
   },
