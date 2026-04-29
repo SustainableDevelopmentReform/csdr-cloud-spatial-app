@@ -1,12 +1,28 @@
-name: Lint, typecheck and unit tests
+name: CI
 
 on:
+  pull_request:
   push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  APP_URL: http://localhost:3000
+  AUTH_BASE_URL: http://localhost:4000
+  AUTH_EMAIL_MODE: log
+  BETTER_AUTH_SECRET: 0XEjaeOVzWF2OLmVYYDM4S70bODI4/x96d2KhwBKtRY=
+  INTERNAL_FRONTEND_URL: http://localhost:3000
+  INTERNAL_BACKEND_URL: http://localhost:4000
+  TRUSTED_ORIGINS: http://localhost:3000,http://localhost:4000
+  DATABASE_SSL_MODE: disable
 
 jobs:
-  lint-typecheck-unit-tests:
+  validate-build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -27,5 +43,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint, typecheck and test:unit
-        run: pnpm turbo lint typecheck test:unit
+      - name: Lint, typecheck, tests, and production build
+        run: pnpm run ci

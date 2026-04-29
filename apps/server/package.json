@@ -1,6 +1,6 @@
 {
   "name": "@repo/server",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "exports": {
     "./app": {
       "import": {
@@ -23,7 +23,7 @@
     "dev": "pnpm --filter @repo/server --parallel \"/^dev:.*/\"",
     "dev:types": "tsc -p tsconfig.build-types.json --watch",
     "dev:server": "sh -c 'port=\"${API_PORT:-4000}\"; PORT=\"$port\" exec tsx watch src/index.ts'",
-    "build": "pnpm build:types && pnpm --filter @repo/server --parallel \"/^build:distributable.*/\"",
+    "build": "pnpm build:types && pnpm build:distributable-app && pnpm build:distributable-scripts",
     "build:distributable-app": "NODE_OPTIONS=--max_old_space_size=6144 ncc build src/index.ts -o dist/app -m -s",
     "build:distributable-scripts": "NODE_OPTIONS=--max_old_space_size=3072 ncc build scripts/migrate.ts -o dist/migrate -m && NODE_OPTIONS=--max_old_space_size=3072 ncc build scripts/seed.ts -o dist/seed -m",
     "build:types": "tsc -p tsconfig.build-types.json",
@@ -69,7 +69,6 @@
     "@scalar/hono-api-reference": "^0.10.8",
     "@t3-oss/env-core": "^0.13.8",
     "better-auth": "catalog:",
-    "chalk": "^5.4.1",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "hono": "catalog:",

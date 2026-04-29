@@ -28,6 +28,7 @@ import {
 } from './auth-email'
 import { logAuthSecurity } from './auth-security'
 import { db } from './db'
+import { appLogger } from './logger'
 import type { RequestActor } from './request-actor'
 
 const createPersonalOrganizationName = (name: string | null | undefined) => {
@@ -197,16 +198,22 @@ const plugins = [
 
 const authBaseUrl = env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL
 
-function logAuthMessage(level: string, message: string): void {
+function logAuthMessage(level: string, message: string, args: unknown[]): void {
+  const context = {
+    authLevel: level,
+    authMessage: message,
+    error: args[0],
+  }
+
   switch (level) {
     case 'error':
-      console.error(message)
+      appLogger.error('auth_log', context)
       return
     case 'warn':
-      console.warn(message)
+      appLogger.warn('auth_log', context)
       return
     default:
-      console.info(message)
+      appLogger.info('auth_log', context)
   }
 }
 
@@ -214,8 +221,8 @@ const authConfig = {
   logger: {
     level: 'info',
     disabled: false,
-    log: (level, message) => {
-      logAuthMessage(level, message)
+    log: (level, message, ...args) => {
+      logAuthMessage(level, message, args)
     },
   },
   appName: 'Spatial Data Framework',
@@ -392,4 +399,5 @@ export type AuthType = {
   activeMember: AppMember | null
   activeOrganizationId: string | null
   requestActor: RequestActor | null
+  requestId: string
 }

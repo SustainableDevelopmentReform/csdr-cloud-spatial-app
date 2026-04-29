@@ -4,26 +4,14 @@ import { fileURLToPath } from 'node:url'
 import type pg from 'pg'
 import * as schema from '~/schemas/db'
 import { env } from '../src/env'
-
-const buildClientConfig = (): pg.ClientConfig => ({
-  connectionString: env.DATABASE_URL,
-  options: env.DATABASE_SCHEMA
-    ? `-c search_path=${env.DATABASE_SCHEMA},public`
-    : undefined,
-  ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  host: env.DATABASE_URL ? undefined : env.DATABASE_HOST,
-  port: env.DATABASE_URL ? undefined : env.DATABASE_PORT,
-  user: env.DATABASE_URL ? undefined : env.DATABASE_USER,
-  password: env.DATABASE_URL ? undefined : env.DATABASE_PASSWORD,
-  database: env.DATABASE_URL ? undefined : env.DATABASE_NAME,
-})
+import { createDatabaseClientConfig } from '../src/lib/database-config'
 
 export const runMigrations = async (options?: {
   clientConfig?: pg.ClientConfig
 }): Promise<void> => {
   const clientModule = await import('pg')
   const client = new clientModule.default.Client(
-    options?.clientConfig ?? buildClientConfig(),
+    options?.clientConfig ?? createDatabaseClientConfig(),
   )
 
   await client.connect()

@@ -1,5 +1,6 @@
 import { auditLog } from '~/schemas/db'
 import { db } from './db'
+import { appLogger } from './logger'
 import type { RequestActor } from './request-actor'
 
 export type AccessLogDecision = 'allow' | 'deny'
@@ -72,6 +73,6 @@ export const persistAccessLog = async (options: {
   try {
     await db.insert(auditLog).values(values)
   } catch (error) {
-    console.error('Failed to persist access log entry', error)
+    appLogger.error('access_log_persist_failed', { error })
   }
 }

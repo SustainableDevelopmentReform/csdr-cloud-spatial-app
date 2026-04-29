@@ -22,10 +22,10 @@ See [docs/development-workflow.md](./docs/development-workflow.md) for the full 
 Run the root validation contract before opening a PR:
 
 ```bash
-pnpm turbo lint typecheck test:unit
+pnpm run ci
 ```
 
-That command runs linting, typechecking, and unit/integration tests from the repo root.
+That command verifies workspace package versions, then runs linting, typechecking, unit/integration tests, and the production build from the repo root.
 
 Backend tests require Docker because the server suite uses Testcontainers. If you cannot run Docker locally, mention that in your PR and at least run:
 
@@ -40,6 +40,8 @@ pnpm typecheck
 - Reuse existing patterns where they are already established.
 - Prefer root scripts over ad hoc per-package command sequences unless you are intentionally scoping work.
 - Do not hide rough edges with vague docs; document real limitations when you find them.
+- Do not commit generated outputs, dependency folders, local env files, or local editor/system files.
+- Follow the release and runtime contracts in [docs/RELEASE.md](./docs/RELEASE.md) and [docs/RUNTIME.md](./docs/RUNTIME.md).
 
 ## Support Expectations
 

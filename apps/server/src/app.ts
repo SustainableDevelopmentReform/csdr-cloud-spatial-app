@@ -5,9 +5,13 @@ import { compress } from 'hono/compress'
 import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { ContentfulStatusCode } from 'hono/utils/http-status'
+import { sql } from 'drizzle-orm'
 import { env } from './env'
 import { auth, AuthType } from './lib/auth'
+import { buildInfo } from './lib/build-info'
+import { checkDatabaseConnection, db } from './lib/db'
 import { ServerError } from './lib/error'
+import { appLogger } from './lib/logger'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -46,6 +50,63 @@ import organization from './routes/organization'
 
 const isProduction = env.NODE_ENV === 'production'
 const webUiHomeUrl = new URL('/console', env.APP_URL).toString()
+const buildInfoSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  commit: z.string().nullable(),
+  buildTime: z.string().nullable(),
+  image: z.string().nullable(),
+  environment: z.enum(['development', 'production', 'test']),
+})
+const healthcheckSchema = z.object({
+  message: z.string(),
+  build: buildInfoSchema,
+})
+const readinessSchema = z.object({
+  status: z.enum(['ready', 'not_ready']),
+  checks: z.object({
+    database: z.enum(['ok', 'failed']),
+  }),
+  build: buildInfoSchema,
+})
+const versionSchema = buildInfoSchema.extend({
+  databaseMigrationCount: z.number().int(),
+})
+type ReadinessPayload = z.infer<typeof readinessSchema>
+const optionalApiKeySecurity: Record<string, string[]>[] = [
+  {},
+  {
+    ApiKeyAuth: [],
+  },
+]
+const toContentfulStatusCode = (statusCode: number): ContentfulStatusCode => {
+  switch (statusCode) {
+    case 200:
+      return 200
+    case 201:
+      return 201
+    case 400:
+      return 400
+    case 401:
+      return 401
+    case 403:
+      return 403
+    case 404:
+      return 404
+    case 409:
+      return 409
+    case 422:
+      return 422
+    case 429:
+      return 429
+    case 500:
+      return 500
+    case 503:
+      return 503
+    default:
+      return 500
+  }
+}
 const apiKeyOrganizationDocs = [
   'Use `x-api-key` header to authenticate requests.',
   'API keys authenticate as the owning user and are not tied to a single organization.',
@@ -201,18 +262,115 @@ const v0ApiRoutes = v0ApiBase
           description: 'Service healthcheck.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  message: z.string(),
-                }),
-              ),
+              schema: createResponseSchema(healthcheckSchema),
             },
           },
         },
         500: jsonErrorResponse('Healthcheck failed'),
       },
     }),
-    (c) => generateJsonResponse(c, { message: 'OK' as const }, 200),
+    (c) =>
+      generateJsonResponse(
+        c,
+        {
+          message: 'OK',
+          build: buildInfo,
+        },
+        200,
+      ),
+  )
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/readiness',
+      responses: {
+        200: {
+          description: 'Service is ready to receive traffic.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(readinessSchema),
+            },
+          },
+        },
+        503: {
+          description: 'Service is not ready to receive traffic.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(readinessSchema),
+            },
+          },
+        },
+      },
+    }),
+    async (c) => {
+      try {
+        await checkDatabaseConnection()
+        const payload: ReadinessPayload = {
+          status: 'ready',
+          checks: {
+            database: 'ok',
+          },
+          build: buildInfo,
+        }
+
+        return generateJsonResponse(c, payload, 200)
+      } catch (error) {
+        appLogger.error('readiness_check_failed', {
+          requestId: c.get('requestId'),
+          error,
+        })
+        const payload: ReadinessPayload = {
+          status: 'not_ready',
+          checks: {
+            database: 'failed',
+          },
+          build: buildInfo,
+        }
+
+        return generateJsonResponse(c, payload, 503, 'Service Unavailable')
+      }
+    },
+  )
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/version',
+      responses: {
+        200: {
+          description: 'Application build and schema version metadata.',
+          content: {
+            'application/json': {
+              schema: createResponseSchema(versionSchema),
+            },
+          },
+        },
+        500: jsonErrorResponse('Version metadata failed'),
+      },
+    }),
+    async (c) => {
+      const migrationTableResult = await db.execute(
+        sql`SELECT to_regclass('drizzle.__drizzle_migrations') AS migration_table`,
+      )
+      const migrationTableRow = migrationTableResult.rows[0]
+      let databaseMigrationCount = 0
+
+      if (migrationTableRow?.migration_table) {
+        const migrationCountResult = await db.execute(
+          sql`SELECT COUNT(*)::int AS count FROM drizzle.__drizzle_migrations`,
+        )
+        const row = migrationCountResult.rows[0]
+        databaseMigrationCount = typeof row?.count === 'number' ? row.count : 0
+      }
+
+      return generateJsonResponse(
+        c,
+        {
+          ...buildInfo,
+          databaseMigrationCount,
+        },
+        200,
+      )
+    },
   )
   .doc('/doc', (c) => ({
     openapi: '3.0.0',
@@ -221,10 +379,10 @@ const v0ApiRoutes = v0ApiBase
       description: 'Auth API Documentation',
     },
     info: {
-      version: '0.0.1',
+      version: buildInfo.version,
       title: 'Spatial Data Framework API',
       description:
-        'This is the API for the Spatial Data Framework. Current is 0.0.1 alpha - expect breaking changes.\n\n## API keys and organization context\n\n' +
+        `This is the API for the Spatial Data Framework. Current version is ${buildInfo.version}.\n\n## API keys and organization context\n\n` +
         apiKeyOrganizationDocs,
     },
     servers: [
@@ -238,32 +396,27 @@ const v0ApiRoutes = v0ApiBase
         description: 'Current environment',
       },
     ],
-    security: [
-      // We need to include an empty object to make ApiKey authentication optional in the spec
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {} as any,
-      {
-        ApiKeyAuth: [],
-      },
-    ],
+    // Include an empty requirement so ApiKey authentication stays optional.
+    security: optionalApiKeySecurity,
   }))
   .get('/scalar', Scalar({ url: '/api/v0/doc' }))
 
 app.onError(async (err, c) => {
-  console.error(err)
+  appLogger.error('request_error', {
+    requestId: c.get('requestId'),
+    method: c.req.method,
+    path: c.req.path,
+    error: err,
+  })
 
   if (err instanceof ServerError) {
-    const error = err as InstanceType<typeof ServerError>
-    return c.json(
-      error.response,
-      error.response.statusCode as ContentfulStatusCode,
-    )
+    return c.json(err.response, toContentfulStatusCode(err.response.statusCode))
   }
 
   if (err instanceof BetterAuthApiError) {
     return c.json(
       { ...err.body, statusCode: err.statusCode },
-      err.statusCode as ContentfulStatusCode,
+      toContentfulStatusCode(err.statusCode),
     )
   }
 
@@ -298,5 +451,6 @@ app.notFound((c) =>
   ),
 )
 
-export type ApiRoutesType = typeof v0ApiRoutes
-export default app as ApiRoutesType
+export const apiRoutes = v0ApiRoutes
+export type ApiRoutesType = typeof apiRoutes
+export default app

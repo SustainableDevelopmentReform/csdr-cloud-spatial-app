@@ -32,6 +32,19 @@ RUN pnpm run build --filter=@repo/server...
 
 
 FROM base AS runner
+ARG APP_VERSION="0.0.0-dev"
+ARG APP_COMMIT=""
+ARG APP_BUILD_TIME=""
+ARG APP_IMAGE=""
+
+LABEL org.opencontainers.image.title="csdr-cloud-spatial-app-server"
+LABEL org.opencontainers.image.description="Spatial Data Framework API"
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.revision="${APP_COMMIT}"
+LABEL org.opencontainers.image.created="${APP_BUILD_TIME}"
+LABEL org.opencontainers.image.source="https://github.com/SustainableDevelopmentReform/csdr-cloud-spatial-app"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
 WORKDIR /app
 
 RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
@@ -50,5 +63,9 @@ EXPOSE 4000
 
 ENV IS_DOCKER_COMPOSE="true"
 ENV PDF_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium-browser"
+ENV APP_VERSION="${APP_VERSION}"
+ENV APP_COMMIT="${APP_COMMIT}"
+ENV APP_BUILD_TIME="${APP_BUILD_TIME}"
+ENV APP_IMAGE="${APP_IMAGE}"
 
 CMD node app/index.js

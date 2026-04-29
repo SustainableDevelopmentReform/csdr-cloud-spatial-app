@@ -33,19 +33,24 @@ Notes:
 Use the root scripts by default.
 
 ```bash
+pnpm run ci
 pnpm lint
 pnpm typecheck
 pnpm test:unit
+pnpm build
+pnpm run version:packages:check
 pnpm turbo lint typecheck test:unit
 ```
 
-`pnpm turbo lint typecheck test:unit` is the canonical validation command. It runs:
+`pnpm run ci` is the canonical repository validation command for CI-equivalent checks. It verifies workspace package versions, then runs linting, typechecking, tests, and the production build.
+
+`pnpm turbo lint typecheck test:unit` remains the core contributor contract. It runs:
 
 1. `pnpm lint`
 2. `pnpm typecheck`
 3. `pnpm test:unit`
 
-CI uses the same validation contract.
+CI also verifies the production build. Docker image publishing is release-only and runs from SemVer tags or manual dispatch.
 
 ## When To Use Package Commands
 
@@ -96,6 +101,8 @@ Notes:
 - migrations live in `apps/server/drizzle`
 - the seed script is intended for local/dev bootstrap
 - the example local environment expects PostGIS on `localhost:5431`
+- production seed/bootstrap is separate from release execution
+- migration policy lives in [docs/DATABASE.md](./DATABASE.md)
 
 ## Better Auth Schema Updates
 

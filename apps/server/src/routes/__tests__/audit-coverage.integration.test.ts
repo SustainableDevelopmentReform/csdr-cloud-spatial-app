@@ -211,7 +211,11 @@ const coveredAuthOperationKeys = [
   'POST /api/auth/verify-password',
 ]
 
-const v0ExcludedOperationKeys = new Set(['GET /api/v0/healthcheck'])
+const v0ExcludedOperationKeys = new Set([
+  'GET /api/v0/healthcheck',
+  'GET /api/v0/readiness',
+  'GET /api/v0/version',
+])
 
 const authExcludedOperationKeys = new Set([
   'GET /api/auth/get-session',

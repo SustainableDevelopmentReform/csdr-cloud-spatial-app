@@ -1,128 +1,124 @@
-name: Build Docker Image
-
-# Auto-incrementing versioning strategy:
-# - EVERY build gets: build-<run_number> (e.g., build-123, build-124, ...)
-# - Main branch ALSO gets: latest
-# - Releases ALSO get: <release-tag> (e.g., v1.0.0)
-# - GitHub run_number automatically increments with each workflow run
-#
-# Example tags:
-#   Push to main:     build-123, latest
-#   Release on main:  build-123, v1.0.0, latest
-#   PR build:         build-123
+name: Publish Docker Image
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: sustainabledevelopmentreform/csdr-cloud-spatial-app # ${{ github.repository }}
   AWS_ROLE_TO_ASSUME: arn:aws:iam::891612567384:role/ecr-csdr-cloud-spatial-app-role-federated
 
 on:
   workflow_dispatch:
-  pull_request:
   push:
-    branches:
-      - main
-  release:
-    types:
-      - created
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  # Get version info that can be reused by other jobs
-  version:
+  publish:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.VERSION }}
-      release_tag: ${{ steps.version.outputs.RELEASE_TAG }}
-      docker_image_ecr: ${{ steps.version.outputs.DOCKER_IMAGE_ECR }}
-      latest_tag: ${{ steps.version.outputs.LATEST_TAG }}
+    timeout-minutes: 45
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
 
-      - name: Get version number
-        id: version
+      - name: Resolve build metadata
+        id: build-metadata
         run: |
-          # Auto-incrementing version based on GitHub run number
-          # Format: build-<run_number> (e.g., build-123)
-          # This is ALWAYS included
-          VERSION="build-${{ github.run_number }}"
+          set -euo pipefail
 
-          # For releases, also capture the release tag as an additional tag
-          RELEASE_TAG=""
-          if [ "${{ github.event_name }}" = "release" ] && [ -n "${{ github.event.release.tag_name }}" ]; then
-            RELEASE_TAG="${{ github.event.release.tag_name }}"
-            echo "Release tag: ${RELEASE_TAG}"
+          short_sha="${GITHUB_SHA::12}"
+          build_time="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          package_version="$(node -p "require('./package.json').version")"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+              echo "Release tags must use SemVer, for example v1.2.3." >&2
+              exit 1
+            fi
+
+            app_version="${GITHUB_REF_NAME#v}"
+            primary_tag="${GITHUB_REF_NAME}"
+            extra_tag="sha-${short_sha}"
+          else
+            app_version="${package_version}"
+            primary_tag="manual-${GITHUB_RUN_NUMBER}"
+            extra_tag="sha-${short_sha}"
           fi
 
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
-          echo "Building with version: ${VERSION}"
+          {
+            echo "app_version=${app_version}"
+            echo "build_time=${build_time}"
+            echo "primary_tag=${primary_tag}"
+            echo "extra_tag=${extra_tag}"
+            echo "short_sha=${short_sha}"
+          } >> "$GITHUB_OUTPUT"
 
-  build-and-push:
-    permissions:
-      id-token: write
-      packages: write
-      contents: read
-    runs-on: ubuntu-latest
-    needs: [version]
-    steps:
-      - uses: actions/checkout@v4.2.2
+      - name: Check package versions
+        run: node scripts/sync-package-versions.mjs --check ${{ steps.build-metadata.outputs.app_version }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           aws-region: ap-southeast-2
           role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2.0.1
 
-      - name: Set ECR image tags
-        id: ecr-tags
+      - name: Resolve image names
+        id: image
         run: |
-          VERSION=${{ needs.version.outputs.version }}
-          RELEASE_TAG=${{ needs.version.outputs.release_tag }}
-          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          REPO="${{ vars.AWS_ECR_REPO }}"
+          set -euo pipefail
 
-          # Always include the build number tag
-          DOCKER_IMAGE="${REGISTRY}/${REPO}:${VERSION}"
-          echo "DOCKER_IMAGE=${DOCKER_IMAGE}" >> $GITHUB_OUTPUT
+          registry="${{ steps.login-ecr.outputs.registry }}"
+          repository="${{ vars.AWS_ECR_REPO }}"
 
-          # Add release tag if this is a release event
-          if [ -n "${RELEASE_TAG}" ]; then
-            echo "RELEASE_TAG_IMAGE=${REGISTRY}/${REPO}:${RELEASE_TAG}" >> $GITHUB_OUTPUT
-          else
-            echo "RELEASE_TAG_IMAGE=" >> $GITHUB_OUTPUT
+          if [[ -z "${repository}" ]]; then
+            echo "Repository variable AWS_ECR_REPO is required." >&2
+            exit 1
           fi
 
-          # Check if we are on the main branch and set LATEST_TAG accordingly
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            echo "LATEST_TAG=${REGISTRY}/${REPO}:latest" >> $GITHUB_OUTPUT
-          else
-            echo "LATEST_TAG=" >> $GITHUB_OUTPUT
-          fi
+          image_name="${registry}/${repository}"
 
-      # Cache docker stuff
-      - uses: docker/setup-qemu-action@v3.6.0
-      - uses: docker/setup-buildx-action@v3.10.0
+          {
+            echo "repository=${repository}"
+            echo "image_name=${image_name}"
+            echo "primary_image=${image_name}:${{ steps.build-metadata.outputs.primary_tag }}"
+            echo "extra_image=${image_name}:${{ steps.build-metadata.outputs.extra_tag }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5.8.0
+        with:
+          images: ${{ steps.image.outputs.image_name }}
+          tags: |
+            type=raw,value=${{ steps.build-metadata.outputs.primary_tag }}
+            type=raw,value=${{ steps.build-metadata.outputs.extra_tag }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.build-metadata.outputs.app_version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.build-metadata.outputs.build_time }}
 
       - name: Build and push
-        if: ${{ github.event_name == 'release' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
         uses: docker/build-push-action@v6.15.0
         with:
           context: .
           file: docker/single-file.Dockerfile
           push: true
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          tags: ${{ steps.docker-meta.outputs.tags }}
           build-args: |
-            DOCKER_IMAGE=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}
-            COMMIT=${{ github.sha }}
-          tags: |
-            ${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}
-            ${{ steps.ecr-tags.outputs.RELEASE_TAG_IMAGE }}
-            ${{ steps.ecr-tags.outputs.LATEST_TAG }}
-          # Use both GitHub Actions cache and registry cache for better performance
+            APP_VERSION=${{ steps.build-metadata.outputs.app_version }}
+            APP_COMMIT=${{ github.sha }}
+            APP_BUILD_TIME=${{ steps.build-metadata.outputs.build_time }}
+            APP_IMAGE=${{ steps.image.outputs.primary_image }}
           cache-from: |
             type=gha
-            type=registry,ref=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}-cache
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=${{ steps.ecr-tags.outputs.DOCKER_IMAGE }}-cache,mode=max
