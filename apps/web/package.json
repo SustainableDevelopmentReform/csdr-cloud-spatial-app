@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "sh -c 'port=\"${WEB_PORT:-3000}\"; PORT=\"$port\" exec next dev --port \"$port\"'",
