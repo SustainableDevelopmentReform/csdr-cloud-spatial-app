@@ -18,7 +18,7 @@ DATABASE_PORT=5432
 DATABASE_USER=
 DATABASE_PASSWORD=
 DATABASE_NAME=
-DATABASE_SSL_MODE=verify-full
+DATABASE_SSL_MODE=require
 
 S3_BUCKET_NAME=
 AWS_REGION=
@@ -29,8 +29,10 @@ EMAIL_SENDER=
 ```
 
 Use either discrete database variables or `DATABASE_URL`. In production,
-`DATABASE_SSL_MODE` defaults to `verify-full`; use `DATABASE_SSL_CA_CERT` when
-the database certificate chain is not trusted by the base image.
+`DATABASE_SSL_MODE` defaults to `require`, matching the current deployed
+database endpoint contract. Use `verify-full` with `DATABASE_SSL_CA_CERT` only
+when the configured database host matches the certificate identity and the
+certificate chain is trusted.
 
 Report publishing additionally requires S3-compatible object storage and a
 Chromium-compatible browser runtime. The Docker image sets

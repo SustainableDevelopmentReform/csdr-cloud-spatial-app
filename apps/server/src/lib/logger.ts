@@ -2,26 +2,31 @@ type LogLevel = 'info' | 'warn' | 'error'
 
 type LogContext = Record<string, unknown>
 
-const serializeError = (error: unknown): LogContext => {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      cause: error.cause,
-    }
+const serializeError = (error: Error): LogContext => {
+  const serialized: LogContext = {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
   }
 
-  return {
-    value: error,
+  if (error.cause instanceof Error) {
+    serialized.cause = {
+      name: error.cause.name,
+      message: error.cause.message,
+      stack: error.cause.stack,
+    }
+  } else if (error.cause !== undefined) {
+    serialized.cause = error.cause
   }
+
+  return serialized
 }
 
 const normalizeContext = (context: LogContext): LogContext => {
   const normalized: LogContext = {}
 
   for (const [key, value] of Object.entries(context)) {
-    normalized[key] = key === 'error' ? serializeError(value) : value
+    normalized[key] = value instanceof Error ? serializeError(value) : value
   }
 
   return normalized

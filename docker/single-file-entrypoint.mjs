@@ -5,9 +5,11 @@ const services = [
     name: 'web',
     command: 'node',
     args: ['/app/frontend/standalone/apps/web/server.js'],
-    env: {
+    defaults: {
       INTERNAL_BACKEND_URL: 'http://localhost:4000',
       INTERNAL_FRONTEND_URL: 'http://localhost:3000',
+    },
+    env: {
       PORT: '3000',
     },
   },
@@ -68,6 +70,7 @@ function shutdown(signal, exitCode) {
 for (const service of services) {
   const child = spawn(service.command, service.args, {
     env: {
+      ...service.defaults,
       ...process.env,
       ...service.env,
     },

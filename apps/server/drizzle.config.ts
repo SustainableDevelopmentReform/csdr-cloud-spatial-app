@@ -2,7 +2,7 @@ import type { Config } from 'drizzle-kit'
 
 const databaseSslMode =
   process.env.DATABASE_SSL_MODE ??
-  (process.env.NODE_ENV === 'production' ? 'verify-full' : 'disable')
+  (process.env.NODE_ENV === 'production' ? 'require' : 'disable')
 const ssl =
   databaseSslMode === 'disable'
     ? false

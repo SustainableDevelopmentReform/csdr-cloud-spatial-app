@@ -198,16 +198,22 @@ const plugins = [
 
 const authBaseUrl = env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL
 
-function logAuthMessage(level: string, message: string): void {
+function logAuthMessage(level: string, message: string, args: unknown[]): void {
+  const context = {
+    authLevel: level,
+    authMessage: message,
+    error: args[0],
+  }
+
   switch (level) {
     case 'error':
-      appLogger.error('auth_log', { authLevel: level, authMessage: message })
+      appLogger.error('auth_log', context)
       return
     case 'warn':
-      appLogger.warn('auth_log', { authLevel: level, authMessage: message })
+      appLogger.warn('auth_log', context)
       return
     default:
-      appLogger.info('auth_log', { authLevel: level, authMessage: message })
+      appLogger.info('auth_log', context)
   }
 }
 
@@ -215,8 +221,8 @@ const authConfig = {
   logger: {
     level: 'info',
     disabled: false,
-    log: (level, message) => {
-      logAuthMessage(level, message)
+    log: (level, message, ...args) => {
+      logAuthMessage(level, message, args)
     },
   },
   appName: 'Spatial Data Framework',

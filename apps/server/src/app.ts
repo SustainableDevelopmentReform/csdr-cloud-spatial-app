@@ -348,12 +348,19 @@ const v0ApiRoutes = v0ApiBase
       },
     }),
     async (c) => {
-      const migrationCountResult = await db.execute(
-        sql`SELECT COUNT(*)::int AS count FROM drizzle.__drizzle_migrations`,
+      const migrationTableResult = await db.execute(
+        sql`SELECT to_regclass('drizzle.__drizzle_migrations') AS migration_table`,
       )
-      const row = migrationCountResult.rows[0]
-      const databaseMigrationCount =
-        typeof row?.count === 'number' ? row.count : 0
+      const migrationTableRow = migrationTableResult.rows[0]
+      let databaseMigrationCount = 0
+
+      if (migrationTableRow?.migration_table) {
+        const migrationCountResult = await db.execute(
+          sql`SELECT COUNT(*)::int AS count FROM drizzle.__drizzle_migrations`,
+        )
+        const row = migrationCountResult.rows[0]
+        databaseMigrationCount = typeof row?.count === 'number' ? row.count : 0
+      }
 
       return generateJsonResponse(
         c,

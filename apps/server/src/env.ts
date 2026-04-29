@@ -4,7 +4,7 @@ import { z } from 'zod'
 const defaultAnonymousPublicAccess =
   process.env.NODE_ENV === 'production' ? 'false' : 'true'
 const defaultDatabaseSslMode =
-  process.env.NODE_ENV === 'production' ? 'verify-full' : 'disable'
+  process.env.NODE_ENV === 'production' ? 'require' : 'disable'
 
 export const env = createEnv({
   shared: {
