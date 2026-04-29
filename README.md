@@ -83,15 +83,19 @@ Use the root scripts unless you are intentionally working on one package only.
 
 ```bash
 pnpm dev
+pnpm run ci
 pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm turbo lint typecheck test:unit
+pnpm build
+pnpm run verify:repo-hygiene
+pnpm run smoke:release
 pnpm migrate
 pnpm seed
 ```
 
-`pnpm turbo lint typecheck test:unit` is the main contributor contract and runs the same lint, typecheck, and unit-test sequence that CI runs.
+`pnpm run ci` is the full repository validation contract. `pnpm turbo lint typecheck test:unit` remains the core contributor contract for linting, typechecking, and tests.
 
 Focused package commands are still available when needed:
 
@@ -107,6 +111,9 @@ Backend tests require Docker because the server suite uses Testcontainers. See [
 
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/development-workflow.md](./docs/development-workflow.md)
+- [docs/RELEASE.md](./docs/RELEASE.md)
+- [docs/RUNTIME.md](./docs/RUNTIME.md)
+- [docs/DATABASE.md](./docs/DATABASE.md)
 - [docs/requirements/report-publishing.md](./docs/requirements/report-publishing.md)
 - [docs/requirements/access-control.md](./docs/requirements/access-control.md)
 - [docs/requirements/charting.md](./docs/requirements/charting.md)

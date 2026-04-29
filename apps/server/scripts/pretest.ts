@@ -5,7 +5,7 @@ function isRunningInDocker(): boolean {
   try {
     const cgroup = fs.readFileSync('/proc/1/cgroup', 'utf8')
     return cgroup.includes('docker')
-  } catch (err) {
+  } catch {
     return false // If `/proc/1/cgroup` is not readable, assume not in Docker
   }
 }

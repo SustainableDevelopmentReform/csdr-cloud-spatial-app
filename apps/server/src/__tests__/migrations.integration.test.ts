@@ -95,6 +95,32 @@ const withSchema = async (
 }
 
 describe('database migrations', () => {
+  it('upgrades cleanly from the previous migration state', async () => {
+    await withSchema('upgrade', async (client, schemaName) => {
+      const migrationFiles = await listMigrationFiles()
+      const previousMigrationFiles = migrationFiles.slice(0, -1)
+      const latestMigrationFile = migrationFiles.at(-1)
+
+      if (!latestMigrationFile) {
+        throw new Error('No migration files found')
+      }
+
+      await applyMigrationFiles(client, schemaName, previousMigrationFiles)
+      await applyMigrationFiles(client, schemaName, [latestMigrationFile])
+
+      const tableResult = await client.query<{ count: string }>(
+        `
+          SELECT COUNT(*)::text AS "count"
+          FROM information_schema.tables
+          WHERE table_schema = $1
+        `,
+        [schemaName],
+      )
+
+      expect(Number(tableResult.rows[0]?.count ?? '0')).toBeGreaterThan(0)
+    })
+  })
+
   it('does not create a bootstrap organization on a fresh database', async () => {
     await withSchema('fresh', async (client, schemaName) => {
       await applyMigrationFiles(client, schemaName, await listMigrationFiles())

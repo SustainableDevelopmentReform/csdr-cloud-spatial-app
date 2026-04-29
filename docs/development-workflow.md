@@ -33,19 +33,24 @@ Notes:
 Use the root scripts by default.
 
 ```bash
+pnpm run ci
 pnpm lint
 pnpm typecheck
 pnpm test:unit
+pnpm build
+pnpm run verify:repo-hygiene
 pnpm turbo lint typecheck test:unit
 ```
 
-`pnpm turbo lint typecheck test:unit` is the canonical validation command. It runs:
+`pnpm run ci` is the canonical repository validation command for CI-equivalent checks. It runs linting, typechecking, tests, the production build, and repository hygiene checks.
+
+`pnpm turbo lint typecheck test:unit` remains the core contributor contract. It runs:
 
 1. `pnpm lint`
 2. `pnpm typecheck`
 3. `pnpm test:unit`
 
-CI uses the same validation contract.
+CI also verifies the production build, Docker build, dependency audit, and that generated/local-only artifacts are not tracked.
 
 ## When To Use Package Commands
 
@@ -96,6 +101,8 @@ Notes:
 - migrations live in `apps/server/drizzle`
 - the seed script is intended for local/dev bootstrap
 - the example local environment expects PostGIS on `localhost:5431`
+- production seed/bootstrap is separate from release execution
+- migration policy lives in [docs/DATABASE.md](./DATABASE.md)
 
 ## Better Auth Schema Updates
 
@@ -118,6 +125,12 @@ There is no frontend test suite yet, so manual checks still matter. After fronte
 - report publish, PDF download, and duplicate flow
 - dataset, geometries, and product detail pages
 - at least one map rendering path
+
+For a deployed release candidate, run:
+
+```bash
+SMOKE_BASE_URL=https://example.org pnpm run smoke:release
+```
 
 ## Known Rough Edges
 

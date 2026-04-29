@@ -29,6 +29,18 @@ RUN pnpm run build
 
 # --- Final Image ---
 FROM node:22-bookworm-slim AS runner
+ARG APP_VERSION="0.0.0-dev"
+ARG APP_COMMIT=""
+ARG APP_BUILD_TIME=""
+ARG APP_IMAGE=""
+
+LABEL org.opencontainers.image.title="csdr-cloud-spatial-app"
+LABEL org.opencontainers.image.description="Spatial Data Framework web console and API"
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.revision="${APP_COMMIT}"
+LABEL org.opencontainers.image.created="${APP_BUILD_TIME}"
+LABEL org.opencontainers.image.source="https://github.com/SustainableDevelopmentReform/csdr-cloud-spatial-app"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Install Chromium in a glibc-based environment so headless PDF rendering can
 # initialize WebGL for MapLibre maps.
@@ -59,6 +71,7 @@ COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/web/public .
 COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/server/dist ./backend
 COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/server/drizzle ./backend/migrate/drizzle
 COPY --from=builder --chown=csdr-cloud-spatial-app:nodejs /app/apps/server/drizzle ./backend/seed/drizzle
+COPY --chown=csdr-cloud-spatial-app:nodejs docker/single-file-entrypoint.mjs ./single-file-entrypoint.mjs
 
 USER csdr-cloud-spatial-app
 
@@ -71,5 +84,9 @@ ENV HOME="/home/csdr-cloud-spatial-app"
 ENV IS_SINGLE_FILE_DOCKER="true"
 ENV NODE_ENV="production"
 ENV PDF_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium"
+ENV APP_VERSION="${APP_VERSION}"
+ENV APP_COMMIT="${APP_COMMIT}"
+ENV APP_BUILD_TIME="${APP_BUILD_TIME}"
+ENV APP_IMAGE="${APP_IMAGE}"
 
-CMD PORT=3000 node /app/frontend/standalone/apps/web/server.js & PORT=4000 node /app/backend/app/index.js
+CMD ["node", "/app/single-file-entrypoint.mjs"]

@@ -7,7 +7,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 import * as schema from '~/schemas/db'
 import { isEmail } from '~/utils'
-import { env } from '../src/env'
+import { createDatabaseClientConfig } from '../src/lib/database-config'
 import { geomFromGeoJSON } from '../src/schemas/customTypes'
 
 function getRequiredEnvValue(
@@ -32,14 +32,7 @@ function expectInsertedRow<T>(rows: T[], entityName: string): T {
 }
 
 async function main(): Promise<void> {
-  const client = new pg.Client({
-    ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    host: env.DATABASE_HOST,
-    port: env.DATABASE_PORT,
-    user: env.DATABASE_USER,
-    password: env.DATABASE_PASSWORD,
-    database: env.DATABASE_NAME,
-  })
+  const client = new pg.Client(createDatabaseClientConfig())
 
   await client.connect()
 

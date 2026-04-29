@@ -28,6 +28,7 @@ import {
 } from './auth-email'
 import { logAuthSecurity } from './auth-security'
 import { db } from './db'
+import { appLogger } from './logger'
 import type { RequestActor } from './request-actor'
 
 const createPersonalOrganizationName = (name: string | null | undefined) => {
@@ -200,13 +201,13 @@ const authBaseUrl = env.AUTH_BASE_URL ?? env.INTERNAL_BACKEND_URL ?? env.APP_URL
 function logAuthMessage(level: string, message: string): void {
   switch (level) {
     case 'error':
-      console.error(message)
+      appLogger.error('auth_log', { authLevel: level, authMessage: message })
       return
     case 'warn':
-      console.warn(message)
+      appLogger.warn('auth_log', { authLevel: level, authMessage: message })
       return
     default:
-      console.info(message)
+      appLogger.info('auth_log', { authLevel: level, authMessage: message })
   }
 }
 
@@ -392,4 +393,5 @@ export type AuthType = {
   activeMember: AppMember | null
   activeOrganizationId: string | null
   requestActor: RequestActor | null
+  requestId: string
 }

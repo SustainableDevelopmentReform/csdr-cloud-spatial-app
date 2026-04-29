@@ -1,20 +1,20 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 import * as schema from '~/schemas/db'
-import { env } from '../env'
+import { createDatabaseClientConfig } from './database-config'
 
-const pool = new pg.Pool({
-  connectionString: env.DATABASE_URL,
-  options: env.DATABASE_SCHEMA
-    ? `-c search_path=${env.DATABASE_SCHEMA},public`
-    : undefined,
-  ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  host: env.DATABASE_URL ? undefined : env.DATABASE_HOST,
-  port: env.DATABASE_URL ? undefined : env.DATABASE_PORT,
-  user: env.DATABASE_URL ? undefined : env.DATABASE_USER,
-  password: env.DATABASE_URL ? undefined : env.DATABASE_PASSWORD,
-  database: env.DATABASE_URL ? undefined : env.DATABASE_NAME,
-})
+const pool = new pg.Pool(createDatabaseClientConfig())
+
 export const db = drizzle(pool, {
   schema,
 })
+
+export const checkDatabaseConnection = async (): Promise<void> => {
+  const client = await pool.connect()
+
+  try {
+    await client.query('SELECT 1')
+  } finally {
+    client.release()
+  }
+}

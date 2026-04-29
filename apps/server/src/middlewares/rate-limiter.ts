@@ -17,11 +17,12 @@ export const rateLimiter = () =>
 
     try {
       await _rateLimiter.consume(ip)
-      await next()
-    } catch (error) {
+    } catch {
       throw new ServerError({
         statusCode: 429,
         message: 'Too many requests',
       })
     }
+
+    await next()
   })

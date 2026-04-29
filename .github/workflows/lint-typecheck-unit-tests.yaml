@@ -1,12 +1,29 @@
-name: Lint, typecheck and unit tests
+name: CI
 
 on:
+  pull_request:
   push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  APP_URL: http://localhost:3000
+  AUTH_BASE_URL: http://localhost:4000
+  AUTH_EMAIL_MODE: log
+  BETTER_AUTH_SECRET: 0XEjaeOVzWF2OLmVYYDM4S70bODI4/x96d2KhwBKtRY=
+  INTERNAL_FRONTEND_URL: http://localhost:3000
+  INTERNAL_BACKEND_URL: http://localhost:4000
+  TRUSTED_ORIGINS: http://localhost:3000,http://localhost:4000
+  DATABASE_SSL_MODE: disable
 
 jobs:
-  lint-typecheck-unit-tests:
+  validate-build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -27,5 +44,36 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint, typecheck and test:unit
+      - name: Repository hygiene
+        run: pnpm verify:repo-hygiene
+
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+
+      - name: Dependency audit
+        run: pnpm audit:deps
+
+      - name: Lint, typecheck, and tests
         run: pnpm turbo lint typecheck test:unit
+
+      - name: Production build
+        run: pnpm build
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Docker build
+        uses: docker/build-push-action@v6.15.0
+        with:
+          context: .
+          file: docker/single-file.Dockerfile
+          push: false
+          tags: csdr-cloud-spatial-app:ci
+          build-args: |
+            APP_VERSION=0.0.0-ci.${{ github.run_number }}
+            APP_COMMIT=${{ github.sha }}
+            APP_BUILD_TIME=${{ github.event.repository.updated_at }}
+            APP_IMAGE=csdr-cloud-spatial-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

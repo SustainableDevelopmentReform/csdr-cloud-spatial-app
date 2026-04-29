@@ -3,6 +3,8 @@ import { z } from 'zod'
 
 const defaultAnonymousPublicAccess =
   process.env.NODE_ENV === 'production' ? 'false' : 'true'
+const defaultDatabaseSslMode =
+  process.env.NODE_ENV === 'production' ? 'verify-full' : 'disable'
 
 export const env = createEnv({
   shared: {
@@ -12,6 +14,10 @@ export const env = createEnv({
   },
   server: {
     APP_URL: z.url().default('http://localhost:3000'),
+    APP_VERSION: z.string().default('0.0.0-dev'),
+    APP_COMMIT: z.string().optional(),
+    APP_BUILD_TIME: z.string().optional(),
+    APP_IMAGE: z.string().optional(),
     AWS_REGION: z.string().optional(),
     AWS_DEFAULT_REGION: z.string().optional(),
     AUTH_BASE_URL: z.url().optional(),
@@ -25,6 +31,10 @@ export const env = createEnv({
     DATABASE_USER: z.string().default('admin'),
     DATABASE_PASSWORD: z.string().default('admin'),
     DATABASE_NAME: z.string().default('sdf-dev'),
+    DATABASE_SSL_MODE: z
+      .enum(['disable', 'require', 'verify-full'])
+      .default(defaultDatabaseSslMode),
+    DATABASE_SSL_CA_CERT: z.string().optional(),
     TRUSTED_ORIGINS: z
       .string()
       .default('http://localhost:3000')
@@ -83,6 +93,10 @@ export const env = createEnv({
   },
   runtimeEnv: {
     APP_URL: process.env.APP_URL,
+    APP_VERSION: process.env.APP_VERSION,
+    APP_COMMIT: process.env.APP_COMMIT,
+    APP_BUILD_TIME: process.env.APP_BUILD_TIME,
+    APP_IMAGE: process.env.APP_IMAGE,
     AWS_REGION: process.env.AWS_REGION,
     AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION,
     AUTH_BASE_URL: process.env.AUTH_BASE_URL,
@@ -96,6 +110,8 @@ export const env = createEnv({
     DATABASE_USER: process.env.DATABASE_USER,
     DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
     DATABASE_NAME: process.env.DATABASE_NAME,
+    DATABASE_SSL_MODE: process.env.DATABASE_SSL_MODE,
+    DATABASE_SSL_CA_CERT: process.env.DATABASE_SSL_CA_CERT,
     TRUSTED_ORIGINS: process.env.TRUSTED_ORIGINS,
     DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND:
       process.env.DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND,

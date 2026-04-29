@@ -23,6 +23,8 @@ Run the root validation contract before opening a PR:
 
 ```bash
 pnpm turbo lint typecheck test:unit
+pnpm build
+pnpm run verify:repo-hygiene
 ```
 
 That command runs linting, typechecking, and unit/integration tests from the repo root.
@@ -40,6 +42,8 @@ pnpm typecheck
 - Reuse existing patterns where they are already established.
 - Prefer root scripts over ad hoc per-package command sequences unless you are intentionally scoping work.
 - Do not hide rough edges with vague docs; document real limitations when you find them.
+- Do not commit generated outputs, dependency folders, local env files, or local editor/system files.
+- Follow the release and runtime contracts in [docs/RELEASE.md](./docs/RELEASE.md) and [docs/RUNTIME.md](./docs/RUNTIME.md).
 
 ## Support Expectations
 
