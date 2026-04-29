@@ -35,6 +35,7 @@ import {
   HomeIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
+  TriangleAlertIcon,
   SquareStackIcon,
   Table2Icon,
   UsersIcon,
@@ -56,6 +57,9 @@ import {
   SUPER_ADMIN_ORGANIZATIONS_BASE_PATH,
   USERS_BASE_PATH,
   WORKSPACE_BASE_PATH,
+  ACCOUNT_DETAILS_BASE_PATH,
+  API_KEYS_BASE_PATH,
+  TWO_FACTOR_BASE_PATH,
 } from '~/lib/paths'
 import { ConsoleSidebarOrganizationMenu } from './console-sidebar-organization-menu'
 import { ConsoleSidebarUserSection } from './console-sidebar-user-section'
@@ -66,6 +70,8 @@ type ConsoleShellProps = {
   defaultSidebarOpen: boolean
   isAuthenticated: boolean
   isSuperAdmin: boolean
+  showEmailVerificationWarning: boolean
+  showSuperAdminTwoFactorWarning: boolean
   userEmail: string | null
   userRoleLabel: string
   children: React.ReactNode
@@ -104,6 +110,69 @@ const disclosureChildClassName =
 
 const groupLabelClassName =
   'h-8 px-2 text-[11px] font-medium uppercase leading-4 tracking-[0.04em] text-neutral-900/70'
+
+const AccountSecurityWarning = ({
+  children,
+  href,
+  label,
+}: {
+  children: React.ReactNode
+  href: string
+  label: string
+}) => {
+  return (
+    <div
+      className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      role="alert"
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-700" />
+        <div className="leading-5">{children}</div>
+      </div>
+      <Link
+        className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white px-3 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100"
+        href={href}
+      >
+        {label}
+      </Link>
+    </div>
+  )
+}
+
+const AccountSecurityWarnings = ({
+  showEmailVerificationWarning,
+  showSuperAdminTwoFactorWarning,
+}: {
+  showEmailVerificationWarning: boolean
+  showSuperAdminTwoFactorWarning: boolean
+}) => {
+  if (!showEmailVerificationWarning && !showSuperAdminTwoFactorWarning) {
+    return null
+  }
+
+  return (
+    <div className="mt-4 grid gap-2">
+      {showEmailVerificationWarning ? (
+        <AccountSecurityWarning
+          href={ACCOUNT_DETAILS_BASE_PATH}
+          label="Open account details"
+        >
+          Your email address is not verified. Verify it to keep account access
+          reliable.
+        </AccountSecurityWarning>
+      ) : null}
+      {showSuperAdminTwoFactorWarning ? (
+        <AccountSecurityWarning
+          href={TWO_FACTOR_BASE_PATH}
+          label="Open 2FA settings"
+        >
+          Super admin access requires two-factor authentication. Enable 2FA
+          before performing protected operations.
+        </AccountSecurityWarning>
+      ) : null}
+    </div>
+  )
+}
 
 const isActiveRoute = (
   pathname: string | null,
@@ -278,12 +347,16 @@ const ConsoleShellFrame = ({
   children,
   groups,
   isAuthenticated,
+  showEmailVerificationWarning,
+  showSuperAdminTwoFactorWarning,
   userEmail,
   userRoleLabel,
 }: {
   children: React.ReactNode
   groups: NavGroup[]
   isAuthenticated: boolean
+  showEmailVerificationWarning: boolean
+  showSuperAdminTwoFactorWarning: boolean
   userEmail: string | null
   userRoleLabel: string
 }) => {
@@ -319,7 +392,13 @@ const ConsoleShellFrame = ({
         <SidebarRail />
       </Sidebar>
       <SidebarInset className="min-h-svh overflow-x-hidden bg-neutral-100">
-        <div className="flex flex-1 flex-col px-4 pb-4">{children}</div>
+        <div className="flex flex-1 flex-col px-4 pb-4">
+          <AccountSecurityWarnings
+            showEmailVerificationWarning={showEmailVerificationWarning}
+            showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
+          />
+          {children}
+        </div>
       </SidebarInset>
     </>
   )
@@ -332,6 +411,8 @@ export const ConsoleShell = ({
   defaultSidebarOpen,
   isAuthenticated,
   isSuperAdmin,
+  showEmailVerificationWarning,
+  showSuperAdminTwoFactorWarning,
   userEmail,
   userRoleLabel,
 }: ConsoleShellProps) => {
@@ -460,7 +541,7 @@ export const ConsoleShell = ({
       const developerItems: NavItem[] = [
         {
           kind: 'link',
-          href: '/console/me/api-keys',
+          href: API_KEYS_BASE_PATH,
           icon: KeyRoundIcon,
           label: 'API Keys',
         },
@@ -494,6 +575,8 @@ export const ConsoleShell = ({
       <ConsoleShellFrame
         groups={navGroups}
         isAuthenticated={isAuthenticated}
+        showEmailVerificationWarning={showEmailVerificationWarning}
+        showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
         userEmail={userEmail}
         userRoleLabel={userRoleLabel}
       >
