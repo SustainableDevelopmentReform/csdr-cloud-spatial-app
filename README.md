@@ -89,11 +89,12 @@ pnpm typecheck
 pnpm test:unit
 pnpm turbo lint typecheck test:unit
 pnpm build
+pnpm run version:packages:check
 pnpm migrate
 pnpm seed
 ```
 
-`pnpm run ci` is the full repository validation contract. `pnpm turbo lint typecheck test:unit` remains the core contributor contract for linting, typechecking, and tests.
+`pnpm run ci` is the full repository validation contract. It also checks that all workspace package versions match the root package version. `pnpm turbo lint typecheck test:unit` remains the core contributor contract for linting, typechecking, and tests.
 
 Focused package commands are still available when needed:
 

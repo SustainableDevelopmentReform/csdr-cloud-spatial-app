@@ -6,7 +6,7 @@
   "author": "Nick Forbes-Smith",
   "scripts": {
     "build": "dotenvx run -- turbo build",
-    "ci": "pnpm turbo lint typecheck test:unit && pnpm build",
+    "ci": "pnpm run version:packages:check && pnpm turbo lint typecheck test:unit && pnpm build",
     "dev": "dotenvx run -- turbo dev",
     "lint": "ESLINT_USE_FLAT_CONFIG=false turbo lint",
     "typecheck": "turbo typecheck",
@@ -20,7 +20,9 @@
     "test:unit": "dotenvx run -- turbo test:unit",
     "prepare": "husky",
     "pre-commit": "lint-staged",
-    "clean-deps": "rm -rf node_modules && pnpm -r exec rm -rf node_modules"
+    "clean-deps": "rm -rf node_modules && pnpm -r exec rm -rf node_modules",
+    "version:packages": "node scripts/sync-package-versions.mjs",
+    "version:packages:check": "node scripts/sync-package-versions.mjs --check"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.61.0",

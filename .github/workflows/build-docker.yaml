@@ -29,6 +29,7 @@ jobs:
 
           short_sha="${GITHUB_SHA::12}"
           build_time="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          package_version="$(node -p "require('./package.json').version")"
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
@@ -40,7 +41,7 @@ jobs:
             primary_tag="${GITHUB_REF_NAME}"
             extra_tag="sha-${short_sha}"
           else
-            app_version="0.0.0-manual.${GITHUB_RUN_NUMBER}"
+            app_version="${package_version}"
             primary_tag="manual-${GITHUB_RUN_NUMBER}"
             extra_tag="sha-${short_sha}"
           fi
@@ -52,6 +53,9 @@ jobs:
             echo "extra_tag=${extra_tag}"
             echo "short_sha=${short_sha}"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Check package versions
+        run: node scripts/sync-package-versions.mjs --check ${{ steps.build-metadata.outputs.app_version }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0

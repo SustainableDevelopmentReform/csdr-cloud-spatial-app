@@ -22,11 +22,10 @@ See [docs/development-workflow.md](./docs/development-workflow.md) for the full 
 Run the root validation contract before opening a PR:
 
 ```bash
-pnpm turbo lint typecheck test:unit
-pnpm build
+pnpm run ci
 ```
 
-That command runs linting, typechecking, and unit/integration tests from the repo root.
+That command verifies workspace package versions, then runs linting, typechecking, unit/integration tests, and the production build from the repo root.
 
 Backend tests require Docker because the server suite uses Testcontainers. If you cannot run Docker locally, mention that in your PR and at least run:
 

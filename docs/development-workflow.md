@@ -38,10 +38,11 @@ pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm build
+pnpm run version:packages:check
 pnpm turbo lint typecheck test:unit
 ```
 
-`pnpm run ci` is the canonical repository validation command for CI-equivalent checks. It runs linting, typechecking, tests, and the production build.
+`pnpm run ci` is the canonical repository validation command for CI-equivalent checks. It verifies workspace package versions, then runs linting, typechecking, tests, and the production build.
 
 `pnpm turbo lint typecheck test:unit` remains the core contributor contract. It runs:
 

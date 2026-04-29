@@ -15,6 +15,10 @@ vMAJOR.MINOR.PATCH
 Pre-release and build metadata are allowed when needed, for example
 `v1.2.3-rc.1`.
 
+The root package and every workspace package must use the same version without
+the `v` prefix. For a `v1.2.3` release, every `package.json` version must be
+`1.2.3`.
+
 Every published image must be immutable. The publish workflow tags images with:
 
 - the release tag, for example `v1.2.3`
@@ -24,18 +28,27 @@ The workflow intentionally does not publish `latest`.
 
 ## Creating A Release
 
-1. Make sure `main` is green.
-2. Confirm database migrations are forward-compatible with the currently
+1. Choose the next SemVer version.
+2. Sync package versions and commit the manifest changes:
+
+   ```bash
+   pnpm run version:packages -- 1.2.3
+   pnpm run version:packages:check -- 1.2.3
+   ```
+
+3. Make sure `main` is green.
+4. Confirm database migrations are forward-compatible with the currently
    deployed version.
-3. Create and push a SemVer tag:
+5. Create and push the matching SemVer tag:
 
    ```bash
    git tag v1.2.3
    git push origin v1.2.3
    ```
 
-4. GitHub Actions publishes the image.
-5. Record the image digest from the publish workflow for the operations repo.
+6. GitHub Actions verifies package versions match the tag and publishes the
+   image.
+7. Record the image digest from the publish workflow for the operations repo.
 
 ## Release Metadata
 
