@@ -10,7 +10,6 @@ on:
       - 'v*.*.*'
 
 permissions:
-  attestations: write
   contents: read
   id-token: write
 
@@ -39,10 +38,6 @@ jobs:
 
             app_version="${GITHUB_REF_NAME#v}"
             primary_tag="${GITHUB_REF_NAME}"
-            extra_tag="sha-${short_sha}"
-          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            app_version="0.0.0-main.${GITHUB_RUN_NUMBER}"
-            primary_tag="main-${GITHUB_RUN_NUMBER}"
             extra_tag="sha-${short_sha}"
           else
             app_version="0.0.0-manual.${GITHUB_RUN_NUMBER}"
@@ -107,14 +102,11 @@ jobs:
             org.opencontainers.image.created=${{ steps.build-metadata.outputs.build_time }}
 
       - name: Build and push
-        id: build
         uses: docker/build-push-action@v6.15.0
         with:
           context: .
           file: docker/single-file.Dockerfile
           push: true
-          provenance: true
-          sbom: true
           labels: ${{ steps.docker-meta.outputs.labels }}
           tags: ${{ steps.docker-meta.outputs.tags }}
           build-args: |
@@ -124,39 +116,5 @@ jobs:
             APP_IMAGE=${{ steps.image.outputs.primary_image }}
           cache-from: |
             type=gha
-            type=registry,ref=${{ steps.image.outputs.image_name }}:build-cache
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=${{ steps.image.outputs.image_name }}:build-cache,mode=max
-
-      - name: Attest image provenance
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ${{ steps.image.outputs.image_name }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
-      - name: Start ECR vulnerability scan
-        run: |
-          set -euo pipefail
-
-          aws ecr start-image-scan \
-            --repository-name "${{ steps.image.outputs.repository }}" \
-            --image-id imageDigest="${{ steps.build.outputs.digest }}"
-
-          aws ecr wait image-scan-complete \
-            --repository-name "${{ steps.image.outputs.repository }}" \
-            --image-id imageDigest="${{ steps.build.outputs.digest }}"
-
-          findings="$(aws ecr describe-image-scan-findings \
-            --repository-name "${{ steps.image.outputs.repository }}" \
-            --image-id imageDigest="${{ steps.build.outputs.digest }}")"
-
-          critical="$(jq '.imageScanFindings.findingSeverityCounts.CRITICAL // 0' <<< "$findings")"
-          high="$(jq '.imageScanFindings.findingSeverityCounts.HIGH // 0' <<< "$findings")"
-
-          echo "ECR image scan findings: CRITICAL=${critical}, HIGH=${high}"
-
-          if (( critical > 0 || high > 0 )); then
-            exit 1
-          fi

@@ -24,7 +24,6 @@ Run the root validation contract before opening a PR:
 ```bash
 pnpm turbo lint typecheck test:unit
 pnpm build
-pnpm run verify:repo-hygiene
 ```
 
 That command runs linting, typechecking, and unit/integration tests from the repo root.

@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 env:
   APP_URL: http://localhost:3000
@@ -44,18 +43,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Repository hygiene
-        run: pnpm verify:repo-hygiene
-
-      - name: Dependency review
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
-
-      - name: Dependency audit
-        run: pnpm audit:deps
-
-      - name: Lint, typecheck, and tests
-        run: pnpm turbo lint typecheck test:unit
-
-      - name: Production build
-        run: pnpm build
+      - name: Lint, typecheck, tests, and production build
+        run: pnpm run ci

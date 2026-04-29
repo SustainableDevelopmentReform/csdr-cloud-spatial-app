@@ -38,11 +38,10 @@ pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm build
-pnpm run verify:repo-hygiene
 pnpm turbo lint typecheck test:unit
 ```
 
-`pnpm run ci` is the canonical repository validation command for CI-equivalent checks. It runs linting, typechecking, tests, the production build, and repository hygiene checks.
+`pnpm run ci` is the canonical repository validation command for CI-equivalent checks. It runs linting, typechecking, tests, and the production build.
 
 `pnpm turbo lint typecheck test:unit` remains the core contributor contract. It runs:
 
@@ -50,7 +49,7 @@ pnpm turbo lint typecheck test:unit
 2. `pnpm typecheck`
 3. `pnpm test:unit`
 
-CI also verifies the production build, Docker build, dependency audit, and that generated/local-only artifacts are not tracked.
+CI also verifies the production build. Docker image publishing is release-only and runs from SemVer tags or manual dispatch.
 
 ## When To Use Package Commands
 
@@ -125,12 +124,6 @@ There is no frontend test suite yet, so manual checks still matter. After fronte
 - report publish, PDF download, and duplicate flow
 - dataset, geometries, and product detail pages
 - at least one map rendering path
-
-For a deployed release candidate, run:
-
-```bash
-SMOKE_BASE_URL=https://example.org pnpm run smoke:release
-```
 
 ## Known Rough Edges
 

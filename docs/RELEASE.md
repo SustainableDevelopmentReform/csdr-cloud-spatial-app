@@ -1,8 +1,8 @@
 # Release Process
 
 This repository owns application source, tests, Docker image construction,
-release metadata, and app-level smoke checks. Environment promotion and runtime
-deployment state belong in the separate operations repository.
+and release metadata. Environment promotion and runtime deployment state belong
+in the separate operations repository.
 
 ## Versioning
 
@@ -34,13 +34,8 @@ The workflow intentionally does not publish `latest`.
    git push origin v1.2.3
    ```
 
-4. GitHub Actions creates release notes from merged PRs and publishes the image.
+4. GitHub Actions publishes the image.
 5. Record the image digest from the publish workflow for the operations repo.
-6. Run the release smoke check against the deployed environment after promotion:
-
-   ```bash
-   SMOKE_BASE_URL=https://example.org pnpm run smoke:release
-   ```
 
 ## Release Metadata
 

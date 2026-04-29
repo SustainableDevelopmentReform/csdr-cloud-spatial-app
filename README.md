@@ -89,8 +89,6 @@ pnpm typecheck
 pnpm test:unit
 pnpm turbo lint typecheck test:unit
 pnpm build
-pnpm run verify:repo-hygiene
-pnpm run smoke:release
 pnpm migrate
 pnpm seed
 ```
