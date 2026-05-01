@@ -26,22 +26,45 @@ const Pagination = ({
     return null
   }
 
-  return (
-    <div
-      className={cn(
-        'flex flex-col gap-3 sm:flex-row sm:items-center',
-        showCount ? 'justify-between' : 'justify-center',
-        className,
-      )}
-    >
-      {showCount ? (
-        <div className="text-sm text-muted-foreground">
+  if (showCount) {
+    return (
+      <div
+        className={cn(
+          'grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]',
+          className,
+        )}
+      >
+        <div className="text-center text-sm text-muted-foreground sm:col-start-2">
           <span className="font-medium text-foreground">
             {loadedCount ?? 0}
           </span>
           {totalCount !== undefined ? ` of ${totalCount}` : null}
         </div>
-      ) : null}
+        {hasNextPage || isLoading ? (
+          <Button
+            className="justify-self-center sm:col-start-3 sm:justify-self-end"
+            variant="outline"
+            size="sm"
+            disabled={!hasNextPage || isLoading}
+            onClick={() => {
+              if (!hasNextPage || isLoading) return
+              onLoadMore()
+            }}
+          >
+            {isLoading ? 'Loading...' : label}
+          </Button>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col justify-center gap-3 sm:flex-row sm:items-center',
+        className,
+      )}
+    >
       {hasNextPage || isLoading ? (
         <Button
           variant="outline"
