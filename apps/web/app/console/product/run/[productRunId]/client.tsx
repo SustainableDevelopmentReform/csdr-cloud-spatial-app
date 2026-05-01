@@ -18,6 +18,7 @@ import { DatasetRunButton } from '../../../dataset/_components/dataset-run-butto
 import { GeometriesButton } from '../../../geometries/_components/geometries-button'
 import { GeometriesRunButton } from '../../../geometries/_components/geometries-run-button'
 import { AssignDerivedIndicatorsDialog } from '../../_components/assign-derived-indicators'
+import { ProductRunMapPreview } from '../../_components/product-run-map-preview'
 import { ProductRunSummaryCard } from '../../_components/product-run-summary-card'
 import { RefreshProductSummary } from '../../_components/refresh-product-summary'
 import {
@@ -91,53 +92,56 @@ const ProductRunDetails = () => {
       notFoundMessage="Product run not found"
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ProductRunSummaryCard run={productRun} />
-          <div className="grid grid-cols-1 gap-4">
-            {productRun && (
-              <DetailCard
-                title={`${productRun?.outputSummary?.outputCount ?? 0} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
-                description="Product Outputs"
-                actionText="Open"
-                actionLink={productRunOutputsLink(productRun)}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {productRun && (
-              <DetailCard
-                title={'Dependencies'}
-                footer={
-                  <div className="flex flex-col gap-2">
-                    {productRun?.datasetRun?.dataset && (
-                      <DatasetButton
-                        dataset={productRun?.datasetRun?.dataset}
-                      />
-                    )}
-                    {productRun?.datasetRun && (
-                      <DatasetRunButton datasetRun={productRun?.datasetRun} />
-                    )}
-                    {productRun?.geometriesRun?.geometries && (
-                      <GeometriesButton
-                        geometries={productRun?.geometriesRun?.geometries}
-                      />
-                    )}
-                    {productRun?.geometriesRun && (
-                      <GeometriesRunButton
-                        geometriesRun={productRun?.geometriesRun}
-                      />
-                    )}
-                  </div>
-                }
-              />
-            )}
-            {productRun && (
-              <ResourceUsageDetailCards
-                reportCount={productRun.reportCount}
-                dashboardCount={productRun.dashboardCount}
-                reportQuery={{ productRunId: productRun.id }}
-                dashboardQuery={{ productRunId: productRun.id }}
-              />
-            )}
+        <div className="flex flex-col gap-4">
+          <ProductRunMapPreview run={productRun} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ProductRunSummaryCard run={productRun} />
+            <div className="grid grid-cols-1 gap-4">
+              {productRun && (
+                <DetailCard
+                  title={`${productRun?.outputSummary?.outputCount ?? 0} ${pluralize(productRun?.outputSummary?.outputCount, 'output', 'outputs')}`}
+                  description="Product Outputs"
+                  actionText="Open"
+                  actionLink={productRunOutputsLink(productRun)}
+                  actionIcon={<ArrowUpRightIcon />}
+                />
+              )}
+              {productRun && (
+                <DetailCard
+                  title={'Dependencies'}
+                  footer={
+                    <div className="flex flex-col gap-2">
+                      {productRun?.datasetRun?.dataset && (
+                        <DatasetButton
+                          dataset={productRun?.datasetRun?.dataset}
+                        />
+                      )}
+                      {productRun?.datasetRun && (
+                        <DatasetRunButton datasetRun={productRun?.datasetRun} />
+                      )}
+                      {productRun?.geometriesRun?.geometries && (
+                        <GeometriesButton
+                          geometries={productRun?.geometriesRun?.geometries}
+                        />
+                      )}
+                      {productRun?.geometriesRun && (
+                        <GeometriesRunButton
+                          geometriesRun={productRun?.geometriesRun}
+                        />
+                      )}
+                    </div>
+                  }
+                />
+              )}
+              {productRun && (
+                <ResourceUsageDetailCards
+                  reportCount={productRun.reportCount}
+                  dashboardCount={productRun.dashboardCount}
+                  reportQuery={{ productRunId: productRun.id }}
+                  dashboardQuery={{ productRunId: productRun.id }}
+                />
+              )}
+            </div>
           </div>
         </div>
         {productRun && (

@@ -1,216 +1,95 @@
 'use client'
 
-import {
-  type AppearanceConfig,
-  type DivergingColorScheme,
-  type LegendPosition,
-  type OnSelectCallback,
-  type SequentialColorScheme,
-} from '@repo/plot/types'
+import { type AppearanceConfig, type OnSelectCallback } from '@repo/plot/types'
 import { cn } from '@repo/ui/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { bbox as turfBbox } from '@turf/turf'
 import {
-  FillLayerSpecification,
+  type FillLayerSpecification,
   Layer,
-  LineLayerSpecification,
-  MapRef,
+  type LineLayerSpecification,
+  type MapRef,
   Source,
 } from '@vis.gl/react-maplibre'
 import {
-  interpolateBrBG,
-  interpolateBlues,
-  interpolateBuPu,
-  interpolateGreens,
-  interpolateInferno,
-  interpolateOranges,
-  interpolatePiYG,
-  interpolatePlasma,
-  interpolatePRGn,
-  interpolateRdBu,
-  interpolateRdYlGn,
-  interpolateViridis,
-  interpolateYlGnBu,
-  interpolateYlOrRd,
-} from 'd3-scale-chromatic'
-import { scaleDiverging, scaleSequential } from 'd3-scale'
-import {
-  ExpressionInputType,
-  ExpressionSpecification,
-  MapLayerMouseEvent,
-  RequestTransformFunction,
+  type ExpressionInputType,
+  type ExpressionSpecification,
+  type MapLayerMouseEvent,
+  type RequestTransformFunction,
 } from 'maplibre-gl'
-import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
+import { PMTiles, type Header as PMTilesHeader } from 'pmtiles'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePrintRenderReadiness } from '~/components/print-readiness'
 import { useConfig } from '../../../../components/providers'
 import { useMapPreview } from './map-preview-context'
 import {
-  GeometriesRunListItem,
+  type GeometriesRunListItem,
   useGeometriesRun,
   useGeometryOutputsExport,
 } from '../../geometries/_hooks'
 import {
-  ProductOutputExportListItem,
-  ProductRunDetail,
+  type ProductOutputExportListItem,
+  type ProductRunDetail,
 } from '../../product/_hooks'
-import { IndicatorListItem } from '../../indicator/_hooks'
+import { type IndicatorListItem } from '../../indicator/_hooks'
 import { MapViewer } from './map-viewer'
-import { EmptyCard } from '../../_components/empty-card'
+import {
+  buildColorScale,
+  ID_PROPERTY,
+  MapLegend,
+  NO_DATA_COLOR,
+} from './map-choropleth-style'
 
-const NO_DATA_COLOR = '#eef'
-const ID_PROPERTY = 'id'
-const LEGEND_STOPS = 10
+type MapBounds = [number, number, number, number]
 
-const SEQUENTIAL_INTERPOLATORS: Record<
-  SequentialColorScheme,
-  (t: number) => string
-> = {
-  ylOrRd: interpolateYlOrRd,
-  viridis: interpolateViridis,
-  plasma: interpolatePlasma,
-  inferno: interpolateInferno,
-  blues: interpolateBlues,
-  greens: interpolateGreens,
-  oranges: interpolateOranges,
-  ylGnBu: interpolateYlGnBu,
-  buPu: interpolateBuPu,
+function toMapBounds(
+  minLon: number,
+  minLat: number,
+  maxLon: number,
+  maxLat: number,
+): MapBounds {
+  return [minLon, minLat, maxLon, maxLat]
 }
 
-const DIVERGING_INTERPOLATORS: Record<
-  DivergingColorScheme,
-  (t: number) => string
-> = {
-  rdBu: interpolateRdBu,
-  brBG: interpolateBrBG,
-  piYG: interpolatePiYG,
-  prGn: interpolatePRGn,
-  rdYlGn: interpolateRdYlGn,
-}
+function boundsFromBbox(bbox: GeoJSON.BBox | undefined): MapBounds | null {
+  if (!bbox || bbox.length < 4) return null
 
-function buildColorScale(
-  autoMin: number,
-  autoMax: number,
-  appearance?: AppearanceConfig,
-): (value: number) => string {
-  const min = appearance?.colorScaleMin ?? autoMin
-  const max = appearance?.colorScaleMax ?? autoMax
-  const reverse = appearance?.reverseColorScale ?? false
-  const isDiverging = appearance?.colorScaleType === 'diverging'
-
-  if (isDiverging) {
-    const baseInterpolator =
-      DIVERGING_INTERPOLATORS[appearance?.divergingScheme ?? 'rdBu'] ??
-      interpolateRdBu
-    const interpolator = reverse
-      ? (t: number) => baseInterpolator(1 - t)
-      : baseInterpolator
-    const mid = appearance?.divergingMidpoint ?? (min + max) / 2
-    if (min === max) {
-      const c = interpolator(0.5)
-      return () => c
-    }
-    const scale = scaleDiverging(interpolator).domain([min, mid, max])
-    return (v: number) => scale(v)
+  const [minLon, minLat, maxLon, maxLat] = bbox
+  if (
+    typeof minLon !== 'number' ||
+    typeof minLat !== 'number' ||
+    typeof maxLon !== 'number' ||
+    typeof maxLat !== 'number'
+  ) {
+    return null
   }
 
-  const baseInterpolator =
-    SEQUENTIAL_INTERPOLATORS[appearance?.sequentialScheme ?? 'ylOrRd'] ??
-    interpolateYlOrRd
-  const interpolator = reverse
-    ? (t: number) => baseInterpolator(1 - t)
-    : baseInterpolator
-  if (min === max) {
-    const c = interpolator(0.5)
-    return () => c
-  }
-  const scale = scaleSequential(interpolator).domain([min, max])
-  return (v: number) => scale(v)
+  return toMapBounds(minLon, minLat, maxLon, maxLat)
 }
 
-// ---------------------------------------------------------------------------
-// Continuous colour-scale legend
-// ---------------------------------------------------------------------------
-
-function MapLegend({
-  min,
-  max,
-  scale,
-  label,
-  unit,
-  position = 'bottom',
-  compactNumbers,
-  decimalPlaces,
-}: {
-  min: number
-  max: number
-  scale: (value: number) => string
-  label?: string
-  unit?: string
-  position?: LegendPosition
-  compactNumbers?: boolean
-  decimalPlaces?: number
-}) {
-  // Build a set of colour stops for the gradient bar
-  const stops = useMemo(() => {
-    const result: string[] = []
-    for (let i = 0; i <= LEGEND_STOPS; i++) {
-      const t = i / LEGEND_STOPS
-      const value = min + t * (max - min)
-      result.push(scale(value))
-    }
-    return result
-  }, [min, max, scale])
-
-  const fmt = useMemo(() => {
-    const opts: Intl.NumberFormatOptions = {
-      notation: compactNumbers ? 'compact' : 'standard',
-    }
-    // Only set maximumFractionDigits when explicitly configured — compact
-    // notation picks sensible defaults on its own.
-    if (decimalPlaces !== undefined) {
-      opts.maximumFractionDigits = decimalPlaces
-    } else if (!compactNumbers) {
-      opts.maximumFractionDigits = 2
-    }
-    const nf = new Intl.NumberFormat(undefined, opts)
-    return (v: number) => nf.format(v)
-  }, [compactNumbers, decimalPlaces])
-
-  if (position === 'none') return null
-
-  const positionClasses =
-    position === 'top' ? 'top-3 left-3' : 'bottom-3 left-3'
-
-  return (
-    <div
-      className={`pointer-events-auto absolute ${positionClasses} z-10 flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2 text-xs`}
-    >
-      {label && (
-        <span className="font-medium text-foreground">
-          {label}
-          {unit ? ` (${unit})` : ''}
-        </span>
-      )}
-      <div
-        className="h-3 w-48 rounded-sm"
-        style={{
-          background: `linear-gradient(to right, ${stops.join(', ')})`,
-        }}
-      />
-      <div className="flex justify-between text-muted-foreground">
-        <span>{fmt(min)}</span>
-        <span>{fmt(max)}</span>
-      </div>
-    </div>
-  )
+function expandBounds(current: MapBounds | null, next: MapBounds): MapBounds {
+  if (!current) return next
+  return [
+    Math.min(current[0], next[0]),
+    Math.min(current[1], next[1]),
+    Math.max(current[2], next[2]),
+    Math.max(current[3], next[3]),
+  ]
 }
 
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
+function getS3HttpUrl(url: string) {
+  const s3Url = url.replace('s3://', '')
+  const [bucket, ...pathParts] = s3Url.split('/')
+  if (!bucket) return null
+  return `https://${bucket}.s3.amazonaws.com/${pathParts.join('/')}`
+}
 
-const GeometriesMapViewer = ({
+function resolvePmtilesUrl(url: string | null | undefined) {
+  if (!url) return null
+  return url.startsWith('s3://') ? getS3HttpUrl(url) : url
+}
+
+const ChoroplethMapViewer = ({
   geometriesRun: geometriesRunProp,
   indicator,
   productRun,
@@ -235,7 +114,7 @@ const GeometriesMapViewer = ({
     data: geometriesRun,
     isLoading: isLoadingGeometriesRun,
     error: geometriesRunError,
-  } = useGeometriesRun(geometriesRunProp?.id)
+  } = useGeometriesRun(geometriesRunProp?.id, !!geometriesRunProp?.id)
 
   const fetchGeometryOutputsToZoomTo = !!(
     zoomToGeometryOutputIds && zoomToGeometryOutputIds.length > 0
@@ -253,33 +132,24 @@ const GeometriesMapViewer = ({
         : undefined,
     },
     false,
-    fetchGeometryOutputsToZoomTo,
+    fetchGeometryOutputsToZoomTo && !!geometriesRun?.id,
   )
 
+  const pmtilesUrl = resolvePmtilesUrl(geometriesRun?.dataPmtilesUrl)
   const { data: pmtilesHeader, isLoading: isLoadingPmtilesHeader } =
     useQuery<PMTilesHeader | null>({
-      queryKey: ['pmtiles-header', geometriesRun?.dataPmtilesUrl],
+      queryKey: ['pmtiles-header', pmtilesUrl],
       queryFn: async () => {
-        let pmtilesUrl = geometriesRun?.dataPmtilesUrl
-
         if (!pmtilesUrl) return null
-
-        if (pmtilesUrl.startsWith('s3://')) {
-          // Convert s3://bucket-name/path/to/file to https://bucket-name.s3.amazonaws.com/path/to/file
-          const s3Url = pmtilesUrl.replace('s3://', '')
-          const [bucket, ...pathParts] = s3Url.split('/')
-          const path = pathParts.join('/')
-          pmtilesUrl = `https://${bucket}.s3.amazonaws.com/${path}`
-        }
 
         const p = new PMTiles(pmtilesUrl)
         return p.getHeader()
       },
-      enabled: !!geometriesRun?.dataPmtilesUrl,
+      enabled: !!pmtilesUrl,
     })
+  const outputSummaryBounds = productRun?.outputSummary?.bounds
 
   const mapBounds = useMemo(() => {
-    // If appearance has a complete explicit bounding box, use it as override
     if (
       appearance?.mapBbox &&
       typeof appearance.mapBbox.minLon === 'number' &&
@@ -288,12 +158,7 @@ const GeometriesMapViewer = ({
       typeof appearance.mapBbox.maxLat === 'number'
     ) {
       const { minLon, minLat, maxLon, maxLat } = appearance.mapBbox
-      return [minLon, minLat, maxLon, maxLat] as [
-        number,
-        number,
-        number,
-        number,
-      ]
+      return toMapBounds(minLon, minLat, maxLon, maxLat)
     }
 
     if (
@@ -307,38 +172,45 @@ const GeometriesMapViewer = ({
       geometryOutputsToZoomTo?.data?.length &&
       geometryOutputsToZoomTo.data.length > 0
     ) {
-      return geometryOutputsToZoomTo.data.reduce<
-        [number, number, number, number]
-      >(
-        (acc, output) => {
-          const bbox = output.geometry?.bbox ?? turfBbox(output.geometry)
-          return [
-            Math.min(acc[0], bbox[0] ?? Infinity),
-            Math.min(acc[1], bbox[1] ?? Infinity),
-            Math.max(acc[2], bbox[2] ?? -Infinity),
-            Math.max(acc[3], bbox[3] ?? -Infinity),
-          ]
+      return geometryOutputsToZoomTo.data.reduce<MapBounds | null>(
+        (currentBounds, output) => {
+          const geometry = output.geometry
+          if (!geometry) return currentBounds
+          const outputBounds =
+            boundsFromBbox(geometry.bbox) ?? boundsFromBbox(turfBbox(geometry))
+          return outputBounds
+            ? expandBounds(currentBounds, outputBounds)
+            : currentBounds
         },
-        [Infinity, Infinity, -Infinity, -Infinity],
-      ) as [number, number, number, number]
+        null,
+      )
     }
 
     if (pmtilesHeader) {
-      return [
+      return toMapBounds(
         pmtilesHeader.minLon,
         pmtilesHeader.minLat,
         pmtilesHeader.maxLon,
         pmtilesHeader.maxLat,
-      ] as [number, number, number, number]
+      )
+    }
+
+    if (outputSummaryBounds) {
+      return toMapBounds(
+        outputSummaryBounds.minX,
+        outputSummaryBounds.minY,
+        outputSummaryBounds.maxX,
+        outputSummaryBounds.maxY,
+      )
     }
 
     if (geometriesRun) {
-      return [
+      return toMapBounds(
         geometriesRun.bounds.minX,
         geometriesRun.bounds.minY,
         geometriesRun.bounds.maxX,
         geometriesRun.bounds.maxY,
-      ] as [number, number, number, number]
+      )
     }
 
     return undefined
@@ -349,6 +221,7 @@ const GeometriesMapViewer = ({
     isLoadingGeometriesRun,
     geometryOutputsToZoomTo,
     pmtilesHeader,
+    outputSummaryBounds,
     geometriesRun,
   ])
 
@@ -426,20 +299,10 @@ const GeometriesMapViewer = ({
       ...(ExpressionInputType | ExpressionSpecification)[],
     ] = [['!', ['has', ID_PROPERTY]], 1]
 
-    const selectedGeometriesLineOpacity: [
-      ExpressionSpecification,
-      ExpressionInputType,
-      ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', ID_PROPERTY]], 0.1]
-
     geometryOutputsToZoomTo?.data?.forEach((output) => {
       selectedGeometriesLineWidth.push(
         ['==', ['get', ID_PROPERTY], output.id],
         zoomToGeometryOutputIds?.includes(output.id) ? 2 : 1,
-      )
-      selectedGeometriesLineOpacity.push(
-        ['==', ['get', ID_PROPERTY], output.id],
-        zoomToGeometryOutputIds?.includes(output.id) ? 1 : 0.1,
       )
     })
 
@@ -552,14 +415,51 @@ const GeometriesMapViewer = ({
     isReady: !isMapLoading && (hasMapError || isMapIdle),
   })
 
-  if (isLoadingGeometriesRun || isLoadingGeometryOutputsToZoomTo)
-    return <EmptyCard description="Loading" />
-  if (geometriesRunError || geometryOutputsToZoomToError)
+  if (isLoadingGeometriesRun || isLoadingGeometryOutputsToZoomTo) {
     return (
-      <EmptyCard
-        description={`Error: ${geometriesRunError?.message ?? geometryOutputsToZoomToError?.message}`}
-      />
+      <div
+        className={cn(
+          'relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg',
+          className,
+        )}
+      >
+        <div className="px-4 text-center text-sm text-muted-foreground">
+          Loading map...
+        </div>
+      </div>
     )
+  }
+
+  if (geometriesRunError || geometryOutputsToZoomToError) {
+    return (
+      <div
+        className={cn(
+          'relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg',
+          className,
+        )}
+      >
+        <div className="px-4 text-center text-sm text-muted-foreground">
+          Error:{' '}
+          {geometriesRunError?.message ?? geometryOutputsToZoomToError?.message}
+        </div>
+      </div>
+    )
+  }
+
+  if (!geometriesRun?.id) {
+    return (
+      <div
+        className={cn(
+          'relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg',
+          className,
+        )}
+      >
+        <div className="px-4 text-center text-sm text-muted-foreground">
+          Map data is unavailable.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -588,7 +488,7 @@ const GeometriesMapViewer = ({
           minzoom={0}
           maxzoom={22}
           tiles={[
-            `${config.apiBaseUrl}/api/v0/geometries-run/${geometriesRun?.id}/outputs/mvt/{z}/{x}/{y}`,
+            `${config.apiBaseUrl}/api/v0/geometries-run/${geometriesRun.id}/outputs/mvt/{z}/{x}/{y}`,
           ]}
         />
         <Layer
@@ -624,4 +524,4 @@ const GeometriesMapViewer = ({
   )
 }
 
-export default GeometriesMapViewer
+export default ChoroplethMapViewer

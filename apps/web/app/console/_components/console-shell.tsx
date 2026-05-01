@@ -35,7 +35,6 @@ import {
   HomeIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
-  TriangleAlertIcon,
   SquareStackIcon,
   Table2Icon,
   UsersIcon,
@@ -45,6 +44,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useMemo, useState } from 'react'
 import { useConfig } from '~/components/providers'
+import { StatusMessage } from '~/components/status-message'
 import {
   DASHBOARDS_BASE_PATH,
   DATASETS_BASE_PATH,
@@ -121,21 +121,15 @@ const AccountSecurityWarning = ({
   label: string
 }) => {
   return (
-    <div
-      className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-      role="alert"
-    >
-      <div className="flex min-w-0 items-start gap-2">
-        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-700" />
-        <div className="leading-5">{children}</div>
-      </div>
+    <StatusMessage variant="error" className="shadow-sm" role="alert">
+      {children}{' '}
       <Link
-        className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white px-3 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100"
+        className="font-medium underline underline-offset-2 transition-colors hover:text-red-900 dark:hover:text-red-200"
         href={href}
       >
         {label}
       </Link>
-    </div>
+    </StatusMessage>
   )
 }
 

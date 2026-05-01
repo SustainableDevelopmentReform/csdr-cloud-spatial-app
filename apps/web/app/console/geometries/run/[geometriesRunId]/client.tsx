@@ -16,7 +16,7 @@ import { DetailCard } from '../../../_components/detail-cards'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { useProductRunsLink } from '../../../product/_hooks'
-import GeometriesMapViewer from '../../_components/geometries-map-viewer'
+import ChoroplethMapViewer from '../../_components/choropleth-map-viewer'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
@@ -90,7 +90,7 @@ const GeometriesRunDetails = () => {
     >
       <div className="w-[800px] max-w-full gap-8 flex flex-col">
         <div className="flex flex-col gap-4">
-          <GeometriesMapViewer geometriesRun={geometriesRun} className="h-96" />
+          <ChoroplethMapViewer geometriesRun={geometriesRun} className="h-96" />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <GeometriesRunSummaryCard run={geometriesRun} />
             <div className="grid grid-cols-1 gap-4">

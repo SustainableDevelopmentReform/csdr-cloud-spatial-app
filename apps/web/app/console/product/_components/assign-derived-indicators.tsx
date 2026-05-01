@@ -137,7 +137,7 @@ const DependencyMappingRow = ({
         </StatusMessage>
       )}
       {indicatorSummary && (
-        <StatusMessage variant="primary">
+        <StatusMessage variant="info">
           {indicatorSummary.count} outputs - Data range:
           {<Value value={indicatorSummary.minValue} indicator={indicator} />} to
           {<Value value={indicatorSummary.maxValue} indicator={indicator} />} -
