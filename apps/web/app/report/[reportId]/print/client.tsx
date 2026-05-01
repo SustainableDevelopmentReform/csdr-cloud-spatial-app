@@ -69,10 +69,10 @@ const ReportPrintPage = ({
     <PrintReadinessProvider baseReady={preparedReportId === report.id}>
       {(isPrintReady) => (
         <main
-          className="mx-auto flex min-h-screen max-w-[800px] flex-col gap-8 bg-white px-8 py-10"
+          className="mx-auto flex min-h-screen w-[800px] max-w-full flex-col gap-8 bg-white py-10"
           data-report-print-ready={isPrintReady ? 'true' : undefined}
         >
-          <section>
+          <section className="[&_.simple-editor-content]:!max-w-none">
             <SimpleEditor
               editable={false}
               content={report.content}
@@ -81,11 +81,11 @@ const ReportPrintPage = ({
             />
           </section>
 
-          <section className="break-before-page">
+          <section className="break-before-page px-8">
             <ReportSources sources={report.sources} />
           </section>
 
-          <section className="break-before-page border-t border-gray-200 pt-8">
+          <section className="break-before-page border-t border-gray-200 px-8 pt-8">
             <div className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
               <div className="flex justify-center">
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
