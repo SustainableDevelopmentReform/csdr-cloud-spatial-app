@@ -14,29 +14,29 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import CrudFormDialog from '../../../../../../components/form/crud-form-dialog'
 import BaseCrudTable, {
   SortButton,
 } from '../../../../../../components/table/crud-table'
 import { SearchInput } from '../../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../../hooks/useAccessControl'
+import { ConsoleCrudListFrame } from '../../../../_components/console-crud-list-frame'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../../../../_components/geographic-bounds-picker-dialog'
 import { formatDateTime } from '@repo/ui/lib/date'
-import { DatasetButton } from '../../../../dataset/_components/dataset-button'
-import { DatasetRunButton } from '../../../../dataset/_components/dataset-run-button'
-import { GeometriesButton } from '../../../../geometries/_components/geometries-button'
-import { GeometriesRunButton } from '../../../../geometries/_components/geometries-run-button'
-import { GeometryOutputButton } from '../../../../geometries/_components/geometry-output-button'
-import { ProductOutputButton } from '../../../_components/product-output-button'
 import { ProductOutputsImportDialog } from '../../../_components/product-output-import'
 import { ProductGeometryOutputSelect } from '../../../_components/product-run-geometry-output-select'
 import { ResourcePageState } from '../../../../_components/resource-page-state'
@@ -47,14 +47,11 @@ import {
   useProductOutputs,
   useProductRun,
 } from '../../../_hooks'
-import { IndicatorButton } from '../../../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../../../indicator/_components/indicators-select'
 import { ProductRunIndicatorsSelect } from '../../../_components/product-run-indicators-select'
 import z from 'zod'
 import { Value } from '../../../../../../components/value'
 import { canManageConsoleChildResource } from '../../../../../../utils/access-control'
-
-const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 const ProductOutputFeature = () => {
   const {
@@ -86,115 +83,95 @@ const ProductOutputFeature = () => {
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
-    return ['createdAt'] as const
+    return ['updatedAt'] as const
   }, [])
 
-  const columns = useMemo(
-    () =>
-      [
-        columnHelper.accessor((row) => row.indicator?.name, {
-          id: 'indicator',
-          header: () => <span>Indicator</span>,
-          cell: (info) => {
-            return (
-              info.row.original.indicator && (
-                <IndicatorButton indicator={info.row.original.indicator} />
-              )
-            )
-          },
-          size: 20,
-        }),
-        columnHelper.accessor((row) => row.value, {
-          id: 'value',
-          header: ({ column }) => (
-            <SortButton
-              order={column.getIsSorted()}
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === 'asc')
-              }
-            >
-              Value
-            </SortButton>
-          ),
-          cell: (info) => {
-            return (
-              <Value
-                value={info.getValue()}
-                indicator={info.row.original.indicator}
-              />
-            )
-          },
-          size: 120,
-        }),
-        columnHelper.accessor((row) => row.timePoint, {
-          id: 'timePoint',
-          header: ({ column }) => (
-            <SortButton
-              order={column.getIsSorted()}
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === 'asc')
-              }
-            >
-              Time Point
-            </SortButton>
-          ),
-          cell: (info) => {
-            return formatDateTime(info.getValue())
-          },
-          size: 120,
-        }),
-        columnHelper.display({
-          id: 'geometry',
-          header: () => <span>Geometry</span>,
-          cell: ({ row }) => {
-            return (
-              <div className="flex items-center gap-2 flex-wrap">
-                {row.original.geometryOutput?.geometriesRun?.geometries && (
-                  <GeometriesButton
-                    geometries={
-                      row.original.geometryOutput.geometriesRun.geometries
-                    }
-                  />
-                )}
-                {row.original.geometryOutput?.geometriesRun && (
-                  <GeometriesRunButton
-                    geometriesRun={row.original.geometryOutput.geometriesRun}
-                  />
-                )}
-                {row.original.geometryOutput && (
-                  <GeometryOutputButton
-                    geometryOutput={row.original.geometryOutput}
-                  />
-                )}
-              </div>
-            )
-          },
-          size: 120,
-        }),
-        columnHelper.display({
-          id: 'dataset',
-          header: () => <span>Dataset</span>,
-          cell: ({ row }) => {
-            return (
-              <div className="flex items-center gap-2 flex-wrap">
-                {row.original.productRun?.datasetRun?.dataset && (
-                  <DatasetButton
-                    dataset={row.original.productRun.datasetRun.dataset}
-                  />
-                )}
-                {row.original.productRun?.datasetRun && (
-                  <DatasetRunButton
-                    datasetRun={row.original.productRun.datasetRun}
-                  />
-                )}
-              </div>
-            )
-          },
-          size: 120,
-        }),
-      ] as ColumnDef<ProductOutputListItem>[],
+  const columns = useMemo<ColumnDef<ProductOutputListItem>[]>(
+    () => [
+      {
+        id: 'indicator',
+        accessorFn: (row) => row.indicator?.name,
+        header: () => <span>Indicator</span>,
+        cell: (info) => info.row.original.indicator?.name,
+        size: 180,
+      },
+      {
+        id: 'value',
+        accessorFn: (row) => row.value,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Value
+          </SortButton>
+        ),
+        cell: (info) => {
+          return (
+            <Value
+              value={info.row.original.value}
+              indicator={info.row.original.indicator}
+            />
+          )
+        },
+        size: 120,
+      },
+      {
+        id: 'timePoint',
+        accessorFn: (row) => row.timePoint,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Time Point
+          </SortButton>
+        ),
+        cell: (info) => {
+          return formatDateTime(info.row.original.timePoint)
+        },
+        size: 120,
+      },
+    ],
     [],
   )
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (selectedIndicatorIds.length > 0) {
+      filters.push({
+        id: 'indicators',
+        label: 'Indicators',
+        value: `${selectedIndicatorIds.length} selected`,
+        onClear: () => setSearchParams({ indicatorId: undefined }),
+      })
+    }
+
+    if (selectedGeometryOutputIds.length > 0) {
+      filters.push({
+        id: 'geometry-outputs',
+        label: 'Geometry outputs',
+        value: `${selectedGeometryOutputIds.length} selected`,
+        onClear: () => setSearchParams({ geometryOutputId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    selectedGeometryOutputIds.length,
+    selectedIndicatorIds.length,
+    setSearchParams,
+  ])
 
   const form = useForm({
     resolver: zodResolver(createProductOutputSchema),
@@ -214,12 +191,11 @@ const ProductOutputFeature = () => {
       loadingMessage="Loading product run"
       notFoundMessage="Product run not found"
     >
-      <div>
-        <div className="flex justify-between">
-          <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle ">
-            Product Outputs
-          </h1>
-          <div className="flex items-center gap-3">
+      <ConsoleCrudListFrame
+        title="Product Outputs"
+        description="Create and manage product outputs for this run."
+        actions={
+          <>
             {productRun?.id && canEdit ? (
               <ProductOutputsImportDialog
                 productRunId={productRun.id}
@@ -296,18 +272,27 @@ const ProductOutputFeature = () => {
                 )}
               />
             </CrudFormDialog>
-          </div>
-        </div>
-        <div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          </>
+        }
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
-              className="w-full md:max-w-md"
+              className="w-full md:w-72"
               placeholder="Search product outputs"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <div className="flex flex-wrap items-end justify-end gap-3">
-              <div className="min-w-[220px] md:min-w-[260px]">
+            <TableFilterPopover activeFilters={activeFilters}>
+              <div>
                 <ProductRunIndicatorsSelect
                   productRunId={productRun?.id}
                   value={selectedIndicatorIds}
@@ -320,7 +305,7 @@ const ProductOutputFeature = () => {
                   isClearable
                 />
               </div>
-              <div className="min-w-[220px] md:min-w-[260px]">
+              <div>
                 <ProductGeometryOutputSelect
                   title="Filter Geometry Outputs"
                   productRunId={productRun?.id}
@@ -335,40 +320,32 @@ const ProductOutputFeature = () => {
               </div>
               <GeographicBoundsPickerDialog
                 title="Area of Interest"
-                className="min-w-[220px] md:min-w-[260px]"
                 value={geographicBounds}
                 onChange={(bounds) =>
                   setSearchParams(toGeographicBoundsQuery(bounds))
                 }
                 onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
-            </div>
+            </TableFilterPopover>
           </div>
-
-          <BaseCrudTable<
-            ProductOutputListItem,
-            Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
-          >
-            data={data?.data || []}
-            isLoading={isLoading}
-            baseColumns={baseColumns}
-            extraColumns={columns}
-            title="ProductOutput"
-            itemLink={productLink}
-            itemButton={(productOutput) => (
-              <ProductOutputButton productOutput={productOutput} />
-            )}
-            query={{ sort: query?.sort, order: query?.order }}
-            onSortChange={(next) => setSearchParams(next)}
-          />
-          <Pagination
-            className="justify-end mt-4"
-            hasNextPage={!!hasNextPage}
-            isLoading={isFetchingNextPage}
-            onLoadMore={() => fetchNextPage()}
-          />
-        </div>
-      </div>
+        }
+      >
+        <BaseCrudTable<
+          ProductOutputListItem,
+          Pick<z.output<typeof productOutputQuerySchema>, 'sort' | 'order'>
+        >
+          data={data?.data || []}
+          isLoading={isLoading}
+          baseColumns={baseColumns}
+          extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt', 'value', 'timePoint']}
+          title="ProductOutput"
+          itemLink={productLink}
+          canModifyItem={() => canEdit}
+          query={{ sort: query?.sort, order: query?.order }}
+          onSortChange={(next) => setSearchParams(next)}
+        />
+      </ConsoleCrudListFrame>
     </ResourcePageState>
   )
 }

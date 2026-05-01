@@ -258,6 +258,27 @@ export const datasetQuerySchema = geographicBoundsQuerySchema.extend({
   excludeDatasetIds: z.union([z.string(), z.array(z.string())]).optional(),
 })
 
+export const dataLibraryResourceTypeSchema = z.enum([
+  'dataset',
+  'boundary',
+  'product',
+])
+
+export const dataLibraryResourceSchema = baseAclResourceSchema
+  .extend({
+    resourceType: dataLibraryResourceTypeSchema,
+  })
+  .openapi('DataLibraryResource')
+
+export const dataLibraryQuerySchema = geographicBoundsQuerySchema.extend({
+  resourceType: z
+    .union([
+      dataLibraryResourceTypeSchema,
+      z.array(dataLibraryResourceTypeSchema),
+    ])
+    .optional(),
+})
+
 export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
   sourceMetadataUrl: z.string().optional(),
@@ -791,6 +812,7 @@ export const baseDashboardSchema = baseAclResourceSchema
 export const fullDashboardSchema = baseDashboardSchema
   .extend({
     content: dashboardContentSchema,
+    sources: z.array(reportSourceSchema),
   })
   .openapi('DashboardSchemaFull')
 

@@ -4,7 +4,7 @@ import { AccountSettingsContent } from '../../_components/account-settings-butto
 
 const AccountPageClient = () => {
   return (
-    <div className="max-w-xl rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+    <div className="max-w-xl rounded-lg bg-white p-6 shadow-sm">
       <AccountSettingsContent />
     </div>
   )

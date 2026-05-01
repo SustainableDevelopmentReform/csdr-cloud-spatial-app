@@ -29,6 +29,7 @@ const coveredV0OperationKeys = [
   'GET /api/v0/dashboard',
   'GET /api/v0/dashboard/:id',
   'GET /api/v0/dashboard/:id/visibility-impact',
+  'GET /api/v0/data-library',
   'GET /api/v0/dataset',
   'GET /api/v0/dataset-run/:id',
   'GET /api/v0/dataset/:id',

@@ -118,7 +118,7 @@ export const ExpressionField = ({
             </StatusMessage>
           ) : null}
           {!error && expression && expression.trim() !== '' ? (
-            <StatusMessage variant="primary" className="mt-2">
+            <StatusMessage variant="success" className="mt-2">
               Expression is valid
             </StatusMessage>
           ) : null}

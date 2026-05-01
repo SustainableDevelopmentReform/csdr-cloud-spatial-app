@@ -3,10 +3,18 @@
 import { useMemo } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../components/table/table-row-delete-action'
+import { useAccessControl } from '../../../hooks/useAccessControl'
+import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
@@ -19,12 +27,29 @@ import { IndicatorsSelect } from '../indicator/_components/indicators-select'
 import { ProductRunSelect } from '../product/_components/product-run-select'
 import { ProductSelect } from '../product/_components/product-select'
 import { ReportBreadcrumbs } from './_components/breadcrumbs'
-import { ReportButton } from './_components/report-button'
 import { ReportCreateAction } from './_components/report-create-action'
-import { useReportLink, useReports } from './_hooks'
+import {
+  ReportListItem,
+  useDeleteReport,
+  useReportLink,
+  useReports,
+} from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
 
+const ReportDeleteAction = ({ report }: { report: ReportListItem }) => {
+  const deleteReport = useDeleteReport(report.id)
+
+  return (
+    <TableRowDeleteAction
+      entityName="report"
+      itemName={report.name}
+      mutation={deleteReport}
+    />
+  )
+}
+
 const ReportFeature = () => {
+  const { access } = useAccessControl()
   const {
     data,
     query,
@@ -60,8 +85,95 @@ const ReportFeature = () => {
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
-    return ['description', 'createdAt', 'updatedAt'] as const
+    return ['description', 'updatedAt'] as const
   }, [])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (selectedIndicatorIds.length > 0) {
+      filters.push({
+        id: 'indicators',
+        label: 'Indicators',
+        value: `${selectedIndicatorIds.length} selected`,
+        onClear: () => setSearchParams({ indicatorId: undefined }),
+      })
+    }
+
+    if (selectedProductIds.length > 0) {
+      filters.push({
+        id: 'products',
+        label: 'Products',
+        value: `${selectedProductIds.length} selected`,
+        onClear: () => setSearchParams({ productId: undefined }),
+      })
+    }
+
+    if (query?.productRunId) {
+      filters.push({
+        id: 'product-run',
+        label: 'Product run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ productRunId: undefined }),
+      })
+    }
+
+    if (selectedDatasetIds.length > 0) {
+      filters.push({
+        id: 'datasets',
+        label: 'Datasets',
+        value: `${selectedDatasetIds.length} selected`,
+        onClear: () => setSearchParams({ datasetId: undefined }),
+      })
+    }
+
+    if (query?.datasetRunId) {
+      filters.push({
+        id: 'dataset-run',
+        label: 'Dataset run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ datasetRunId: undefined }),
+      })
+    }
+
+    if (selectedGeometriesIds.length > 0) {
+      filters.push({
+        id: 'geometries',
+        label: 'Boundaries',
+        value: `${selectedGeometriesIds.length} selected`,
+        onClear: () => setSearchParams({ geometriesId: undefined }),
+      })
+    }
+
+    if (query?.geometriesRunId) {
+      filters.push({
+        id: 'geometries-run',
+        label: 'Boundary run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ geometriesRunId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    query?.datasetRunId,
+    query?.geometriesRunId,
+    query?.productRunId,
+    selectedDatasetIds.length,
+    selectedGeometriesIds.length,
+    selectedIndicatorIds.length,
+    selectedProductIds.length,
+    setSearchParams,
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,16 +182,25 @@ const ReportFeature = () => {
         title="Reports"
         description="Create and manage reports in the system."
         actions={<ReportCreateAction />}
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
         toolbar={
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
-              className="w-full md:max-w-md"
+              className="w-full md:w-72"
               placeholder="Search reports"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <div className="flex flex-wrap items-end justify-end gap-3">
-              <div className="min-w-[220px] md:min-w-[260px]">
+            <TableFilterPopover activeFilters={activeFilters}>
+              <div>
                 <IndicatorsSelect
                   title="Filter Indicators"
                   value={selectedIndicatorIds}
@@ -93,7 +214,7 @@ const ReportFeature = () => {
                 />
               </div>
               {showProductFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <ProductSelect
                     title="Filter Products"
                     value={selectedProductIds}
@@ -108,7 +229,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showProductRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <ProductRunSelect
                     title="Filter Product Run"
                     value={query?.productRunId}
@@ -123,7 +244,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showDatasetFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <DatasetSelect
                     title="Filter Datasets"
                     value={selectedDatasetIds}
@@ -138,7 +259,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showDatasetRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <DatasetRunSelect
                     title="Filter Dataset Run"
                     value={query?.datasetRunId}
@@ -153,7 +274,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showGeometriesFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <GeometriesSelect
                     title="Filter Geometries"
                     value={selectedGeometriesIds}
@@ -170,7 +291,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showGeometriesRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <GeometriesRunSelect
                     title="Filter Geometries Run"
                     value={query?.geometriesRunId}
@@ -186,14 +307,13 @@ const ReportFeature = () => {
               )}
               <GeographicBoundsPickerDialog
                 title="Area of Interest"
-                className="min-w-[220px] md:min-w-[260px]"
                 value={geographicBounds}
                 onChange={(bounds) =>
                   setSearchParams(toGeographicBoundsQuery(bounds))
                 }
                 onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
-            </div>
+            </TableFilterPopover>
           </div>
         }
       >
@@ -201,17 +321,19 @@ const ReportFeature = () => {
           data={data?.data || []}
           isLoading={isLoading}
           baseColumns={baseColumns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Report"
           itemLink={reportLink}
-          itemButton={(report) => <ReportButton report={report} />}
+          canModifyItem={(report) =>
+            canEditConsoleResource({
+              access,
+              resource: 'report',
+              resourceData: report,
+            })
+          }
+          deleteAction={(report) => <ReportDeleteAction report={report} />}
           query={query}
           onSortChange={setSearchParams}
-        />
-        <Pagination
-          className="justify-end"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
         />
       </ConsoleCrudListFrame>
     </div>

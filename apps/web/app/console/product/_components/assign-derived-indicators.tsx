@@ -3,7 +3,9 @@
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -137,7 +139,7 @@ const DependencyMappingRow = ({
         </StatusMessage>
       )}
       {indicatorSummary && (
-        <StatusMessage variant="primary">
+        <StatusMessage variant="info">
           {indicatorSummary.count} outputs - Data range:
           {<Value value={indicatorSummary.minValue} indicator={indicator} />} to
           {<Value value={indicatorSummary.maxValue} indicator={indicator} />} -
@@ -238,6 +240,22 @@ export const AssignDerivedIndicatorsDialog = ({
     !allDependenciesMapped ||
     assignDerivedIndicator.isPending
 
+  const resetDialogState = useCallback(() => {
+    setSelectedIndicatorId(null)
+    setDependencyMappings([])
+    setWarnings([])
+  }, [])
+
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open)
+      if (!open) {
+        resetDialogState()
+      }
+    },
+    [resetDialogState],
+  )
+
   const handleDependencyMappingChange = useCallback(
     (
       indicatorId: string,
@@ -285,7 +303,7 @@ export const AssignDerivedIndicatorsDialog = ({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <span>
           <Button
@@ -524,6 +542,13 @@ export const AssignDerivedIndicatorsDialog = ({
             </div>
           </FieldGroup>
         </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Close
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

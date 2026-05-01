@@ -1,4 +1,4 @@
-import { GeometryOutputListItem } from '../_hooks'
+import { GeometryOutputDetail } from '../_hooks'
 import { DetailCard } from '../../_components/detail-cards'
 import { GeometriesRunButton } from './geometries-run-button'
 import { DetailCardProps } from '../../_components/detail-cards'
@@ -9,7 +9,7 @@ export const GeometryOutputCard = ({
   geometryOutput,
   ...cardProps
 }: {
-  geometryOutput: GeometryOutputListItem
+  geometryOutput: GeometryOutputDetail
 } & Omit<DetailCardProps, 'title' | 'description' | 'subFooter'>) => {
   return (
     <DetailCard

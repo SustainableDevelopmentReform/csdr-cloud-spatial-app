@@ -7,32 +7,51 @@ import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
-import { BadgeLink } from '../../../../../components/badge-link'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../../../components/table/table-row-delete-action'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../../../_components/geographic-bounds-picker-dialog'
 import { DatasetRunSelect } from '../../../dataset/_components/dataset-run-select'
 import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
-import { IndicatorButtons } from '../../../indicator/_components/indicator-button'
 import { ResourcePageState } from '../../../_components/resource-page-state'
-import { ProductButton } from '../../_components/product-button'
-import { ProductRunButton } from '../../_components/product-run-button'
 import {
   ProductRunListItem,
   useCreateProductRun,
+  useDeleteProductRun,
   useProduct,
   useProductRunLink,
-  useProductRunOutputsLink,
   useProductRuns,
 } from '../../_hooks'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+
+const ProductRunDeleteAction = ({
+  productRun,
+}: {
+  productRun: ProductRunListItem
+}) => {
+  const deleteProductRun = useDeleteProductRun(productRun.id)
+
+  return (
+    <TableRowDeleteAction
+      entityName="product run"
+      itemName={productRun.name}
+      mutation={deleteProductRun}
+    />
+  )
+}
 
 const ProductRunFeature = () => {
   const {
@@ -43,11 +62,9 @@ const ProductRunFeature = () => {
     hasNextPage,
     isLoading,
     isFetchingNextPage,
-    filters,
   } = useProductRuns(undefined, undefined, true)
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
-  const productRunOutputsLink = useProductRunOutputsLink()
 
   const productQuery = useProduct()
   const product = productQuery.data
@@ -61,37 +78,66 @@ const ProductRunFeature = () => {
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
-    return ['createdAt'] as const
+    return ['description', 'updatedAt'] as const
   }, [])
 
-  // Add column to show mainfile badge if product.mainRunId === productRun.id
   const columns = useMemo(() => {
     return [
       {
-        header: 'Indicators',
+        id: 'latestRun',
+        header: 'Latest run',
         cell: ({ row }) => {
+          const isLatest = product?.mainRunId === row.original.id
+
           return (
-            <IndicatorButtons
-              indicators={row.original.outputSummary?.indicators}
-            />
-          )
-        },
-      },
-      {
-        header: 'Number of outputs',
-        cell: ({ row }) => {
-          return (
-            <BadgeLink
-              href={productRunOutputsLink(row.original)}
-              variant="outline"
+            <span
+              className={isLatest ? 'text-foreground' : 'text-muted-foreground'}
             >
-              {row.original.outputSummary?.outputCount}
-            </BadgeLink>
+              {isLatest ? 'Latest' : 'No'}
+            </span>
           )
         },
+        size: 140,
       },
     ] satisfies ColumnDef<ProductRunListItem>[]
-  }, [productRunOutputsLink])
+  }, [product?.mainRunId])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (query?.datasetRunId) {
+      filters.push({
+        id: 'dataset-run',
+        label: 'Dataset run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ datasetRunId: undefined }),
+      })
+    }
+
+    if (query?.geometriesRunId) {
+      filters.push({
+        id: 'geometries-run',
+        label: 'Boundary run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ geometriesRunId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    query?.datasetRunId,
+    query?.geometriesRunId,
+    setSearchParams,
+  ])
 
   const form = useForm({
     resolver: zodResolver(createProductRunSchema),
@@ -111,15 +157,11 @@ const ProductRunFeature = () => {
       loadingMessage="Loading product"
       notFoundMessage="Product not found"
     >
-      <div>
-        <div className="flex justify-between">
-          <h1 className="text-3xl font-medium mb-2 flex gap-2 items-center align-middle">
-            Product Runs
-            <div className="flex gap-2 items-center justify-center align-middle">
-              {filters}
-            </div>
-          </h1>
-          {product && (
+      <ConsoleCrudListFrame
+        title="Product Runs"
+        description="Create and manage runs for this product."
+        actions={
+          product ? (
             <CrudFormDialog
               form={form}
               mutation={createProductRun}
@@ -169,47 +211,54 @@ const ProductRunFeature = () => {
               )}
               <CrudFormRunFields form={form} />
             </CrudFormDialog>
-          )}
-        </div>
-        <div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          ) : null
+        }
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
+              className="w-full md:w-72"
               placeholder="Search product runs"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <GeographicBoundsPickerDialog
-              value={geographicBounds}
-              onChange={(bounds) =>
-                setSearchParams(toGeographicBoundsQuery(bounds))
-              }
-              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
-            />
+            <TableFilterPopover activeFilters={activeFilters}>
+              <GeographicBoundsPickerDialog
+                title="Area of Interest"
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
+                }
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+              />
+            </TableFilterPopover>
           </div>
-          <BaseCrudTable
-            data={data?.data || []}
-            isLoading={isLoading}
-            baseColumns={baseColumns}
-            extraColumns={columns}
-            title="ProductRun"
-            itemLink={productLink}
-            itemButton={(productRun) => (
-              <div className="flex flex-wrap gap-2">
-                {!product && <ProductButton product={productRun.product} />}
-                <ProductRunButton productRun={productRun} />
-              </div>
-            )}
-            query={query}
-            onSortChange={setSearchParams}
-          />
-          <Pagination
-            className="justify-end mt-4"
-            hasNextPage={!!hasNextPage}
-            isLoading={isFetchingNextPage}
-            onLoadMore={() => fetchNextPage()}
-          />
-        </div>
-      </div>
+        }
+      >
+        <BaseCrudTable
+          data={data?.data || []}
+          isLoading={isLoading}
+          baseColumns={baseColumns}
+          extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
+          title="ProductRun"
+          itemLink={productLink}
+          canModifyItem={() => canEdit}
+          deleteAction={(productRun) => (
+            <ProductRunDeleteAction productRun={productRun} />
+          )}
+          query={query}
+          onSortChange={setSearchParams}
+        />
+      </ConsoleCrudListFrame>
     </ResourcePageState>
   )
 }

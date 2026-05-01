@@ -24,6 +24,14 @@ type ProductSourceRecord = SourceRecord & {
   geometries: SourceRecord | null
 }
 
+type SourceUsageRecord = {
+  productRunId: string
+  derivedIndicatorId: string | null
+  productRun: {
+    product: ProductSourceRecord | null
+  } | null
+}
+
 const sourceOrder: Record<ReportSource['resourceType'], number> = {
   product: 0,
   dataset: 1,
@@ -98,53 +106,10 @@ const appendProduct = (
   products.set(record.id, record)
 }
 
-export const deriveReportSources = async (
+const deriveSourcesFromUsages = async (
   dbOrTx: DbLike,
-  reportId: string,
+  usages: SourceUsageRecord[],
 ): Promise<ReportSource[]> => {
-  const usages = await dbOrTx.query.reportIndicatorUsage.findMany({
-    where: (table, { eq }) => eq(table.reportId, reportId),
-    columns: {
-      productRunId: true,
-      derivedIndicatorId: true,
-    },
-    with: {
-      productRun: {
-        columns: {
-          id: true,
-        },
-        with: {
-          product: {
-            columns: {
-              id: true,
-              name: true,
-              description: true,
-              createdAt: true,
-            },
-            with: {
-              dataset: {
-                columns: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  createdAt: true,
-                },
-              },
-              geometries: {
-                columns: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  createdAt: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-
   const products = new Map<string, ProductSourceRecord>()
 
   const derivedUsagePairs = new Set<string>()
@@ -236,4 +201,104 @@ export const deriveReportSources = async (
 
     return left.id.localeCompare(right.id)
   })
+}
+
+export const deriveReportSources = async (
+  dbOrTx: DbLike,
+  reportId: string,
+): Promise<ReportSource[]> => {
+  const usages = await dbOrTx.query.reportIndicatorUsage.findMany({
+    where: (table, { eq }) => eq(table.reportId, reportId),
+    columns: {
+      productRunId: true,
+      derivedIndicatorId: true,
+    },
+    with: {
+      productRun: {
+        columns: {
+          id: true,
+        },
+        with: {
+          product: {
+            columns: {
+              id: true,
+              name: true,
+              description: true,
+              createdAt: true,
+            },
+            with: {
+              dataset: {
+                columns: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  createdAt: true,
+                },
+              },
+              geometries: {
+                columns: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  createdAt: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return deriveSourcesFromUsages(dbOrTx, usages)
+}
+
+export const deriveDashboardSources = async (
+  dbOrTx: DbLike,
+  dashboardId: string,
+): Promise<ReportSource[]> => {
+  const usages = await dbOrTx.query.dashboardIndicatorUsage.findMany({
+    where: (table, { eq }) => eq(table.dashboardId, dashboardId),
+    columns: {
+      productRunId: true,
+      derivedIndicatorId: true,
+    },
+    with: {
+      productRun: {
+        columns: {
+          id: true,
+        },
+        with: {
+          product: {
+            columns: {
+              id: true,
+              name: true,
+              description: true,
+              createdAt: true,
+            },
+            with: {
+              dataset: {
+                columns: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  createdAt: true,
+                },
+              },
+              geometries: {
+                columns: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  createdAt: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return deriveSourcesFromUsages(dbOrTx, usages)
 }

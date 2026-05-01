@@ -1,15 +1,6 @@
-import React from 'react'
-import DetailLayout from '../../../components/detail-layout'
-import { ProductExplorerBreadcrumbs } from './_components/breadcrumbs'
+import type React from 'react'
 
-const ProductLayout: React.FC<{
-  children?: React.ReactNode
-}> = async ({ children }) => {
-  return (
-    <DetailLayout breadcrumbs={<ProductExplorerBreadcrumbs />}>
-      {children}
-    </DetailLayout>
-  )
-}
+const AnalysisLayout = ({ children }: { children?: React.ReactNode }) =>
+  children
 
-export default ProductLayout
+export default AnalysisLayout

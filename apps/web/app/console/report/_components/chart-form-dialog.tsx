@@ -77,6 +77,7 @@ import {
   type LucideIcon,
   Map as MapIcon,
   PieChart as PieChartIcon,
+  Plus,
   Table2,
   TrendingUp,
 } from 'lucide-react'
@@ -156,6 +157,11 @@ function toSeriesKey(value: unknown): string {
 const DEFAULT_PRODUCT_DATE_PRECISION: AppearanceConfig['datePrecision'] =
   'year-month'
 
+function toFormTimePoint(timePoint: Date | string | null | undefined) {
+  if (!timePoint) return null
+  return timePoint instanceof Date ? timePoint.toISOString() : timePoint
+}
+
 const STEP_LABELS = [
   'Data Source',
   'Chart Type',
@@ -168,6 +174,7 @@ const STEP_DESCRIPTIONS = [
   'Fine-tune data selections and add details',
   'Customise colours, axes and formatting',
 ] as const
+type ChartFormStep = 0 | 1 | 2 | 3
 
 type SeriesDimension = 'indicators' | 'geometries' | 'time'
 
@@ -363,59 +370,63 @@ function inferSeriesDimension(
 
 const WizardSteps = ({
   current,
+  firstVisibleStep,
   onNavigate,
   canNavigateTo,
 }: {
   current: number
+  firstVisibleStep: ChartFormStep
   onNavigate: (step: number) => void
   canNavigateTo: (step: number) => boolean
 }) => (
   <nav className="flex items-center gap-0.5" aria-label="Wizard steps">
-    {STEP_LABELS.map((label, index) => {
-      const isCurrent = index === current
-      const isPast = index < current
-      const isAccessible = canNavigateTo(index)
+    {STEP_LABELS.map((label, index) => ({ label, index }))
+      .filter(({ index }) => index >= firstVisibleStep)
+      .map(({ label, index }, visibleIndex) => {
+        const isCurrent = index === current
+        const isPast = index < current
+        const isAccessible = canNavigateTo(index)
 
-      return (
-        <div key={label} className="flex items-center">
-          {index > 0 && (
-            <div
+        return (
+          <div key={label} className="flex items-center">
+            {visibleIndex > 0 && (
+              <div
+                className={cn(
+                  'mx-1 h-px w-4',
+                  isPast || isCurrent ? 'bg-primary' : 'bg-border',
+                )}
+              />
+            )}
+            <button
+              type="button"
+              disabled={!isAccessible}
+              onClick={() => isAccessible && onNavigate(index)}
               className={cn(
-                'mx-1 h-px w-4',
-                isPast || isCurrent ? 'bg-primary' : 'bg-border',
+                'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                isCurrent && 'bg-primary text-primary-foreground',
+                !isCurrent &&
+                  isPast &&
+                  'bg-primary/10 text-primary hover:bg-primary/20',
+                !isCurrent &&
+                  !isPast &&
+                  isAccessible &&
+                  'bg-muted text-muted-foreground hover:bg-muted/80',
+                !isAccessible &&
+                  'cursor-not-allowed bg-muted/50 text-muted-foreground/40',
               )}
-            />
-          )}
-          <button
-            type="button"
-            disabled={!isAccessible}
-            onClick={() => isAccessible && onNavigate(index)}
-            className={cn(
-              'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-              isCurrent && 'bg-primary text-primary-foreground',
-              !isCurrent &&
-                isPast &&
-                'bg-primary/10 text-primary hover:bg-primary/20',
-              !isCurrent &&
-                !isPast &&
-                isAccessible &&
-                'bg-muted text-muted-foreground hover:bg-muted/80',
-              !isAccessible &&
-                'cursor-not-allowed bg-muted/50 text-muted-foreground/40',
-            )}
-          >
-            {isPast && !isCurrent ? (
-              <Check className="h-3 w-3" />
-            ) : (
-              <span className="flex h-4 w-4 items-center justify-center text-[10px] font-semibold">
-                {index + 1}
-              </span>
-            )}
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        </div>
-      )
-    })}
+            >
+              {isPast && !isCurrent ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <span className="flex h-4 w-4 items-center justify-center text-[10px] font-semibold">
+                  {visibleIndex + 1}
+                </span>
+              )}
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          </div>
+        )
+      })}
   </nav>
 )
 
@@ -692,7 +703,7 @@ const ChartPreview = ({ form }: { form: UseFormReturn<ChartFormValues> }) => {
   }
 
   return (
-    <div className="flex h-[300px] flex-col overflow-hidden rounded-lg border bg-card lg:h-full">
+    <div className="flex h-[300px] flex-col overflow-hidden rounded-lg bg-card lg:h-full">
       <ChartRenderer
         chart={chartConfig}
         config={{ showTitleAndDescription: true }}
@@ -711,17 +722,27 @@ export const ChartFormDialog = ({
   onSubmit,
   onOpen,
   onClose,
+  firstVisibleStep = 0,
 }: {
   buttonText?: string
   chart: ChartConfiguration | null
   onSubmit: (data: ChartConfiguration) => void
   onOpen?: () => void
   onClose?: () => void
+  firstVisibleStep?: ChartFormStep
 }) => {
   const isEditing = chart !== null
+  const triggerLabel = buttonText ?? (isEditing ? 'Edit chart' : 'Add Chart')
+  const getInitialStep = useCallback(
+    (nextChart: ChartConfiguration | null) => {
+      const preferredStep = nextChart ? 2 : 0
+      return Math.max(preferredStep, firstVisibleStep)
+    },
+    [firstVisibleStep],
+  )
 
   const [open, setOpen] = useState(false)
-  const [step, setStep] = useState(isEditing ? 2 : 0)
+  const [step, setStep] = useState(getInitialStep(chart))
 
   const form = useForm<ChartFormValues>({
     resolver: zodResolver(chartFormSchema),
@@ -742,6 +763,7 @@ export const ChartFormDialog = ({
   const timePoints = form.watch('timePoints')
   const xDimension = form.watch('xDimension')
   const yDimension = form.watch('yDimension')
+  const mapBbox = form.watch('appearance.mapBbox')
   const appearanceDatePrecision = form.watch('appearance.datePrecision')
 
   const [seriesDimension, setSeriesDimension] = useState<SeriesDimension>(() =>
@@ -812,11 +834,7 @@ export const ChartFormDialog = ({
     const firstTp = summary.timePoints?.[0]
     return {
       firstIndicatorId: firstInd?.indicator?.id ?? null,
-      firstTimePoint: firstTp
-        ? typeof firstTp === 'string'
-          ? firstTp
-          : (firstTp as Date).toISOString()
-        : null,
+      firstTimePoint: toFormTimePoint(firstTp),
     }
   }, [productRunDetail])
 
@@ -854,13 +872,14 @@ export const ChartFormDialog = ({
 
   const canNavigateTo = useCallback(
     (targetStep: number) => {
+      if (targetStep < firstVisibleStep) return false
       if (targetStep === 0) return true
       if (targetStep === 1) return sourceComplete
       if (targetStep === 2) return sourceComplete && typeComplete
       if (targetStep === 3) return sourceComplete && typeComplete
       return false
     },
-    [sourceComplete, typeComplete],
+    [firstVisibleStep, sourceComplete, typeComplete],
   )
 
   // Multi/single select logic per data dimension
@@ -1186,32 +1205,26 @@ export const ChartFormDialog = ({
       const firstNIndicatorIds = indicators
         .slice(0, DEFAULT_MULTI_COUNT)
         .map((i) => i.id)
-      if (firstNIndicatorIds.length > 0) {
-        form.setValue('indicatorId', firstNIndicatorIds[0]!, sv)
+      const firstIndicatorId = firstNIndicatorIds[0]
+      if (firstIndicatorId) {
+        form.setValue('indicatorId', firstIndicatorId, sv)
         form.setValue('indicatorIds', firstNIndicatorIds, sv)
       }
 
-      if (product.mainRun?.outputSummary?.timePoints?.length === 1) {
-        form.setValue(
-          'timePoint',
-          product.mainRun?.outputSummary?.timePoints?.[0] ?? '',
-          sv,
-        )
-        form.setValue(
-          'timePoints',
-          product.mainRun?.outputSummary?.timePoints ?? [],
-          sv,
-        )
+      const timePoints = product.mainRun?.outputSummary?.timePoints ?? []
+      const firstTimePoint = toFormTimePoint(timePoints[0])
+      if (firstTimePoint) {
+        form.setValue('timePoint', firstTimePoint, sv)
+        form.setValue('timePoints', [firstTimePoint], sv)
       }
 
-      // Capture summary for series count warnings + defaults for auto-fill
       const summary = product.mainRun?.outputSummary
       setProductSummary({
         productName: product.name,
         indicatorCount: summary?.indicators?.length ?? 0,
         timePointCount: summary?.timePoints?.length ?? 0,
         firstIndicatorId: summary?.indicators?.[0]?.id ?? null,
-        firstTimePoint: summary?.timePoints?.[0] ?? null,
+        firstTimePoint,
       })
 
       // Set appearance defaults
@@ -1223,11 +1236,11 @@ export const ChartFormDialog = ({
       )
 
       // Reset wizard state back to the type selection step
-      setStep(0)
+      setStep(firstVisibleStep)
       setSeriesDimension('indicators')
       titleAutoRef.current = true
     },
-    [form],
+    [firstVisibleStep, form],
   )
 
   // Helper: given a chart type's constraints, set each dimension to either
@@ -1373,6 +1386,13 @@ export const ChartFormDialog = ({
 
       if (vt.type === 'map') {
         form.setValue('geometryOutputIds', undefined, sv)
+
+        if (!form.getValues('indicatorId')) {
+          form.setValue('indicatorId', defaultIndicator ?? '', sv)
+        }
+        if (!form.getValues('timePoint')) {
+          form.setValue('timePoint', defaultTime ?? '', sv)
+        }
       }
 
       if (vt.type === 'kpi') {
@@ -1477,13 +1497,13 @@ export const ChartFormDialog = ({
           if (chart) {
             form.reset(chart)
             form.trigger()
-            setStep(2)
+            setStep(getInitialStep(chart))
             setSeriesDimension(inferSeriesDimension(chart))
             // Preserve manually-set title in edit mode
             titleAutoRef.current = !chart.title
           } else {
             form.reset()
-            setStep(0)
+            setStep(getInitialStep(null))
             setSeriesDimension('indicators')
             setProductSummary(null)
             titleAutoRef.current = true
@@ -1495,8 +1515,15 @@ export const ChartFormDialog = ({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
-          {buttonText}
+        <Button
+          type="button"
+          variant={isEditing ? 'outline' : 'default'}
+          size={isEditing ? 'sm' : 'default'}
+        >
+          {!isEditing && triggerLabel === 'Add Chart' ? (
+            <Plus className="h-4 w-4" />
+          ) : null}
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:w-2xl lg:w-[900px] max-w-full">
@@ -1516,9 +1543,10 @@ export const ChartFormDialog = ({
             >
               {/* Header + Step indicator */}
               <DialogHeader className="space-y-3">
-                <DialogTitle>{buttonText}</DialogTitle>
+                <DialogTitle>{triggerLabel}</DialogTitle>
                 <WizardSteps
                   current={step}
+                  firstVisibleStep={firstVisibleStep}
                   onNavigate={setStep}
                   canNavigateTo={canNavigateTo}
                 />
@@ -2192,117 +2220,117 @@ export const ChartFormDialog = ({
                                   form.setValue('appearance.mapBbox', bounds, {
                                     shouldValidate: false,
                                   })
-                                  form.trigger()
+                                  form.clearErrors('appearance.mapBbox')
+                                  void form.trigger()
                                 }}
                               />
                             </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <FormField
-                                control={form.control}
-                                name="appearance.mapBbox.minLon"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Min Longitude</FormLabel>
-                                    <Input
-                                      type="number"
-                                      step="any"
-                                      placeholder="Auto"
-                                      value={field.value ?? ''}
-                                      onChange={(e) =>
-                                        field.onChange(
-                                          e.target.value === ''
-                                            ? undefined
-                                            : Number(e.target.value),
-                                        )
-                                      }
-                                    />
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="appearance.mapBbox.minLat"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Min Latitude</FormLabel>
-                                    <Input
-                                      type="number"
-                                      step="any"
-                                      placeholder="Auto"
-                                      value={field.value ?? ''}
-                                      onChange={(e) =>
-                                        field.onChange(
-                                          e.target.value === ''
-                                            ? undefined
-                                            : Number(e.target.value),
-                                        )
-                                      }
-                                    />
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="appearance.mapBbox.maxLon"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Max Longitude</FormLabel>
-                                    <Input
-                                      type="number"
-                                      step="any"
-                                      placeholder="Auto"
-                                      value={field.value ?? ''}
-                                      onChange={(e) =>
-                                        field.onChange(
-                                          e.target.value === ''
-                                            ? undefined
-                                            : Number(e.target.value),
-                                        )
-                                      }
-                                    />
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="appearance.mapBbox.maxLat"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Max Latitude</FormLabel>
-                                    <Input
-                                      type="number"
-                                      step="any"
-                                      placeholder="Auto"
-                                      value={field.value ?? ''}
-                                      onChange={(e) =>
-                                        field.onChange(
-                                          e.target.value === ''
-                                            ? undefined
-                                            : Number(e.target.value),
-                                        )
-                                      }
-                                    />
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                            {form.watch('appearance.mapBbox') && (
+                            {mapBbox && (
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <FormField
+                                  control={form.control}
+                                  name="appearance.mapBbox.minLon"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Min Longitude</FormLabel>
+                                      <Input
+                                        type="number"
+                                        step="any"
+                                        value={field.value ?? ''}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            e.target.value === ''
+                                              ? undefined
+                                              : Number(e.target.value),
+                                          )
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="appearance.mapBbox.minLat"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Min Latitude</FormLabel>
+                                      <Input
+                                        type="number"
+                                        step="any"
+                                        value={field.value ?? ''}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            e.target.value === ''
+                                              ? undefined
+                                              : Number(e.target.value),
+                                          )
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="appearance.mapBbox.maxLon"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Max Longitude</FormLabel>
+                                      <Input
+                                        type="number"
+                                        step="any"
+                                        value={field.value ?? ''}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            e.target.value === ''
+                                              ? undefined
+                                              : Number(e.target.value),
+                                          )
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="appearance.mapBbox.maxLat"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Max Latitude</FormLabel>
+                                      <Input
+                                        type="number"
+                                        step="any"
+                                        value={field.value ?? ''}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            e.target.value === ''
+                                              ? undefined
+                                              : Number(e.target.value),
+                                          )
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            )}
+                            {mapBbox && (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
                                 className="self-start text-xs text-muted-foreground"
                                 onClick={() => {
+                                  form.unregister('appearance.mapBbox')
                                   form.setValue(
                                     'appearance.mapBbox',
                                     undefined,
                                     { shouldValidate: false },
                                   )
-                                  form.trigger()
+                                  void form.trigger()
                                 }}
                               >
                                 Clear bounding box
@@ -2680,12 +2708,16 @@ export const ChartFormDialog = ({
                   Cancel
                 </Button>
                 <div className="flex gap-2">
-                  {step > 0 && (
+                  {step > firstVisibleStep && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setStep((s) => s - 1)}
+                      onClick={() =>
+                        setStep((currentStep) =>
+                          Math.max(firstVisibleStep, currentStep - 1),
+                        )
+                      }
                     >
                       <ChevronLeft className="mr-1 h-3.5 w-3.5" />
                       Back
@@ -2706,7 +2738,7 @@ export const ChartFormDialog = ({
                     <Button
                       type="submit"
                       size="sm"
-                      disabled={!form.formState.isValid}
+                      disabled={form.formState.isSubmitting}
                     >
                       Save
                     </Button>

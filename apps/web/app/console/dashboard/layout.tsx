@@ -1,18 +1,6 @@
-import React from 'react'
-import DetailLayout from '../../../components/detail-layout'
-import { DashboardBreadcrumbs } from './_components/breadcrumbs'
+import type React from 'react'
 
-const DashboardLayout: React.FC<{
-  children?: React.ReactNode
-}> = async ({ children }) => {
-  return (
-    <DetailLayout
-      breadcrumbs={<DashboardBreadcrumbs />}
-      showHeaderOnIndex={false}
-    >
-      {children}
-    </DetailLayout>
-  )
-}
+const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
+  children
 
 export default DashboardLayout

@@ -50,14 +50,17 @@ const UserFeature = () => {
             </form>
           </div>
         }
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.users.length}
+            totalCount={data?.total}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
       >
         <UsersTable data={data?.users || []} />
-        <Pagination
-          className="mt-4 justify-end"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
-        />
       </ConsoleCrudListFrame>
     </div>
   )

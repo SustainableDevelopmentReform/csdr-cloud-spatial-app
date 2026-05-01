@@ -5,10 +5,12 @@ import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { ExpressionFieldDescription } from '../../indicator/_components/expression-field'
 import { ProductOutputListItem } from '../_hooks'
 
+type ProductOutputIndicatorSummary = Pick<ProductOutputListItem, 'indicator'>
+
 export const DerivedIndicatorSummaryCard = ({
   productOutput,
 }: {
-  productOutput: ProductOutputListItem | undefined | null
+  productOutput: ProductOutputIndicatorSummary | undefined | null
 }) => {
   const { data: derivedIndicator } = useDerivedIndicator(
     productOutput?.indicator?.type === 'derived'

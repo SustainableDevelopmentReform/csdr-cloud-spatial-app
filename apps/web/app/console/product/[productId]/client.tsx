@@ -25,6 +25,7 @@ import { ResourcePageState } from '../../_components/resource-page-state'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
+import { ProductRunMapPreview } from '../_components/product-run-map-preview'
 import { RefreshProductSummary } from '../_components/refresh-product-summary'
 import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
 import {
@@ -116,41 +117,44 @@ const ProductDetails = () => {
         {requiresOrganizationSwitch ? (
           <ActiveOrganizationWriteWarning visibility={product?.visibility} />
         ) : null}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ProductRunSummaryCard run={product?.mainRun} mainRun />
-          <div className="grid grid-cols-1 gap-4">
-            {product && (
-              <DetailCard
-                title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
-                description="Product Runs"
-                actionText="Open"
-                actionLink={productRunsLink(product)}
-                actionIcon={<ArrowUpRightIcon />}
-              />
-            )}
-            {product && (
-              <DetailCard
-                title={'Dependencies'}
-                footer={
-                  <div className="flex flex-col gap-2">
-                    {product?.dataset && (
-                      <DatasetButton dataset={product.dataset} />
-                    )}
-                    {product?.geometries && (
-                      <GeometriesButton geometries={product.geometries} />
-                    )}
-                  </div>
-                }
-              />
-            )}
-            {product && (
-              <ResourceUsageDetailCards
-                reportCount={product.reportCount}
-                dashboardCount={product.dashboardCount}
-                reportQuery={{ productId: product.id }}
-                dashboardQuery={{ productId: product.id }}
-              />
-            )}
+        <div className="flex flex-col gap-4">
+          <ProductRunMapPreview run={product?.mainRun} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ProductRunSummaryCard run={product?.mainRun} mainRun />
+            <div className="grid grid-cols-1 gap-4">
+              {product && (
+                <DetailCard
+                  title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
+                  description="Product Runs"
+                  actionText="Open"
+                  actionLink={productRunsLink(product)}
+                  actionIcon={<ArrowUpRightIcon />}
+                />
+              )}
+              {product && (
+                <DetailCard
+                  title={'Dependencies'}
+                  footer={
+                    <div className="flex flex-col gap-2">
+                      {product?.dataset && (
+                        <DatasetButton dataset={product.dataset} />
+                      )}
+                      {product?.geometries && (
+                        <GeometriesButton geometries={product.geometries} />
+                      )}
+                    </div>
+                  }
+                />
+              )}
+              {product && (
+                <ResourceUsageDetailCards
+                  reportCount={product.reportCount}
+                  dashboardCount={product.dashboardCount}
+                  reportQuery={{ productId: product.id }}
+                  dashboardQuery={{ productId: product.id }}
+                />
+              )}
+            </div>
           </div>
         </div>
         {product && (

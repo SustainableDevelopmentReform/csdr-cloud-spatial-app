@@ -1,11 +1,15 @@
 'use client'
 
-import { type ChartConfiguration, SelectedDataPoint } from '@repo/plot/types'
+import {
+  type ChartConfiguration,
+  type SelectedDataPoint,
+} from '@repo/plot/types'
 import type { DashboardContent } from '@repo/schemas/crud'
 import { Button } from '@repo/ui/components/ui/button'
+import { cn } from '@repo/ui/lib/utils'
 import { Copy, Hand, Trash } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
-import ReactGridLayout, { Layout } from 'react-grid-layout'
+import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import ReactGridLayout, { type Layout } from 'react-grid-layout'
 import { WidthProvider } from 'react-grid-layout'
 import { ChartFormDialog } from '../../report/_components/chart-form-dialog'
 import { ChartRenderer } from '../../report/_components/chart-renderer'
@@ -62,13 +66,19 @@ const cloneContent = (content: DashboardContent): DashboardContent =>
   normalizeContent(content)
 
 type DashboardGridEditorProps = {
+  className?: string
   disabled?: boolean
+  emptyMessage?: string
+  header?: (addChartAction: ReactNode | null) => ReactNode
   value?: DashboardContent
   onChange?: (next: DashboardContent) => void
 }
 
 const DashboardGridEditor = ({
+  className,
   disabled = false,
+  emptyMessage,
+  header,
   value,
   onChange,
 }: DashboardGridEditorProps) => {
@@ -80,7 +90,7 @@ const DashboardGridEditor = ({
     cloneContent(value ?? createEmptyDashboardContent()),
   )
 
-  const content = isControlled ? cloneContent(value!) : internalContent
+  const content = value === undefined ? internalContent : cloneContent(value)
 
   const updateContent = useCallback(
     (updater: (current: DashboardContent) => DashboardContent) => {
@@ -110,7 +120,7 @@ const DashboardGridEditor = ({
       updateContent((prev) => ({
         charts: {
           ...prev.charts,
-          [id]: chart as DashboardChart,
+          [id]: chart,
         },
         layout: [
           ...prev.layout,
@@ -179,7 +189,7 @@ const DashboardGridEditor = ({
         return {
           charts: {
             ...prev.charts,
-            [id]: nextChart as DashboardChart,
+            [id]: nextChart,
           },
           layout: prev.layout,
         }
@@ -208,21 +218,39 @@ const DashboardGridEditor = ({
   }, [content.charts, content.layout])
 
   const hasCharts = orderedCharts.length > 0
+  const gridLayout = useMemo(() => {
+    if (!disabled) {
+      return content.layout
+    }
+
+    return content.layout.map((item) => ({
+      ...item,
+      isDraggable: false,
+      isResizable: false,
+      static: true,
+    }))
+  }, [content.layout, disabled])
+  const addChartAction = !disabled ? (
+    <ChartFormDialog
+      buttonText="Add Chart"
+      chart={null}
+      onSubmit={handleAddChart}
+    />
+  ) : null
+  const resolvedEmptyMessage =
+    emptyMessage ??
+    (disabled
+      ? 'No charts have been added to this dashboard.'
+      : 'Use "Add chart" to build a new visualization. It will appear here as a draggable, resizable card.')
 
   return (
-    <div className="flex flex-col gap-4">
-      {!disabled ? (
-        <ChartFormDialog
-          buttonText="Add chart"
-          chart={null}
-          onSubmit={handleAddChart}
-        />
-      ) : null}
+    <div className={cn('flex flex-col gap-4', className)}>
+      {header ? header(addChartAction) : addChartAction}
 
       {hasCharts ? (
         <GridLayout
           className="layout"
-          layout={content.layout}
+          layout={gridLayout}
           cols={COLS}
           rowHeight={ROW_HEIGHT}
           margin={[16, 16]}
@@ -231,6 +259,7 @@ const DashboardGridEditor = ({
           draggableHandle=".grid-item-handle"
           isDraggable={!disabled}
           isResizable={!disabled}
+          resizeHandles={disabled ? [] : ['se']}
           onLayoutChange={(nextLayout) => {
             updateContent((prev) => ({
               charts: prev.charts,
@@ -240,12 +269,12 @@ const DashboardGridEditor = ({
         >
           {orderedCharts.map(({ id, chart }) => (
             <div key={id} className="group relative h-full">
-              <div className="grid-item-toolbar pointer-events-none absolute left-4 right-4 top-4 z-10 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-                <div className="grid-item-handle flex w-full cursor-grab select-none items-center gap-3 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur transition active:cursor-grabbing">
-                  <Hand className="h-4 w-4" />
-                  <span className="truncate">Drag to reposition...</span>
-                  <div className="ml-auto flex items-center gap-2 text-muted-foreground grid-item-action">
-                    {!disabled ? (
+              {!disabled ? (
+                <div className="grid-item-toolbar pointer-events-none absolute left-4 right-4 top-4 z-10 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+                  <div className="grid-item-handle flex w-full cursor-grab select-none items-center gap-3 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur transition active:cursor-grabbing">
+                    <Hand className="h-4 w-4" />
+                    <span className="truncate">Drag to reposition...</span>
+                    <div className="ml-auto flex items-center gap-2 text-muted-foreground grid-item-action">
                       <ChartFormDialog
                         buttonText="Edit chart"
                         chart={chart}
@@ -253,9 +282,7 @@ const DashboardGridEditor = ({
                           handleUpdateChart(id, nextChart)
                         }
                       />
-                    ) : null}
 
-                    {!disabled ? (
                       <Button
                         type="button"
                         size="icon"
@@ -270,9 +297,7 @@ const DashboardGridEditor = ({
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
-                    ) : null}
 
-                    {!disabled ? (
                       <Button
                         type="button"
                         size="icon"
@@ -287,17 +312,19 @@ const DashboardGridEditor = ({
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
-                    ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+              ) : null}
+              <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-card">
                 <div className="flex flex-1 flex-col overflow-hidden p-2">
                   <ChartRenderer
                     chart={chart}
                     onSelect={setSelectedDataPoint}
                     config={{
                       showTitleAndDescription: true,
+                      mapScrollZoom: false,
+                      readOnly: disabled,
                     }}
                   />
                 </div>
@@ -306,11 +333,8 @@ const DashboardGridEditor = ({
           ))}
         </GridLayout>
       ) : (
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 text-center text-sm text-muted-foreground">
-          <p className="max-w-md px-6">
-            Use &ldquo;Add chart&rdquo; to build a new visualization. It will
-            appear here as a draggable, resizable card.
-          </p>
+        <div className="flex min-h-[350px] flex-1 flex-col items-center justify-center rounded-2xl bg-card text-center text-sm text-muted-foreground">
+          <p className="max-w-md px-6">{resolvedEmptyMessage}</p>
         </div>
       )}
       <ChartSelectedItem

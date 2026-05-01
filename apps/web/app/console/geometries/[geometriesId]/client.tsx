@@ -23,7 +23,7 @@ import { ResourceUsageDetailCards } from '../../_components/resource-usage-detai
 import { ResourcePageState } from '../../_components/resource-page-state'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
-import GeometriesMapViewer from '../_components/geometries-map-viewer'
+import ChoroplethMapViewer from '../_components/choropleth-map-viewer'
 import { GeometriesRunSummaryCard } from '../_components/geometries-run-summary-card'
 import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
 import {
@@ -104,7 +104,7 @@ const GeometriesDetails = () => {
           <ActiveOrganizationWriteWarning visibility={geometries?.visibility} />
         ) : null}
         <div className="flex flex-col gap-4">
-          <GeometriesMapViewer
+          <ChoroplethMapViewer
             geometriesRun={geometries?.mainRun}
             className="h-96"
           />

@@ -2025,6 +2025,50 @@ describe('access control integration', () => {
         email: 'seed-admin@example.com',
       },
     })
+
+    const actorSearchLogsJson = await expectJsonResponse<{
+      data: {
+        id: string
+      }[]
+    }>(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
+        query: {
+          search: 'seed-admin@example.com',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      actorSearchLogsJson.data.data.some(
+        (entry) => entry.id === 'org-actor-summary-log',
+      ),
+    ).toBe(true)
+
+    const resourceSearchLogsJson = await expectJsonResponse<{
+      data: {
+        id: string
+      }[]
+    }>(
+      await createAppClient(orgAdminHeaders).api.v0.logs.audit.$get({
+        query: {
+          search: 'dataset',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      resourceSearchLogsJson.data.data.some(
+        (entry) => entry.id === 'org-actor-summary-log',
+      ),
+    ).toBe(true)
   })
 
   it('exposes target-organization-less audit logs only to super admins', async () => {
@@ -2191,6 +2235,54 @@ describe('access control integration', () => {
         targetOrganizationId: null,
       }),
     ])
+
+    const superAdminActionSearchLogsJson = await expectJsonResponse<{
+      data: {
+        id: string
+      }[]
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          search: 'api key create',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      superAdminActionSearchLogsJson.data.data.some(
+        (entry) => entry.id === 'unscoped-api-key-log',
+      ),
+    ).toBe(true)
+
+    const superAdminActorSearchLogsJson = await expectJsonResponse<{
+      data: {
+        id: string
+      }[]
+    }>(
+      await createAppClient(superAdminHeaders).api.v0.logs.audit[
+        'super-admin'
+      ].$get({
+        query: {
+          search: 'seed-admin@example.com',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(
+      superAdminActorSearchLogsJson.data.data.some(
+        (entry) => entry.id === 'unscoped-api-key-log',
+      ),
+    ).toBe(true)
 
     const auditLogReadEntry = await db.query.auditLog.findFirst({
       where: (table, { and, eq }) =>

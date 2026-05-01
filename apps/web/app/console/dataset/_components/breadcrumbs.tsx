@@ -27,12 +27,6 @@ export const DatasetBreadcrumbs = () => {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console">Home</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
             <Link href={DATASETS_BASE_PATH}>Datasets</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>

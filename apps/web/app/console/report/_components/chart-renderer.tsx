@@ -17,18 +17,18 @@ import { PlotChart } from '@repo/ui/components/ui/plot-chart'
 import { cn } from '@repo/ui/lib/utils'
 import { useMemo } from 'react'
 import { usePrintRenderReadiness } from '~/components/print-readiness'
-import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
-import { useGeometriesRun } from '../../geometries/_hooks'
-import { useIndicator } from '../../indicator/_hooks'
 import {
   ProductOutputExportListItem,
   useProductOutputsExport,
   useProductRun,
 } from '../../product/_hooks'
+import { ChartMapRenderer } from './chart-map-renderer'
 
-const ChartPlaceholder = () => (
+const ChartPlaceholder = ({ readOnly }: { readOnly: boolean }) => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
-    No chart configured yet. Use the edit button to choose a chart type.
+    {readOnly
+      ? 'No chart configured.'
+      : 'No chart configured yet. Use the edit button to choose a chart type.'}
   </div>
 )
 
@@ -180,68 +180,13 @@ const MapContainer = ({
 }) => {
   void config
 
-  const productRunQuery = useProductRun(chart.productRunId)
-  const productRun = productRunQuery.data
-  const shouldFetchGeometriesRun = !!productRun?.geometriesRun?.id
-  const geometriesRunQuery = useGeometriesRun(
-    productRun?.geometriesRun?.id,
-    shouldFetchGeometriesRun,
-  )
-  const geometriesRun = geometriesRunQuery.data
-
-  const indicatorQuery = useIndicator(chart.indicatorId)
-  const indicator = indicatorQuery.data
-
-  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
-    indicatorId: chart.indicatorId,
-    timePoint: chart.timePoint,
-  })
-  const productOutputs = productOutputsQuery.data
-  const shouldWaitForProductOutputs = !!productRun
-  const isLoadingMapDependencies =
-    productRunQuery.isPending ||
-    productRunQuery.isFetching ||
-    (shouldFetchGeometriesRun &&
-      (geometriesRunQuery.isPending || geometriesRunQuery.isFetching)) ||
-    indicatorQuery.isPending ||
-    indicatorQuery.isFetching ||
-    (shouldWaitForProductOutputs &&
-      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
-
-  usePrintRenderReadiness({
-    isReady: !isLoadingMapDependencies,
-  })
-
-  if (isLoadingMapDependencies) {
-    return (
-      <div className={cn('flex h-full items-center justify-center', className)}>
-        <div className="px-4 text-center text-sm text-muted-foreground">
-          Loading map...
-        </div>
-      </div>
-    )
-  }
-
-  if (!productRun || !geometriesRun) {
-    return (
-      <div className={cn('flex h-full items-center justify-center', className)}>
-        <div className="px-4 text-center text-sm text-muted-foreground">
-          Map data is unavailable for this chart.
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className={cn('flex flex-col gap-2 h-full', className)}>
-      <GeometriesMapViewer
-        geometriesRun={geometriesRun}
-        indicator={indicator}
-        productRun={productRun}
-        productOutputs={productOutputs?.data}
-        zoomToGeometryOutputIds={chart.geometryOutputIds}
-        appearance={chart.appearance}
+      <ChartMapRenderer
+        chart={chart}
+        className={className}
         onSelect={onSelect}
+        scrollZoom={config?.mapScrollZoom}
       />
     </div>
   )
@@ -433,6 +378,8 @@ interface ChartConfig {
   showTitleAndDescription?: boolean
   showCodeSnippet?: boolean
   showSelectedPointDetails?: boolean
+  readOnly?: boolean
+  mapScrollZoom?: boolean
 }
 
 const ChartDiscriminator = ({
@@ -499,7 +446,7 @@ export const ChartRenderer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   if (!chart) {
-    return <ChartPlaceholder />
+    return <ChartPlaceholder readOnly={config?.readOnly === true} />
   }
 
   return (

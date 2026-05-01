@@ -1,5 +1,12 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { useMemo } from 'react'
+import {
+  ColumnDef,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+import Table from '~/components/table/table'
 import type { LogEntry } from '../_hooks'
 
 const userBasePath = '/console/super-admin/users'
@@ -175,77 +182,111 @@ const ActorCell = ({
 export const LogTable = ({
   entries,
   showUserLinks = false,
+  isLoading = false,
 }: {
   entries: LogEntry[]
   showUserLinks?: boolean
+  isLoading?: boolean
 }) => {
-  if (entries.length === 0) {
-    return <div className="text-sm text-gray-500">No log events found.</div>
-  }
+  const columns = useMemo<ColumnDef<LogEntry>[]>(
+    () => [
+      {
+        id: 'createdAt',
+        accessorFn: (entry) => entry.createdAt,
+        header: () => <span>Date</span>,
+        cell: (info) => new Date(info.row.original.createdAt).toLocaleString(),
+        size: 180,
+      },
+      {
+        id: 'action',
+        accessorFn: (entry) => entry.action,
+        header: () => <span>Action</span>,
+        cell: (info) =>
+          `${formatToken(info.row.original.action)} (${info.row.original.requestMethod})`,
+        size: 220,
+      },
+      {
+        id: 'resource',
+        accessorFn: (entry) => entry.resourceType,
+        header: () => <span>Resource</span>,
+        cell: (info) => {
+          const entry = info.row.original
+
+          return (
+            <div>
+              <div>{formatToken(entry.resourceType)}</div>
+              <div className="text-xs text-muted-foreground">
+                {showUserLinks &&
+                isUserResourceId(entry) &&
+                entry.resourceId ? (
+                  <UserIdLink userId={entry.resourceId} />
+                ) : (
+                  (entry.resourceId ?? entry.requestPath)
+                )}
+              </div>
+            </div>
+          )
+        },
+        size: 240,
+      },
+      {
+        id: 'actor',
+        accessorFn: (entry) => entry.actorUserId,
+        header: () => <span>Actor</span>,
+        cell: (info) => (
+          <ActorCell entry={info.row.original} showUserLinks={showUserLinks} />
+        ),
+        size: 240,
+      },
+      {
+        id: 'decision',
+        accessorFn: (entry) => entry.decision,
+        header: () => <span>Decision</span>,
+        cell: (info) => info.row.original.decision,
+        size: 110,
+      },
+      {
+        id: 'details',
+        header: () => <span>Details</span>,
+        cell: (info) => {
+          const entry = info.row.original
+          const relatedUserIds = showUserLinks ? getRelatedUserIds(entry) : []
+
+          return (
+            <details>
+              <summary className="cursor-pointer text-sm underline">
+                View
+              </summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded border border-border bg-muted p-3 text-xs">
+                {renderDetails(entry.details)}
+              </pre>
+              {relatedUserIds.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  {relatedUserIds.map((userId) => (
+                    <UserIdLink key={userId} userId={userId} />
+                  ))}
+                </div>
+              ) : null}
+            </details>
+          )
+        },
+        size: 320,
+      },
+    ],
+    [showUserLinks],
+  )
+  const table = useReactTable({
+    data: entries,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="px-3 py-2 font-medium">Date</th>
-            <th className="px-3 py-2 font-medium">Action</th>
-            <th className="px-3 py-2 font-medium">Resource</th>
-            <th className="px-3 py-2 font-medium">Actor</th>
-            <th className="px-3 py-2 font-medium">Decision</th>
-            <th className="px-3 py-2 font-medium">Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => {
-            const relatedUserIds = showUserLinks ? getRelatedUserIds(entry) : []
-
-            return (
-              <tr key={entry.id} className="border-b border-gray-100 align-top">
-                <td className="px-3 py-2 whitespace-nowrap">
-                  {new Date(entry.createdAt).toLocaleString()}
-                </td>
-                <td className="px-3 py-2">
-                  {formatToken(entry.action)} ({entry.requestMethod})
-                </td>
-                <td className="px-3 py-2">
-                  <div>{formatToken(entry.resourceType)}</div>
-                  <div className="text-xs text-gray-500">
-                    {showUserLinks &&
-                    isUserResourceId(entry) &&
-                    entry.resourceId ? (
-                      <UserIdLink userId={entry.resourceId} />
-                    ) : (
-                      (entry.resourceId ?? entry.requestPath)
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-2">
-                  <ActorCell entry={entry} showUserLinks={showUserLinks} />
-                </td>
-                <td className="px-3 py-2">{entry.decision}</td>
-                <td className="px-3 py-2">
-                  <details>
-                    <summary className="cursor-pointer text-sm underline">
-                      View
-                    </summary>
-                    <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded border border-gray-200 bg-gray-50 p-3 text-xs">
-                      {renderDetails(entry.details)}
-                    </pre>
-                    {relatedUserIds.length > 0 ? (
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        {relatedUserIds.map((userId) => (
-                          <UserIdLink key={userId} userId={userId} />
-                        ))}
-                      </div>
-                    ) : null}
-                  </details>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Table
+      table={table}
+      isLoading={isLoading}
+      emptyStateLabel="No log events found."
+      loadingStateLabel="Loading logs..."
+    />
   )
 }

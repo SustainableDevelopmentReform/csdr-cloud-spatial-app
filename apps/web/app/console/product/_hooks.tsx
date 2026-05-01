@@ -31,19 +31,10 @@ import {
   ResourceVisibility,
   VisibilityImpact,
 } from '../../../utils/access-control'
-import { DatasetButton } from '../dataset/_components/dataset-button'
-import { DatasetRunButton } from '../dataset/_components/dataset-run-button'
-import {
-  datasetQueryKeys,
-  datasetRunQueryKeys,
-  useDatasetRun,
-} from '../dataset/_hooks'
-import { GeometriesButton } from '../geometries/_components/geometries-button'
-import { GeometriesRunButton } from '../geometries/_components/geometries-run-button'
+import { datasetQueryKeys, datasetRunQueryKeys } from '../dataset/_hooks'
 import {
   geometriesQueryKeys,
   geometriesRunQueryKeys,
-  useGeometriesRun,
 } from '../geometries/_hooks'
 
 export type ProductListResponse = NonNullable<
@@ -283,9 +274,6 @@ export const useProductRuns = (
 
   const { productId } = useProductParams(_productId)
 
-  const { data: datasetRun } = useDatasetRun(query?.datasetRunId)
-  const { data: geometriesRun } = useGeometriesRun(query?.geometriesRunId)
-
   const queryResult = useInfiniteQuery<ProductRunListResponse>({
     queryKey: productRunQueryKeys.list(productId, query),
     queryFn: async ({ pageParam = 1 }) => {
@@ -325,29 +313,6 @@ export const useProductRuns = (
     data: aggregatedData,
     query,
     setSearchParams,
-    filters: [
-      datasetRun && (
-        <DatasetButton
-          dataset={datasetRun.dataset}
-          key={datasetRun.dataset.id}
-        />
-      ),
-      datasetRun && (
-        <DatasetRunButton datasetRun={datasetRun} key={datasetRun.id} />
-      ),
-      geometriesRun && (
-        <GeometriesButton
-          geometries={geometriesRun.geometries}
-          key={geometriesRun.geometries.id}
-        />
-      ),
-      geometriesRun && (
-        <GeometriesRunButton
-          geometriesRun={geometriesRun}
-          key={geometriesRun.id}
-        />
-      ),
-    ].filter(Boolean) as React.ReactNode[],
   }
 }
 
@@ -1128,10 +1093,7 @@ export const useProductRunOutputsLink = () =>
     [],
   )
 
-export type ProductOutputLinkParams = Pick<
-  ProductOutputListItem,
-  'id' | 'name' | 'productRun'
->
+export type ProductOutputLinkParams = Pick<ProductOutputListItem, 'id' | 'name'>
 
 export const useProductOutputLink = () =>
   useCallback(

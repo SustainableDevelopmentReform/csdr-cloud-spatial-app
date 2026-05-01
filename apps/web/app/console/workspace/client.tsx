@@ -11,8 +11,15 @@ import {
   SelectValue,
 } from '@repo/ui/components/ui/select'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { useDeferredValue, useEffect, useState } from 'react'
+import {
+  ColumnDef,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
+import Table from '~/components/table/table'
+import { TableShell } from '~/components/table/table-shell'
 import { useAccessControl } from '~/hooks/useAccessControl'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
@@ -31,6 +38,282 @@ import {
   useWorkspaceInvitations,
   useWorkspaceMembers,
 } from './_hooks'
+
+type WorkspaceMember = NonNullable<
+  ReturnType<typeof useWorkspaceMembers>['data']
+>['members'][number]
+
+type WorkspaceInvitation = NonNullable<
+  ReturnType<typeof useWorkspaceInvitations>['data']
+>[number]
+
+type CandidateUser = NonNullable<
+  ReturnType<typeof useAdminUserSearch>['data']
+>[number]
+
+type OrganizationRole = z.infer<typeof organizationRoleSchema>
+
+const MembersTable = ({
+  data,
+  isLoading,
+  isRemoving,
+  onRemove,
+  onUpdateRole,
+}: {
+  data: WorkspaceMember[]
+  isLoading: boolean
+  isRemoving: boolean
+  onRemove: (memberId: string) => void
+  onUpdateRole: (memberId: string, role: OrganizationRole) => void
+}) => {
+  const columns = useMemo<ColumnDef<WorkspaceMember>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (member) => member.user.name,
+        header: () => <span>Name</span>,
+        cell: (info) => info.row.original.user.name,
+        minSize: 180,
+      },
+      {
+        id: 'email',
+        accessorFn: (member) => member.user.email,
+        header: () => <span>Email</span>,
+        cell: (info) => info.row.original.user.email,
+        minSize: 220,
+      },
+      {
+        id: 'role',
+        accessorFn: (member) => member.role,
+        header: () => <span>Role</span>,
+        cell: (info) => {
+          const member = info.row.original
+
+          return (
+            <Select
+              value={member.role}
+              onValueChange={(nextRole) => {
+                const parsedRole = organizationRoleSchema.safeParse(nextRole)
+
+                if (!parsedRole.success) {
+                  return
+                }
+
+                onUpdateRole(member.id, parsedRole.data)
+              }}
+            >
+              <SelectTrigger className="w-[170px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="org_admin">Org admin</SelectItem>
+                <SelectItem value="org_creator">Org creator</SelectItem>
+                <SelectItem value="org_viewer">Org viewer</SelectItem>
+              </SelectContent>
+            </Select>
+          )
+        },
+        size: 190,
+      },
+      {
+        id: 'action',
+        header: () => <span></span>,
+        cell: (info) => (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 text-xs"
+            disabled={isRemoving}
+            onClick={() => onRemove(info.row.original.id)}
+          >
+            Remove
+          </Button>
+        ),
+        size: 120,
+      },
+    ],
+    [isRemoving, onRemove, onUpdateRole],
+  )
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  return (
+    <Table
+      table={table}
+      isLoading={isLoading}
+      emptyStateLabel="No members found in the active organization."
+      loadingStateLabel="Loading members..."
+    />
+  )
+}
+
+const CandidateUsersTable = ({
+  data,
+  existingMemberUserIds,
+  existingUserRole,
+  isAdding,
+  isLoading,
+  onAdd,
+}: {
+  data: CandidateUser[]
+  existingMemberUserIds: Set<string>
+  existingUserRole: OrganizationRole
+  isAdding: boolean
+  isLoading: boolean
+  onAdd: (userId: string) => void
+}) => {
+  const columns = useMemo<ColumnDef<CandidateUser>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (candidateUser) => candidateUser.name,
+        header: () => <span>Name</span>,
+        cell: (info) => info.row.original.name ?? 'Unnamed user',
+        minSize: 180,
+      },
+      {
+        id: 'email',
+        accessorFn: (candidateUser) => candidateUser.email,
+        header: () => <span>Email</span>,
+        cell: (info) => info.row.original.email,
+        minSize: 220,
+      },
+      {
+        id: 'status',
+        header: () => <span>Status</span>,
+        cell: (info) => {
+          const isExistingMember = existingMemberUserIds.has(
+            info.row.original.id,
+          )
+
+          return isExistingMember
+            ? 'Already a member'
+            : `Ready to add as ${formatOrganizationRole(existingUserRole)}`
+        },
+        minSize: 220,
+      },
+      {
+        id: 'action',
+        header: () => <span></span>,
+        cell: (info) => {
+          const isExistingMember = existingMemberUserIds.has(
+            info.row.original.id,
+          )
+
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs"
+              disabled={isAdding || isExistingMember}
+              onClick={() => onAdd(info.row.original.id)}
+            >
+              Add to organization
+            </Button>
+          )
+        },
+        size: 180,
+      },
+    ],
+    [existingMemberUserIds, existingUserRole, isAdding, onAdd],
+  )
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  return (
+    <Table
+      table={table}
+      isLoading={isLoading}
+      emptyStateLabel="No users matched that search."
+      loadingStateLabel="Searching users..."
+    />
+  )
+}
+
+const PendingInvitationsTable = ({
+  data,
+  isCanceling,
+  isLoading,
+  onCancel,
+}: {
+  data: WorkspaceInvitation[]
+  isCanceling: boolean
+  isLoading: boolean
+  onCancel: (invitationId: string) => void
+}) => {
+  const columns = useMemo<ColumnDef<WorkspaceInvitation>[]>(
+    () => [
+      {
+        id: 'email',
+        accessorFn: (invitation) => invitation.email,
+        header: () => <span>Email</span>,
+        cell: (info) => info.row.original.email,
+        minSize: 220,
+      },
+      {
+        id: 'role',
+        accessorFn: (invitation) => invitation.role,
+        header: () => <span>Role</span>,
+        cell: (info) => formatOrganizationRole(info.row.original.role),
+        size: 160,
+      },
+      {
+        id: 'status',
+        accessorFn: (invitation) => invitation.status,
+        header: () => <span>Status</span>,
+        cell: (info) => info.row.original.status,
+        size: 120,
+      },
+      {
+        id: 'expiresAt',
+        accessorFn: (invitation) => invitation.expiresAt,
+        header: () => <span>Expires</span>,
+        cell: (info) => new Date(info.row.original.expiresAt).toLocaleString(),
+        size: 180,
+      },
+      {
+        id: 'action',
+        header: () => <span></span>,
+        cell: (info) => (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 text-xs"
+            disabled={isCanceling}
+            onClick={() => onCancel(info.row.original.id)}
+          >
+            Remove
+          </Button>
+        ),
+        size: 120,
+      },
+    ],
+    [isCanceling, onCancel],
+  )
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  return (
+    <Table
+      table={table}
+      isLoading={isLoading}
+      emptyStateLabel="No pending invitations."
+      loadingStateLabel="Loading invitations..."
+    />
+  )
+}
 
 const WorkspacePageClient = () => {
   const { access, activeOrganization } = useAccessControl()
@@ -100,12 +383,7 @@ const WorkspacePageClient = () => {
     <div className="flex max-w-6xl flex-col gap-6">
       <ConsolePageHeader
         breadcrumbs={
-          <ConsoleSimpleBreadcrumbs
-            items={[
-              { href: '/console', label: 'Home' },
-              { label: 'Organization' },
-            ]}
-          />
+          <ConsoleSimpleBreadcrumbs items={[{ label: 'Organization' }]} />
         }
       />
       <div className="mb-8">
@@ -166,113 +444,61 @@ const WorkspacePageClient = () => {
         )}
       </section>
 
-      <section className="mb-8 border-b border-gray-200 pb-8">
-        <h2 className="mb-4 text-xl font-medium">Members</h2>
+      <TableShell
+        title="Members"
+        description={`${members.data?.members.length ?? 0} members in the active organization.`}
+      >
         {!hasActiveOrganization ? (
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             Select an organization before managing members.
           </div>
-        ) : members.isLoading ? (
-          <div className="text-sm text-gray-500">Loading members...</div>
-        ) : members.data?.members.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Email</th>
-                  <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.data.members.map((member) => (
-                  <tr key={member.id} className="border-b border-gray-100">
-                    <td className="px-3 py-2">{member.user.name}</td>
-                    <td className="px-3 py-2">{member.user.email}</td>
-                    <td className="px-3 py-2">
-                      <Select
-                        value={member.role}
-                        onValueChange={(nextRole) => {
-                          const parsedRole =
-                            organizationRoleSchema.safeParse(nextRole)
-
-                          if (!parsedRole.success) {
-                            return
-                          }
-
-                          updateMemberRole.mutate(
-                            {
-                              memberId: member.id,
-                              role: parsedRole.data,
-                            },
-                            {
-                              onSuccess: () => {
-                                toast.success('Member role updated')
-                              },
-                              onError: (error) => {
-                                toast.error(error.message)
-                              },
-                            },
-                          )
-                        }}
-                      >
-                        <SelectTrigger className="w-[170px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="org_admin">Org admin</SelectItem>
-                          <SelectItem value="org_creator">
-                            Org creator
-                          </SelectItem>
-                          <SelectItem value="org_viewer">Org viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          removeMember.mutate(
-                            { memberIdOrEmail: member.id },
-                            {
-                              onSuccess: () => {
-                                toast.success('Member removed')
-                              },
-                              onError: (error) => {
-                                toast.error(error.message)
-                              },
-                            },
-                          )
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         ) : (
-          <div className="text-sm text-gray-500">
-            No members found in the active organization.
-          </div>
+          <MembersTable
+            data={members.data?.members ?? []}
+            isLoading={members.isLoading}
+            isRemoving={removeMember.isPending}
+            onRemove={(memberId) => {
+              removeMember.mutate(
+                { memberIdOrEmail: memberId },
+                {
+                  onSuccess: () => {
+                    toast.success('Member removed')
+                  },
+                  onError: (error) => {
+                    toast.error(error.message)
+                  },
+                },
+              )
+            }}
+            onUpdateRole={(memberId, role) => {
+              updateMemberRole.mutate(
+                {
+                  memberId,
+                  role,
+                },
+                {
+                  onSuccess: () => {
+                    toast.success('Member role updated')
+                  },
+                  onError: (error) => {
+                    toast.error(error.message)
+                  },
+                },
+              )
+            }}
+          />
         )}
-      </section>
+      </TableShell>
 
       {access.isSuperAdmin ? (
-        <section className="mb-8 border-b border-gray-200 pb-8">
-          <h2 className="mb-4 text-xl font-medium">Add existing user</h2>
-          {!hasActiveOrganization ? (
-            <div className="text-sm text-gray-500">
-              Select an organization before adding an existing user.
-            </div>
-          ) : (
-            <>
-              <div className="mb-4 grid max-w-xl gap-3">
+        <TableShell
+          title="Add Existing User"
+          description="Search for an existing user and add them to the active organization."
+          toolbar={
+            hasActiveOrganization ? (
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <Input
+                  className="w-full md:w-72"
                   placeholder="Search by name or email"
                   value={existingUserSearch}
                   onChange={(event) =>
@@ -292,7 +518,7 @@ const WorkspacePageClient = () => {
                     setExistingUserRole(parsedRole.data)
                   }}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full md:w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -302,93 +528,50 @@ const WorkspacePageClient = () => {
                   </SelectContent>
                 </Select>
               </div>
-
-              {deferredExistingUserSearch.trim() === '' ? (
-                <div className="text-sm text-gray-500">
-                  Search for an existing user to add them directly to the active
-                  organization.
-                </div>
-              ) : candidateUsers.isLoading ? (
-                <div className="text-sm text-gray-500">Searching users...</div>
-              ) : candidateUsers.isError ? (
-                <div className="text-sm text-red-600">
-                  {candidateUsers.error instanceof Error
-                    ? candidateUsers.error.message
-                    : 'Failed to search users.'}
-                </div>
-              ) : candidateUsers.data?.length ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="px-3 py-2 font-medium">Name</th>
-                        <th className="px-3 py-2 font-medium">Email</th>
-                        <th className="px-3 py-2 font-medium">Status</th>
-                        <th className="px-3 py-2 font-medium"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {candidateUsers.data.map((candidateUser) => {
-                        const isExistingMember = existingMemberUserIds.has(
-                          candidateUser.id,
-                        )
-
-                        return (
-                          <tr
-                            key={candidateUser.id}
-                            className="border-b border-gray-100"
-                          >
-                            <td className="px-3 py-2">
-                              {candidateUser.name ?? 'Unnamed user'}
-                            </td>
-                            <td className="px-3 py-2">{candidateUser.email}</td>
-                            <td className="px-3 py-2">
-                              {isExistingMember
-                                ? 'Already a member'
-                                : `Ready to add as ${formatOrganizationRole(existingUserRole)}`}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={
-                                  addWorkspaceMember.isPending ||
-                                  isExistingMember
-                                }
-                                onClick={() => {
-                                  addWorkspaceMember.mutate(
-                                    {
-                                      role: existingUserRole,
-                                      userId: candidateUser.id,
-                                    },
-                                    {
-                                      onSuccess: () => {
-                                        toast.success('Member added')
-                                      },
-                                      onError: (error) => {
-                                        toast.error(error.message)
-                                      },
-                                    },
-                                  )
-                                }}
-                              >
-                                Add to organization
-                              </Button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500">
-                  No users matched that search.
-                </div>
-              )}
-            </>
+            ) : null
+          }
+        >
+          {!hasActiveOrganization ? (
+            <div className="text-sm text-muted-foreground">
+              Select an organization before adding an existing user.
+            </div>
+          ) : deferredExistingUserSearch.trim() === '' ? (
+            <div className="text-sm text-muted-foreground">
+              Search for an existing user to add them directly to the active
+              organization.
+            </div>
+          ) : candidateUsers.isError ? (
+            <div className="text-sm text-destructive">
+              {candidateUsers.error instanceof Error
+                ? candidateUsers.error.message
+                : 'Failed to search users.'}
+            </div>
+          ) : (
+            <CandidateUsersTable
+              data={candidateUsers.data ?? []}
+              existingMemberUserIds={existingMemberUserIds}
+              existingUserRole={existingUserRole}
+              isAdding={addWorkspaceMember.isPending}
+              isLoading={candidateUsers.isLoading}
+              onAdd={(userId) => {
+                addWorkspaceMember.mutate(
+                  {
+                    role: existingUserRole,
+                    userId,
+                  },
+                  {
+                    onSuccess: () => {
+                      toast.success('Member added')
+                    },
+                    onError: (error) => {
+                      toast.error(error.message)
+                    },
+                  },
+                )
+              }}
+            />
           )}
-        </section>
+        </TableShell>
       ) : null}
 
       <section className="mb-8 border-b border-gray-200 pb-8">
@@ -453,68 +636,35 @@ const WorkspacePageClient = () => {
         )}
       </section>
 
-      <section>
-        <h2 className="mb-4 text-xl font-medium">Pending invitations</h2>
+      <TableShell
+        title="Pending Invitations"
+        description={`${pendingInvitations.length} pending invitations for the active organization.`}
+      >
         {!hasActiveOrganization ? (
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             Select an organization before reviewing invitations.
           </div>
-        ) : invitations.isLoading ? (
-          <div className="text-sm text-gray-500">Loading invitations...</div>
-        ) : pendingInvitations.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-3 py-2 font-medium">Email</th>
-                  <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Expires</th>
-                  <th className="px-3 py-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingInvitations.map((invitation) => (
-                  <tr key={invitation.id} className="border-b border-gray-100">
-                    <td className="px-3 py-2">{invitation.email}</td>
-                    <td className="px-3 py-2">
-                      {formatOrganizationRole(invitation.role)}
-                    </td>
-                    <td className="px-3 py-2">{invitation.status}</td>
-                    <td className="px-3 py-2">
-                      {new Date(invitation.expiresAt).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={cancelInvitation.isPending}
-                        onClick={() => {
-                          cancelInvitation.mutate(
-                            { invitationId: invitation.id },
-                            {
-                              onSuccess: () => {
-                                toast.success('Invitation removed')
-                              },
-                              onError: (error) => {
-                                toast.error(error.message)
-                              },
-                            },
-                          )
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         ) : (
-          <div className="text-sm text-gray-500">No pending invitations.</div>
+          <PendingInvitationsTable
+            data={pendingInvitations}
+            isCanceling={cancelInvitation.isPending}
+            isLoading={invitations.isLoading}
+            onCancel={(invitationId) => {
+              cancelInvitation.mutate(
+                { invitationId },
+                {
+                  onSuccess: () => {
+                    toast.success('Invitation removed')
+                  },
+                  onError: (error) => {
+                    toast.error(error.message)
+                  },
+                },
+              )
+            }}
+          />
         )}
-      </section>
+      </TableShell>
     </div>
   )
 }

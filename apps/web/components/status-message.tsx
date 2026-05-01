@@ -1,7 +1,10 @@
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Info } from 'lucide-react'
 import { cn } from '@repo/ui/lib/utils'
 
 const variantStyles = {
+  info: 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-400',
+  success:
+    'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
   warning:
     'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
   error:
@@ -10,9 +13,11 @@ const variantStyles = {
 } as const
 
 const iconMap = {
+  info: Info,
+  success: CheckCircle2,
   warning: AlertTriangle,
   error: AlertTriangle,
-  primary: CheckCircle2,
+  primary: Info,
 } as const
 
 type Variant = keyof typeof variantStyles

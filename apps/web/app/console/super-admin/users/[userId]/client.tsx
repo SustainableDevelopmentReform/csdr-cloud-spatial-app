@@ -365,7 +365,7 @@ const UserProfile = () => {
         </div>
       </div>
 
-      <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+      <div className="mt-8 rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-600">
         Effective global role: {formatGlobalUserRole(form.watch('role'))}
       </div>
     </div>

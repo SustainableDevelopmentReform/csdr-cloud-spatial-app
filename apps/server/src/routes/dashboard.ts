@@ -19,6 +19,7 @@ import {
   getDashboardVisibilityImpact,
   visibilityImpactSchema,
 } from '~/lib/public-visibility'
+import { deriveDashboardSources } from '~/lib/report-sources'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
@@ -104,7 +105,11 @@ const fetchFullDashboardOrThrow = async (
 
   const parsedContent = dashboardContentSchema.parse(record.content)
 
-  return { ...parseBaseDashboard(record), content: parsedContent }
+  return {
+    ...parseBaseDashboard(record),
+    content: parsedContent,
+    sources: await deriveDashboardSources(db, record.id),
+  }
 }
 
 const app = createOpenAPIApp()

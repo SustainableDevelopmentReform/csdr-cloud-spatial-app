@@ -1,23 +1,24 @@
 import { baseQuerySchema } from '@repo/schemas/crud'
 import { Button } from '@repo/ui/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@repo/ui/components/ui/dropdown-menu'
-import {
   ColumnDef,
-  createColumnHelper,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ArrowUpDown, Ellipsis } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Pen,
+  SquareArrowOutUpRight,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import z from 'zod'
 import Table from '~/components/table/table'
 import { formatDateTime } from '@repo/ui/lib/date'
+import Link from '~/components/link'
+import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
+import type { ResourceVisibility } from '~/utils/access-control'
 
 export interface BaseItem {
   name: string
@@ -25,58 +26,85 @@ export interface BaseItem {
   description?: string | null
   createdAt: string
   updatedAt: string
+  visibility?: ResourceVisibility | null
   metadata?: unknown
 }
 
 interface BaseActionProps<T extends BaseItem> {
   title: string
   itemLink?: (item: T) => string
-  itemButton?: (item: T) => React.ReactNode | React.ReactNode[]
+  editLink?: (item: T) => string
+  itemActionLabel?: string
+  showEditAction?: boolean
+  canModifyItem?: (item: T) => boolean
+  deleteAction?: (item: T) => React.ReactNode
 }
+
+const actionButtonClassName = 'h-8 px-3 text-xs'
 
 const Action = <T extends BaseItem>({
   data,
   itemLink,
-  itemButton,
+  editLink,
+  itemActionLabel = 'View',
+  showEditAction = true,
+  canModifyItem,
+  deleteAction,
 }: {
   data: T
 } & BaseActionProps<T>) => {
-  const router = useRouter()
+  const canModify = canModifyItem?.(data) ?? false
+  const resolvedItemLink = itemLink?.(data)
+  const resolvedEditLink = editLink?.(data) ?? resolvedItemLink
+  const resolvedDeleteAction = canModify ? deleteAction?.(data) : null
+  const shouldShowEditAction =
+    showEditAction && canModify && Boolean(resolvedEditLink)
 
-  if (!itemLink || itemButton) {
+  if (!resolvedItemLink && !shouldShowEditAction && !resolvedDeleteAction) {
     return null
   }
 
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            className="h-7 w-7 p-0 focus-visible:ring-0 focus-visible:ring-transparent"
-            variant="ghost"
-          >
-            <Ellipsis className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-40" align="end">
-          <DropdownMenuItem
-            onSelect={() => {
-              if (itemLink) {
-                router.push(itemLink(data))
-              }
-            }}
-          >
-            View details
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+    <div className="flex flex-wrap justify-end gap-2">
+      {resolvedItemLink ? (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className={actionButtonClassName}
+        >
+          <Link href={resolvedItemLink}>
+            {itemActionLabel}
+            <SquareArrowOutUpRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      ) : null}
+      {shouldShowEditAction && resolvedEditLink ? (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className={actionButtonClassName}
+        >
+          <Link href={resolvedEditLink}>
+            <Pen className="h-4 w-4" />
+            Edit
+          </Link>
+        </Button>
+      ) : null}
+      {resolvedDeleteAction}
+    </div>
   )
 }
 
 type BaseCrudTableQuery = {
   sort?: string
   order?: z.input<typeof baseQuerySchema>['order']
+}
+
+type BaseCrudTableSortChange<Q extends BaseCrudTableQuery> = {
+  sort?: Q['sort']
+  order?: Q['order']
 }
 
 interface BaseCrudTableProps<
@@ -88,7 +116,8 @@ interface BaseCrudTableProps<
   baseColumns: readonly (keyof T)[]
   extraColumns?: ColumnDef<T>[]
   query?: Q
-  onSortChange?: (query: Q) => void
+  sortOptions: readonly NonNullable<Q['sort']>[]
+  onSortChange?: (query: BaseCrudTableSortChange<Q>) => void
 }
 
 export const SortButton = ({
@@ -101,23 +130,30 @@ export const SortButton = ({
   onClick: () => void
 }) => {
   return (
-    <Button variant="ghost" className="font-normal" onClick={onClick}>
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      onClick={onClick}
+    >
       {children}
       {order === 'asc' ? (
-        <ArrowUp />
+        <ArrowUp className="h-4 w-4" />
       ) : order === 'desc' ? (
-        <ArrowDown />
+        <ArrowDown className="h-4 w-4" />
       ) : (
-        <ArrowUpDown className="opacity-40" />
+        <ArrowUpDown className="h-4 w-4 opacity-40" />
       )}
-    </Button>
+    </button>
   )
 }
 
+const resolveSort = <Sort extends string>(
+  sort: string | undefined,
+  sortOptions: readonly Sort[],
+): Sort | undefined => sortOptions.find((sortOption) => sortOption === sort)
+
 const BaseCrudTable = <
-  T extends BaseItem & {
-    itemButton?: (item: T) => React.ReactNode
-  },
+  T extends BaseItem,
   Q extends BaseCrudTableQuery = BaseCrudTableQuery,
 >({
   data,
@@ -126,149 +162,111 @@ const BaseCrudTable = <
   extraColumns,
   title,
   itemLink,
-  itemButton,
+  editLink,
+  itemActionLabel,
+  showEditAction,
+  canModifyItem,
+  deleteAction,
+  sortOptions,
   isLoading = false,
   onSortChange,
 }: BaseCrudTableProps<T, Q>) => {
-  const columns = useMemo(() => {
-    const columnHelper = createColumnHelper<T>()
+  const sortingState = query?.sort
+    ? [{ id: query.sort, desc: query.order === 'desc' }]
+    : []
 
-    return [
-      itemButton &&
-        columnHelper.accessor((row) => row, {
-          id: 'itemButton',
-          header: ({ table }) => (
-            <SortButton
-              order={query?.sort === 'name' && query?.order}
-              onClick={() =>
-                table.setSorting([
-                  {
-                    id: 'name',
-                    desc:
-                      query?.sort === 'name' && query?.order === 'asc'
-                        ? true
-                        : false,
-                  },
-                ])
-              }
-            >
-              {title}
-            </SortButton>
-          ),
-          cell: (info) => itemButton(info.row.original),
-          size: 120,
-        }),
-      baseColumns.includes('id') &&
-        columnHelper.accessor((row) => row.id, {
-          id: 'id',
-          header: ({ column }) => (
-            <SortButton
-              order={column.getIsSorted()}
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === 'asc')
-              }
-            >
-              {title} ID
-            </SortButton>
-          ),
-          cell: (info) => (
-            <span className="text-gray-500">
-              <code>{info.getValue()}</code>
-            </span>
-          ),
-          size: 120,
-        }),
-      baseColumns.includes('name') &&
-        columnHelper.accessor((row) => row.name, {
-          id: 'name',
-          header: ({ column }) => (
-            <SortButton
-              order={column.getIsSorted()}
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === 'asc')
-              }
-            >
-              {title} Name
-            </SortButton>
-          ),
-          cell: (info) => info.getValue(),
-          minSize: 120,
-        }),
-      baseColumns.includes('description') &&
-        columnHelper.accessor((row) => row.description, {
-          id: 'description',
-          header: () => <span>Description</span>,
-          cell: (info) => (
-            <span className="line-clamp-3">{info.getValue()}</span>
-          ),
-          minSize: 120,
-        }),
+  const columns = useMemo<ColumnDef<T>[]>(() => {
+    const nextColumns: ColumnDef<T>[] = []
 
-      baseColumns.includes('createdAt') &&
-        columnHelper.accessor((row) => row.createdAt, {
-          id: 'createdAt',
-          header: ({ column }) => (
-            <SortButton
-              order={column.getIsSorted()}
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === 'asc')
-              }
-            >
-              Date added
-            </SortButton>
-          ),
-          cell: (info) => {
-            const value = info.getValue()
-            if (!value) return null
-            return formatDateTime(value)
-          },
-          size: 120,
-        }),
-
-      baseColumns.includes('updatedAt') &&
-        columnHelper.accessor((row) => row.updatedAt, {
-          id: 'updatedAt',
-          header: ({ column }) => (
-            <SortButton
-              order={column.getIsSorted()}
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === 'asc')
-              }
-            >
-              Date updated
-            </SortButton>
-          ),
-          cell: (info) => {
-            const value = info.getValue()
-            if (!value) return null
-            return formatDateTime(value)
-          },
-          size: 120,
-        }),
-
-      ...(extraColumns || []),
-
-      columnHelper.display({
-        id: 'action',
-        header: () => <span></span>,
-        cell: (info) => (
-          <Action
-            data={info.row.original}
-            title={title}
-            itemLink={itemLink}
-            itemButton={itemButton}
+    nextColumns.push({
+      id: 'name',
+      accessorFn: (row) => row.name,
+      header: ({ column }) => (
+        <SortButton
+          order={column.getIsSorted()}
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Name
+        </SortButton>
+      ),
+      cell: (info) => (
+        <span className="inline-flex max-w-full items-center gap-1.5 font-medium text-foreground">
+          <span className="min-w-0 truncate">{info.row.original.name}</span>
+          <GlobalVisibilityIndicator
+            visibility={info.row.original.visibility}
           />
+        </span>
+      ),
+      minSize: 220,
+    })
+
+    if (baseColumns.includes('description')) {
+      nextColumns.push({
+        id: 'description',
+        accessorFn: (row) => row.description,
+        header: () => <span>Description</span>,
+        cell: (info) => (
+          <span className="text-foreground">
+            {info.row.original.description}
+          </span>
         ),
-        size: 80,
-      }),
-    ].filter(Boolean) as ColumnDef<T>[]
+        size: 252,
+      })
+    }
+
+    if (extraColumns) {
+      nextColumns.push(...extraColumns)
+    }
+
+    if (baseColumns.includes('updatedAt')) {
+      nextColumns.push({
+        id: 'updatedAt',
+        accessorFn: (row) => row.updatedAt,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Last Updated
+          </SortButton>
+        ),
+        cell: (info) => {
+          const value = info.row.original.updatedAt
+          if (!value) return null
+          return formatDateTime(value)
+        },
+        size: 180,
+      })
+    }
+
+    nextColumns.push({
+      id: 'action',
+      header: () => <span></span>,
+      cell: (info) => (
+        <Action
+          data={info.row.original}
+          title={title}
+          itemLink={itemLink}
+          editLink={editLink}
+          itemActionLabel={itemActionLabel}
+          showEditAction={showEditAction}
+          canModifyItem={canModifyItem}
+          deleteAction={deleteAction}
+        />
+      ),
+      size: 260,
+    })
+
+    return nextColumns
   }, [
     baseColumns,
+    canModifyItem,
+    deleteAction,
+    editLink,
     extraColumns,
-    itemButton,
+    itemActionLabel,
     itemLink,
-    query?.order,
-    query?.sort,
+    showEditAction,
     title,
   ])
 
@@ -278,18 +276,23 @@ const BaseCrudTable = <
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true, //use pre-sorted row model instead of sorted row model
     state: {
-      sorting: query?.sort
-        ? [{ id: query.sort, desc: query.order === 'desc' }]
-        : [],
+      sorting: sortingState,
     },
     enableMultiSort: false,
     onSortingChange: (sorting) => {
-      const sortingState = Array.isArray(sorting) ? sorting : sorting([])
+      const nextSortingState =
+        typeof sorting === 'function' ? sorting(sortingState) : sorting
+      const firstSorting = nextSortingState[0]
+      const sort = resolveSort(firstSorting?.id, sortOptions)
       onSortChange?.({
-        // TODO add proper type for sort
-        sort: sortingState[0]?.id as z.input<typeof baseQuerySchema>['sort'],
-        order: sortingState[0]?.desc ? 'desc' : 'asc',
-      } as Q)
+        sort,
+        order:
+          sort && firstSorting
+            ? firstSorting.desc
+              ? 'desc'
+              : 'asc'
+            : undefined,
+      })
     },
   })
 

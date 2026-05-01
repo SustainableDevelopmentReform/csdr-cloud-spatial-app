@@ -38,25 +38,36 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
     return null
   }
 
+  const resolvedHiddenFields = hiddenFields.includes('id')
+    ? hiddenFields
+    : ['id', ...hiddenFields]
+
+  const closeDialog = ({ discardChanges = false } = {}) => {
+    if (
+      !discardChanges &&
+      formProps.form.formState.isDirty &&
+      !window.confirm(
+        'You have unsaved changes. Are you sure you want to close?',
+      )
+    ) {
+      return
+    }
+
+    setOpen(false)
+    formProps.form.reset()
+    onClose?.()
+  }
+
   return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (
-          !open &&
-          formProps.form.formState.isDirty &&
-          !window.confirm(
-            'You have unsaved changes. Are you sure you want to close?',
-          )
-        ) {
+        if (!open) {
+          closeDialog()
           return
         }
-        setOpen(open)
-        if (open) {
-          onOpen?.()
-        } else {
-          onClose?.()
-        }
+        setOpen(true)
+        onOpen?.()
       }}
     >
       <DialogTrigger asChild>
@@ -69,14 +80,24 @@ const CrudFormDialog = <Data extends z.infer<typeof baseCreateResourceSchema>>({
           </DialogTitle>
         </DialogHeader>
         <CrudForm
-          hiddenFields={hiddenFields}
+          hiddenFields={resolvedHiddenFields}
           readOnlyFields={readOnlyFields}
           successMessage={`Created ${formProps.entityName}`}
           {...formProps}
           onSuccess={() => {
             setOpen(false)
+            formProps.form.reset()
             formProps.onSuccess?.()
           }}
+          secondaryAction={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => closeDialog({ discardChanges: true })}
+            >
+              Cancel
+            </Button>
+          }
         >
           {children}
         </CrudForm>
