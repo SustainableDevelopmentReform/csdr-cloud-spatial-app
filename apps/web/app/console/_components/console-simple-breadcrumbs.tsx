@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
+import { Fragment } from 'react'
 import Link from '~/components/link'
 
 type ConsoleSimpleBreadcrumbsProps = {
@@ -32,16 +33,18 @@ export const ConsoleSimpleBreadcrumbs = ({
           const isLastItem = index === visibleItems.length - 1
 
           return (
-            <BreadcrumbItem key={`${item.label}-${index}`}>
+            <Fragment key={`${item.label}-${index}`}>
               {index > 0 ? <BreadcrumbSeparator /> : null}
-              {isLastItem || !item.href ? (
-                <BreadcrumbPage>{item.label}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink asChild>
-                  <Link href={item.href}>{item.label}</Link>
-                </BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
+              <BreadcrumbItem>
+                {isLastItem || !item.href ? (
+                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink asChild>
+                    <Link href={item.href}>{item.label}</Link>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
           )
         })}
       </BreadcrumbList>

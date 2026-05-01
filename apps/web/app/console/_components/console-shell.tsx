@@ -47,6 +47,7 @@ import { useConfig } from '~/components/providers'
 import { StatusMessage } from '~/components/status-message'
 import {
   DASHBOARDS_BASE_PATH,
+  DATA_LIBRARY_BASE_PATH,
   DATASETS_BASE_PATH,
   GEOMETRIES_BASE_PATH,
   INDICATORS_BASE_PATH,
@@ -439,29 +440,9 @@ export const ConsoleShell = ({
         label: 'Analysis',
       },
       {
-        kind: 'disclosure',
-        children: [
-          {
-            kind: 'link',
-            href: DATASETS_BASE_PATH,
-            icon: EarthIcon,
-            label: 'Datasets',
-          },
-          {
-            kind: 'link',
-            href: GEOMETRIES_BASE_PATH,
-            icon: SquareStackIcon,
-            label: 'Boundaries',
-          },
-          {
-            kind: 'link',
-            href: PRODUCTS_BASE_PATH,
-            icon: Table2Icon,
-            label: 'Products',
-          },
-        ],
+        kind: 'link',
+        href: DATA_LIBRARY_BASE_PATH,
         icon: DatabaseIcon,
-        id: 'data-library',
         label: 'Data Library',
       },
     ]
@@ -476,6 +457,32 @@ export const ConsoleShell = ({
     if (isAuthenticated) {
       if (canManageWorkspace) {
         const adminItems: NavItem[] = [
+          {
+            kind: 'disclosure',
+            children: [
+              {
+                kind: 'link',
+                href: DATASETS_BASE_PATH,
+                icon: EarthIcon,
+                label: 'Datasets',
+              },
+              {
+                kind: 'link',
+                href: GEOMETRIES_BASE_PATH,
+                icon: SquareStackIcon,
+                label: 'Boundaries',
+              },
+              {
+                kind: 'link',
+                href: PRODUCTS_BASE_PATH,
+                icon: Table2Icon,
+                label: 'Products',
+              },
+            ],
+            icon: DatabaseIcon,
+            id: 'data-management',
+            label: 'Data Management',
+          },
           {
             kind: 'link',
             href: INDICATORS_BASE_PATH,
