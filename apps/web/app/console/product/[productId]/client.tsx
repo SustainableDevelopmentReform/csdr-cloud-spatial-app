@@ -2,14 +2,15 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateProductSchema } from '@repo/schemas/crud'
-import { pluralize } from '@repo/ui/lib/utils'
-import { ArrowUpRightIcon } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { createResourceVisibilityAction } from '~/app/console/_components/resource-visibility-action'
 import { CrudForm } from '../../../../components/form/crud-form'
-import { CrudFormAction } from '../../../../components/form/crud-form-action'
+import {
+  CrudFormAction,
+  FormAction,
+} from '../../../../components/form/crud-form-action'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
@@ -22,16 +23,19 @@ import {
 import { DetailCard } from '../../_components/detail-cards'
 import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
 import { ResourcePageState } from '../../_components/resource-page-state'
+import { ResourcePageTabs } from '../../_components/resource-page-tabs'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
+import { ProductMainRunOutputsTable } from '../_components/product-main-run-outputs-table'
+import { ProductExploreMap } from '../_components/product-explore-map'
 import { RefreshProductSummary } from '../_components/refresh-product-summary'
 import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
+import ProductRunFeature from './runs/client'
 import {
   useDeleteProduct,
   usePreviewProductVisibility,
   useProduct,
-  useProductRunsLink,
   useUpdateProduct,
   useUpdateProductVisibility,
 } from '../_hooks'
@@ -43,7 +47,6 @@ const ProductDetails = () => {
   const updateProductVisibility = useUpdateProductVisibility()
   const previewProductVisibility = usePreviewProductVisibility()
   const deleteProduct = useDeleteProduct(undefined, PRODUCTS_BASE_PATH)
-  const productRunsLink = useProductRunsLink()
   const { access } = useAccessControl()
   const canEdit = canEditConsoleResource({
     access,
@@ -62,14 +65,6 @@ const ProductDetails = () => {
   const formActions: CrudFormAction[] = useMemo(() => {
     const actions: CrudFormAction[] = []
 
-    if (canEdit) {
-      actions.push({
-        title: 'Refresh',
-        description: 'Refresh the product main run summary',
-        component: <RefreshProductSummary run={product?.mainRun} />,
-      })
-    }
-
     if (product) {
       const visibilityAction = createResourceVisibilityAction({
         access,
@@ -85,10 +80,27 @@ const ProductDetails = () => {
       }
     }
 
+    if (canEdit) {
+      actions.push({
+        title: 'Delete Product',
+        description:
+          'Permanently remove the product, including all dependents.',
+        buttonVariant: 'destructive',
+        buttonTitle: 'Delete',
+        mutation: deleteProduct,
+        confirmDialog: {
+          title: 'Are you sure?',
+          description: `This action cannot be undone. This will permanently delete ${product?.name ?? 'this'} product and remove all dependents.`,
+          buttonCancelTitle: 'Cancel',
+        },
+      })
+    }
+
     return actions
   }, [
     access,
     canEdit,
+    deleteProduct,
     previewProductVisibility,
     product,
     updateProductVisibility,
@@ -116,63 +128,78 @@ const ProductDetails = () => {
         {requiresOrganizationSwitch ? (
           <ActiveOrganizationWriteWarning visibility={product?.visibility} />
         ) : null}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ProductRunSummaryCard run={product?.mainRun} mainRun />
-          <div className="grid grid-cols-1 gap-4">
-            {product && (
-              <DetailCard
-                title={`${product?.runCount} ${pluralize(product?.runCount, 'run', 'runs')}`}
-                description="Product Runs"
-                actionText="Open"
-                actionLink={productRunsLink(product)}
-                actionIcon={<ArrowUpRightIcon />}
+        <ResourcePageTabs
+          overview={
+            <>
+              <ProductRunSummaryCard run={product?.mainRun} mainRun />
+              {product && (
+                <DetailCard
+                  title={'Dependencies'}
+                  footer={
+                    <div className="flex flex-col gap-2">
+                      {product?.dataset && (
+                        <DatasetButton dataset={product.dataset} />
+                      )}
+                      {product?.geometries && (
+                        <GeometriesButton geometries={product.geometries} />
+                      )}
+                    </div>
+                  }
+                />
+              )}
+              {product && (
+                <CrudForm
+                  form={form}
+                  mutation={updateProduct}
+                  entityName="Product"
+                  entityNamePlural="products"
+                  actions={[]}
+                  readOnly={!canEdit}
+                  successMessage="Updated Product"
+                />
+              )}
+            </>
+          }
+          exploreMap={
+            product?.mainRunId ? (
+              <ProductExploreMap productRunId={product.mainRunId} />
+            ) : undefined
+          }
+          exploreTable={
+            product?.mainRunId ? (
+              <ProductMainRunOutputsTable productRunId={product.mainRunId} />
+            ) : undefined
+          }
+          lineage={
+            product?.mainRun ? (
+              <WorkflowDagChart
+                workflowDag={product.mainRun.workflowDag}
+                runType="product"
+                isMainRoute
               />
-            )}
-            {product && (
-              <DetailCard
-                title={'Dependencies'}
-                footer={
-                  <div className="flex flex-col gap-2">
-                    {product?.dataset && (
-                      <DatasetButton dataset={product.dataset} />
-                    )}
-                    {product?.geometries && (
-                      <GeometriesButton geometries={product.geometries} />
-                    )}
-                  </div>
-                }
-              />
-            )}
-            {product && (
+            ) : undefined
+          }
+          versions={<ProductRunFeature />}
+          usage={
+            product ? (
               <ResourceUsageDetailCards
                 reportCount={product.reportCount}
                 dashboardCount={product.dashboardCount}
                 reportQuery={{ productId: product.id }}
                 dashboardQuery={{ productId: product.id }}
               />
-            )}
-          </div>
-        </div>
-        {product && (
-          <CrudForm
-            form={form}
-            mutation={updateProduct}
-            deleteMutation={deleteProduct}
-            entityName="Product"
-            entityNamePlural="products"
-            actions={formActions}
-            readOnly={!canEdit}
-            successMessage="Updated Product"
-          >
-            {product?.mainRun && (
-              <WorkflowDagChart
-                workflowDag={product.mainRun.workflowDag}
-                runType="product"
-                isMainRoute
-              />
-            )}
-          </CrudForm>
-        )}
+            ) : undefined
+          }
+          actions={
+            product ? (
+              <>
+                {formActions.map((action, i) => (
+                  <FormAction key={i} {...action} />
+                ))}
+              </>
+            ) : undefined
+          }
+        />
       </div>
     </ResourcePageState>
   )
