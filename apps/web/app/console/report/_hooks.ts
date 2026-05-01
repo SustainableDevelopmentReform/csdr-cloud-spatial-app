@@ -50,8 +50,9 @@ const reportParamsSchema = z.object({
 
 const reportQueryKeys = {
   all: ['report'] as const,
+  lists: () => [...reportQueryKeys.all, 'list'] as const,
   list: (query: z.infer<typeof reportQuerySchema> | undefined) =>
-    [...reportQueryKeys.all, 'list', { query }] as const,
+    [...reportQueryKeys.lists(), { query }] as const,
   detail: (reportId: string | undefined) =>
     [...reportQueryKeys.all, 'detail', reportId] as const,
 }
@@ -313,13 +314,13 @@ export const useDeleteReport = (
       return await unwrapResponse(res)
     },
     onSuccess: async () => {
-      if (reportId) {
+      if (reportId && !redirect) {
         queryClient.removeQueries({
           queryKey: reportQueryKeys.detail(reportId),
         })
       }
       await queryClient.invalidateQueries({
-        queryKey: reportQueryKeys.all,
+        queryKey: reportQueryKeys.lists(),
       })
       await invalidateChartUsageDependencyQueries(queryClient)
       if (redirect) {
