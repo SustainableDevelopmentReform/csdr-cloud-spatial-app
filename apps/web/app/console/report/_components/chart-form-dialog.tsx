@@ -157,6 +157,11 @@ function toSeriesKey(value: unknown): string {
 const DEFAULT_PRODUCT_DATE_PRECISION: AppearanceConfig['datePrecision'] =
   'year-month'
 
+function toFormTimePoint(timePoint: Date | string | null | undefined) {
+  if (!timePoint) return null
+  return timePoint instanceof Date ? timePoint.toISOString() : timePoint
+}
+
 const STEP_LABELS = [
   'Data Source',
   'Chart Type',
@@ -829,11 +834,7 @@ export const ChartFormDialog = ({
     const firstTp = summary.timePoints?.[0]
     return {
       firstIndicatorId: firstInd?.indicator?.id ?? null,
-      firstTimePoint: firstTp
-        ? typeof firstTp === 'string'
-          ? firstTp
-          : (firstTp as Date).toISOString()
-        : null,
+      firstTimePoint: toFormTimePoint(firstTp),
     }
   }, [productRunDetail])
 
@@ -1211,9 +1212,10 @@ export const ChartFormDialog = ({
       }
 
       const timePoints = product.mainRun?.outputSummary?.timePoints ?? []
-      if (timePoints.length === 1) {
-        form.setValue('timePoint', timePoints[0] ?? '', sv)
-        form.setValue('timePoints', timePoints, sv)
+      const firstTimePoint = toFormTimePoint(timePoints[0])
+      if (firstTimePoint) {
+        form.setValue('timePoint', firstTimePoint, sv)
+        form.setValue('timePoints', [firstTimePoint], sv)
       }
 
       const summary = product.mainRun?.outputSummary
@@ -1222,7 +1224,7 @@ export const ChartFormDialog = ({
         indicatorCount: summary?.indicators?.length ?? 0,
         timePointCount: summary?.timePoints?.length ?? 0,
         firstIndicatorId: summary?.indicators?.[0]?.id ?? null,
-        firstTimePoint: summary?.timePoints?.[0] ?? null,
+        firstTimePoint,
       })
 
       // Set appearance defaults
@@ -1384,6 +1386,13 @@ export const ChartFormDialog = ({
 
       if (vt.type === 'map') {
         form.setValue('geometryOutputIds', undefined, sv)
+
+        if (!form.getValues('indicatorId')) {
+          form.setValue('indicatorId', defaultIndicator ?? '', sv)
+        }
+        if (!form.getValues('timePoint')) {
+          form.setValue('timePoint', defaultTime ?? '', sv)
+        }
       }
 
       if (vt.type === 'kpi') {
