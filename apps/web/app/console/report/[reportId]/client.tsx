@@ -476,9 +476,18 @@ const ReportDetails = () => {
       return
     }
 
+    if (
+      isDirty &&
+      !window.confirm(
+        'You have unsaved changes. Are you sure you want to discard your edits?',
+      )
+    ) {
+      return
+    }
+
     form.reset(getReportFormValues(report))
     router.replace(getReportPath(report.id))
-  }, [form, report, router])
+  }, [form, isDirty, report, router])
 
   const openEditMode = useCallback(() => {
     if (!report) {

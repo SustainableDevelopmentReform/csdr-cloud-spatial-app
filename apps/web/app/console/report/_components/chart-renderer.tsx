@@ -181,12 +181,14 @@ const MapContainer = ({
   void config
 
   return (
-    <ChartMapRenderer
-      chart={chart}
-      className={className}
-      onSelect={onSelect}
-      scrollZoom={config?.mapScrollZoom}
-    />
+    <div className={cn('flex flex-col gap-2 h-full', className)}>
+      <ChartMapRenderer
+        chart={chart}
+        className={className}
+        onSelect={onSelect}
+        scrollZoom={config?.mapScrollZoom}
+      />
+    </div>
   )
 }
 

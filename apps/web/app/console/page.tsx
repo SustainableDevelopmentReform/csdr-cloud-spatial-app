@@ -69,7 +69,7 @@ const HomeActionCard = ({
       href={href}
       className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <Card className="h-full rounded-2xl py-0 shadow-none transition-colors group-hover:bg-neutral-50">
+      <Card className="h-full rounded-2xl border border-zinc-300 py-0 shadow-none transition-colors group-hover:bg-neutral-50">
         <CardHeader className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-1 p-6">
           <div className="flex size-6 items-center justify-center text-stone-900">
             <Icon className="size-5" />
@@ -107,7 +107,7 @@ const Page = () => {
           </p>
         </div>
 
-        <Card className="rounded-2xl py-0 shadow-none">
+        <Card className="rounded-2xl border border-zinc-300 py-0 shadow-none">
           <div className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
             <div className="flex-1">
               <div className="flex flex-col gap-1">

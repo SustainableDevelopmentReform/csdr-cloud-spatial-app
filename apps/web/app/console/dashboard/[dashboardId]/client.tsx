@@ -272,9 +272,18 @@ const DashboardDetails = () => {
       return
     }
 
+    if (
+      isDirty &&
+      !window.confirm(
+        'You have unsaved changes. Are you sure you want to discard your edits?',
+      )
+    ) {
+      return
+    }
+
     form.reset(getDashboardFormValues(dashboard, emptyContent))
     router.replace(getDashboardPath(dashboard.id))
-  }, [dashboard, emptyContent, form, router])
+  }, [dashboard, emptyContent, form, isDirty, router])
 
   const openEditMode = useCallback(() => {
     if (!dashboard) {
