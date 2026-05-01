@@ -33,6 +33,7 @@ import {
 } from './lib/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
+import dataLibrary from './routes/dataLibrary'
 import dataset from './routes/dataset'
 import datasetRun from './routes/datasetRun'
 import geometries from './routes/geometries'
@@ -228,6 +229,7 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
 const v0ApiBase = app
   .basePath('/api/v0/')
   // .route('/file', file)
+  .route('/data-library', dataLibrary)
   .route('/dataset', dataset)
   .route('/dataset-run', datasetRun)
   .route('/geometries', geometries)

@@ -18,7 +18,7 @@ import {
 import Link from '~/components/link'
 import {
   DASHBOARDS_BASE_PATH,
-  PRODUCTS_BASE_PATH,
+  DATA_LIBRARY_BASE_PATH,
   REPORTS_BASE_PATH,
 } from '~/lib/paths'
 import { ConsolePageHeader } from './_components/console-page-header'
@@ -53,7 +53,7 @@ const quickActions: HomeAction[] = [
   {
     title: 'Explore Data',
     description: 'Search and browse available datasets and data products.',
-    href: PRODUCTS_BASE_PATH,
+    href: DATA_LIBRARY_BASE_PATH,
     icon: DatabaseIcon,
   },
 ]

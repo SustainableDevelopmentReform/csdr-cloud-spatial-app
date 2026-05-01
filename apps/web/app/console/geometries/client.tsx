@@ -117,7 +117,7 @@ const GeometriesFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Boundaries"
           itemLink={geometriesLink}
-          itemActionLabel="About"
+          itemActionLabel="Edit"
           showEditAction={false}
           canModifyItem={(geometries) =>
             canEditConsoleResource({

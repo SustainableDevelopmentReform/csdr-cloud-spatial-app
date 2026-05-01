@@ -113,7 +113,7 @@ const DatasetFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Dataset"
           itemLink={datasetLink}
-          itemActionLabel="About"
+          itemActionLabel="Edit"
           showEditAction={false}
           canModifyItem={(dataset) =>
             canEditConsoleResource({
