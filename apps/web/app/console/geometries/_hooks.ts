@@ -740,6 +740,52 @@ export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
   })
 }
 
+export const useDeleteGeometryOutput = (
+  _geometryOutputId?: string,
+  redirect: string | null = null,
+) => {
+  const { geometryOutputId } = useGeometriesParams(
+    undefined,
+    undefined,
+    _geometryOutputId,
+  )
+  const queryClient = useQueryClient()
+  const router = useRouter()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async () => {
+      if (!geometryOutputId) return
+      const res = client.api.v0['geometry-output'][':id'].$delete({
+        param: {
+          id: geometryOutputId,
+        },
+      })
+
+      return await unwrapResponse(res)
+    },
+    onSuccess: (response) => {
+      queryClient.removeQueries({
+        queryKey: geometryOutputQueryKeys.detail(response?.data?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometryOutputQueryKeys.scopeByGeometriesRun(
+          response?.data?.geometriesRun?.geometries?.id,
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesRunQueryKeys.detail(
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+
+      if (redirect) {
+        router.push(redirect)
+      }
+    },
+  })
+}
+
 export const useSetGeometriesMainRun = (
   run?: GeometriesRunLinkParams | null,
 ) => {
@@ -913,10 +959,7 @@ export const useGeometryRunOutputsLink = () =>
     [],
   )
 
-export type GeometryOutputLinkParams = Pick<
-  GeometryOutputDetail,
-  'id' | 'geometriesRun' | 'name'
->
+export type GeometryOutputLinkParams = Pick<GeometryOutputDetail, 'id' | 'name'>
 
 export const useGeometryOutputLink = () =>
   useCallback(

@@ -1,10 +1,12 @@
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@repo/ui/components/ui/dialog'
+import { Button } from '@repo/ui/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
 import { QueryKey } from '~/utils/apiClient'
@@ -62,6 +64,13 @@ const UserForm: React.FC<UserFormProps> = ({
               }
             }}
           />
+          <div className="mt-4 flex justify-end">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,12 +1,20 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../components/table/table-row-delete-action'
+import { useAccessControl } from '../../../hooks/useAccessControl'
+import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
@@ -19,12 +27,33 @@ import { IndicatorsSelect } from '../indicator/_components/indicators-select'
 import { ProductRunSelect } from '../product/_components/product-run-select'
 import { ProductSelect } from '../product/_components/product-select'
 import { DashboardBreadcrumbs } from './_components/breadcrumbs'
-import { DashboardButton } from './_components/dashboard-button'
 import { DashboardCreateAction } from './_components/dashboard-create-action'
-import { useDashboardLink, useDashboards } from './_hooks'
+import {
+  DashboardListItem,
+  useDashboardLink,
+  useDashboards,
+  useDeleteDashboard,
+} from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
 
+const DashboardDeleteAction = ({
+  dashboard,
+}: {
+  dashboard: DashboardListItem
+}) => {
+  const deleteDashboard = useDeleteDashboard(dashboard.id)
+
+  return (
+    <TableRowDeleteAction
+      entityName="dashboard"
+      itemName={dashboard.name}
+      mutation={deleteDashboard}
+    />
+  )
+}
+
 const DashboardFeature = () => {
+  const { access } = useAccessControl()
   const {
     data,
     query,
@@ -35,6 +64,10 @@ const DashboardFeature = () => {
     isFetchingNextPage,
   } = useDashboards(undefined, true)
   const dashboardLink = useDashboardLink()
+  const dashboardEditLink = useCallback(
+    (dashboard: DashboardListItem) => `${dashboardLink(dashboard)}?mode=edit`,
+    [dashboardLink],
+  )
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
     [query?.indicatorId],
@@ -60,8 +93,95 @@ const DashboardFeature = () => {
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
-    return ['description', 'createdAt', 'updatedAt'] as const
+    return ['description', 'updatedAt'] as const
   }, [])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (selectedIndicatorIds.length > 0) {
+      filters.push({
+        id: 'indicators',
+        label: 'Indicators',
+        value: `${selectedIndicatorIds.length} selected`,
+        onClear: () => setSearchParams({ indicatorId: undefined }),
+      })
+    }
+
+    if (selectedProductIds.length > 0) {
+      filters.push({
+        id: 'products',
+        label: 'Products',
+        value: `${selectedProductIds.length} selected`,
+        onClear: () => setSearchParams({ productId: undefined }),
+      })
+    }
+
+    if (query?.productRunId) {
+      filters.push({
+        id: 'product-run',
+        label: 'Product run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ productRunId: undefined }),
+      })
+    }
+
+    if (selectedDatasetIds.length > 0) {
+      filters.push({
+        id: 'datasets',
+        label: 'Datasets',
+        value: `${selectedDatasetIds.length} selected`,
+        onClear: () => setSearchParams({ datasetId: undefined }),
+      })
+    }
+
+    if (query?.datasetRunId) {
+      filters.push({
+        id: 'dataset-run',
+        label: 'Dataset run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ datasetRunId: undefined }),
+      })
+    }
+
+    if (selectedGeometriesIds.length > 0) {
+      filters.push({
+        id: 'geometries',
+        label: 'Boundaries',
+        value: `${selectedGeometriesIds.length} selected`,
+        onClear: () => setSearchParams({ geometriesId: undefined }),
+      })
+    }
+
+    if (query?.geometriesRunId) {
+      filters.push({
+        id: 'geometries-run',
+        label: 'Boundary run',
+        value: 'Selected',
+        onClear: () => setSearchParams({ geometriesRunId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    query?.datasetRunId,
+    query?.geometriesRunId,
+    query?.productRunId,
+    selectedDatasetIds.length,
+    selectedGeometriesIds.length,
+    selectedIndicatorIds.length,
+    selectedProductIds.length,
+    setSearchParams,
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,16 +190,25 @@ const DashboardFeature = () => {
         title="Dashboards"
         description="Create and manage dashboards in the system."
         actions={<DashboardCreateAction />}
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
         toolbar={
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
-              className="w-full md:max-w-md"
+              className="w-full md:w-72"
               placeholder="Search dashboards"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <div className="flex flex-wrap items-end justify-end gap-3">
-              <div className="min-w-[220px] md:min-w-[260px]">
+            <TableFilterPopover activeFilters={activeFilters}>
+              <div>
                 <IndicatorsSelect
                   title="Filter Indicators"
                   value={selectedIndicatorIds}
@@ -93,7 +222,7 @@ const DashboardFeature = () => {
                 />
               </div>
               {showProductFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <ProductSelect
                     title="Filter Products"
                     value={selectedProductIds}
@@ -108,7 +237,7 @@ const DashboardFeature = () => {
                 </div>
               )}
               {showProductRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <ProductRunSelect
                     title="Filter Product Run"
                     value={query?.productRunId}
@@ -123,7 +252,7 @@ const DashboardFeature = () => {
                 </div>
               )}
               {showDatasetFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <DatasetSelect
                     title="Filter Datasets"
                     value={selectedDatasetIds}
@@ -138,7 +267,7 @@ const DashboardFeature = () => {
                 </div>
               )}
               {showDatasetRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <DatasetRunSelect
                     title="Filter Dataset Run"
                     value={query?.datasetRunId}
@@ -153,7 +282,7 @@ const DashboardFeature = () => {
                 </div>
               )}
               {showGeometriesFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <GeometriesSelect
                     title="Filter Geometries"
                     value={selectedGeometriesIds}
@@ -170,7 +299,7 @@ const DashboardFeature = () => {
                 </div>
               )}
               {showGeometriesRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <GeometriesRunSelect
                     title="Filter Geometries Run"
                     value={query?.geometriesRunId}
@@ -186,14 +315,13 @@ const DashboardFeature = () => {
               )}
               <GeographicBoundsPickerDialog
                 title="Area of Interest"
-                className="min-w-[220px] md:min-w-[260px]"
                 value={geographicBounds}
                 onChange={(bounds) =>
                   setSearchParams(toGeographicBoundsQuery(bounds))
                 }
                 onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
-            </div>
+            </TableFilterPopover>
           </div>
         }
       >
@@ -201,17 +329,22 @@ const DashboardFeature = () => {
           data={data?.data || []}
           isLoading={isLoading}
           baseColumns={baseColumns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Dashboard"
           itemLink={dashboardLink}
-          itemButton={(dashboard) => <DashboardButton dashboard={dashboard} />}
+          editLink={dashboardEditLink}
+          canModifyItem={(dashboard) =>
+            canEditConsoleResource({
+              access,
+              resource: 'dashboard',
+              resourceData: dashboard,
+            })
+          }
+          deleteAction={(dashboard) => (
+            <DashboardDeleteAction dashboard={dashboard} />
+          )}
           query={query}
           onSortChange={setSearchParams}
-        />
-        <Pagination
-          className="justify-end"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
         />
       </ConsoleCrudListFrame>
     </div>

@@ -181,7 +181,12 @@ const MapContainer = ({
   void config
 
   return (
-    <ChartMapRenderer chart={chart} className={className} onSelect={onSelect} />
+    <ChartMapRenderer
+      chart={chart}
+      className={className}
+      onSelect={onSelect}
+      scrollZoom={config?.mapScrollZoom}
+    />
   )
 }
 
@@ -372,6 +377,7 @@ interface ChartConfig {
   showCodeSnippet?: boolean
   showSelectedPointDetails?: boolean
   readOnly?: boolean
+  mapScrollZoom?: boolean
 }
 
 const ChartDiscriminator = ({

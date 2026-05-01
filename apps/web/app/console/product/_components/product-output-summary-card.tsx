@@ -5,11 +5,16 @@ import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { ProductOutputListItem } from '../_hooks'
 import { ProductOutputButton } from './product-output-button'
 
+type ProductOutputSummary = Pick<
+  ProductOutputListItem,
+  'id' | 'indicator' | 'name' | 'timePoint' | 'value'
+>
+
 export const ProductOutputSummaryCard = ({
   productOutput,
   showLink,
 }: {
-  productOutput: ProductOutputListItem | undefined | null
+  productOutput: ProductOutputSummary | undefined | null
   showLink?: boolean
 }) => {
   if (!productOutput) {

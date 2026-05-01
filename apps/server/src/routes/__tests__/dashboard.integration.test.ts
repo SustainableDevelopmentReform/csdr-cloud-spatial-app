@@ -212,6 +212,45 @@ describe('dashboard route', () => {
     ])
   })
 
+  it('derives live dashboard sources from chart usage', async () => {
+    const dashboardId = await createDashboardWithChartUsage(seededIds.indicator)
+
+    const detailJson = await expectJsonResponse<{
+      sources: {
+        resourceType: 'product' | 'dataset' | 'geometries'
+        id: string
+      }[]
+    }>(
+      await memberClient.api.v0.dashboard[':id'].$get({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const productSources = detailJson.data.sources.filter(
+      (source) => source.resourceType === 'product',
+    )
+    const datasetSources = detailJson.data.sources.filter(
+      (source) => source.resourceType === 'dataset',
+    )
+    const geometriesSources = detailJson.data.sources.filter(
+      (source) => source.resourceType === 'geometries',
+    )
+
+    expect(productSources.map((source) => source.id)).toEqual([
+      seededIds.product,
+    ])
+    expect(datasetSources.map((source) => source.id)).toEqual([
+      seededIds.dataset,
+    ])
+    expect(geometriesSources.map((source) => source.id)).toEqual([
+      seededIds.geometries,
+    ])
+  })
+
   it('filters dashboards by chart usage relationships', async () => {
     const dashboardId = await createDashboardWithChartUsage(
       seededIds.derivedIndicator,

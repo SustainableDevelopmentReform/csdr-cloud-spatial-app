@@ -14,26 +14,49 @@ import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../../../components/table/table-row-delete-action'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../../../_components/geographic-bounds-picker-dialog'
-import { GeometriesRunButton } from '../../_components/geometries-run-button'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
   GeometriesRunListItem,
   useCreateGeometriesRun,
+  useDeleteGeometriesRun,
   useGeometries,
   useGeometriesRunLink,
   useGeometriesRuns,
 } from '../../_hooks'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+
+const GeometriesRunDeleteAction = ({
+  geometriesRun,
+}: {
+  geometriesRun: GeometriesRunListItem
+}) => {
+  const deleteGeometriesRun = useDeleteGeometriesRun(geometriesRun.id)
+
+  return (
+    <TableRowDeleteAction
+      entityName="boundary run"
+      itemName={geometriesRun.name}
+      mutation={deleteGeometriesRun}
+    />
+  )
+}
 
 const GeometriesRunFeature = () => {
   const {
@@ -57,20 +80,43 @@ const GeometriesRunFeature = () => {
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
-    return ['createdAt', 'updatedAt'] as const
+    return ['description', 'updatedAt'] as const
   }, [])
 
-  // Add column to show mainfile badge if geometries.mainRunId === geometriesRun.id
   const columns = useMemo(() => {
     return [
-      // {
-      //   header: 'Number of outputs',
-      //   cell: ({ row }) => {
-      //     return <div>{row.original.outputCount}</div>
-      //   },
-      // },
+      {
+        id: 'latestRun',
+        header: 'Latest run',
+        cell: ({ row }) => {
+          const isLatest = geometries?.mainRunId === row.original.id
+
+          return (
+            <span
+              className={isLatest ? 'text-foreground' : 'text-muted-foreground'}
+            >
+              {isLatest ? 'Latest' : 'No'}
+            </span>
+          )
+        },
+        size: 140,
+      },
     ] satisfies ColumnDef<GeometriesRunListItem>[]
-  }, [])
+  }, [geometries?.mainRunId])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    if (!geographicBounds) {
+      return []
+    }
+
+    return [
+      {
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      },
+    ]
+  }, [geographicBounds, setSearchParams])
 
   const form = useForm({
     resolver: zodResolver(createGeometriesRunSchema),
@@ -90,10 +136,10 @@ const GeometriesRunFeature = () => {
       loadingMessage="Loading geometries"
       notFoundMessage="Geometries not found"
     >
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-medium mb-2">Geometries Runs</h1>
-
+      <ConsoleCrudListFrame
+        title="Boundary Runs"
+        description="Create and manage runs for this boundary set."
+        actions={
           <CrudFormDialog
             form={form}
             mutation={createGeometriesRun}
@@ -118,43 +164,53 @@ const GeometriesRunFeature = () => {
               )}
             />
           </CrudFormDialog>
-        </div>
-        <div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        }
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
+              className="w-full md:w-72"
               placeholder="Search geometries runs"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <GeographicBoundsPickerDialog
-              value={geographicBounds}
-              onChange={(bounds) =>
-                setSearchParams(toGeographicBoundsQuery(bounds))
-              }
-              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
-            />
+            <TableFilterPopover activeFilters={activeFilters}>
+              <GeographicBoundsPickerDialog
+                title="Area of Interest"
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
+                }
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+              />
+            </TableFilterPopover>
           </div>
-          <BaseCrudTable
-            data={data?.data || []}
-            isLoading={isLoading}
-            baseColumns={baseColumns}
-            extraColumns={columns}
-            title="GeometriesRun"
-            itemLink={geometriesLink}
-            itemButton={(geometriesRun) => (
-              <GeometriesRunButton geometriesRun={geometriesRun} />
-            )}
-            query={query}
-            onSortChange={setSearchParams}
-          />
-          <Pagination
-            className="justify-end mt-4"
-            hasNextPage={!!hasNextPage}
-            isLoading={isFetchingNextPage}
-            onLoadMore={() => fetchNextPage()}
-          />
-        </div>
-      </div>
+        }
+      >
+        <BaseCrudTable
+          data={data?.data || []}
+          isLoading={isLoading}
+          baseColumns={baseColumns}
+          extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
+          title="GeometriesRun"
+          itemLink={geometriesLink}
+          canModifyItem={() => canEdit}
+          deleteAction={(geometriesRun) => (
+            <GeometriesRunDeleteAction geometriesRun={geometriesRun} />
+          )}
+          query={query}
+          onSortChange={setSearchParams}
+        />
+      </ConsoleCrudListFrame>
     </ResourcePageState>
   )
 }

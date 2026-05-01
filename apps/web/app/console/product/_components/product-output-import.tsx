@@ -140,7 +140,7 @@ const ColumnMappingRow = memo(function ColumnMappingRow({
   )
 
   return (
-    <div className="rounded-md border p-3 space-y-2 bg-card">
+    <div className="rounded-md bg-card p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="font-medium">{column}</div>
         {column === geometryColumn ? (

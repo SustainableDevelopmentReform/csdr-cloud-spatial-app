@@ -1,25 +1,30 @@
-export const formatDate = (date: number | string | Date | undefined | null) => {
+type DateInput = number | string | Date | undefined | null
+
+const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+const timeFormatter = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
+const isSameLocalDay = (date: Date, comparisonDate: Date) =>
+  date.getFullYear() === comparisonDate.getFullYear() &&
+  date.getMonth() === comparisonDate.getMonth() &&
+  date.getDate() === comparisonDate.getDate()
+
+export const formatDate = (date: DateInput) => {
   if (!date) return ''
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-    timeZoneName: 'short',
-  })
+  return dateFormatter.format(new Date(date))
 }
 
-export const formatDateTime = (
-  date: number | string | Date | undefined | null,
-) => {
+export const formatDateTime = (date: DateInput) => {
   if (!date) return ''
-  return new Date(date).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-    timeZoneName: 'short',
-  })
+  const localDate = new Date(date)
+  return isSameLocalDay(localDate, new Date())
+    ? timeFormatter.format(localDate)
+    : dateFormatter.format(localDate)
 }

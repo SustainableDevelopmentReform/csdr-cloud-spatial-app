@@ -20,12 +20,6 @@ export const ReportBreadcrumbs = () => {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console">Home</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
             <Link href={REPORTS_BASE_PATH}>Reports</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>

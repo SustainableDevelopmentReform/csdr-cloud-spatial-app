@@ -18,10 +18,12 @@ export const ChartMapRenderer = ({
   chart,
   className,
   onSelect,
+  scrollZoom = true,
 }: {
   chart: MapChartConfiguration
   className?: string
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
+  scrollZoom?: boolean
 }) => {
   const productRunQuery = useProductRun(chart.productRunId)
   const productRun = productRunQuery.data
@@ -87,6 +89,7 @@ export const ChartMapRenderer = ({
       zoomToGeometryOutputIds={chart.geometryOutputIds}
       appearance={chart.appearance}
       onSelect={onSelect}
+      scrollZoom={scrollZoom}
       className={className}
     />
   )

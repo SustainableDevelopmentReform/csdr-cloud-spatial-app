@@ -41,6 +41,7 @@ export interface CrudFormProps<
   onError?: (error: unknown) => void
   onSuccess?: () => void
   readOnly?: boolean
+  secondaryAction?: React.ReactNode
   successMessage: string
 }
 
@@ -60,17 +61,20 @@ export const CrudForm = <
   onError,
   onSuccess,
   successMessage,
+  secondaryAction,
 }: CrudFormProps<Data>) => {
   // Warn on navigation when the form has unsaved changes
   useUnsavedChangesWarning(form.formState.isDirty)
 
-  type CrudField = keyof Data
+  type CrudField = keyof Data | string
 
   // Helper function to get field label
   const getFieldLabel = (field: CrudField): string => {
     if (fieldLabels) {
-      const label = fieldLabels[field as keyof typeof fieldLabels]
-      if (label) return label
+      const labelEntry = Object.entries(fieldLabels).find(
+        ([fieldName]) => fieldName === field,
+      )
+      if (typeof labelEntry?.[1] === 'string') return labelEntry[1]
     }
     // Convert field name to title case
     return String(field)
@@ -245,8 +249,9 @@ export const CrudForm = <
           {children}
 
           {!readOnly ? (
-            <div>
-              <Button className="mt-4" disabled={mutation.isPending}>
+            <div className="mt-4 flex justify-end gap-2">
+              {secondaryAction}
+              <Button disabled={mutation.isPending}>
                 {mutation.isPending ? 'Loading...' : 'Save'}
               </Button>
             </div>

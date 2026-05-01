@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { and, desc, eq, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
 import { authMiddleware } from '~/middlewares/auth'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -10,7 +10,7 @@ import {
   validationErrorResponse,
 } from '~/lib/openapi'
 import { generateJsonResponse } from '~/lib/response'
-import { auditLog } from '~/schemas/db'
+import { auditLog, user } from '~/schemas/db'
 import { requireOwnedInsertContext } from '~/lib/authorization'
 import {
   persistAccessLog,
@@ -26,6 +26,7 @@ const logQuerySchema = z.object({
   size: z.coerce.number().positive().optional(),
   resourceType: z.string().optional(),
   action: z.string().optional(),
+  search: z.string().optional(),
   decision: z.enum(['allow', 'deny']).optional(),
   requestKind: z.enum(['mutating', 'read']).optional(),
 })
@@ -66,6 +67,7 @@ const buildAuditLogFilters = (
       ? eq(auditLog.resourceType, query.resourceType)
       : undefined,
     query.action ? eq(auditLog.action, query.action) : undefined,
+    buildAuditLogSearchFilter(query.search),
     query.decision ? eq(auditLog.decision, query.decision) : undefined,
     buildRequestKindFilter(query.requestKind),
   )
@@ -80,9 +82,49 @@ const buildSuperAdminAuditLogFilters = (
       ? eq(auditLog.resourceType, query.resourceType)
       : undefined,
     query.action ? eq(auditLog.action, query.action) : undefined,
+    buildAuditLogSearchFilter(query.search),
     query.decision ? eq(auditLog.decision, query.decision) : undefined,
     buildRequestKindFilter(query.requestKind),
   )
+
+const buildAuditLogSearchFilter = (search: string | undefined) => {
+  const searchValue = search?.trim()
+
+  if (!searchValue) {
+    return undefined
+  }
+
+  const searchTerms = Array.from(
+    new Set([searchValue, searchValue.replace(/\s+/g, '_')]),
+  )
+
+  const logClauses = searchTerms.flatMap((term) => {
+    const pattern = `%${term}%`
+
+    return [
+      ilike(auditLog.action, pattern),
+      ilike(auditLog.resourceType, pattern),
+      ilike(auditLog.resourceId, pattern),
+      ilike(auditLog.requestPath, pattern),
+    ]
+  })
+  const actorUserClauses = searchTerms.flatMap((term) => {
+    const pattern = `%${term}%`
+
+    return [ilike(user.name, pattern), ilike(user.email, pattern)]
+  })
+
+  return or(
+    ...logClauses,
+    inArray(
+      auditLog.actorUserId,
+      db
+        .select({ id: user.id })
+        .from(user)
+        .where(or(...actorUserClauses)),
+    ),
+  )
+}
 
 const buildRequestKindFilter = (
   requestKind: z.infer<typeof logQuerySchema>['requestKind'],

@@ -2,7 +2,7 @@ import { DetailCard } from '../../_components/detail-cards'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { DatasetRunButton } from '../../dataset/_components/dataset-run-button'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
-import { ProductOutputListItem } from '../_hooks'
+import { ProductOutputDetail } from '../_hooks'
 import { ProductButton } from './product-button'
 import { ProductRunButton } from './product-run-button'
 import { Value } from '../../../../components/value'
@@ -12,8 +12,11 @@ export const ProductOutputDerivedDependenciesCard = ({
   parentProductOutput,
   productOutput,
 }: {
-  productOutput: ProductOutputListItem | undefined | null
-  parentProductOutput: ProductOutputListItem | undefined | null
+  productOutput:
+    | ProductOutputDetail['dependencyProductOutputs'][number]
+    | undefined
+    | null
+  parentProductOutput: ProductOutputDetail | undefined | null
 }) => {
   if (!productOutput || !parentProductOutput) {
     return null

@@ -17,6 +17,9 @@ import { UseMutationResult } from '@tanstack/react-query'
 type DeleteAlertDialogProps = {
   buttonVariant: ComponentProps<typeof Button>['variant']
   buttonTitle: string
+  buttonSize?: ComponentProps<typeof Button>['size']
+  buttonClassName?: string
+  buttonIcon?: React.ReactNode
   disabled?: boolean
   confirmDialog: {
     title?: string
@@ -39,9 +42,11 @@ export const DeleteAlertDialog = (props: DeleteAlertDialogProps) => {
       <AlertDialogTrigger asChild>
         <Button
           variant={props.buttonVariant}
-          className="w-fit"
+          size={props.buttonSize}
+          className={props.buttonClassName ?? 'w-fit'}
           disabled={props.disabled}
         >
+          {props.buttonIcon}
           {props.buttonTitle}
         </Button>
       </AlertDialogTrigger>

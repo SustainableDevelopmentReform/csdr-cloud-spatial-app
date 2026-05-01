@@ -1,5 +1,6 @@
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -172,9 +173,16 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
                       </FormItem>
                     )}
                   />
-                  <Button disabled={createApiKey.isPending} className="mt-1">
-                    {createApiKey.isPending ? 'Loading...' : 'Create API key'}
-                  </Button>
+                  <div className="mt-1 flex justify-end gap-2">
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline">
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <Button disabled={createApiKey.isPending}>
+                      {createApiKey.isPending ? 'Loading...' : 'Create API key'}
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </div>

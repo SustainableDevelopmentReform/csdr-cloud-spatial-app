@@ -4,11 +4,16 @@ import { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
+import { useAccessControl } from '../../../hooks/useAccessControl'
+import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
-import { IndicatorButton } from './_components/indicator-button'
 import { IndicatorCategoryButton } from './_components/indicator-category-button'
 import { IndicatorCategorySelect } from './_components/indicator-category-select'
 import { IndicatorHeaderActions } from './_components/indicator-header-actions'
@@ -16,6 +21,7 @@ import { IndicatorsBreadcrumbs } from './_components/breadcrumbs'
 import { IndicatorListItem, useIndicatorLink, useIndicators } from './_hooks'
 
 const IndicatorFeature = () => {
+  const { access } = useAccessControl()
   const {
     data,
     query,
@@ -32,8 +38,22 @@ const IndicatorFeature = () => {
   )
 
   const baseColumns = useMemo(() => {
-    return ['description', 'createdAt', 'updatedAt'] as const
+    return ['description', 'updatedAt'] as const
   }, [])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    if (selectedCategoryIds.length === 0) {
+      return []
+    }
+
+    return [
+      {
+        id: 'categories',
+        label: 'Categories',
+        value: `${selectedCategoryIds.length} selected`,
+        onClear: () => setSearchParams({ categoryId: undefined }),
+      },
+    ]
+  }, [selectedCategoryIds.length, setSearchParams])
 
   const columns = useMemo(() => {
     return [
@@ -63,18 +83,27 @@ const IndicatorFeature = () => {
         title="Indicators"
         description="Create and manage indicators in the system."
         actions={<IndicatorHeaderActions indicators={data?.data ?? []} />}
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
         toolbar={
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
-              className="w-full md:max-w-md"
+              className="w-full md:w-72"
               placeholder="Search indicators"
               value={query?.search ?? ''}
               onChange={(event) =>
                 setSearchParams({ search: event.target.value })
               }
             />
-            <div className="flex flex-wrap justify-end gap-3">
-              <div className="min-w-[220px] md:min-w-[260px]">
+            <TableFilterPopover activeFilters={activeFilters}>
+              <div>
                 <IndicatorCategorySelect
                   value={selectedCategoryIds}
                   onChange={(selected) =>
@@ -86,7 +115,7 @@ const IndicatorFeature = () => {
                   isMulti
                 />
               </div>
-            </div>
+            </TableFilterPopover>
           </div>
         }
       >
@@ -95,17 +124,18 @@ const IndicatorFeature = () => {
           isLoading={isLoading}
           baseColumns={baseColumns}
           extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Indicator"
           itemLink={indicatorLink}
-          itemButton={(indicator) => <IndicatorButton indicator={indicator} />}
+          canModifyItem={(indicator) =>
+            canEditConsoleResource({
+              access,
+              resource: 'indicator',
+              resourceData: indicator,
+            })
+          }
           query={query}
           onSortChange={setSearchParams}
-        />
-        <Pagination
-          className="justify-end"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
         />
       </ConsoleCrudListFrame>
     </div>

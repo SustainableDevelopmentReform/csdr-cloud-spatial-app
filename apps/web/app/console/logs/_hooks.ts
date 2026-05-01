@@ -1,17 +1,18 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { z } from 'zod'
 import { useConfig } from '~/components/providers'
+import { mergePaginatedInfiniteData } from '~/hooks/mergePaginatedInfiniteData'
 import { useApiClient } from '~/hooks/useApiClient'
 import { unwrapResponse } from '~/utils/apiClient'
 
 export const logPageQuerySchema = z.object({
-  action: z.string().optional(),
   decision: z.enum(['allow', 'deny']).optional(),
   page: z.coerce.number().positive().optional(),
-  resourceType: z.string().optional(),
   requestKind: z.enum(['mutating', 'read']).optional(),
+  search: z.string().optional(),
   size: z.coerce.number().positive().optional(),
 })
 
@@ -66,22 +67,35 @@ const logQueryKeys = {
     ['logs', 'audit', 'super-admin', query] as const,
 }
 
-const toLogRouteQuery = (query: LogPageQuery | undefined) => ({
-  action: query?.action,
+const toLogListQuery = (
+  query: LogPageQuery | undefined,
+): LogPageQuery | undefined => {
+  if (!query) {
+    return undefined
+  }
+
+  return {
+    decision: query.decision,
+    requestKind: query.requestKind,
+    search: query.search,
+    size: query.size,
+  }
+}
+
+const toLogRouteQuery = (
+  query: LogPageQuery | undefined,
+  page: number | undefined = query?.page,
+) => ({
   decision: query?.decision,
-  page: query?.page,
-  resourceType: query?.resourceType,
+  page,
   requestKind: query?.requestKind,
+  search: query?.search,
   size: query?.size,
 })
 
 const toLogSearchParams = (query: LogPageQuery | undefined): string => {
   const routeQuery = toLogRouteQuery(query)
   const searchParams = new URLSearchParams()
-
-  if (routeQuery.action) {
-    searchParams.set('action', routeQuery.action)
-  }
 
   if (routeQuery.decision) {
     searchParams.set('decision', routeQuery.decision)
@@ -91,12 +105,12 @@ const toLogSearchParams = (query: LogPageQuery | undefined): string => {
     searchParams.set('page', String(routeQuery.page))
   }
 
-  if (routeQuery.resourceType) {
-    searchParams.set('resourceType', routeQuery.resourceType)
-  }
-
   if (routeQuery.requestKind) {
     searchParams.set('requestKind', routeQuery.requestKind)
+  }
+
+  if (routeQuery.search) {
+    searchParams.set('search', routeQuery.search)
   }
 
   if (routeQuery.size) {
@@ -112,20 +126,37 @@ export const useAuditLogs = (
   enabled = true,
 ) => {
   const client = useApiClient()
+  const listQuery = toLogListQuery(query)
 
-  return useQuery({
-    queryKey: logQueryKeys.audit(organizationId, query),
-    queryFn: async () => {
+  const queryResult = useInfiniteQuery<LogListResponse>({
+    queryKey: logQueryKeys.audit(organizationId, listQuery),
+    queryFn: async ({ pageParam = 1 }) => {
       const response = await unwrapResponse(
         client.api.v0.logs.audit.$get({
-          query: toLogRouteQuery(query),
+          query: toLogRouteQuery(listQuery, Number(pageParam)),
         }),
       )
 
       return logListResponseSchema.parse(response.data)
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
     enabled,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
+
+  return {
+    ...queryResult,
+    data: aggregatedData,
+  }
 }
 
 export const useSuperAdminAuditLogs = (
@@ -133,11 +164,15 @@ export const useSuperAdminAuditLogs = (
   enabled = true,
 ) => {
   const { apiBaseUrl } = useConfig()
+  const listQuery = toLogListQuery(query)
 
-  return useQuery({
-    queryKey: logQueryKeys.superAdminAudit(query),
-    queryFn: async () => {
-      const searchParams = toLogSearchParams(query)
+  const queryResult = useInfiniteQuery<LogListResponse>({
+    queryKey: logQueryKeys.superAdminAudit(listQuery),
+    queryFn: async ({ pageParam = 1 }) => {
+      const searchParams = toLogSearchParams({
+        ...listQuery,
+        page: Number(pageParam),
+      })
       const url = new URL('/api/v0/logs/audit/super-admin', apiBaseUrl)
       url.search = searchParams
       const response = await fetch(url, {
@@ -157,6 +192,22 @@ export const useSuperAdminAuditLogs = (
 
       return logResponseSchema.parse(payload).data
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined
+      const nextPage = allPages.length + 1
+      return nextPage <= lastPage.pageCount ? nextPage : undefined
+    },
     enabled,
   })
+
+  const aggregatedData = useMemo(
+    () => mergePaginatedInfiniteData(queryResult.data),
+    [queryResult.data],
+  )
+
+  return {
+    ...queryResult,
+    data: aggregatedData,
+  }
 }

@@ -791,6 +791,7 @@ export const baseDashboardSchema = baseAclResourceSchema
 export const fullDashboardSchema = baseDashboardSchema
   .extend({
     content: dashboardContentSchema,
+    sources: z.array(reportSourceSchema),
   })
   .openapi('DashboardSchemaFull')
 

@@ -13,27 +13,50 @@ import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import CrudFormDialog from '../../../../../components/form/crud-form-dialog'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
 import BaseCrudTable from '../../../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../../../components/table/table-row-delete-action'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../../../_components/geographic-bounds-picker-dialog'
-import { DatasetRunButton } from '../../_components/dataset-run-button'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
   DatasetRunListItem,
   useCreateDatasetRun,
   useDataset,
+  useDeleteDatasetRun,
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
 import { createDatasetRunSchema } from '@repo/schemas/crud'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+
+const DatasetRunDeleteAction = ({
+  datasetRun,
+}: {
+  datasetRun: DatasetRunListItem
+}) => {
+  const deleteDatasetRun = useDeleteDatasetRun(datasetRun.id)
+
+  return (
+    <TableRowDeleteAction
+      entityName="dataset run"
+      itemName={datasetRun.name}
+      mutation={deleteDatasetRun}
+    />
+  )
+}
 
 const DatasetRunFeature = () => {
   const datasetQuery = useDataset()
@@ -57,12 +80,43 @@ const DatasetRunFeature = () => {
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
   const baseColumns = useMemo(() => {
-    return ['createdAt', 'updatedAt'] as const
+    return ['description', 'updatedAt'] as const
   }, [])
 
   const columns = useMemo(() => {
-    return [] satisfies ColumnDef<DatasetRunListItem>[]
-  }, [])
+    return [
+      {
+        id: 'latestRun',
+        header: 'Latest run',
+        cell: ({ row }) => {
+          const isLatest = dataset?.mainRunId === row.original.id
+
+          return (
+            <span
+              className={isLatest ? 'text-foreground' : 'text-muted-foreground'}
+            >
+              {isLatest ? 'Latest' : 'No'}
+            </span>
+          )
+        },
+        size: 140,
+      },
+    ] satisfies ColumnDef<DatasetRunListItem>[]
+  }, [dataset?.mainRunId])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    if (!geographicBounds) {
+      return []
+    }
+
+    return [
+      {
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      },
+    ]
+  }, [geographicBounds, setSearchParams])
 
   const form = useForm({
     resolver: zodResolver(createDatasetRunSchema),
@@ -82,9 +136,10 @@ const DatasetRunFeature = () => {
       loadingMessage="Loading dataset"
       notFoundMessage="Dataset not found"
     >
-      <div>
-        <div className="flex justify-between">
-          <h1 className="text-3xl font-medium mb-2">Dataset Runs</h1>
+      <ConsoleCrudListFrame
+        title="Dataset Runs"
+        description="Create and manage runs for this dataset."
+        actions={
           <CrudFormDialog
             form={form}
             mutation={createDatasetRun}
@@ -215,43 +270,53 @@ const DatasetRunFeature = () => {
               </div>
             </div>
           </CrudFormDialog>
-        </div>
-        <div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        }
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
+        toolbar={
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
+              className="w-full md:w-72"
               placeholder="Search dataset runs"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <GeographicBoundsPickerDialog
-              value={geographicBounds}
-              onChange={(bounds) =>
-                setSearchParams(toGeographicBoundsQuery(bounds))
-              }
-              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
-            />
+            <TableFilterPopover activeFilters={activeFilters}>
+              <GeographicBoundsPickerDialog
+                title="Area of Interest"
+                value={geographicBounds}
+                onChange={(bounds) =>
+                  setSearchParams(toGeographicBoundsQuery(bounds))
+                }
+                onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
+              />
+            </TableFilterPopover>
           </div>
-          <BaseCrudTable
-            data={data?.data || []}
-            isLoading={isLoading}
-            baseColumns={baseColumns}
-            extraColumns={columns}
-            title="DatasetRun"
-            itemLink={datasetLink}
-            itemButton={(datasetRun) => (
-              <DatasetRunButton datasetRun={datasetRun} />
-            )}
-            query={query}
-            onSortChange={setSearchParams}
-          />
-          <Pagination
-            className="justify-end mt-4"
-            hasNextPage={!!hasNextPage}
-            isLoading={isFetchingNextPage}
-            onLoadMore={() => fetchNextPage()}
-          />
-        </div>
-      </div>
+        }
+      >
+        <BaseCrudTable
+          data={data?.data || []}
+          isLoading={isLoading}
+          baseColumns={baseColumns}
+          extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
+          title="DatasetRun"
+          itemLink={datasetLink}
+          canModifyItem={() => canEdit}
+          deleteAction={(datasetRun) => (
+            <DatasetRunDeleteAction datasetRun={datasetRun} />
+          )}
+          query={query}
+          onSortChange={setSearchParams}
+        />
+      </ConsoleCrudListFrame>
     </ResourcePageState>
   )
 }

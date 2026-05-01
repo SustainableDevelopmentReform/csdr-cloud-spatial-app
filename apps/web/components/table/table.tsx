@@ -1,5 +1,6 @@
 import { flexRender, type Table as TableType } from '@tanstack/react-table'
 import React from 'react'
+import { cn } from '@repo/ui/lib/utils'
 
 interface Props<T> {
   table: TableType<T>
@@ -15,20 +16,20 @@ const Table = <T,>({
   loadingStateLabel = 'Loading...',
 }: Props<T>) => {
   const rows = table.getRowModel().rows
-  const totalWidth = table.getTotalSize()
+  const visibleColumnCount = table.getAllColumns().length
 
   return (
-    <div className="w-full max-w-full min-w-0 overflow-x-auto">
-      <table
-        className="w-full min-w-full border-collapse"
-        style={totalWidth > 0 ? { minWidth: `${totalWidth}px` } : undefined}
-      >
+    <div className="w-full max-w-full min-w-0 overflow-hidden">
+      <table className="w-full table-fixed border-collapse text-left">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
-                  className="text-left py-3 px-2 font-normal border-b border-gray-200 text-gray-500"
+                  className={cn(
+                    'h-10 min-w-20 border-b border-border px-2 text-left align-middle text-sm font-medium leading-5 text-muted-foreground',
+                    header.column.id === 'action' && 'text-right',
+                  )}
                   key={header.id}
                   style={{ width: header.getSize() }}
                 >
@@ -45,8 +46,8 @@ const Table = <T,>({
           {rows.length === 0 && (
             <tr>
               <td
-                colSpan={table.getAllColumns().length}
-                className="text-center py-4"
+                colSpan={visibleColumnCount}
+                className="h-20 border-b border-border px-2 text-center text-sm text-muted-foreground"
               >
                 {isLoading ? loadingStateLabel : emptyStateLabel}
               </td>
@@ -56,11 +57,22 @@ const Table = <T,>({
             <tr key={row.id}>
               {row.getVisibleCells().map((cell) => (
                 <td
-                  className="py-3 px-2 text-sm border-b border-gray-200"
+                  className={cn(
+                    'h-[52px] min-w-20 border-b border-border px-2 py-2 align-middle text-sm leading-5 text-foreground',
+                    cell.column.id === 'action' && 'text-right',
+                  )}
                   key={cell.id}
                   style={{ width: cell.column.getSize() }}
                 >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  <div
+                    className={cn(
+                      'min-w-0 truncate',
+                      cell.column.id === 'action' &&
+                        'flex justify-end overflow-visible',
+                    )}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </div>
                 </td>
               ))}
             </tr>

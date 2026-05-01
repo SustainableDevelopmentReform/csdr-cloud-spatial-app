@@ -18,11 +18,18 @@ type ConsoleSimpleBreadcrumbsProps = {
 export const ConsoleSimpleBreadcrumbs = ({
   items,
 }: ConsoleSimpleBreadcrumbsProps) => {
+  const visibleItems =
+    items.length > 1 &&
+    items[0]?.href === '/console' &&
+    items[0].label === 'Home'
+      ? items.slice(1)
+      : items
+
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {items.map((item, index) => {
-          const isLastItem = index === items.length - 1
+        {visibleItems.map((item, index) => {
+          const isLastItem = index === visibleItems.length - 1
 
           return (
             <BreadcrumbItem key={`${item.label}-${index}`}>

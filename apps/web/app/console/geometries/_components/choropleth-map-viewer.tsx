@@ -97,6 +97,7 @@ const ChoroplethMapViewer = ({
   zoomToGeometryOutputIds,
   appearance,
   onSelect,
+  scrollZoom = true,
   className,
 }: {
   geometriesRun?: GeometriesRunListItem | null
@@ -106,6 +107,7 @@ const ChoroplethMapViewer = ({
   zoomToGeometryOutputIds?: string[] | null
   appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
+  scrollZoom?: boolean
   className?: string
 }) => {
   const config = useConfig()
@@ -480,6 +482,7 @@ const ChoroplethMapViewer = ({
         onIdle={() => {
           setLastIdleToken(mapRenderToken)
         }}
+        scrollZoom={scrollZoom}
         transformRequest={transformRequest}
       >
         <Source

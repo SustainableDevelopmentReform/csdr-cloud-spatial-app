@@ -77,6 +77,7 @@ import {
   type LucideIcon,
   Map as MapIcon,
   PieChart as PieChartIcon,
+  Plus,
   Table2,
   TrendingUp,
 } from 'lucide-react'
@@ -697,7 +698,7 @@ const ChartPreview = ({ form }: { form: UseFormReturn<ChartFormValues> }) => {
   }
 
   return (
-    <div className="flex h-[300px] flex-col overflow-hidden rounded-lg border bg-card lg:h-full">
+    <div className="flex h-[300px] flex-col overflow-hidden rounded-lg bg-card lg:h-full">
       <ChartRenderer
         chart={chartConfig}
         config={{ showTitleAndDescription: true }}
@@ -725,6 +726,8 @@ export const ChartFormDialog = ({
   onClose?: () => void
   firstVisibleStep?: ChartFormStep
 }) => {
+  const isEditing = chart !== null
+  const triggerLabel = buttonText ?? (isEditing ? 'Edit chart' : 'Add Chart')
   const getInitialStep = useCallback(
     (nextChart: ChartConfiguration | null) => {
       const preferredStep = nextChart ? 2 : 0
@@ -1201,25 +1204,18 @@ export const ChartFormDialog = ({
       const firstNIndicatorIds = indicators
         .slice(0, DEFAULT_MULTI_COUNT)
         .map((i) => i.id)
-      if (firstNIndicatorIds.length > 0) {
-        form.setValue('indicatorId', firstNIndicatorIds[0]!, sv)
+      const firstIndicatorId = firstNIndicatorIds[0]
+      if (firstIndicatorId) {
+        form.setValue('indicatorId', firstIndicatorId, sv)
         form.setValue('indicatorIds', firstNIndicatorIds, sv)
       }
 
-      if (product.mainRun?.outputSummary?.timePoints?.length === 1) {
-        form.setValue(
-          'timePoint',
-          product.mainRun?.outputSummary?.timePoints?.[0] ?? '',
-          sv,
-        )
-        form.setValue(
-          'timePoints',
-          product.mainRun?.outputSummary?.timePoints ?? [],
-          sv,
-        )
+      const timePoints = product.mainRun?.outputSummary?.timePoints ?? []
+      if (timePoints.length === 1) {
+        form.setValue('timePoint', timePoints[0] ?? '', sv)
+        form.setValue('timePoints', timePoints, sv)
       }
 
-      // Capture summary for series count warnings + defaults for auto-fill
       const summary = product.mainRun?.outputSummary
       setProductSummary({
         productName: product.name,
@@ -1510,8 +1506,15 @@ export const ChartFormDialog = ({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
-          {buttonText}
+        <Button
+          type="button"
+          variant={isEditing ? 'outline' : 'default'}
+          size={isEditing ? 'sm' : 'default'}
+        >
+          {!isEditing && triggerLabel === 'Add Chart' ? (
+            <Plus className="h-4 w-4" />
+          ) : null}
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:w-2xl lg:w-[900px] max-w-full">
@@ -1531,7 +1534,7 @@ export const ChartFormDialog = ({
             >
               {/* Header + Step indicator */}
               <DialogHeader className="space-y-3">
-                <DialogTitle>{buttonText}</DialogTitle>
+                <DialogTitle>{triggerLabel}</DialogTitle>
                 <WizardSteps
                   current={step}
                   firstVisibleStep={firstVisibleStep}

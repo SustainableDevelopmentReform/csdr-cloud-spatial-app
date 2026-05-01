@@ -40,8 +40,12 @@ const getSourceHref = (source: ReportSource) => {
 }
 
 export const ReportSources = ({
+  description = 'Live references derived from the report chart usage.',
+  emptyMessage = 'No sources referenced in this report.',
   sources,
 }: {
+  description?: string
+  emptyMessage?: string
   sources: ReportSource[] | undefined
 }) => {
   const safeSources = sources ?? []
@@ -49,12 +53,10 @@ export const ReportSources = ({
   return (
     <DetailCard
       title="Sources"
-      description="Live references derived from the report chart usage."
+      description={description}
       footer={
         safeSources.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No sources referenced in this report.
-          </p>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           <div className="grid w-full gap-6">
             {sourceGroups.map((group) => {
@@ -84,7 +86,7 @@ export const ReportSources = ({
 
                       return (
                         <div
-                          className="rounded-md border border-gray-200 p-3"
+                          className="rounded-md p-3"
                           key={`${source.resourceType}:${source.id}`}
                           style={{
                             breakInside: 'avoid-page',
