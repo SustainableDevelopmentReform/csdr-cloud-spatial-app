@@ -92,10 +92,6 @@ const ReportDetails = () => {
 
   const reportContent = form.watch('content') ?? { type: 'doc', content: [] }
 
-  const formBuilder = useMemo(
-    () => reportChartFormBuilder(setSelectedDataPoint),
-    [setSelectedDataPoint],
-  )
   const isPublished =
     report?.publishedAt !== null && report?.publishedAt !== undefined
   const canEditDraft =
@@ -105,6 +101,13 @@ const ReportDetails = () => {
       createdByUserId: getCreatedByUserId(report),
       resourceData: report,
     }) && !isPublished
+  const formBuilder = useMemo(
+    () =>
+      reportChartFormBuilder(setSelectedDataPoint, {
+        readOnly: !canEditDraft,
+      }),
+    [canEditDraft, setSelectedDataPoint],
+  )
   const requiresOrganizationSwitch =
     useRequiresActiveOrganizationSwitchForWrite({
       access,

@@ -20,7 +20,10 @@ const ReportPrintPage = ({
 }) => {
   const reportQuery = useReport(reportId)
   const report = reportQuery.data
-  const formBuilder = useMemo(() => reportChartFormBuilder(() => {}), [])
+  const formBuilder = useMemo(
+    () => reportChartFormBuilder(() => {}, { readOnly: true }),
+    [],
+  )
   const [preparedReportId, setPreparedReportId] = useState<string | null>(null)
 
   useEffect(() => {

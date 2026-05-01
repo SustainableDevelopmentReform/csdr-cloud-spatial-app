@@ -26,9 +26,11 @@ import {
   useProductRun,
 } from '../../product/_hooks'
 
-const ChartPlaceholder = () => (
+const ChartPlaceholder = ({ readOnly }: { readOnly: boolean }) => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
-    No chart configured yet. Use the edit button to choose a chart type.
+    {readOnly
+      ? 'No chart configured.'
+      : 'No chart configured yet. Use the edit button to choose a chart type.'}
   </div>
 )
 
@@ -433,6 +435,7 @@ interface ChartConfig {
   showTitleAndDescription?: boolean
   showCodeSnippet?: boolean
   showSelectedPointDetails?: boolean
+  readOnly?: boolean
 }
 
 const ChartDiscriminator = ({
@@ -499,7 +502,7 @@ export const ChartRenderer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   if (!chart) {
-    return <ChartPlaceholder />
+    return <ChartPlaceholder readOnly={config?.readOnly === true} />
   }
 
   return (
