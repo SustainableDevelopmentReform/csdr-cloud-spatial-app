@@ -68,6 +68,7 @@ const runBaseColumns = {
   dataSize: integer('data_size'),
   dataEtag: text('data_etag'),
   workflowDag: jsonb('workflow_dag'),
+  workflowDagSimple: jsonb('workflow_dag_simple'),
 }
 
 // DATA RELATED TABLES
