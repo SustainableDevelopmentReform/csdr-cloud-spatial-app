@@ -23,7 +23,10 @@ import {
 import { DetailCard } from '../../_components/detail-cards'
 import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
 import { ResourcePageState } from '../../_components/resource-page-state'
-import { ResourcePageTabs } from '../../_components/resource-page-tabs'
+import {
+  ResourcePageTabs,
+  type WorkflowDagSimple,
+} from '../../_components/resource-page-tabs'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductRunSummaryCard } from '../_components/product-run-summary-card'
@@ -178,6 +181,9 @@ const ProductDetails = () => {
                 isMainRoute
               />
             ) : undefined
+          }
+          workflowDagSimple={
+            product?.mainRun?.workflowDagSimple as WorkflowDagSimple | undefined
           }
           versions={<ProductRunFeature />}
           usage={

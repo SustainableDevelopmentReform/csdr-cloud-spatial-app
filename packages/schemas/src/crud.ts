@@ -47,6 +47,7 @@ export const baseRunResourceSchema = baseResourceSchema.extend({
   dataSize: z.number().int().nullable(),
   dataEtag: z.string().nullable(),
   workflowDag: z.any().nullable(),
+  workflowDagSimple: z.any().nullable(),
 })
 
 export const baseQuerySchema = z.object({
@@ -113,6 +114,7 @@ export const baseCreateRunResourceSchema = baseCreateResourceSchema.extend({
   dataSize: z.number().int().optional(),
   dataEtag: z.string().optional(),
   workflowDag: z.any().optional(),
+  workflowDagSimple: z.any().optional(),
 })
 
 export const baseUpdateResourceSchema = z.object({

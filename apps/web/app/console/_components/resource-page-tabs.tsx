@@ -18,12 +18,21 @@ export type ResourceTab =
 export type ExploreSubTab = 'map' | 'table'
 export type LineageSubTab = 'simple' | 'technical'
 
+export interface WorkflowDagSimple {
+  description: string
+  inputs: string[]
+  methods: string[]
+  outputs: string[]
+  indicators?: string[]
+}
+
 interface ResourcePageTabsProps {
   defaultTab?: ResourceTab
   overview: React.ReactNode
   exploreMap?: React.ReactNode
   exploreTable?: React.ReactNode
   lineage?: React.ReactNode
+  workflowDagSimple?: WorkflowDagSimple
   versions?: React.ReactNode
   usage?: React.ReactNode
   actions?: React.ReactNode
@@ -35,6 +44,7 @@ export function ResourcePageTabs({
   exploreMap,
   exploreTable,
   lineage,
+  workflowDagSimple,
   versions,
   usage,
   actions,
@@ -130,104 +140,151 @@ export function ResourcePageTabs({
               Technical
             </button>
           </div>
-          {lineageSubTab === 'simple' && (
-            <div className="flex flex-col gap-6">
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <p className="">
-                  This product intersects the Global Mangrove Watch v4 dataset
-                  for 2020 with the Global Exclusive Economic Zone boundaries.
-                  It calculates the total area of mangroves within each EEZ from
-                  the 10m resolution data.
-                </p>
-              </div>
-              {/* Simple placeholder flowchart */}
-              <div className="rounded-xl p-6" style={{ background: '#D7D7D7' }}>
-                <div className="grid grid-cols-[auto_1fr] gap-x-4">
-                  {/* INPUTS label */}
-                  <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
-                    Inputs
-                  </div>
-                  {/* Inputs row */}
-                  <div className="flex items-start justify-center gap-8">
-                    <div className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm">
-                      Global Mangrove Watch v4 (2020) 10m raster dataset
+          {lineageSubTab === 'simple' &&
+            (workflowDagSimple ? (
+              <div className="flex flex-col gap-6">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <p>{workflowDagSimple.description}</p>
+                </div>
+                <div
+                  className="rounded-xl p-6"
+                  style={{ background: '#D7D7D7' }}
+                >
+                  <div className="grid grid-cols-[auto_1fr] gap-x-4">
+                    {/* INPUTS */}
+                    <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
+                      Inputs
                     </div>
-                    <div className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm">
-                      Global Exclusive Economic Zone boundaries
+                    <div className="flex flex-wrap items-start justify-center gap-4">
+                      {workflowDagSimple.inputs.map((input, i) => (
+                        <div
+                          key={i}
+                          className="max-w-[250px] rounded-lg border bg-background px-6 py-3 text-center text-sm font-medium shadow-sm"
+                        >
+                          {input}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {/* spacer for connector */}
-                  <div />
-                  <div className="flex justify-center">
-                    <svg width="300" height="40">
-                      <line
-                        x1="75"
-                        y1="0"
-                        x2="150"
-                        y2="40"
-                        stroke="#737373"
-                        strokeWidth="1"
-                      />
-                      <line
-                        x1="225"
-                        y1="0"
-                        x2="150"
-                        y2="40"
-                        stroke="#737373"
-                        strokeWidth="1"
-                      />
-                    </svg>
-                  </div>
-                  {/* METHODS label */}
-                  <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
-                    Methods
-                  </div>
-                  {/* Method card */}
-                  <div className="flex justify-center">
-                    <div className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm">
-                      Intersect and calculate area (per EEZ, per year)
+                    {/* connector */}
+                    <div />
+                    <div className="flex justify-center">
+                      {workflowDagSimple.inputs.length > 1 ? (
+                        <svg width="300" height="40">
+                          {workflowDagSimple.inputs.map((_, i) => {
+                            const count = workflowDagSimple.inputs.length
+                            const x1 = ((i + 0.5) / count) * 300
+                            return (
+                              <line
+                                key={i}
+                                x1={x1}
+                                y1="0"
+                                x2="150"
+                                y2="40"
+                                stroke="#737373"
+                                strokeWidth="1"
+                              />
+                            )
+                          })}
+                        </svg>
+                      ) : (
+                        <div
+                          className="h-8 w-px"
+                          style={{ background: '#737373' }}
+                        />
+                      )}
                     </div>
-                  </div>
-                  {/* spacer for connector */}
-                  <div />
-                  <div className="flex justify-center">
-                    <div
-                      className="h-8 w-px"
-                      style={{ background: '#737373' }}
-                    />
-                  </div>
-                  {/* OUTPUTS label */}
-                  <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
-                    Outputs
-                  </div>
-                  {/* Output card */}
-                  <div className="flex justify-center">
-                    <div className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm">
-                      GMW v4 per EEZ Product
+                    {/* METHODS */}
+                    <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
+                      Methods
                     </div>
-                  </div>
-                  {/* spacer for connector */}
-                  <div />
-                  <div className="flex justify-center">
-                    <div
-                      className="h-8 w-px"
-                      style={{ background: '#737373' }}
-                    />
-                  </div>
-                  {/* INDICATORS label */}
-                  <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
-                    Indicators
-                  </div>
-                  {/* Indicator card */}
-                  <div className="flex justify-center">
-                    <div className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm">
-                      Mangrove Area
+                    <div className="flex flex-wrap items-start justify-center gap-4">
+                      {workflowDagSimple.methods.map((method, i) => (
+                        <div
+                          key={i}
+                          className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
+                        >
+                          {method}
+                        </div>
+                      ))}
                     </div>
+                    {/* connector to outputs */}
+                    <div />
+                    <div className="flex justify-center">
+                      {workflowDagSimple.outputs.length > 1 ? (
+                        <svg width="300" height="40">
+                          {workflowDagSimple.outputs.map((_, i) => {
+                            const count = workflowDagSimple.outputs.length
+                            const x2 = ((i + 0.5) / count) * 300
+                            return (
+                              <line
+                                key={i}
+                                x1="150"
+                                y1="0"
+                                x2={x2}
+                                y2="40"
+                                stroke="#737373"
+                                strokeWidth="1"
+                              />
+                            )
+                          })}
+                        </svg>
+                      ) : (
+                        <div
+                          className="h-8 w-px"
+                          style={{ background: '#737373' }}
+                        />
+                      )}
+                    </div>
+                    {/* OUTPUTS */}
+                    <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
+                      Outputs
+                    </div>
+                    <div className="flex flex-wrap items-start justify-center gap-4">
+                      {workflowDagSimple.outputs.map((output, i) => (
+                        <div
+                          key={i}
+                          className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
+                        >
+                          {output}
+                        </div>
+                      ))}
+                    </div>
+                    {/* INDICATORS (if present) */}
+                    {workflowDagSimple.indicators &&
+                      workflowDagSimple.indicators.length > 0 && (
+                        <>
+                          <div />
+                          <div className="flex justify-center">
+                            <div
+                              className="h-8 w-px"
+                              style={{ background: '#737373' }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
+                            Indicators
+                          </div>
+                          <div className="flex flex-wrap items-start justify-center gap-4">
+                            {workflowDagSimple.indicators.map(
+                              (indicator, i) => (
+                                <div
+                                  key={i}
+                                  className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
+                                >
+                                  {indicator}
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </>
+                      )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="py-8 text-center text-muted-foreground">
+                No simple lineage information available.
+              </p>
+            ))}
           {lineageSubTab === 'technical' && (
             <div>
               {lineage ?? (

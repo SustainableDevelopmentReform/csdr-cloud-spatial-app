@@ -25,7 +25,10 @@ import {
 import { DetailCard } from '../../_components/detail-cards'
 import { ResourceUsageDetailCards } from '../../_components/resource-usage-detail-cards'
 import { ResourcePageState } from '../../_components/resource-page-state'
-import { ResourcePageTabs } from '../../_components/resource-page-tabs'
+import {
+  ResourcePageTabs,
+  type WorkflowDagSimple,
+} from '../../_components/resource-page-tabs'
 import { SourcesCard } from '../../_components/sources-card'
 import { useProductsLink } from '../../product/_hooks'
 import GeometriesMapViewer from '../_components/geometries-map-viewer'
@@ -187,6 +190,11 @@ const GeometriesDetails = () => {
                 isMainRoute
               />
             ) : undefined
+          }
+          workflowDagSimple={
+            geometries?.mainRun?.workflowDagSimple as
+              | WorkflowDagSimple
+              | undefined
           }
           versions={<GeometriesRunFeature />}
           usage={
