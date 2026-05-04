@@ -27,6 +27,10 @@ import { canManageConsoleChildResource } from '../../../../../utils/access-contr
 import { DatasetRunMap } from '../../../dataset/_components/dataset-run-map'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
 import {
+  SimpleWorkflowDagChart,
+  type WorkflowDagSimple,
+} from '../../../../../components/simple-workflow-dag-chart'
+import {
   useDatasetRun,
   useDatasetRunsLink,
   useDeleteDatasetRun,
@@ -274,6 +278,13 @@ const DatasetRunDetails = () => {
             workflowDag={datasetRun?.workflowDag}
             runType="dataset"
           />
+          {datasetRun?.workflowDagSimple && (
+            <SimpleWorkflowDagChart
+              workflowDagSimple={
+                datasetRun.workflowDagSimple as WorkflowDagSimple
+              }
+            />
+          )}
         </div>
       </CrudForm>
     </ResourcePageState>

@@ -21,6 +21,10 @@ import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summa
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
 import {
+  SimpleWorkflowDagChart,
+  type WorkflowDagSimple,
+} from '../../../../../components/simple-workflow-dag-chart'
+import {
   useDeleteGeometriesRun,
   useGeometriesRun,
   useGeometriesRunsLink,
@@ -149,6 +153,13 @@ const GeometriesRunDetails = () => {
             workflowDag={geometriesRun?.workflowDag}
             runType="geometries"
           />
+          {geometriesRun?.workflowDagSimple && (
+            <SimpleWorkflowDagChart
+              workflowDagSimple={
+                geometriesRun.workflowDagSimple as WorkflowDagSimple
+              }
+            />
+          )}
         </CrudForm>
       </div>
     </ResourcePageState>
