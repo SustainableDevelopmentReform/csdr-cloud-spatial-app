@@ -140,7 +140,10 @@ export function ResourcePageTabs({
           </div>
           {lineageSubTab === 'simple' &&
             (workflowDagSimple ? (
-              <SimpleWorkflowDagChart workflowDagSimple={workflowDagSimple} />
+              <SimpleWorkflowDagChart
+                workflowDagSimple={workflowDagSimple}
+                onMethodClick={() => setLineageSubTab('technical')}
+              />
             ) : (
               <p className="py-8 text-center text-muted-foreground">
                 No simple lineage information available.

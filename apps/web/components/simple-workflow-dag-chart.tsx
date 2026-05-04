@@ -10,8 +10,10 @@ export interface WorkflowDagSimple {
 
 export function SimpleWorkflowDagChart({
   workflowDagSimple,
+  onMethodClick,
 }: {
   workflowDagSimple: WorkflowDagSimple
+  onMethodClick?: () => void
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -67,9 +69,18 @@ export function SimpleWorkflowDagChart({
             {workflowDagSimple.methods.map((method, i) => (
               <div
                 key={i}
-                className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
+                onClick={onMethodClick}
+                title={
+                  onMethodClick
+                    ? 'Go to the technical summary of the workflow'
+                    : undefined
+                }
+                className={`rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm ${onMethodClick ? 'cursor-pointer transition-colors hover:border-primary hover:text-primary' : ''}`}
               >
                 {method}
+                {onMethodClick && (
+                  <span className="ml-2 text-xs text-muted-foreground">→</span>
+                )}
               </div>
             ))}
           </div>
