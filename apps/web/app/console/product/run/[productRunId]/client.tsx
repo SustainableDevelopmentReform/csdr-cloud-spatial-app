@@ -31,6 +31,7 @@ import {
 } from '../../_hooks'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
+import { SimpleWorkflowDagChart } from '../../../../../components/simple-workflow-dag-chart'
 
 const ProductRunDetails = () => {
   const productRunQuery = useProductRun()
@@ -161,6 +162,11 @@ const ProductRunDetails = () => {
               workflowDag={productRun?.workflowDag}
               runType="product"
             />
+            {productRun?.workflowDagSimple && (
+              <SimpleWorkflowDagChart
+                workflowDagSimple={productRun.workflowDagSimple}
+              />
+            )}
           </CrudForm>
         )}
       </div>

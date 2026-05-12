@@ -20,6 +20,7 @@ import ChoroplethMapViewer from '../../_components/choropleth-map-viewer'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
+import { SimpleWorkflowDagChart } from '../../../../../components/simple-workflow-dag-chart'
 import {
   useDeleteGeometriesRun,
   useGeometriesRun,
@@ -149,6 +150,11 @@ const GeometriesRunDetails = () => {
             workflowDag={geometriesRun?.workflowDag}
             runType="geometries"
           />
+          {geometriesRun?.workflowDagSimple && (
+            <SimpleWorkflowDagChart
+              workflowDagSimple={geometriesRun.workflowDagSimple}
+            />
+          )}
         </CrudForm>
       </div>
     </ResourcePageState>

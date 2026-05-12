@@ -203,7 +203,7 @@ const ProductFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Product"
           itemLink={productLink}
-          itemActionLabel="Edit"
+          itemActionLabel="About"
           showEditAction={false}
           canModifyItem={(product) =>
             canEditConsoleResource({
