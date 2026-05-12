@@ -339,7 +339,7 @@ const GeometriesDetails = () => {
                 <ResourcePageTabs
                   value={isEditMode ? 'overview' : activeTab}
                   onValueChange={setActiveTab}
-                  disabled={isEditMode}
+                  hideTabs={isEditMode}
                   overview={overview}
                   exploreMap={
                     <ChoroplethMapViewer

@@ -161,11 +161,9 @@ const isReportEditorInteraction = () => {
 }
 
 const ReportTabs = ({
-  disabled = false,
   onValueChange,
   value,
 }: {
-  disabled?: boolean
   onValueChange: (value: ReportTab) => void
   value: ReportTab
 }) => (
@@ -174,10 +172,10 @@ const ReportTabs = ({
     onValueChange={(next) => onValueChange(toReportTab(next))}
   >
     <ConsolePrimaryTabsList>
-      <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
+      <ConsolePrimaryTabsTrigger value="overview">
         Overview
       </ConsolePrimaryTabsTrigger>
-      <ConsolePrimaryTabsTrigger disabled={disabled} value="sources">
+      <ConsolePrimaryTabsTrigger value="sources">
         Sources &amp; Methods
       </ConsolePrimaryTabsTrigger>
     </ConsolePrimaryTabsList>
@@ -855,11 +853,12 @@ const ReportDetails = () => {
 
                   {selectedTab === 'overview' ? (
                     <div className="flex flex-col gap-4">
-                      <ReportTabs
-                        value={selectedTab}
-                        disabled={isEditMode}
-                        onValueChange={setActiveTab}
-                      />
+                      {!isEditMode ? (
+                        <ReportTabs
+                          value={selectedTab}
+                          onValueChange={setActiveTab}
+                        />
+                      ) : null}
                       <div className={reportEditorClassName}>
                         <SimpleEditor
                           key={`${report.id}:${report.updatedAt ?? 'unknown'}:${isEditMode ? 'editable' : 'readonly'}`}
@@ -911,7 +910,6 @@ const ReportDetails = () => {
                     <div className="flex flex-col gap-4">
                       <ReportTabs
                         value={selectedTab}
-                        disabled={isEditMode}
                         onValueChange={setActiveTab}
                       />
                       <ReportSources sources={report.sources} />

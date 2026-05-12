@@ -53,6 +53,7 @@ import {
   ResourcePageTabs,
   type ResourceTab,
 } from '../../_components/resource-page-tabs'
+import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { ProductMainRunOutputsTable } from '../_components/product-main-run-outputs-table'
 import { ProductExploreMap } from '../_components/product-explore-map'
 import ProductRunFeature from './runs/client'
@@ -216,6 +217,10 @@ const ProductDetails = () => {
   }, [product, updateProductVisibility, visibilityDialog])
 
   const outputSummary = product?.mainRun?.outputSummary
+  const outputSummaryIndicators =
+    outputSummary?.indicators.flatMap((summary) =>
+      summary.indicator ? [summary.indicator] : [],
+    ) ?? []
   const overview = product ? (
     isEditMode ? (
       <CrudForm
@@ -239,12 +244,30 @@ const ProductDetails = () => {
         </OverviewSection>
         {outputSummary ? (
           <OverviewSection title="Output summary">
-            <OverviewText>
-              {`Outputs: ${outputSummary.outputCount}
+            <div className="flex flex-col gap-3">
+              <OverviewText>
+                {`Outputs: ${outputSummary.outputCount}
 Data range: ${formatDate(outputSummary.startTime)} to ${formatDate(outputSummary.endTime)}
-Time points: ${outputSummary.timePoints?.length ?? 0}
-Indicators: ${outputSummary.indicators.length}`}
-            </OverviewText>
+Time points: ${outputSummary.timePoints?.length ?? 0}`}
+              </OverviewText>
+              <div className="flex flex-col gap-2">
+                <div className="text-sm font-medium leading-5 text-foreground">
+                  Indicators
+                </div>
+                {outputSummaryIndicators.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {outputSummaryIndicators.map((indicator) => (
+                      <IndicatorButton
+                        indicator={indicator}
+                        key={indicator.id}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <OverviewText>No indicators.</OverviewText>
+                )}
+              </div>
+            </div>
           </OverviewSection>
         ) : null}
       </div>
@@ -349,7 +372,7 @@ Indicators: ${outputSummary.indicators.length}`}
                 <ResourcePageTabs
                   value={isEditMode ? 'overview' : activeTab}
                   onValueChange={setActiveTab}
-                  disabled={isEditMode}
+                  hideTabs={isEditMode}
                   overview={overview}
                   exploreMap={
                     product.mainRunId ? (

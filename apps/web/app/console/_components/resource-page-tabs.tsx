@@ -36,6 +36,7 @@ const lineageSubTabItems = [
 interface ResourcePageTabsProps {
   defaultTab?: ResourceTab
   disabled?: boolean
+  hideTabs?: boolean
   value?: ResourceTab
   onValueChange?: (value: ResourceTab) => void
   overview: React.ReactNode
@@ -65,6 +66,7 @@ const toResourceTab = (value: string): ResourceTab => {
 export function ResourcePageTabs({
   defaultTab = 'overview',
   disabled = false,
+  hideTabs = false,
   value,
   onValueChange,
   overview,
@@ -92,23 +94,25 @@ export function ResourcePageTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-4">
-      <ConsolePrimaryTabsList>
-        <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
-          Overview
-        </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger disabled={disabled} value="explore">
-          Explore
-        </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger disabled={disabled} value="lineage">
-          Lineage
-        </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger disabled={disabled} value="versions">
-          Versions
-        </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger disabled={disabled} value="usage">
-          Usage
-        </ConsolePrimaryTabsTrigger>
-      </ConsolePrimaryTabsList>
+      {!hideTabs ? (
+        <ConsolePrimaryTabsList>
+          <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
+            Overview
+          </ConsolePrimaryTabsTrigger>
+          <ConsolePrimaryTabsTrigger disabled={disabled} value="explore">
+            Explore
+          </ConsolePrimaryTabsTrigger>
+          <ConsolePrimaryTabsTrigger disabled={disabled} value="lineage">
+            Lineage
+          </ConsolePrimaryTabsTrigger>
+          <ConsolePrimaryTabsTrigger disabled={disabled} value="versions">
+            Versions
+          </ConsolePrimaryTabsTrigger>
+          <ConsolePrimaryTabsTrigger disabled={disabled} value="usage">
+            Usage
+          </ConsolePrimaryTabsTrigger>
+        </ConsolePrimaryTabsList>
+      ) : null}
 
       <TabsContent value="overview">
         <div className="flex max-w-[800px] flex-col gap-6">{overview}</div>

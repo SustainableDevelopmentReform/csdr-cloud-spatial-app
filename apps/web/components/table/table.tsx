@@ -27,7 +27,7 @@ const Table = <T,>({
     <div className="w-full max-w-full min-w-0 overflow-x-auto bg-white">
       <table
         className="min-w-full table-fixed border-collapse bg-white text-left"
-        style={{ minWidth: tableMinWidth }}
+        style={{ minWidth: tableMinWidth, width: '100%' }}
       >
         <thead className="bg-white">
           {table.getHeaderGroups().map((headerGroup) => (

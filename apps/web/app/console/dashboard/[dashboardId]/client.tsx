@@ -109,11 +109,9 @@ const toDashboardTab = (value: string): DashboardTab =>
   value === 'sources' ? 'sources' : 'overview'
 
 const DashboardTabs = ({
-  disabled = false,
   onValueChange,
   value,
 }: {
-  disabled?: boolean
   onValueChange: (value: DashboardTab) => void
   value: DashboardTab
 }) => (
@@ -122,10 +120,10 @@ const DashboardTabs = ({
     onValueChange={(next) => onValueChange(toDashboardTab(next))}
   >
     <ConsolePrimaryTabsList>
-      <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
+      <ConsolePrimaryTabsTrigger value="overview">
         Overview
       </ConsolePrimaryTabsTrigger>
-      <ConsolePrimaryTabsTrigger disabled={disabled} value="sources">
+      <ConsolePrimaryTabsTrigger value="sources">
         Sources &amp; Methods
       </ConsolePrimaryTabsTrigger>
     </ConsolePrimaryTabsList>
@@ -515,11 +513,14 @@ const DashboardDetails = () => {
                       emptyMessage="No charts"
                       header={(addChartAction) => (
                         <div className="flex w-full items-center justify-between gap-4">
-                          <DashboardTabs
-                            value={selectedTab}
-                            disabled={isEditMode}
-                            onValueChange={setActiveTab}
-                          />
+                          {!isEditMode ? (
+                            <DashboardTabs
+                              value={selectedTab}
+                              onValueChange={setActiveTab}
+                            />
+                          ) : (
+                            <div />
+                          )}
                           {isEditMode ? addChartAction : null}
                         </div>
                       )}
@@ -535,7 +536,6 @@ const DashboardDetails = () => {
                     <div className="flex flex-col gap-4">
                       <DashboardTabs
                         value={selectedTab}
-                        disabled={isEditMode}
                         onValueChange={setActiveTab}
                       />
                       <ReportSources
