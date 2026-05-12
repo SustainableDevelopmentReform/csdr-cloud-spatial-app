@@ -1,4 +1,4 @@
-import { Eye, Globe2, LockKeyhole } from 'lucide-react'
+import { Eye, Globe, LockKeyhole } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import type { ResourceVisibility } from '~/utils/access-control'
 
@@ -12,7 +12,7 @@ export const ResourceVisibilityIcon = ({
 }: ResourceVisibilityIconProps) => {
   switch (visibility) {
     case 'global':
-      return <Globe2 aria-hidden {...props} />
+      return <Globe aria-hidden {...props} />
     case 'public':
       return <Eye aria-hidden {...props} />
     case 'private':

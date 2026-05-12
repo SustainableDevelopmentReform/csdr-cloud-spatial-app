@@ -26,6 +26,8 @@ import {
   VisibilityImpact,
 } from '../../../utils/access-control'
 import { getSearchParams } from '../../../utils/browser'
+import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
+import { dataLibraryQueryKeys } from '../data-library/_hooks'
 
 export type DatasetListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['dataset']['$get'], 200>['data']
@@ -287,6 +289,9 @@ export const useCreateDataset = () => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -337,6 +342,9 @@ export const useUpdateDataset = (_datasetId?: string) => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -357,6 +365,9 @@ export const useUpdateDatasetVisibility = (_datasetId?: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -444,6 +455,9 @@ export const useSetDatasetMainRun = (run?: DatasetRunLinkParams | null) => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.detail(run.dataset?.id),
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -478,6 +492,9 @@ export const useDeleteDataset = (
       }
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -530,37 +547,52 @@ export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
 }
 
-export const useDatasetsLink = () =>
-  useCallback(
+export const useDatasetsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (query?: z.infer<typeof datasetQuerySchema>) =>
-      `${DATASETS_BASE_PATH}?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(`${DATASETS_BASE_PATH}?${getSearchParams(query ?? {})}`),
+    [withSource],
   )
+}
 
-export const useDatasetLink = () =>
-  useCallback(
-    (dataset: DatasetLinkParams) => `${DATASETS_BASE_PATH}/${dataset.id}`,
-    [],
+export const useDatasetLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
+    (dataset: DatasetLinkParams) =>
+      withSource(`${DATASETS_BASE_PATH}/${dataset.id}`),
+    [withSource],
   )
+}
 
-export const useDatasetRunsLink = () =>
-  useCallback(
+export const useDatasetRunsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       dataset: DatasetLinkParams | null,
       query?: z.infer<typeof datasetRunQuerySchema>,
     ) =>
-      `${DATASETS_BASE_PATH}/${dataset?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(
+        `${DATASETS_BASE_PATH}/${dataset?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
+      ),
+    [withSource],
   )
+}
 
 export type DatasetRunLinkParams = Pick<
   DatasetRunListItem,
   'id' | 'name' | 'dataset'
 >
 
-export const useDatasetRunLink = () =>
-  useCallback(
+export const useDatasetRunLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (datasetRun: DatasetRunLinkParams) =>
-      `${DATASETS_RUNS_BASE_PATH}/${datasetRun.id}`,
-    [],
+      withSource(`${DATASETS_RUNS_BASE_PATH}/${datasetRun.id}`),
+    [withSource],
   )
+}

@@ -13,8 +13,14 @@ const focusedTableSegments = new Set(['api-keys', 'outputs', 'runs'])
 const DetailLayout: React.FC<{
   children?: React.ReactNode
   breadcrumbs?: React.ReactNode
+  constrainContent?: boolean
   showHeaderOnIndex?: boolean
-}> = ({ children, breadcrumbs, showHeaderOnIndex = true }) => {
+}> = ({
+  children,
+  breadcrumbs,
+  constrainContent = true,
+  showHeaderOnIndex = true,
+}) => {
   const selectedLayoutSegment = useSelectedLayoutSegment()
   const selectedLayoutSegments = useSelectedLayoutSegments()
   const shouldShowHeader = showHeaderOnIndex || selectedLayoutSegment !== null
@@ -22,7 +28,9 @@ const DetailLayout: React.FC<{
     focusedTableSegments.has(segment),
   )
   const shouldConstrainContent =
-    selectedLayoutSegments.length > 0 && !isFocusedTableRoute
+    constrainContent &&
+    selectedLayoutSegments.length > 0 &&
+    !isFocusedTableRoute
 
   return (
     <main className={cn('w-full', shouldConstrainContent && 'max-w-[800px]')}>

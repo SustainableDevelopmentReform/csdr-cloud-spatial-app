@@ -1,10 +1,6 @@
-import PageAuthGuard from '~/components/page-auth-guard'
-import ClientPage from './client'
+import { redirect } from 'next/navigation'
+import { DATA_LIBRARY_BASE_PATH } from '~/lib/paths'
 
 export default () => {
-  return (
-    <PageAuthGuard allowAnonymous>
-      <ClientPage />
-    </PageAuthGuard>
-  )
+  redirect(DATA_LIBRARY_BASE_PATH)
 }

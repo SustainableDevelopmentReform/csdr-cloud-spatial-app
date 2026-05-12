@@ -57,7 +57,7 @@ export function ResourcePageTabs({
       </TabsList>
 
       <TabsContent value="overview">
-        <div className="flex flex-col gap-6">{overview}</div>
+        <div className="flex max-w-[800px] flex-col gap-6">{overview}</div>
       </TabsContent>
 
       <TabsContent value="explore">

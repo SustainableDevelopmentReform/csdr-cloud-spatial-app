@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@repo/ui/components/ui/breadcrumb'
+import { cn } from '@repo/ui/lib/utils'
 import { Fragment } from 'react'
 import Link from '~/components/link'
 
@@ -36,10 +37,24 @@ export const ConsoleSimpleBreadcrumbs = ({
             <Fragment key={`${item.label}-${index}`}>
               {index > 0 ? <BreadcrumbSeparator /> : null}
               <BreadcrumbItem>
-                {isLastItem || !item.href ? (
+                {isLastItem ? (
                   <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                ) : !item.href ? (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-2.5 text-sm font-normal leading-5',
+                      index === 0 ? 'text-stone-900' : 'text-muted-foreground',
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 ) : (
-                  <BreadcrumbLink asChild>
+                  <BreadcrumbLink
+                    asChild
+                    className={
+                      index === 0 ? undefined : 'text-muted-foreground'
+                    }
+                  >
                     <Link href={item.href}>{item.label}</Link>
                   </BreadcrumbLink>
                 )}

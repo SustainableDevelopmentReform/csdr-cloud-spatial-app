@@ -31,6 +31,8 @@ import {
   ResourceVisibility,
   VisibilityImpact,
 } from '../../../utils/access-control'
+import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
+import { dataLibraryQueryKeys } from '../data-library/_hooks'
 
 export type GeometriesListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
@@ -513,6 +515,9 @@ export const useCreateGeometries = () => {
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -619,6 +624,9 @@ export const useUpdateGeometries = (_geometriesId?: string) => {
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -639,6 +647,9 @@ export const useUpdateGeometriesVisibility = (_geometriesId?: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -812,6 +823,9 @@ export const useSetGeometriesMainRun = (
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.detail(run.geometries?.id),
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -854,6 +868,9 @@ export const useDeleteGeometries = (
       })
       queryClient.invalidateQueries({
         queryKey: geometryOutputQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -913,57 +930,79 @@ export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
 }
 
-export const useAllGeometriesLink = () =>
-  useCallback(
+export const useAllGeometriesLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (query?: z.infer<typeof geometriesQuerySchema>) =>
-      `${GEOMETRIES_BASE_PATH}?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(`${GEOMETRIES_BASE_PATH}?${getSearchParams(query ?? {})}`),
+    [withSource],
   )
+}
 
-export const useGeometriesLink = () =>
-  useCallback(
+export const useGeometriesLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (geometries: GeometriesLinkParams) =>
-      `${GEOMETRIES_BASE_PATH}/${geometries.id}`,
-    [],
+      withSource(`${GEOMETRIES_BASE_PATH}/${geometries.id}`),
+    [withSource],
   )
+}
 
-export const useGeometriesRunsLink = () =>
-  useCallback(
+export const useGeometriesRunsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       geometries: GeometriesLinkParams | null,
       query?: z.infer<typeof geometriesRunQuerySchema>,
     ) =>
-      `${GEOMETRIES_BASE_PATH}/${geometries?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(
+        `${GEOMETRIES_BASE_PATH}/${geometries?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
+      ),
+    [withSource],
   )
+}
 
 export type GeometriesRunLinkParams = Pick<
   GeometriesRunDetail,
   'id' | 'name' | 'geometries'
 >
 
-export const useGeometriesRunLink = () =>
-  useCallback(
-    (geometriesRun: GeometriesRunLinkParams) =>
-      `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`,
-    [],
-  )
+export const useGeometriesRunLink = () => {
+  const withSource = useDataLibrarySourceHref()
 
-export const useGeometryRunOutputsLink = () =>
-  useCallback(
+  return useCallback(
+    (geometriesRun: GeometriesRunLinkParams) =>
+      withSource(`${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`),
+    [withSource],
+  )
+}
+
+export const useGeometryRunOutputsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       geometriesRun: GeometriesRunLinkParams,
       query?: z.infer<typeof geometryOutputQuerySchema>,
     ) =>
-      `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}/outputs?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(
+        `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}/outputs?${getSearchParams(query ?? {})}`,
+      ),
+    [withSource],
   )
+}
 
 export type GeometryOutputLinkParams = Pick<GeometryOutputDetail, 'id' | 'name'>
 
-export const useGeometryOutputLink = () =>
-  useCallback(
+export const useGeometryOutputLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (geometryOutput: GeometryOutputLinkParams) =>
-      `${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutput.id}`,
-    [],
+      withSource(`${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutput.id}`),
+    [withSource],
   )
+}

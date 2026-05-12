@@ -17,7 +17,7 @@ import z from 'zod'
 import Table from '~/components/table/table'
 import { formatDateTime } from '@repo/ui/lib/date'
 import Link from '~/components/link'
-import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
+import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import type { ResourceVisibility } from '~/utils/access-control'
 
 export interface BaseItem {
@@ -41,6 +41,34 @@ interface BaseActionProps<T extends BaseItem> {
 }
 
 const actionButtonClassName = 'h-8 px-3 text-xs'
+
+const resourceVisibilityLabels: Record<ResourceVisibility, string> = {
+  global: 'Global',
+  private: 'Private',
+  public: 'Public',
+}
+
+const ResourceNameVisibilityIndicator = ({
+  visibility,
+}: {
+  visibility?: ResourceVisibility | null
+}) => {
+  if (!visibility) {
+    return null
+  }
+
+  const label = `${resourceVisibilityLabels[visibility]} resource`
+
+  return (
+    <span
+      aria-label={label}
+      className="inline-flex shrink-0 items-center justify-center text-muted-foreground"
+      title={label}
+    >
+      <ResourceVisibilityIcon visibility={visibility} className="size-3.5" />
+    </span>
+  )
+}
 
 const Action = <T extends BaseItem>({
   data,
@@ -192,7 +220,7 @@ const BaseCrudTable = <
       cell: (info) => (
         <span className="inline-flex max-w-full items-center gap-1.5 font-medium text-foreground">
           <span className="min-w-0 truncate">{info.row.original.name}</span>
-          <GlobalVisibilityIndicator
+          <ResourceNameVisibilityIndicator
             visibility={info.row.original.visibility}
           />
         </span>

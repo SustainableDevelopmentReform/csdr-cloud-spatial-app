@@ -41,13 +41,14 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import React, { useMemo, useState } from 'react'
 import { useConfig } from '~/components/providers'
 import { StatusMessage } from '~/components/status-message'
 import {
   DASHBOARDS_BASE_PATH,
   DATA_LIBRARY_BASE_PATH,
+  DATA_LIBRARY_SOURCE_PARAM,
   DATASETS_BASE_PATH,
   GEOMETRIES_BASE_PATH,
   INDICATORS_BASE_PATH,
@@ -61,6 +62,7 @@ import {
   ACCOUNT_DETAILS_BASE_PATH,
   API_KEYS_BASE_PATH,
   TWO_FACTOR_BASE_PATH,
+  isDataLibrarySource,
 } from '~/lib/paths'
 import { ConsoleSidebarOrganizationMenu } from './console-sidebar-organization-menu'
 import { ConsoleSidebarUserSection } from './console-sidebar-user-section'
@@ -185,14 +187,41 @@ const isActiveRoute = (
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+const dataManagementBasePaths = new Set([
+  DATASETS_BASE_PATH,
+  GEOMETRIES_BASE_PATH,
+  PRODUCTS_BASE_PATH,
+])
+
+const isLinkItemActive = ({
+  fromLibrary,
+  item,
+  pathname,
+}: {
+  fromLibrary: boolean
+  item: NavLinkItem
+  pathname: string | null
+}) => {
+  if (fromLibrary && item.href === DATA_LIBRARY_BASE_PATH) {
+    return true
+  }
+
+  if (fromLibrary && dataManagementBasePaths.has(item.href)) {
+    return false
+  }
+
+  return isActiveRoute(pathname, item.href, item.exact)
+}
+
 const isDisclosureItemOpen = (
   pathname: string | null,
   item: NavDisclosureItem,
   expanded: Record<string, boolean>,
+  fromLibrary: boolean,
 ): boolean => {
   if (
     item.children.some((child) =>
-      isActiveRoute(pathname, child.href, child.exact),
+      isLinkItemActive({ pathname, item: child, fromLibrary }),
     )
   ) {
     return true
@@ -203,6 +232,10 @@ const isDisclosureItemOpen = (
 
 const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const fromLibrary = isDataLibrarySource(
+    searchParams.get(DATA_LIBRARY_SOURCE_PARAM),
+  )
   const { isMobile, open, setOpen } = useSidebar()
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     {},
@@ -220,7 +253,7 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
 
     setExpandedItems((current) => ({
       ...current,
-      [item.id]: !isDisclosureItemOpen(pathname, item, current),
+      [item.id]: !isDisclosureItemOpen(pathname, item, current, fromLibrary),
     }))
   }
 
@@ -241,11 +274,11 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={isActiveRoute(
+                        isActive={isLinkItemActive({
                           pathname,
-                          item.href,
-                          item.exact,
-                        )}
+                          item,
+                          fromLibrary,
+                        })}
                         tooltip={item.label}
                         className={topLevelItemClassName}
                       >
@@ -279,9 +312,10 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                   pathname,
                   item,
                   expandedItems,
+                  fromLibrary,
                 )
                 const isActive = item.children.some((child) =>
-                  isActiveRoute(pathname, child.href, child.exact),
+                  isLinkItemActive({ pathname, item: child, fromLibrary }),
                 )
 
                 return (
@@ -310,11 +344,11 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                             <SidebarMenuSubItem key={child.href}>
                               <SidebarMenuSubButton
                                 asChild
-                                isActive={isActiveRoute(
+                                isActive={isLinkItemActive({
                                   pathname,
-                                  child.href,
-                                  child.exact,
-                                )}
+                                  item: child,
+                                  fromLibrary,
+                                })}
                                 className={disclosureChildClassName}
                               >
                                 <Link href={child.href}>

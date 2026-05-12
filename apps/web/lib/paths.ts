@@ -1,5 +1,7 @@
 export const DASHBOARDS_BASE_PATH = '/console/dashboard'
-export const DATA_LIBRARY_BASE_PATH = '/console/data-library'
+export const DATA_LIBRARY_BASE_PATH = '/console/library'
+export const DATA_LIBRARY_SOURCE_PARAM = 'from'
+export const DATA_LIBRARY_SOURCE_VALUE = 'library'
 export const DATASETS_BASE_PATH = '/console/dataset'
 export const DATASETS_RUNS_BASE_PATH = '/console/dataset/run'
 export const GEOMETRIES_BASE_PATH = '/console/geometries'
@@ -23,3 +25,23 @@ export const LOGIN_BASE_PATH = '/login'
 export const ACCOUNT_DETAILS_BASE_PATH = '/console/me/account'
 export const API_KEYS_BASE_PATH = '/console/me/api-keys'
 export const TWO_FACTOR_BASE_PATH = '/console/me/two-factor'
+
+export const isDataLibrarySource = (value: string | null | undefined) =>
+  value === DATA_LIBRARY_SOURCE_VALUE
+
+export const withDataLibrarySource = (href: string) => {
+  const sourceQuery = `${DATA_LIBRARY_SOURCE_PARAM}=${DATA_LIBRARY_SOURCE_VALUE}`
+
+  if (href.includes(sourceQuery)) {
+    return href
+  }
+
+  const separator =
+    href.endsWith('?') || href.endsWith('&')
+      ? ''
+      : href.includes('?')
+        ? '&'
+        : '?'
+
+  return `${href}${separator}${sourceQuery}`
+}

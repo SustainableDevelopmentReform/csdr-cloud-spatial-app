@@ -135,7 +135,7 @@ const DatasetDetails = () => {
       loadingMessage="Loading dataset"
       notFoundMessage="Dataset not found"
     >
-      <div className="w-[800px] max-w-full gap-8 flex flex-col">
+      <div className="flex w-full max-w-full flex-col gap-8">
         {requiresOrganizationSwitch ? (
           <ActiveOrganizationWriteWarning visibility={dataset?.visibility} />
         ) : null}

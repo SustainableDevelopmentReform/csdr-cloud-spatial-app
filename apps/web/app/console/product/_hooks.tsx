@@ -36,6 +36,8 @@ import {
   geometriesQueryKeys,
   geometriesRunQueryKeys,
 } from '../geometries/_hooks'
+import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
+import { dataLibraryQueryKeys } from '../data-library/_hooks'
 
 export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -550,6 +552,9 @@ export const useCreateProduct = () => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
 
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.detail(response?.data?.dataset?.id),
@@ -676,6 +681,9 @@ export const useUpdateProduct = (_productId?: string) => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -696,6 +704,9 @@ export const useUpdateProductVisibility = (_productId?: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -815,6 +826,9 @@ export const useRefreshProductRunSummary = (
         queryKey: productQueryKeys.all,
       })
       queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
         queryKey: productRunQueryKeys.all,
       })
     },
@@ -834,6 +848,9 @@ export const useSetProductMainRun = (run?: ProductRunLinkParams | null) => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: productQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
       queryClient.invalidateQueries({
         queryKey: productRunQueryKeys.all,
@@ -992,6 +1009,9 @@ export const useDeleteProduct = (
       queryClient.invalidateQueries({
         queryKey: productOutputQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
       if (redirect) {
         router.push(redirect)
       }
@@ -1044,60 +1064,83 @@ export const useDeleteProductRun = (
   })
 }
 
-export const useProductsLink = () =>
-  useCallback(
+export const useProductsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (query?: z.infer<typeof productQuerySchema>) =>
-      `${PRODUCTS_BASE_PATH}?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(`${PRODUCTS_BASE_PATH}?${getSearchParams(query ?? {})}`),
+    [withSource],
   )
+}
 
 export type ProductLinkParams = Pick<ProductDetail, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
 }
 
-export const useProductLink = () =>
-  useCallback(
-    (product: ProductLinkParams) => `${PRODUCTS_BASE_PATH}/${product.id}`,
-    [],
-  )
+export const useProductLink = () => {
+  const withSource = useDataLibrarySourceHref()
 
-export const useProductRunsLink = () =>
-  useCallback(
+  return useCallback(
+    (product: ProductLinkParams) =>
+      withSource(`${PRODUCTS_BASE_PATH}/${product.id}`),
+    [withSource],
+  )
+}
+
+export const useProductRunsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       product: ProductLinkParams | null,
       query?: z.infer<typeof productRunQuerySchema>,
     ) =>
-      `${PRODUCTS_BASE_PATH}/${product?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(
+        `${PRODUCTS_BASE_PATH}/${product?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
+      ),
+    [withSource],
   )
+}
 
 export type ProductRunLinkParams = Pick<
   ProductRunDetail,
   'id' | 'name' | 'product'
 >
 
-export const useProductRunLink = () =>
-  useCallback(
-    (productRun: ProductRunLinkParams) =>
-      `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}`,
-    [],
-  )
+export const useProductRunLink = () => {
+  const withSource = useDataLibrarySourceHref()
 
-export const useProductRunOutputsLink = () =>
-  useCallback(
+  return useCallback(
+    (productRun: ProductRunLinkParams) =>
+      withSource(`${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}`),
+    [withSource],
+  )
+}
+
+export const useProductRunOutputsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       productRun: ProductRunLinkParams,
       query?: z.infer<typeof productOutputQuerySchema>,
     ) =>
-      `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}/outputs?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(
+        `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}/outputs?${getSearchParams(query ?? {})}`,
+      ),
+    [withSource],
   )
+}
 
 export type ProductOutputLinkParams = Pick<ProductOutputListItem, 'id' | 'name'>
 
-export const useProductOutputLink = () =>
-  useCallback(
+export const useProductOutputLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (productOutput: ProductOutputLinkParams) =>
-      `${PRODUCTS_RUNS_OUTPUTS_BASE_PATH}/${productOutput.id}`,
-    [],
+      withSource(`${PRODUCTS_RUNS_OUTPUTS_BASE_PATH}/${productOutput.id}`),
+    [withSource],
   )
+}

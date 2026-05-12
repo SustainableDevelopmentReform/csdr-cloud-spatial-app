@@ -1,71 +1,62 @@
 'use client'
 
+import { usePathname, useSearchParams } from 'next/navigation'
+import { ConsoleSimpleBreadcrumbs } from '../../_components/console-simple-breadcrumbs'
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from '@repo/ui/components/ui/breadcrumb'
-import { usePathname } from 'next/navigation'
-import Link from '../../../../components/link'
-import { DATASETS_BASE_PATH } from '../../../../lib/paths'
+  DATASETS_BASE_PATH,
+  DATA_LIBRARY_BASE_PATH,
+  DATA_LIBRARY_SOURCE_PARAM,
+  isDataLibrarySource,
+  withDataLibrarySource,
+} from '../../../../lib/paths'
 import { useDataset, useDatasetRun, useDatasetRunsLink } from '../_hooks'
-import { DatasetButton } from './dataset-button'
-import { DatasetRunButton } from './dataset-run-button'
+
+type BreadcrumbItem = {
+  href?: string
+  label: string
+}
 
 export const DatasetBreadcrumbs = () => {
   const { data: datasetFromUrl } = useDataset()
   const { data: datasetRunFromUrl } = useDatasetRun()
   const datasetRunsLink = useDatasetRunsLink()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const fromLibrary = isDataLibrarySource(
+    searchParams.get(DATA_LIBRARY_SOURCE_PARAM),
+  )
 
   const dataset = datasetFromUrl ?? datasetRunFromUrl?.dataset
+  const sectionHref = fromLibrary
+    ? `${DATA_LIBRARY_BASE_PATH}?resourceType=dataset`
+    : DATASETS_BASE_PATH
 
-  const pathname = usePathname()
-  return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={DATASETS_BASE_PATH}>Datasets</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
+  const items: BreadcrumbItem[] = [
+    fromLibrary
+      ? { label: 'Data', href: DATA_LIBRARY_BASE_PATH }
+      : { label: 'Admin' },
+    { label: 'Datasets', href: sectionHref },
+  ]
 
-        {dataset && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <DatasetButton dataset={dataset} />
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
+  if (dataset) {
+    items.push({
+      label: dataset.name,
+      href: fromLibrary
+        ? withDataLibrarySource(`${DATASETS_BASE_PATH}/${dataset.id}`)
+        : `${DATASETS_BASE_PATH}/${dataset.id}`,
+    })
+  }
 
-        {dataset && (pathname?.includes('runs') || datasetRunFromUrl) && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={datasetRunsLink(dataset)}>Runs</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
+  if (dataset && (pathname?.includes('runs') || datasetRunFromUrl)) {
+    items.push({
+      label: 'Dataset Runs',
+      href: datasetRunsLink(dataset),
+    })
+  }
 
-        {datasetRunFromUrl && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <div className="flex items-center gap-1">
-                  <DatasetRunButton datasetRun={datasetRunFromUrl} />
-                </div>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
-      </BreadcrumbList>
-    </Breadcrumb>
-  )
+  if (datasetRunFromUrl) {
+    items.push({ label: datasetRunFromUrl.name })
+  }
+
+  return <ConsoleSimpleBreadcrumbs items={items} />
 }

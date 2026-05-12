@@ -32,10 +32,12 @@ import {
   DATASETS_BASE_PATH,
   GEOMETRIES_BASE_PATH,
   PRODUCTS_BASE_PATH,
+  withDataLibrarySource,
 } from '~/lib/paths'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
+import { ResourceVisibilityIcon } from '../_components/resource-visibility-icon'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -185,8 +187,18 @@ const DataLibraryFeature = () => {
           </SortButton>
         ),
         cell: (info) => (
-          <span className="font-medium text-foreground">
-            {info.row.original.name}
+          <span className="inline-flex max-w-full items-center gap-1.5 font-medium text-foreground">
+            <span className="min-w-0 truncate">{info.row.original.name}</span>
+            <span
+              aria-label={`${info.row.original.visibility} resource`}
+              title={`${info.row.original.visibility} resource`}
+              className="inline-flex shrink-0 items-center justify-center text-muted-foreground"
+            >
+              <ResourceVisibilityIcon
+                visibility={info.row.original.visibility}
+                className="size-3.5"
+              />
+            </span>
           </span>
         ),
         minSize: 260,
@@ -235,7 +247,9 @@ const DataLibraryFeature = () => {
             size="sm"
             className="h-8 px-3 text-xs"
           >
-            <Link href={getResourceLink(info.row.original)}>
+            <Link
+              href={withDataLibrarySource(getResourceLink(info.row.original))}
+            >
               About
               <SquareArrowOutUpRightIcon className="size-4" />
             </Link>
@@ -292,8 +306,8 @@ const DataLibraryFeature = () => {
         breadcrumbs={
           <ConsoleSimpleBreadcrumbs
             items={[
-              { label: 'Data Library', href: DATA_LIBRARY_BASE_PATH },
-              { label: 'Search' },
+              { label: 'Data', href: DATA_LIBRARY_BASE_PATH },
+              { label: 'Library' },
             ]}
           />
         }
