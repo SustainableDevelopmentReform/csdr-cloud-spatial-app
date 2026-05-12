@@ -1,5 +1,6 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GeometryOutputLinkParams, useGeometryOutputLink } from '../_hooks'
+import { SquareStackIcon } from 'lucide-react'
 
 export const GeometryOutputButtons = ({
   geometryOutputs,
@@ -30,6 +31,7 @@ export const GeometryOutputButton = ({
       href={geometriesRunLink(geometryOutput)}
       variant="outline"
       className="border-geometry"
+      icon={<SquareStackIcon />}
     >
       {geometryOutput.name}
     </BadgeLink>

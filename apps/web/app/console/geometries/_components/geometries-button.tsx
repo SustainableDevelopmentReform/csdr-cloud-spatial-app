@@ -1,6 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { GeometriesLinkParams, useGeometriesLink } from '../_hooks'
+import { SquareStackIcon } from 'lucide-react'
 
 export const GeometriesButtons = ({
   geometriesSets,
@@ -27,6 +28,7 @@ export const GeometriesButton = ({
     <BadgeLink
       href={geometriesLink(geometries)}
       variant="geometries"
+      icon={<SquareStackIcon />}
       adornment={
         <GlobalVisibilityIndicator visibility={geometries.visibility} />
       }

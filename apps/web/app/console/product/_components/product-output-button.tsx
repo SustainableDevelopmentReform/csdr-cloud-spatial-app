@@ -1,5 +1,6 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { ProductOutputLinkParams, useProductOutputLink } from '../_hooks'
+import { Table2Icon } from 'lucide-react'
 
 export const ProductOutputButtons = ({
   productOutputs,
@@ -30,6 +31,7 @@ export const ProductOutputButton = ({
       href={productOutputLink(productOutput)}
       variant="outline"
       className="border-product"
+      icon={<Table2Icon />}
     >
       {productOutput.name}
     </BadgeLink>

@@ -23,6 +23,7 @@ import BaseCrudTable from '../../../../../components/table/crud-table'
 import { TableRowDeleteAction } from '../../../../../components/table/table-row-delete-action'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
+import { getEditModeHref } from '../../../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -58,7 +59,7 @@ const DatasetRunDeleteAction = ({
   )
 }
 
-const DatasetRunFeature = () => {
+const DatasetRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const datasetQuery = useDataset()
   const dataset = datasetQuery.data
   const {
@@ -309,7 +310,9 @@ const DatasetRunFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="DatasetRun"
           itemLink={datasetLink}
+          editLink={(datasetRun) => getEditModeHref(datasetLink(datasetRun))}
           canModifyItem={() => canEdit}
+          stickyColumnClassName={embedded ? 'bg-white' : undefined}
           deleteAction={(datasetRun) => (
             <DatasetRunDeleteAction datasetRun={datasetRun} />
           )}

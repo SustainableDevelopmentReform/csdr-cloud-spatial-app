@@ -1,6 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { DatasetLinkParams, useDatasetLink } from '../_hooks'
+import { EarthIcon } from 'lucide-react'
 
 export const DatasetButtons = ({
   datasets,
@@ -23,6 +24,7 @@ export const DatasetButton = ({ dataset }: { dataset: DatasetLinkParams }) => {
     <BadgeLink
       href={datasetLink(dataset)}
       variant="dataset"
+      icon={<EarthIcon />}
       adornment={<GlobalVisibilityIndicator visibility={dataset.visibility} />}
     >
       {dataset.name}

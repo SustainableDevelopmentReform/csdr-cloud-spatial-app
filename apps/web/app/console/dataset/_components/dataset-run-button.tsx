@@ -1,6 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
 import { DatasetRunLinkParams, useDatasetRunLink } from '../_hooks'
+import { EarthIcon } from 'lucide-react'
 
 export const DatasetRunButtons = ({
   datasetRuns,
@@ -24,7 +25,11 @@ export const DatasetRunButton = ({
   const datasetRunLink = useDatasetRunLink()
 
   return (
-    <BadgeLink href={datasetRunLink(datasetRun)} variant="datasetRun">
+    <BadgeLink
+      href={datasetRunLink(datasetRun)}
+      variant="datasetRun"
+      icon={<EarthIcon />}
+    >
       {datasetRun.dataset.mainRunId === datasetRun.id && (
         <MainRunBadge size="xs" variant="dataset" />
       )}

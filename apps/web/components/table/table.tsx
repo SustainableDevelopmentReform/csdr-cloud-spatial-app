@@ -7,6 +7,7 @@ interface Props<T> {
   isLoading?: boolean
   emptyStateLabel?: string
   loadingStateLabel?: string
+  stickyColumnClassName?: string
 }
 
 const Table = <T,>({
@@ -14,21 +15,33 @@ const Table = <T,>({
   isLoading = false,
   emptyStateLabel = 'No items found',
   loadingStateLabel = 'Loading...',
+  stickyColumnClassName = 'bg-white',
 }: Props<T>) => {
   const rows = table.getRowModel().rows
   const visibleColumnCount = table.getAllColumns().length
+  const tableMinWidth = table
+    .getAllColumns()
+    .reduce((total, column) => total + column.getSize(), 0)
 
   return (
-    <div className="w-full max-w-full min-w-0 overflow-hidden">
-      <table className="w-full table-fixed border-collapse text-left">
-        <thead>
+    <div className="w-full max-w-full min-w-0 overflow-x-auto bg-white">
+      <table
+        className="min-w-full table-fixed border-collapse bg-white text-left"
+        style={{ minWidth: tableMinWidth }}
+      >
+        <thead className="bg-white">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   className={cn(
-                    'h-10 min-w-20 border-b border-border px-2 text-left align-middle text-sm font-medium leading-5 text-muted-foreground',
+                    'h-10 border-b border-border px-2 text-left align-middle text-sm font-medium leading-5 text-muted-foreground',
+                    header.column.id !== 'action' && 'min-w-20',
+                    header.column.id === 'name' &&
+                      cn('sticky left-0 z-20', stickyColumnClassName),
                     header.column.id === 'action' && 'text-right',
+                    header.column.id === 'action' &&
+                      cn('sticky right-0 z-20', stickyColumnClassName),
                   )}
                   key={header.id}
                   style={{ width: header.getSize() }}
@@ -58,17 +71,22 @@ const Table = <T,>({
               {row.getVisibleCells().map((cell) => (
                 <td
                   className={cn(
-                    'h-[52px] min-w-20 border-b border-border px-2 py-2 align-middle text-sm leading-5 text-foreground',
+                    'h-[52px] border-b border-border px-2 py-2 align-middle text-sm leading-5 text-foreground',
+                    cell.column.id !== 'action' && 'min-w-20',
+                    cell.column.id === 'name' &&
+                      cn('sticky left-0 z-10', stickyColumnClassName),
                     cell.column.id === 'action' && 'text-right',
+                    cell.column.id === 'action' &&
+                      cn('sticky right-0 z-10', stickyColumnClassName),
                   )}
                   key={cell.id}
                   style={{ width: cell.column.getSize() }}
                 >
                   <div
                     className={cn(
-                      'min-w-0 truncate',
-                      cell.column.id === 'action' &&
-                        'flex justify-end overflow-visible',
+                      cell.column.id === 'action'
+                        ? 'flex w-max min-w-max justify-end overflow-visible whitespace-nowrap'
+                        : 'min-w-0 overflow-visible',
                     )}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

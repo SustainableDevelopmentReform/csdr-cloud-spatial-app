@@ -43,7 +43,7 @@ export function GeometriesMainRunOutputsTable({
   const columns = useMemo(() => [] as ColumnDef<GeometryOutputListItem>[], [])
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <SearchInput
           className="w-full md:max-w-md"
@@ -71,6 +71,7 @@ export function GeometriesMainRunOutputsTable({
         extraColumns={columns}
         title="GeometryOutput"
         itemLink={geometryOutputLink}
+        stickyColumnClassName="bg-white"
         sortOptions={['name', 'createdAt', 'updatedAt']}
         query={{ sort: query?.sort, order: query?.order }}
         onSortChange={(next) => setSearchParams(next)}

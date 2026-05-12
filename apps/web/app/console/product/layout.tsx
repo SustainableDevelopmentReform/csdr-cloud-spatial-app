@@ -9,6 +9,7 @@ const ProductLayout: React.FC<{
     <DetailLayout
       breadcrumbs={<ProductsBreadcrumbs />}
       constrainContent={false}
+      showHeaderOnDetail={false}
       showHeaderOnIndex={false}
     >
       {children}

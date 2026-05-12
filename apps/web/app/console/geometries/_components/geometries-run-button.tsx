@@ -1,6 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GeometriesRunLinkParams, useGeometriesRunLink } from '../_hooks'
 import { MainRunBadge } from '../../_components/main-run-badge'
+import { SquareStackIcon } from 'lucide-react'
 
 export const GeometriesRunButtons = ({
   geometriesRuns,
@@ -27,7 +28,11 @@ export const GeometriesRunButton = ({
   const geometriesRunLink = useGeometriesRunLink()
 
   return (
-    <BadgeLink href={geometriesRunLink(geometriesRun)} variant="geometriesRun">
+    <BadgeLink
+      href={geometriesRunLink(geometriesRun)}
+      variant="geometriesRun"
+      icon={<SquareStackIcon />}
+    >
       {geometriesRun.geometries.mainRunId === geometriesRun.id && (
         <MainRunBadge size="xs" variant="geometries" />
       )}

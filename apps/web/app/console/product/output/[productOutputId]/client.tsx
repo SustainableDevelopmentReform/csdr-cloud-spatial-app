@@ -2,25 +2,57 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateProductOutputSchema } from '@repo/schemas/crud'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
+import { formatDateTime } from '@repo/ui/lib/date'
 import { bbox } from '@turf/turf'
-import type { FeatureCollection, Geometry } from 'geojson'
 import { Layer, Source } from '@vis.gl/react-maplibre'
-import { useEffect, useMemo } from 'react'
+import type { FeatureCollection, Geometry } from 'geojson'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import {
+  getEditModeHref,
+  OverviewSection,
+  OverviewText,
+  ResourceHeaderActions,
+  ResourceTitleBlock,
+} from '~/app/console/_components/resource-detail-mode'
+import { Value } from '../../../../../components/value'
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
-import { MapViewer } from '../../../geometries/_components/map-viewer'
+import { PRODUCTS_RUNS_OUTPUTS_BASE_PATH } from '../../../../../lib/paths'
+import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+import { toastError } from '../../../../../utils/error-handling'
 import { ResourcePageState } from '../../../_components/resource-page-state'
-import { DerivedIndicatorSummaryCard } from '../../_components/derived-indicator-summary-card'
-import { ProductOutputDependenciesCard } from '../../_components/product-output-dependencies-card'
-import { ProductOutputDerivedDependenciesCard } from '../../_components/product-output-derived-dependencies-card'
-import { ProductOutputSummaryCard } from '../../_components/product-output-summary-card'
+import { MapViewer } from '../../../geometries/_components/map-viewer'
+import { IndicatorButton } from '../../../indicator/_components/indicator-button'
+import { ProductOutputButton } from '../../_components/product-output-button'
 import {
   type ProductOutputDetail,
+  type UpdateProductOutputPayload,
   useProductOutput,
+  useProductRun,
   useUpdateProductOutput,
 } from '../../_hooks'
-import { canManageConsoleChildResource } from '../../../../../utils/access-control'
+
+const formId = 'product-output-detail-form'
+
+const getProductOutputPath = (productOutputId: string) =>
+  `${PRODUCTS_RUNS_OUTPUTS_BASE_PATH}/${productOutputId}`
+
+const getProductOutputFormValues = (
+  productOutput: ProductOutputDetail,
+): UpdateProductOutputPayload => ({
+  name: productOutput.name,
+  description: productOutput.description,
+})
 
 function toFeatureProperties(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -51,15 +83,25 @@ function createGeometryFeatureCollection(
   }
 }
 
-const ProductRunDetails = () => {
+const ProductOutputDetails = () => {
   const productOutputQuery = useProductOutput()
   const productOutput = productOutputQuery.data
+  const productRunQuery = useProductRun(
+    productOutput?.productRun.id,
+    Boolean(productOutput?.productRun.id),
+  )
   const updateProductOutput = useUpdateProductOutput()
   const { access } = useAccessControl()
   const canEdit = canManageConsoleChildResource({
     access,
-    resourceData: productOutput,
+    resourceData: productRunQuery.data ?? productOutput,
   })
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const isEditMode = searchParams.get('mode') === 'edit' && canEdit
+  const resourcePath = productOutput
+    ? getProductOutputPath(productOutput.id)
+    : PRODUCTS_RUNS_OUTPUTS_BASE_PATH
 
   const geometryData = useMemo(
     () => createGeometryFeatureCollection(productOutput),
@@ -77,15 +119,71 @@ const ProductRunDetails = () => {
     return [minLon, minLat, maxLon, maxLat]
   }, [geometryData])
 
-  const form = useForm({
+  const form = useForm<UpdateProductOutputPayload>({
     resolver: zodResolver(updateProductOutputSchema),
+    defaultValues: {
+      name: '',
+      description: null,
+    },
   })
+  const isDirty = form.formState.isDirty
 
   useEffect(() => {
-    if (productOutput) {
-      form.reset(productOutput)
+    if (productOutput && !isDirty) {
+      form.reset(getProductOutputFormValues(productOutput))
     }
-  }, [productOutput, form])
+  }, [form, isDirty, productOutput])
+
+  const discardEdits = useCallback(() => {
+    if (!productOutput) {
+      return
+    }
+
+    if (
+      isDirty &&
+      !window.confirm(
+        'You have unsaved changes. Are you sure you want to discard your edits?',
+      )
+    ) {
+      return
+    }
+
+    form.reset(getProductOutputFormValues(productOutput))
+    router.replace(resourcePath)
+  }, [form, isDirty, productOutput, resourcePath, router])
+
+  const mapPreview = (
+    <div className="h-96 overflow-hidden rounded-lg">
+      {geometryBbox && geometryData ? (
+        <MapViewer
+          initialViewState={{
+            bounds: geometryBbox,
+            fitBoundsOptions: { padding: 100 },
+          }}
+        >
+          <Source id="geojson" type="geojson" data={geometryData} />
+          <Layer
+            id="geojson-line"
+            source="geojson"
+            type="line"
+            paint={{
+              'line-color': 'black',
+              'line-width': 2,
+            }}
+          />
+          <Layer
+            id="geojson-fill"
+            source="geojson"
+            type="fill"
+            paint={{
+              'fill-color': 'black',
+              'fill-opacity': 0.2,
+            }}
+          />
+        </MapViewer>
+      ) : null}
+    </div>
+  )
 
   return (
     <ResourcePageState
@@ -95,69 +193,133 @@ const ProductRunDetails = () => {
       loadingMessage="Loading product output"
       notFoundMessage="Product output not found"
     >
-      <div className="w-[800px] max-w-full gap-8 flex flex-col">
-        <div className="rounded-lg overflow-hidden h-96">
-          {geometryBbox && geometryData && (
-            <MapViewer
-              initialViewState={{
-                bounds: geometryBbox,
-                fitBoundsOptions: { padding: 100 },
-              }}
-            >
-              <Source id="geojson" type="geojson" data={geometryData} />
-              <Layer
-                id="geojson-line"
-                source="geojson"
-                type="line"
-                paint={{
-                  'line-color': 'black',
-                  'line-width': 2,
-                }}
-              />
-              <Layer
-                id="geojson-fill"
-                source="geojson"
-                type="fill"
-                paint={{
-                  'fill-color': 'black',
-                  'fill-opacity': 0.2,
-                }}
-              />
-            </MapViewer>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 grid-rows-1 gap-4">
-            <ProductOutputSummaryCard productOutput={productOutput} />
-            <ProductOutputDependenciesCard productOutput={productOutput} />
-          </div>
-          <div className="flex flex-col gap-4">
-            <DerivedIndicatorSummaryCard productOutput={productOutput} />
-            {productOutput?.dependencyProductOutputs.map(
-              (dependencyProductOutput) => (
-                <ProductOutputDerivedDependenciesCard
-                  key={dependencyProductOutput.id}
-                  productOutput={dependencyProductOutput}
-                  parentProductOutput={productOutput}
+      {productOutput ? (
+        <Form {...form}>
+          <div className="flex w-full max-w-[1000px] flex-col gap-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              {isEditMode ? (
+                <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-xl font-semibold leading-7 shadow-none"
+                            placeholder="Product output name"
+                            value={field.value ?? ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
+                            placeholder="Description"
+                            value={field.value ?? ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              ) : (
+                <ResourceTitleBlock
+                  title={productOutput.name ?? 'Untitled product output'}
+                  description={productOutput.description ?? 'No description'}
                 />
-              ),
+              )}
+              <ResourceHeaderActions
+                canEdit={canEdit}
+                editHref={getEditModeHref(resourcePath)}
+                formId={formId}
+                isEditMode={isEditMode}
+                onDiscard={discardEdits}
+                resourcePath={resourcePath}
+                resourceTypeLabel="Product output"
+                savePending={updateProductOutput.isPending}
+              />
+            </div>
+
+            {isEditMode ? (
+              <CrudForm
+                form={form}
+                formId={formId}
+                mutation={updateProductOutput}
+                entityName="Product Output"
+                entityNamePlural="product outputs"
+                hiddenFields={[
+                  'id',
+                  'name',
+                  'description',
+                  'metadata',
+                  'visibility',
+                ]}
+                showSubmitAction={false}
+                successMessage="Product output saved"
+                onError={(error) =>
+                  toastError(error, 'Failed to update product output')
+                }
+                onSuccess={() => router.replace(resourcePath)}
+              />
+            ) : (
+              <>
+                {mapPreview}
+                <div className="flex w-full max-w-[720px] flex-col gap-4">
+                  <OverviewSection title="About">
+                    <OverviewText>
+                      {productOutput.description ?? 'No description.'}
+                    </OverviewText>
+                  </OverviewSection>
+                  <OverviewSection title="Output summary">
+                    <div className="flex flex-col gap-3 text-base leading-6 text-muted-foreground">
+                      <div>
+                        <Value
+                          value={productOutput.value}
+                          indicator={productOutput.indicator}
+                        />
+                      </div>
+                      <OverviewText>
+                        {`Time point: ${formatDateTime(productOutput.timePoint)}`}
+                      </OverviewText>
+                      {productOutput.indicator ? (
+                        <IndicatorButton indicator={productOutput.indicator} />
+                      ) : null}
+                    </div>
+                  </OverviewSection>
+                  {productOutput.dependencyProductOutputs.length > 0 ? (
+                    <OverviewSection title="Derived dependencies">
+                      <div className="flex flex-col gap-2">
+                        {productOutput.dependencyProductOutputs.map(
+                          (dependencyProductOutput) => (
+                            <ProductOutputButton
+                              key={dependencyProductOutput.id}
+                              productOutput={dependencyProductOutput}
+                            />
+                          ),
+                        )}
+                      </div>
+                    </OverviewSection>
+                  ) : null}
+                </div>
+              </>
             )}
           </div>
-        </div>
-
-        <CrudForm
-          form={form}
-          mutation={updateProductOutput}
-          entityName="Product Output"
-          entityNamePlural="product outputs"
-          hiddenFields={['visibility']}
-          readOnly={!canEdit}
-          successMessage="Updated Product Output"
-        />
-      </div>
+        </Form>
+      ) : null}
     </ResourcePageState>
   )
 }
 
-export default ProductRunDetails
+export default ProductOutputDetails

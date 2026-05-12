@@ -674,14 +674,14 @@ const ProductOutputsImportForm = ({
         {csvSummary ? (
           <div className="space-y-2">
             <FormLabel>Data preview</FormLabel>
-            <div className="min-w-0 overflow-x-auto rounded-md border">
-              <table className="w-full min-w-max text-sm">
-                <thead>
+            <div className="min-w-0 overflow-x-auto rounded-md border bg-white">
+              <table className="w-full min-w-max bg-white text-sm">
+                <thead className="bg-white">
                   <tr>
                     {csvSummary.columns.map((column) => (
                       <th
                         key={column}
-                        className="px-2 py-1 text-left font-medium bg-muted/50"
+                        className="bg-white px-2 py-1 text-left font-medium"
                       >
                         {column}
                       </th>
@@ -690,7 +690,7 @@ const ProductOutputsImportForm = ({
                 </thead>
                 <tbody>
                   {csvSummary.previewRows.map((row, index) => (
-                    <tr key={`preview-${index}`} className="odd:bg-muted/30">
+                    <tr key={`preview-${index}`}>
                       {csvSummary.columns.map((column) => (
                         <td key={`${column}-${index}`} className="px-2 py-1">
                           {row[column] ?? ''}

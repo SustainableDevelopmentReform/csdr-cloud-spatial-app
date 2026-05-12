@@ -3,7 +3,10 @@
 import { Tabs, TabsContent } from '@repo/ui/components/ui/tabs'
 import { Code2Icon, MapIcon, Table2Icon, WorkflowIcon } from 'lucide-react'
 import { useState } from 'react'
-import { DEFAULT_LINEAGE_EMPTY_MESSAGE } from '~/components/workflow-dag-chart'
+import {
+  DEFAULT_LINEAGE_EMPTY_MESSAGE,
+  LineageEmptyState,
+} from '~/components/workflow-dag-chart'
 import { SimpleWorkflowDagChart } from '~/components/simple-workflow-dag-chart'
 import {
   ConsolePrimaryTabsList,
@@ -17,7 +20,6 @@ export type ResourceTab =
   | 'lineage'
   | 'versions'
   | 'usage'
-  | 'actions'
 export type ExploreSubTab = 'map' | 'table'
 export type LineageSubTab = 'simple' | 'technical'
 
@@ -33,6 +35,9 @@ const lineageSubTabItems = [
 
 interface ResourcePageTabsProps {
   defaultTab?: ResourceTab
+  disabled?: boolean
+  value?: ResourceTab
+  onValueChange?: (value: ResourceTab) => void
   overview: React.ReactNode
   exploreMap?: React.ReactNode
   exploreTable?: React.ReactNode
@@ -40,11 +45,28 @@ interface ResourcePageTabsProps {
   workflowDagSimple?: unknown
   versions?: React.ReactNode
   usage?: React.ReactNode
-  actions?: React.ReactNode
+}
+
+const toResourceTab = (value: string): ResourceTab => {
+  switch (value) {
+    case 'explore':
+      return 'explore'
+    case 'lineage':
+      return 'lineage'
+    case 'versions':
+      return 'versions'
+    case 'usage':
+      return 'usage'
+    default:
+      return 'overview'
+  }
 }
 
 export function ResourcePageTabs({
   defaultTab = 'overview',
+  disabled = false,
+  value,
+  onValueChange,
   overview,
   exploreMap,
   exploreTable,
@@ -52,34 +74,40 @@ export function ResourcePageTabs({
   workflowDagSimple,
   versions,
   usage,
-  actions,
 }: ResourcePageTabsProps) {
+  const [internalTab, setInternalTab] = useState<ResourceTab>(defaultTab)
   const [exploreSubTab, setExploreSubTab] = useState<ExploreSubTab>('map')
   const [lineageSubTab, setLineageSubTab] = useState<LineageSubTab>('simple')
+  const activeTab = value ?? internalTab
+
+  const handleTabChange = (nextValue: string) => {
+    if (disabled) {
+      return
+    }
+
+    const nextTab = toResourceTab(nextValue)
+    setInternalTab(nextTab)
+    onValueChange?.(nextTab)
+  }
 
   return (
-    <Tabs defaultValue={defaultTab} className="gap-4">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-4">
       <ConsolePrimaryTabsList>
-        <ConsolePrimaryTabsTrigger value="overview">
+        <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
           Overview
         </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger value="explore">
+        <ConsolePrimaryTabsTrigger disabled={disabled} value="explore">
           Explore
         </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger value="lineage">
+        <ConsolePrimaryTabsTrigger disabled={disabled} value="lineage">
           Lineage
         </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger value="versions">
+        <ConsolePrimaryTabsTrigger disabled={disabled} value="versions">
           Versions
         </ConsolePrimaryTabsTrigger>
-        <ConsolePrimaryTabsTrigger value="usage">
+        <ConsolePrimaryTabsTrigger disabled={disabled} value="usage">
           Usage
         </ConsolePrimaryTabsTrigger>
-        {actions && (
-          <ConsolePrimaryTabsTrigger value="actions">
-            Actions
-          </ConsolePrimaryTabsTrigger>
-        )}
       </ConsolePrimaryTabsList>
 
       <TabsContent value="overview">
@@ -103,7 +131,7 @@ export function ResourcePageTabs({
             </div>
           )}
           {exploreSubTab === 'table' && (
-            <div>
+            <div className="overflow-hidden rounded-[10px] bg-white p-6 text-card-foreground">
               {exploreTable ?? (
                 <p className="py-8 text-center text-muted-foreground">
                   No table data available.
@@ -129,18 +157,10 @@ export function ResourcePageTabs({
                 onMethodClick={() => setLineageSubTab('technical')}
               />
             ) : (
-              <p className="py-8 text-center text-muted-foreground">
-                {DEFAULT_LINEAGE_EMPTY_MESSAGE}
-              </p>
+              <LineageEmptyState />
             ))}
           {lineageSubTab === 'technical' && (
-            <div>
-              {lineage ?? (
-                <p className="py-8 text-center text-muted-foreground">
-                  {DEFAULT_LINEAGE_EMPTY_MESSAGE}
-                </p>
-              )}
-            </div>
+            <div>{lineage ?? <LineageEmptyState />}</div>
           )}
         </div>
       </TabsContent>
@@ -164,12 +184,6 @@ export function ResourcePageTabs({
           )}
         </div>
       </TabsContent>
-
-      {actions && (
-        <TabsContent value="actions">
-          <div className="flex flex-col gap-6">{actions}</div>
-        </TabsContent>
-      )}
     </Tabs>
   )
 }

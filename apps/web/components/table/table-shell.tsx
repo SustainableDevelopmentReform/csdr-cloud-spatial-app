@@ -27,7 +27,7 @@ export const TableShell = ({
   return (
     <section
       className={cn(
-        'overflow-hidden rounded-[10px] bg-card text-card-foreground',
+        'overflow-hidden rounded-[10px] bg-white text-card-foreground',
         className,
       )}
     >

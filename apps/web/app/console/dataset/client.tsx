@@ -9,6 +9,7 @@ import { useAccessControl } from '../../../hooks/useAccessControl'
 import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
+import { getEditModeHref } from '../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -113,8 +114,8 @@ const DatasetFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Dataset"
           itemLink={datasetLink}
-          itemActionLabel="About"
-          showEditAction={false}
+          editLink={(dataset) => getEditModeHref(datasetLink(dataset))}
+          itemActionLabel="View"
           canModifyItem={(dataset) =>
             canEditConsoleResource({
               access,

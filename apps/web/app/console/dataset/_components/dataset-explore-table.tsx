@@ -132,9 +132,9 @@ export function DatasetExploreTable({
         </span>
       </div>
 
-      <div className="rounded-md border overflow-auto max-h-[600px]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background border-b">
+      <div className="max-h-[600px] overflow-auto rounded-md border bg-white">
+        <table className="w-full bg-white text-sm">
+          <thead className="sticky top-0 border-b bg-white">
             <tr>
               {displayColumns.map((col) => (
                 <th

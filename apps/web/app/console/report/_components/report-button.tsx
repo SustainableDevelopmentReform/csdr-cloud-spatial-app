@@ -1,6 +1,6 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
-import { LockIcon } from 'lucide-react'
+import { FileBarChart2Icon, LockIcon } from 'lucide-react'
 import { ReportLinkParams, useReportLink } from '../_hooks'
 
 export const ReportButtons = ({
@@ -26,12 +26,13 @@ export const ReportButton = ({ report }: { report: ReportLinkParams }) => {
     <BadgeLink
       href={reportLink(report)}
       variant="outline"
+      icon={<FileBarChart2Icon />}
       adornment={
         <span className="flex items-center gap-1">
           {isPublished ? (
             <LockIcon
               aria-label="Published report"
-              className="size-3.5 text-amber-700"
+              className="size-3.5 text-muted-foreground"
             />
           ) : null}
           <GlobalVisibilityIndicator visibility={report.visibility} />

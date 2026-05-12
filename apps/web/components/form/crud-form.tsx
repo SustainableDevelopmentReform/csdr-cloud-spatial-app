@@ -42,6 +42,8 @@ export interface CrudFormProps<
   onSuccess?: () => void
   readOnly?: boolean
   secondaryAction?: React.ReactNode
+  formId?: string
+  showSubmitAction?: boolean
   successMessage: string
 }
 
@@ -54,6 +56,8 @@ export const CrudForm = <
   actions: actionsProp,
   children,
   readOnly = false,
+  formId,
+  showSubmitAction = true,
   entityName,
   readOnlyFields = ['id', 'metadata'],
   hiddenFields,
@@ -120,6 +124,7 @@ export const CrudForm = <
       <Form {...form}>
         <form
           className="grid gap-3 border-b border-gray-200 pb-8"
+          id={formId}
           onSubmit={form.handleSubmit((formData) => {
             if (!readOnly) {
               mutation.mutate(formData, {
@@ -248,7 +253,7 @@ export const CrudForm = <
 
           {children}
 
-          {!readOnly ? (
+          {!readOnly && showSubmitAction ? (
             <div className="mt-4 flex justify-end gap-2">
               {secondaryAction}
               <Button disabled={mutation.isPending}>

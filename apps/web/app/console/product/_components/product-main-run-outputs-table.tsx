@@ -15,8 +15,6 @@ import {
   toGeographicBoundsQuery,
 } from '../../_components/geographic-bounds-picker-dialog'
 import { formatDateTime } from '@repo/ui/lib/date'
-import { GeometriesButton } from '../../geometries/_components/geometries-button'
-import { GeometriesRunButton } from '../../geometries/_components/geometries-run-button'
 import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
 import { ProductRunIndicatorsSelect } from '../_components/product-run-indicators-select'
 import { ProductGeometryOutputSelect } from '../_components/product-run-geometry-output-select'
@@ -71,7 +69,7 @@ export function ProductMainRunOutputsTable({
             info.row.original.indicator && (
               <IndicatorButton indicator={info.row.original.indicator} />
             ),
-          size: 20,
+          size: 220,
         }),
         columnHelper.accessor((row) => row.value, {
           id: 'value',
@@ -106,25 +104,13 @@ export function ProductMainRunOutputsTable({
             </SortButton>
           ),
           cell: (info) => formatDateTime(info.getValue()),
-          size: 120,
+          size: 160,
         }),
         columnHelper.display({
           id: 'geometry',
           header: () => <span>Geometry</span>,
           cell: ({ row }) => (
-            <div className="flex items-center gap-2 flex-wrap">
-              {row.original.geometryOutput?.geometriesRun?.geometries && (
-                <GeometriesButton
-                  geometries={
-                    row.original.geometryOutput.geometriesRun.geometries
-                  }
-                />
-              )}
-              {row.original.geometryOutput?.geometriesRun && (
-                <GeometriesRunButton
-                  geometriesRun={row.original.geometryOutput.geometriesRun}
-                />
-              )}
+            <div className="flex flex-wrap items-center gap-2">
               {row.original.geometryOutput && (
                 <GeometryOutputButton
                   geometryOutput={row.original.geometryOutput}
@@ -132,14 +118,14 @@ export function ProductMainRunOutputsTable({
               )}
             </div>
           ),
-          size: 120,
+          size: 180,
         }),
       ] as ColumnDef<ProductOutputListItem>[],
     [],
   )
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <SearchInput
           className="w-full md:max-w-md"
@@ -195,6 +181,7 @@ export function ProductMainRunOutputsTable({
         extraColumns={columns}
         title="ProductOutput"
         itemLink={productLink}
+        stickyColumnClassName="bg-white"
         sortOptions={['name', 'value', 'timePoint', 'createdAt', 'updatedAt']}
         query={{ sort: query?.sort, order: query?.order }}
         onSortChange={(next) => setSearchParams(next)}

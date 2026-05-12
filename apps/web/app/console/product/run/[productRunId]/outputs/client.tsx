@@ -30,6 +30,7 @@ import BaseCrudTable, {
 import { SearchInput } from '../../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../../hooks/useAccessControl'
 import { ConsoleCrudListFrame } from '../../../../_components/console-crud-list-frame'
+import { getEditModeHref } from '../../../../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -341,6 +342,9 @@ const ProductOutputFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt', 'value', 'timePoint']}
           title="ProductOutput"
           itemLink={productLink}
+          editLink={(productOutput) =>
+            getEditModeHref(productLink(productOutput))
+          }
           canModifyItem={() => canEdit}
           query={{ sort: query?.sort, order: query?.order }}
           onSortChange={(next) => setSearchParams(next)}

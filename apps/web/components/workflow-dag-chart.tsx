@@ -47,6 +47,16 @@ interface WorkflowDagChartProps {
 
 export const DEFAULT_LINEAGE_EMPTY_MESSAGE = 'No lineage information available.'
 
+export function LineageEmptyState({
+  message = DEFAULT_LINEAGE_EMPTY_MESSAGE,
+}: {
+  message?: string
+}) {
+  return (
+    <p className="py-8 text-center text-sm text-muted-foreground">{message}</p>
+  )
+}
+
 export function WorkflowDagChart({
   emptyMessage = DEFAULT_LINEAGE_EMPTY_MESSAGE,
   workflowDag,
@@ -54,13 +64,7 @@ export function WorkflowDagChart({
   const parsedWorkflowDag = workflowDagSchema.safeParse(workflowDag)
 
   if (!parsedWorkflowDag.success || parsedWorkflowDag.data.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          {emptyMessage}
-        </CardContent>
-      </Card>
-    )
+    return <LineageEmptyState message={emptyMessage} />
   }
 
   const steps = [...parsedWorkflowDag.data].sort((a, b) => a.order - b.order)

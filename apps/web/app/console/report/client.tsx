@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import {
@@ -13,6 +13,7 @@ import { useAccessControl } from '../../../hooks/useAccessControl'
 import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
+import { getEditModeHref } from '../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -60,6 +61,10 @@ const ReportFeature = () => {
     isFetchingNextPage,
   } = useReports(undefined, true)
   const reportLink = useReportLink()
+  const reportEditLink = useCallback(
+    (report: ReportListItem) => getEditModeHref(reportLink(report)),
+    [reportLink],
+  )
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
     [query?.indicatorId],
@@ -324,6 +329,7 @@ const ReportFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Report"
           itemLink={reportLink}
+          editLink={reportEditLink}
           canModifyItem={(report) =>
             canEditConsoleResource({
               access,

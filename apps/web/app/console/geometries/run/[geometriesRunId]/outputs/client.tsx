@@ -24,6 +24,7 @@ import {
 import { TableRowDeleteAction } from '../../../../../../components/table/table-row-delete-action'
 import { useAccessControl } from '../../../../../../hooks/useAccessControl'
 import { ConsoleCrudListFrame } from '../../../../_components/console-crud-list-frame'
+import { getEditModeHref } from '../../../../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -203,6 +204,9 @@ const GeometryOutputFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="GeometryOutput"
           itemLink={geometryOutputLink}
+          editLink={(geometryOutput) =>
+            getEditModeHref(geometryOutputLink(geometryOutput))
+          }
           canModifyItem={() => canEdit}
           deleteAction={(geometryOutput) => (
             <GeometryOutputDeleteAction geometryOutput={geometryOutput} />

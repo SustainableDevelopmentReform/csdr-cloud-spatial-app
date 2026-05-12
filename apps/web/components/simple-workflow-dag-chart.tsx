@@ -1,7 +1,10 @@
 'use client'
 
 import { z } from 'zod'
-import { DEFAULT_LINEAGE_EMPTY_MESSAGE } from './workflow-dag-chart'
+import {
+  DEFAULT_LINEAGE_EMPTY_MESSAGE,
+  LineageEmptyState,
+} from './workflow-dag-chart'
 
 const workflowDagSimpleSchema = z.object({
   description: z.string(),
@@ -26,9 +29,7 @@ export function SimpleWorkflowDagChart({
     workflowDagSimpleSchema.safeParse(workflowDagSimple)
 
   if (!parsedWorkflowDagSimple.success) {
-    return (
-      <p className="py-8 text-center text-muted-foreground">{emptyMessage}</p>
-    )
+    return <LineageEmptyState message={emptyMessage} />
   }
 
   const workflow = parsedWorkflowDagSimple.data

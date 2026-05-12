@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   type DashboardContent,
   updateDashboardSchema,
-  visibilitySchema,
 } from '@repo/schemas/crud'
 import { Button } from '@repo/ui/components/ui/button'
 import {
@@ -15,12 +14,6 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@repo/ui/components/ui/select'
 import { Separator } from '@repo/ui/components/ui/separator'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { Tabs } from '@repo/ui/components/ui/tabs'
@@ -53,6 +46,10 @@ import {
   type VisibilityImpactDialogState,
   VisibilityImpactDialog,
 } from '~/app/console/_components/resource-visibility-action'
+import {
+  getResourceVisibilityChangeSummary,
+  ResourceVisibilitySelect,
+} from '~/app/console/_components/resource-detail-mode'
 import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import { ReportSources } from '~/app/console/report/_components/report-sources'
 import { DeleteAlertDialog } from '~/components/form/delete-alert-dialog'
@@ -111,23 +108,12 @@ const getDashboardFormValues = (
 const toDashboardTab = (value: string): DashboardTab =>
   value === 'sources' ? 'sources' : 'overview'
 
-const getVisibilityChangeSummary = (visibility: ResourceVisibility): string => {
-  switch (visibility) {
-    case 'private':
-      return 'This will keep the dashboard inside its organization and may break externally visible dependents.'
-    case 'public':
-      return 'This will make the dashboard readable to anyone with the link.'
-    case 'global':
-      return 'This will make the dashboard readable to anyone and list it across organizations and in the public explorer.'
-    default:
-      return visibility
-  }
-}
-
 const DashboardTabs = ({
+  disabled = false,
   onValueChange,
   value,
 }: {
+  disabled?: boolean
   onValueChange: (value: DashboardTab) => void
   value: DashboardTab
 }) => (
@@ -136,10 +122,10 @@ const DashboardTabs = ({
     onValueChange={(next) => onValueChange(toDashboardTab(next))}
   >
     <ConsolePrimaryTabsList>
-      <ConsolePrimaryTabsTrigger value="overview">
+      <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
         Overview
       </ConsolePrimaryTabsTrigger>
-      <ConsolePrimaryTabsTrigger value="sources">
+      <ConsolePrimaryTabsTrigger disabled={disabled} value="sources">
         Sources &amp; Methods
       </ConsolePrimaryTabsTrigger>
     </ConsolePrimaryTabsList>
@@ -218,6 +204,7 @@ const DashboardDetails = () => {
   const isEditMode = searchParams.get('mode') === 'edit' && canEdit
   const watchedContent = useWatch({ control: form.control, name: 'content' })
   const content = watchedContent ?? emptyContent
+  const selectedTab = isEditMode ? 'overview' : activeTab
 
   const visibilityOptions = dashboard
     ? getConsoleResourceVisibilityOptions({
@@ -310,7 +297,10 @@ const DashboardDetails = () => {
 
       setVisibilityDialog({
         title: `Change visibility to ${formatVisibility(nextVisibility)}`,
-        description: getVisibilityChangeSummary(nextVisibility),
+        description: getResourceVisibilityChangeSummary(
+          'dashboard',
+          nextVisibility,
+        ),
         impact: preview,
         nextVisibility,
       })
@@ -488,58 +478,16 @@ const DashboardDetails = () => {
                             </FormItem>
                           )}
                         />
-                        {visibilityOptions.length > 0 ? (
-                          <Select
-                            disabled={
-                              !canChangeVisibility ||
-                              previewDashboardVisibility.isPending ||
-                              updateDashboardVisibility.isPending
-                            }
-                            value={dashboard.visibility}
-                            onValueChange={(value) => {
-                              const parsedVisibility =
-                                visibilitySchema.safeParse(value)
-
-                              if (parsedVisibility.success) {
-                                void previewVisibilityChange(
-                                  parsedVisibility.data,
-                                )
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="m-0 h-9 min-h-9 w-fit justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium leading-5 text-foreground shadow-xs [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:opacity-100">
-                              <ResourceVisibilityIcon
-                                className="h-4 w-4"
-                                visibility={dashboard.visibility}
-                              />
-                              <span className="text-sm font-medium leading-5">
-                                Visibility:{' '}
-                                {formatVisibility(dashboard.visibility)}
-                              </span>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {visibilityOptions.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  <span className="inline-flex items-center gap-2">
-                                    <ResourceVisibilityIcon
-                                      className="h-4 w-4"
-                                      visibility={option}
-                                    />
-                                    {formatVisibility(option)}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div className="flex h-9 min-h-9 w-fit items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium leading-5 text-foreground shadow-xs">
-                            <ResourceVisibilityIcon
-                              className="h-4 w-4"
-                              visibility={dashboard.visibility}
-                            />
-                            Visibility: {formatVisibility(dashboard.visibility)}
-                          </div>
-                        )}
+                        <ResourceVisibilitySelect
+                          canChange={canChangeVisibility}
+                          currentVisibility={dashboard.visibility}
+                          isPending={
+                            previewDashboardVisibility.isPending ||
+                            updateDashboardVisibility.isPending
+                          }
+                          options={visibilityOptions}
+                          onPreviewChange={previewVisibilityChange}
+                        />
                       </div>
                     ) : (
                       <div className="flex max-w-[720px] flex-1 flex-col gap-1">
@@ -560,7 +508,7 @@ const DashboardDetails = () => {
                     )}
                   </div>
 
-                  {activeTab === 'overview' ? (
+                  {selectedTab === 'overview' ? (
                     <DashboardGridEditor
                       className="w-full"
                       disabled={!isEditMode}
@@ -568,7 +516,8 @@ const DashboardDetails = () => {
                       header={(addChartAction) => (
                         <div className="flex w-full items-center justify-between gap-4">
                           <DashboardTabs
-                            value={activeTab}
+                            value={selectedTab}
+                            disabled={isEditMode}
                             onValueChange={setActiveTab}
                           />
                           {isEditMode ? addChartAction : null}
@@ -585,7 +534,8 @@ const DashboardDetails = () => {
                   ) : (
                     <div className="flex flex-col gap-4">
                       <DashboardTabs
-                        value={activeTab}
+                        value={selectedTab}
+                        disabled={isEditMode}
                         onValueChange={setActiveTab}
                       />
                       <ReportSources

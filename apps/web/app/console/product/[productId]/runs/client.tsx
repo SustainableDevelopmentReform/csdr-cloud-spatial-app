@@ -18,6 +18,7 @@ import { TableRowDeleteAction } from '../../../../../components/table/table-row-
 import { SearchInput } from '../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
+import { getEditModeHref } from '../../../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -53,7 +54,7 @@ const ProductRunDeleteAction = ({
   )
 }
 
-const ProductRunFeature = () => {
+const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const {
     data,
     query,
@@ -251,7 +252,9 @@ const ProductRunFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="ProductRun"
           itemLink={productLink}
+          editLink={(productRun) => getEditModeHref(productLink(productRun))}
           canModifyItem={() => canEdit}
+          stickyColumnClassName={embedded ? 'bg-white' : undefined}
           deleteAction={(productRun) => (
             <ProductRunDeleteAction productRun={productRun} />
           )}

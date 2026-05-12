@@ -25,6 +25,7 @@ import { TableRowDeleteAction } from '../../../../../components/table/table-row-
 import { SearchInput } from '../../../../../components/table/search-input'
 import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
+import { getEditModeHref } from '../../../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -58,7 +59,7 @@ const GeometriesRunDeleteAction = ({
   )
 }
 
-const GeometriesRunFeature = () => {
+const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const {
     data,
     query,
@@ -203,7 +204,11 @@ const GeometriesRunFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="GeometriesRun"
           itemLink={geometriesLink}
+          editLink={(geometriesRun) =>
+            getEditModeHref(geometriesLink(geometriesRun))
+          }
           canModifyItem={() => canEdit}
+          stickyColumnClassName={embedded ? 'bg-white' : undefined}
           deleteAction={(geometriesRun) => (
             <GeometriesRunDeleteAction geometriesRun={geometriesRun} />
           )}

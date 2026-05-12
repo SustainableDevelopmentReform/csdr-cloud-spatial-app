@@ -40,7 +40,7 @@ interface BaseActionProps<T extends BaseItem> {
   deleteAction?: (item: T) => React.ReactNode
 }
 
-const actionButtonClassName = 'h-8 px-3 text-xs'
+const actionButtonClassName = 'h-8 px-2 text-xs'
 
 const resourceVisibilityLabels: Record<ResourceVisibility, string> = {
   global: 'Global',
@@ -93,7 +93,7 @@ const Action = <T extends BaseItem>({
   }
 
   return (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="flex w-max flex-nowrap justify-end gap-2 whitespace-nowrap">
       {resolvedItemLink ? (
         <Button
           asChild
@@ -145,6 +145,7 @@ interface BaseCrudTableProps<
   extraColumns?: ColumnDef<T>[]
   query?: Q
   sortOptions: readonly NonNullable<Q['sort']>[]
+  stickyColumnClassName?: string
   onSortChange?: (query: BaseCrudTableSortChange<Q>) => void
 }
 
@@ -180,6 +181,14 @@ const resolveSort = <Sort extends string>(
   sortOptions: readonly Sort[],
 ): Sort | undefined => sortOptions.find((sortOption) => sortOption === sort)
 
+const getActionButtonWidth = ({
+  hasIcon,
+  label,
+}: {
+  hasIcon: boolean
+  label: string
+}) => Math.max(56, label.length * 7 + (hasIcon ? 24 : 0) + 16)
+
 const BaseCrudTable = <
   T extends BaseItem,
   Q extends BaseCrudTableQuery = BaseCrudTableQuery,
@@ -196,12 +205,46 @@ const BaseCrudTable = <
   canModifyItem,
   deleteAction,
   sortOptions,
+  stickyColumnClassName,
   isLoading = false,
   onSortChange,
 }: BaseCrudTableProps<T, Q>) => {
   const sortingState = query?.sort
     ? [{ id: query.sort, desc: query.order === 'desc' }]
     : []
+  const canModifyAny =
+    canModifyItem !== undefined
+      ? data.length === 0 || data.some((item) => canModifyItem(item))
+      : false
+  const hasViewAction = Boolean(itemLink)
+  const hasEditAction =
+    showEditAction !== false && canModifyAny && Boolean(editLink ?? itemLink)
+  const hasDeleteAction = canModifyAny && Boolean(deleteAction)
+  const actionButtonWidths = [
+    hasViewAction
+      ? getActionButtonWidth({
+          hasIcon: true,
+          label: itemActionLabel ?? 'View',
+        })
+      : 0,
+    hasEditAction
+      ? getActionButtonWidth({
+          hasIcon: true,
+          label: 'Edit',
+        })
+      : 0,
+    hasDeleteAction
+      ? getActionButtonWidth({
+          hasIcon: true,
+          label: 'Delete',
+        })
+      : 0,
+  ].filter((width) => width > 0)
+  const actionColumnSize =
+    actionButtonWidths.length > 0
+      ? actionButtonWidths.reduce((total, width) => total + width, 16) +
+        (actionButtonWidths.length - 1) * 8
+      : 48
 
   const columns = useMemo<ColumnDef<T>[]>(() => {
     const nextColumns: ColumnDef<T>[] = []
@@ -225,7 +268,7 @@ const BaseCrudTable = <
           />
         </span>
       ),
-      minSize: 220,
+      size: 240,
     })
 
     if (baseColumns.includes('description')) {
@@ -282,12 +325,13 @@ const BaseCrudTable = <
           deleteAction={deleteAction}
         />
       ),
-      size: 260,
+      size: actionColumnSize,
     })
 
     return nextColumns
   }, [
     baseColumns,
+    actionColumnSize,
     canModifyItem,
     deleteAction,
     editLink,
@@ -324,7 +368,13 @@ const BaseCrudTable = <
     },
   })
 
-  return <Table table={table} isLoading={isLoading} />
+  return (
+    <Table
+      table={table}
+      isLoading={isLoading}
+      stickyColumnClassName={stickyColumnClassName}
+    />
+  )
 }
 
 export default BaseCrudTable

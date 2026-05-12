@@ -201,7 +201,7 @@ const DataLibraryFeature = () => {
             </span>
           </span>
         ),
-        minSize: 260,
+        size: 260,
       },
       {
         id: 'resourceType',
@@ -210,7 +210,7 @@ const DataLibraryFeature = () => {
         cell: (info) => (
           <DataLibraryTypeBadge resourceType={info.row.original.resourceType} />
         ),
-        size: 140,
+        size: 104,
       },
       {
         id: 'updatedAt',

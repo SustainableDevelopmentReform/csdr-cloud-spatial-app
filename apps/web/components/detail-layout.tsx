@@ -14,16 +14,21 @@ const DetailLayout: React.FC<{
   children?: React.ReactNode
   breadcrumbs?: React.ReactNode
   constrainContent?: boolean
+  showHeaderOnDetail?: boolean
   showHeaderOnIndex?: boolean
 }> = ({
   children,
   breadcrumbs,
   constrainContent = true,
+  showHeaderOnDetail = true,
   showHeaderOnIndex = true,
 }) => {
   const selectedLayoutSegment = useSelectedLayoutSegment()
   const selectedLayoutSegments = useSelectedLayoutSegments()
-  const shouldShowHeader = showHeaderOnIndex || selectedLayoutSegment !== null
+  const isDetailIndexRoute = selectedLayoutSegments.length === 1
+  const shouldShowHeader =
+    (showHeaderOnIndex || selectedLayoutSegment !== null) &&
+    (showHeaderOnDetail || !isDetailIndexRoute)
   const isFocusedTableRoute = selectedLayoutSegments.some((segment) =>
     focusedTableSegments.has(segment),
   )

@@ -14,6 +14,7 @@ import { SearchInput } from '../../../components/table/search-input'
 import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
+import { getEditModeHref } from '../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -203,8 +204,8 @@ const ProductFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Product"
           itemLink={productLink}
-          itemActionLabel="About"
-          showEditAction={false}
+          editLink={(product) => getEditModeHref(productLink(product))}
+          itemActionLabel="View"
           canModifyItem={(product) =>
             canEditConsoleResource({
               access,

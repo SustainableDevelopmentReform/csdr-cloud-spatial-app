@@ -9,6 +9,7 @@ import { useAccessControl } from '../../../hooks/useAccessControl'
 import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
+import { getEditModeHref } from '../_components/resource-detail-mode'
 import {
   formatBoundsLabel,
   GeographicBoundsPickerDialog,
@@ -117,8 +118,8 @@ const GeometriesFeature = () => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Boundaries"
           itemLink={geometriesLink}
-          itemActionLabel="About"
-          showEditAction={false}
+          editLink={(geometries) => getEditModeHref(geometriesLink(geometries))}
+          itemActionLabel="View"
           canModifyItem={(geometries) =>
             canEditConsoleResource({
               access,

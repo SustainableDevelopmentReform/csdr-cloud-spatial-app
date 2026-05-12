@@ -1,6 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { DashboardLinkParams, useDashboardLink } from '../_hooks'
+import { LayoutDashboardIcon } from 'lucide-react'
 
 export const DashboardButtons = ({
   dashboards,
@@ -27,6 +28,7 @@ export const DashboardButton = ({
     <BadgeLink
       href={dashboardLink(dashboard)}
       variant="outline"
+      icon={<LayoutDashboardIcon />}
       adornment={
         <GlobalVisibilityIndicator visibility={dashboard.visibility} />
       }

@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SelectedDataPoint } from '@repo/plot/types'
-import { updateReportSchema, visibilitySchema } from '@repo/schemas/crud'
+import { updateReportSchema } from '@repo/schemas/crud'
 import {
   reportTiptapDocumentSchema,
   type ReportTiptapDocument,
@@ -36,12 +36,6 @@ import {
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@repo/ui/components/ui/select'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { Tabs } from '@repo/ui/components/ui/tabs'
 import { Textarea } from '@repo/ui/components/ui/textarea'
@@ -73,6 +67,10 @@ import {
   type VisibilityImpactDialogState,
   VisibilityImpactDialog,
 } from '~/app/console/_components/resource-visibility-action'
+import {
+  getResourceVisibilityChangeSummary,
+  ResourceVisibilitySelect,
+} from '~/app/console/_components/resource-detail-mode'
 import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import { ResourcePageState } from '../../_components/resource-page-state'
 import { DeleteAlertDialog } from '../../../../components/form/delete-alert-dialog'
@@ -134,19 +132,6 @@ const getReportFormValues = (report: ReportDetail): UpdateReportPayload => ({
 const toReportTab = (value: string): ReportTab =>
   value === 'sources' ? 'sources' : 'overview'
 
-const getVisibilityChangeSummary = (visibility: ResourceVisibility): string => {
-  switch (visibility) {
-    case 'private':
-      return 'This will keep the report inside its organization and may break externally visible dependents.'
-    case 'public':
-      return 'This will make the report readable to anyone with the link.'
-    case 'global':
-      return 'This will make the report readable to anyone and list it across organizations and in the public explorer.'
-    default:
-      return visibility
-  }
-}
-
 const getReportEditorContent = (
   content: UpdateReportPayload['content'],
 ): ReportTiptapDocument => {
@@ -174,9 +159,11 @@ const isReportEditorInteraction = () => {
 }
 
 const ReportTabs = ({
+  disabled = false,
   onValueChange,
   value,
 }: {
+  disabled?: boolean
   onValueChange: (value: ReportTab) => void
   value: ReportTab
 }) => (
@@ -185,10 +172,10 @@ const ReportTabs = ({
     onValueChange={(next) => onValueChange(toReportTab(next))}
   >
     <ConsolePrimaryTabsList>
-      <ConsolePrimaryTabsTrigger value="overview">
+      <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
         Overview
       </ConsolePrimaryTabsTrigger>
-      <ConsolePrimaryTabsTrigger value="sources">
+      <ConsolePrimaryTabsTrigger disabled={disabled} value="sources">
         Sources &amp; Methods
       </ConsolePrimaryTabsTrigger>
     </ConsolePrimaryTabsList>
@@ -296,6 +283,7 @@ const ReportDetails = () => {
   const canPublish = canEdit
   const canPreviewPdf = canEdit
   const isEditMode = searchParams.get('mode') === 'edit' && canEdit
+  const selectedTab = isEditMode ? 'overview' : activeTab
   const isPdfBusy = activePdfAction !== null || publishReport.isPending
   const watchedContent = useWatch({ control: form.control, name: 'content' })
   const reportContent = useMemo(
@@ -514,7 +502,10 @@ const ReportDetails = () => {
 
       setVisibilityDialog({
         title: `Change visibility to ${formatVisibility(nextVisibility)}`,
-        description: getVisibilityChangeSummary(nextVisibility),
+        description: getResourceVisibilityChangeSummary(
+          'report',
+          nextVisibility,
+        ),
         impact: preview,
         nextVisibility,
       })
@@ -688,17 +679,20 @@ const ReportDetails = () => {
               {duplicateReport.isPending ? 'Creating copy' : 'Create Copy'}
             </DropdownMenuItem>
           ) : null}
-          {canPreviewPdf || report.publishedPdfAvailable || canDuplicate ? (
+          {!isEditMode &&
+          (canPreviewPdf || report.publishedPdfAvailable || canDuplicate) ? (
             <DropdownMenuSeparator />
           ) : null}
-          <DropdownMenuItem
-            onSelect={() => {
-              void copyShareLink()
-            }}
-          >
-            <Share2 className="h-4 w-4" />
-            {shareCopied ? 'Copied' : 'Share'}
-          </DropdownMenuItem>
+          {!isEditMode ? (
+            <DropdownMenuItem
+              onSelect={() => {
+                void copyShareLink()
+              }}
+            >
+              <Share2 className="h-4 w-4" />
+              {shareCopied ? 'Copied' : 'Share'}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -802,58 +796,16 @@ const ReportDetails = () => {
                             </FormItem>
                           )}
                         />
-                        {visibilityOptions.length > 0 ? (
-                          <Select
-                            disabled={
-                              !canChangeVisibility ||
-                              previewReportVisibility.isPending ||
-                              updateReportVisibility.isPending
-                            }
-                            value={report.visibility}
-                            onValueChange={(value) => {
-                              const parsedVisibility =
-                                visibilitySchema.safeParse(value)
-
-                              if (parsedVisibility.success) {
-                                void previewVisibilityChange(
-                                  parsedVisibility.data,
-                                )
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="m-0 h-9 min-h-9 w-fit justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium leading-5 text-foreground shadow-xs [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:opacity-100">
-                              <ResourceVisibilityIcon
-                                className="h-4 w-4"
-                                visibility={report.visibility}
-                              />
-                              <span className="text-sm font-medium leading-5">
-                                Visibility:{' '}
-                                {formatVisibility(report.visibility)}
-                              </span>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {visibilityOptions.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  <span className="inline-flex items-center gap-2">
-                                    <ResourceVisibilityIcon
-                                      className="h-4 w-4"
-                                      visibility={option}
-                                    />
-                                    {formatVisibility(option)}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div className="flex h-9 min-h-9 w-fit items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium leading-5 text-foreground shadow-xs">
-                            <ResourceVisibilityIcon
-                              className="h-4 w-4"
-                              visibility={report.visibility}
-                            />
-                            Visibility: {formatVisibility(report.visibility)}
-                          </div>
-                        )}
+                        <ResourceVisibilitySelect
+                          canChange={canChangeVisibility}
+                          currentVisibility={report.visibility}
+                          isPending={
+                            previewReportVisibility.isPending ||
+                            updateReportVisibility.isPending
+                          }
+                          options={visibilityOptions}
+                          onPreviewChange={previewVisibilityChange}
+                        />
                       </div>
                     ) : (
                       <div className="flex max-w-[720px] flex-1 flex-col gap-1">
@@ -883,10 +835,11 @@ const ReportDetails = () => {
                     )}
                   </div>
 
-                  {activeTab === 'overview' ? (
+                  {selectedTab === 'overview' ? (
                     <div className="flex flex-col gap-4">
                       <ReportTabs
-                        value={activeTab}
+                        value={selectedTab}
+                        disabled={isEditMode}
                         onValueChange={setActiveTab}
                       />
                       <div className={reportEditorClassName}>
@@ -938,7 +891,8 @@ const ReportDetails = () => {
                   ) : (
                     <div className="flex flex-col gap-4">
                       <ReportTabs
-                        value={activeTab}
+                        value={selectedTab}
+                        disabled={isEditMode}
                         onValueChange={setActiveTab}
                       />
                       <ReportSources sources={report.sources} />
