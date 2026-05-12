@@ -15,48 +15,55 @@ import {
   TerminalIcon,
 } from 'lucide-react'
 import { useState } from 'react'
+import { z } from 'zod'
 
-interface WorkflowStep {
-  label: string
-  order: number
-  inputs?: Record<string, string>
-  outputs?: Record<string, string>
-  source?: {
-    file?: string
-    line?: number
-    github?: string
-    function?: string
-  }
-  command?: string
-  completed_at?: string
-}
+const workflowStepSchema = z.object({
+  label: z.string(),
+  order: z.number(),
+  inputs: z.record(z.string(), z.string()).optional(),
+  outputs: z.record(z.string(), z.string()).optional(),
+  source: z
+    .object({
+      file: z.string().optional(),
+      line: z.number().optional(),
+      github: z.string().optional(),
+      function: z.string().optional(),
+    })
+    .optional(),
+  command: z.string().optional(),
+  completed_at: z.string().optional(),
+})
+
+const workflowDagSchema = z.array(workflowStepSchema)
+
+type WorkflowStep = z.infer<typeof workflowStepSchema>
 
 interface WorkflowDagChartProps {
+  emptyMessage?: string
   workflowDag: unknown
   runType: 'dataset' | 'geometries' | 'product'
   isMainRoute?: boolean
 }
 
+export const DEFAULT_LINEAGE_EMPTY_MESSAGE = 'No lineage information available.'
+
 export function WorkflowDagChart({
+  emptyMessage = DEFAULT_LINEAGE_EMPTY_MESSAGE,
   workflowDag,
-  runType,
-  isMainRoute,
 }: WorkflowDagChartProps) {
-  if (!workflowDag || !Array.isArray(workflowDag) || workflowDag.length === 0) {
+  const parsedWorkflowDag = workflowDagSchema.safeParse(workflowDag)
+
+  if (!parsedWorkflowDag.success || parsedWorkflowDag.data.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          {isMainRoute
-            ? `No workflow graph JSON available for the main run for this ${runType}.`
-            : `No workflow graph JSON available for this ${runType} run.`}
+          {emptyMessage}
         </CardContent>
       </Card>
     )
   }
 
-  const steps = [...(workflowDag as WorkflowStep[])].sort(
-    (a, b) => a.order - b.order,
-  )
+  const steps = [...parsedWorkflowDag.data].sort((a, b) => a.order - b.order)
 
   return (
     <Card>

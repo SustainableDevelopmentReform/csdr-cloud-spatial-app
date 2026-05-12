@@ -1,6 +1,7 @@
 'use client'
 
 import { z } from 'zod'
+import { DEFAULT_LINEAGE_EMPTY_MESSAGE } from './workflow-dag-chart'
 
 const workflowDagSimpleSchema = z.object({
   description: z.string(),
@@ -13,9 +14,11 @@ const workflowDagSimpleSchema = z.object({
 export type WorkflowDagSimple = z.infer<typeof workflowDagSimpleSchema>
 
 export function SimpleWorkflowDagChart({
+  emptyMessage = DEFAULT_LINEAGE_EMPTY_MESSAGE,
   workflowDagSimple,
   onMethodClick,
 }: {
+  emptyMessage?: string
   workflowDagSimple: unknown
   onMethodClick?: () => void
 }) {
@@ -24,9 +27,7 @@ export function SimpleWorkflowDagChart({
 
   if (!parsedWorkflowDagSimple.success) {
     return (
-      <p className="py-8 text-center text-muted-foreground">
-        No simple lineage information available.
-      </p>
+      <p className="py-8 text-center text-muted-foreground">{emptyMessage}</p>
     )
   }
 

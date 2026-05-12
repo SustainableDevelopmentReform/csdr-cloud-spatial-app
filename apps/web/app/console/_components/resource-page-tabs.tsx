@@ -1,13 +1,15 @@
 'use client'
 
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@repo/ui/components/ui/tabs'
+import { Tabs, TabsContent } from '@repo/ui/components/ui/tabs'
+import { Code2Icon, MapIcon, Table2Icon, WorkflowIcon } from 'lucide-react'
 import { useState } from 'react'
+import { DEFAULT_LINEAGE_EMPTY_MESSAGE } from '~/components/workflow-dag-chart'
 import { SimpleWorkflowDagChart } from '~/components/simple-workflow-dag-chart'
+import {
+  ConsolePrimaryTabsList,
+  ConsolePrimaryTabsTrigger,
+  ConsoleSecondaryTabs,
+} from './console-tabs'
 
 export type ResourceTab =
   | 'overview'
@@ -18,6 +20,16 @@ export type ResourceTab =
   | 'actions'
 export type ExploreSubTab = 'map' | 'table'
 export type LineageSubTab = 'simple' | 'technical'
+
+const exploreSubTabItems = [
+  { icon: MapIcon, label: 'Map', value: 'map' },
+  { icon: Table2Icon, label: 'Table', value: 'table' },
+] as const
+
+const lineageSubTabItems = [
+  { icon: WorkflowIcon, label: 'Simple', value: 'simple' },
+  { icon: Code2Icon, label: 'Technical', value: 'technical' },
+] as const
 
 interface ResourcePageTabsProps {
   defaultTab?: ResourceTab
@@ -47,14 +59,28 @@ export function ResourcePageTabs({
 
   return (
     <Tabs defaultValue={defaultTab} className="gap-4">
-      <TabsList>
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="explore">Explore</TabsTrigger>
-        <TabsTrigger value="lineage">Lineage</TabsTrigger>
-        <TabsTrigger value="versions">Versions</TabsTrigger>
-        <TabsTrigger value="usage">Usage</TabsTrigger>
-        {actions && <TabsTrigger value="actions">Actions</TabsTrigger>}
-      </TabsList>
+      <ConsolePrimaryTabsList>
+        <ConsolePrimaryTabsTrigger value="overview">
+          Overview
+        </ConsolePrimaryTabsTrigger>
+        <ConsolePrimaryTabsTrigger value="explore">
+          Explore
+        </ConsolePrimaryTabsTrigger>
+        <ConsolePrimaryTabsTrigger value="lineage">
+          Lineage
+        </ConsolePrimaryTabsTrigger>
+        <ConsolePrimaryTabsTrigger value="versions">
+          Versions
+        </ConsolePrimaryTabsTrigger>
+        <ConsolePrimaryTabsTrigger value="usage">
+          Usage
+        </ConsolePrimaryTabsTrigger>
+        {actions && (
+          <ConsolePrimaryTabsTrigger value="actions">
+            Actions
+          </ConsolePrimaryTabsTrigger>
+        )}
+      </ConsolePrimaryTabsList>
 
       <TabsContent value="overview">
         <div className="flex max-w-[800px] flex-col gap-6">{overview}</div>
@@ -62,30 +88,11 @@ export function ResourcePageTabs({
 
       <TabsContent value="explore">
         <div className="flex flex-col gap-4">
-          <div className="inline-flex h-9 w-fit items-center justify-center rounded-lg border p-[3px]">
-            <button
-              type="button"
-              onClick={() => setExploreSubTab('map')}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                exploreSubTab === 'map'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Map
-            </button>
-            <button
-              type="button"
-              onClick={() => setExploreSubTab('table')}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                exploreSubTab === 'table'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Table
-            </button>
-          </div>
+          <ConsoleSecondaryTabs
+            items={exploreSubTabItems}
+            value={exploreSubTab}
+            onValueChange={setExploreSubTab}
+          />
           {exploreSubTab === 'map' && (
             <div>
               {exploreMap ?? (
@@ -109,46 +116,28 @@ export function ResourcePageTabs({
 
       <TabsContent value="lineage">
         <div className="flex flex-col gap-4">
-          <div className="inline-flex h-9 w-fit items-center justify-center rounded-lg border p-[3px]">
-            <button
-              type="button"
-              onClick={() => setLineageSubTab('simple')}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                lineageSubTab === 'simple'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Simple
-            </button>
-            <button
-              type="button"
-              onClick={() => setLineageSubTab('technical')}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                lineageSubTab === 'technical'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Technical
-            </button>
-          </div>
+          <ConsoleSecondaryTabs
+            items={lineageSubTabItems}
+            value={lineageSubTab}
+            onValueChange={setLineageSubTab}
+          />
           {lineageSubTab === 'simple' &&
             (workflowDagSimple ? (
               <SimpleWorkflowDagChart
+                emptyMessage={DEFAULT_LINEAGE_EMPTY_MESSAGE}
                 workflowDagSimple={workflowDagSimple}
                 onMethodClick={() => setLineageSubTab('technical')}
               />
             ) : (
               <p className="py-8 text-center text-muted-foreground">
-                No simple lineage information available.
+                {DEFAULT_LINEAGE_EMPTY_MESSAGE}
               </p>
             ))}
           {lineageSubTab === 'technical' && (
             <div>
               {lineage ?? (
                 <p className="py-8 text-center text-muted-foreground">
-                  No lineage information available.
+                  {DEFAULT_LINEAGE_EMPTY_MESSAGE}
                 </p>
               )}
             </div>

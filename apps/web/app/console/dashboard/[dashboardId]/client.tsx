@@ -23,7 +23,7 @@ import {
 } from '@repo/ui/components/ui/select'
 import { Separator } from '@repo/ui/components/ui/separator'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { Tabs, TabsList, TabsTrigger } from '@repo/ui/components/ui/tabs'
+import { Tabs } from '@repo/ui/components/ui/tabs'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import {
   Tooltip,
@@ -43,6 +43,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
+import {
+  ConsolePrimaryTabsList,
+  ConsolePrimaryTabsTrigger,
+} from '~/app/console/_components/console-tabs'
 import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
 import {
   handleVisibilityImpactError,
@@ -131,20 +135,14 @@ const DashboardTabs = ({
     value={value}
     onValueChange={(next) => onValueChange(toDashboardTab(next))}
   >
-    <TabsList className="h-9 rounded-[10px] bg-stone-300 p-[3px]">
-      <TabsTrigger
-        className="h-[30px] rounded-lg px-2 py-1 text-sm font-medium leading-5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-        value="overview"
-      >
+    <ConsolePrimaryTabsList>
+      <ConsolePrimaryTabsTrigger value="overview">
         Overview
-      </TabsTrigger>
-      <TabsTrigger
-        className="h-[30px] rounded-lg px-2 py-1 text-sm font-medium leading-5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-        value="sources"
-      >
+      </ConsolePrimaryTabsTrigger>
+      <ConsolePrimaryTabsTrigger value="sources">
         Sources &amp; Methods
-      </TabsTrigger>
-    </TabsList>
+      </ConsolePrimaryTabsTrigger>
+    </ConsolePrimaryTabsList>
   </Tabs>
 )
 
