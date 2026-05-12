@@ -41,7 +41,7 @@ pnpm typecheck
 - Prefer root scripts over ad hoc per-package command sequences unless you are intentionally scoping work.
 - Do not hide rough edges with vague docs; document real limitations when you find them.
 - Do not commit generated outputs, dependency folders, local env files, or local editor/system files.
-- Follow the release and runtime contracts in [docs/RELEASE.md](./docs/RELEASE.md) and [docs/RUNTIME.md](./docs/RUNTIME.md).
+- Follow the release and runtime contracts in [docs/release.md](./docs/release.md) and [docs/runtime.md](./docs/runtime.md).
 
 ## Support Expectations
 

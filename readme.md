@@ -31,8 +31,9 @@ packages/
   typescript-config/
 docs/
   architecture.md
+  chart-development.md
   development-workflow.md
-  DEPLOYMENT.md
+  deployment.md
 ```
 
 ## Local Setup
@@ -109,16 +110,19 @@ Backend tests require Docker because the server suite uses Testcontainers. See [
 ## Docs
 
 - [docs/architecture.md](./docs/architecture.md)
+- [docs/chart-development.md](./docs/chart-development.md)
 - [docs/development-workflow.md](./docs/development-workflow.md)
-- [docs/RELEASE.md](./docs/RELEASE.md)
-- [docs/RUNTIME.md](./docs/RUNTIME.md)
-- [docs/DATABASE.md](./docs/DATABASE.md)
+- [docs/model.md](./docs/model.md)
+- [docs/requirements.md](./docs/requirements.md)
+- [docs/release.md](./docs/release.md)
+- [docs/runtime.md](./docs/runtime.md)
+- [docs/database.md](./docs/database.md)
 - [docs/requirements/report-publishing.md](./docs/requirements/report-publishing.md)
 - [docs/requirements/access-control.md](./docs/requirements/access-control.md)
 - [docs/requirements/charting.md](./docs/requirements/charting.md)
-- [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [SECURITY.md](./SECURITY.md)
-- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+- [contributing.md](./contributing.md)
+- [security.md](./security.md)
+- [docs/deployment.md](./docs/deployment.md)
 
 ## License and Attribution
 

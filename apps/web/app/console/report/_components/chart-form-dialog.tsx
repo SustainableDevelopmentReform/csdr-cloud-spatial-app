@@ -4,20 +4,33 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   type AppearanceConfig,
   type CategoricalColorScheme,
+  type ChartConfiguration,
   type CurveType,
-  ChartConfiguration,
+  type ChartDataDimension,
   type DivergingColorScheme,
   type LegendPosition,
-  makeDateFormatter,
-  PlotSubType,
   type SequentialColorScheme,
-  TableChartDimension,
+  type TableChartDimension,
+  tableChartDimensionMetadata,
 } from '@repo/plot/types'
 import {
-  chartConfigurationSchema,
-  chartVisualTypeMetadata,
-  tableChartDimensionMetadata,
-} from '@repo/schemas/chart'
+  type ChartAppearanceControl,
+  type ChartDefinition,
+  type ChartIconKey,
+  type ChartSeriesColorEntry,
+  buildChartPreviewConfiguration,
+  getChartDefinitionForValues,
+  getChartEstimatedSeriesCount,
+  getChartConfigKey,
+  getChartDefinitions,
+  getChartDimensionModes,
+  getChartSeriesEntries,
+  getSeriesDimensionLabel,
+  inferChartSeriesDimension,
+  resolveSeriesDimension,
+  suggestTitleForDefinition,
+  supportsSeriesDimension,
+} from '@repo/plot/chart-definitions'
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Dialog,
@@ -105,7 +118,7 @@ import {
   type ChartFormValues,
   toPersistedChartConfiguration,
 } from './chart-form-schema'
-import { ChartRenderer, getPlotChartGroupBy } from './chart-renderer'
+import { ChartRenderer } from './chart-renderer'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -139,18 +152,13 @@ function resolveSeriesColor(
     if (overrides?.[lookupKey]) return overrides[lookupKey]
   }
   const palette = CATEGORICAL_PALETTES[scheme ?? 'tableau10'] ?? schemeTableau10
-  return palette[index % palette.length]!
+  return palette[index % palette.length] ?? schemeTableau10[0] ?? '#000000'
 }
 
-type SeriesColorEntry = {
-  label: string
-  overrideKeys: string[]
-}
+const HEX_COLOUR_PATTERN = /^#[0-9a-fA-F]{6}$/
 
-function toSeriesKey(value: unknown): string {
-  if (value instanceof Date) return value.toISOString()
-  const key = String(value ?? '')
-  return key === '' ? 'Value' : key
+function toColourInputValue(colour: string): string {
+  return HEX_COLOUR_PATTERN.test(colour) ? colour : '#000000'
 }
 
 /** Default date precision for product-backed chart previews and labels. */
@@ -167,81 +175,28 @@ const STEP_LABELS = [
   'Chart Type',
   'Configure',
   'Appearance',
-] as const
+] satisfies readonly string[]
 const STEP_DESCRIPTIONS = [
   'Select a product and run to source data from',
   'Choose how to visualize your data',
   'Fine-tune data selections and add details',
   'Customise colours, axes and formatting',
-] as const
+] satisfies readonly string[]
 type ChartFormStep = 0 | 1 | 2 | 3
 
-type SeriesDimension = 'indicators' | 'geometries' | 'time'
-
-interface VisualTypeOption {
-  key: string
-  type: 'plot' | 'map' | 'table' | 'kpi'
-  subType?: PlotSubType
-  label: string
-  icon: LucideIcon
-  /** Extra Tailwind classes applied to the icon (e.g. rotation). */
-  iconClassName?: string
-  description: string
-  /** True if the chart type needs more than one time point to be useful. */
-  requiresMultiTime?: boolean
+const CHART_ICONS: Record<ChartIconKey, LucideIcon> = {
+  line: TrendingUp,
+  area: AreaChartIcon,
+  layers: Layers,
+  'stacked-bar': BarChart3,
+  'grouped-bar': BarChartIcon,
+  'ranked-bar': ChartBarDecreasing,
+  dot: CircleDot,
+  donut: PieChartIcon,
+  table: Table2,
+  map: MapIcon,
+  kpi: Hash,
 }
-
-const VISUAL_TYPES: VisualTypeOption[] = [
-  {
-    ...chartVisualTypeMetadata[0],
-    icon: TrendingUp,
-    requiresMultiTime: true,
-  },
-  {
-    ...chartVisualTypeMetadata[1],
-    icon: AreaChartIcon,
-    requiresMultiTime: true,
-  },
-  {
-    ...chartVisualTypeMetadata[2],
-    icon: Layers,
-    requiresMultiTime: true,
-  },
-  {
-    ...chartVisualTypeMetadata[3],
-    icon: BarChart3,
-    requiresMultiTime: true,
-  },
-  {
-    ...chartVisualTypeMetadata[4],
-    icon: BarChartIcon,
-  },
-  {
-    ...chartVisualTypeMetadata[5],
-    icon: ChartBarDecreasing,
-  },
-  {
-    ...chartVisualTypeMetadata[6],
-    icon: CircleDot,
-    requiresMultiTime: true,
-  },
-  {
-    ...chartVisualTypeMetadata[7],
-    icon: PieChartIcon,
-  },
-  {
-    ...chartVisualTypeMetadata[8],
-    icon: Table2,
-  },
-  {
-    ...chartVisualTypeMetadata[9],
-    icon: MapIcon,
-  },
-  {
-    ...chartVisualTypeMetadata[10],
-    icon: Hash,
-  },
-]
 
 const tableDimensionOptions = [...tableChartDimensionMetadata]
 
@@ -264,11 +219,18 @@ const CATEGORICAL_SCHEME_OPTIONS: {
   { value: 'observable10', label: 'Observable 10' },
 ]
 
-const COLOR_SCALE_OPTIONS: {
-  value: string
-  label: string
-  type: 'sequential' | 'diverging'
-}[] = [
+const COLOR_SCALE_OPTIONS: (
+  | {
+      value: SequentialColorScheme
+      label: string
+      type: 'sequential'
+    }
+  | {
+      value: DivergingColorScheme
+      label: string
+      type: 'diverging'
+    }
+)[] = [
   { value: 'ylOrRd', label: 'Yellow → Red (Sequential)', type: 'sequential' },
   { value: 'viridis', label: 'Viridis (Sequential)', type: 'sequential' },
   { value: 'plasma', label: 'Plasma (Sequential)', type: 'sequential' },
@@ -315,6 +277,14 @@ const DATE_PRECISION_OPTIONS: {
   { value: 'full', label: 'Full (with time)' },
 ]
 
+function findOptionValue<TValue extends string>(
+  options: readonly { value: TValue }[],
+  value: string,
+): TValue | null {
+  const option = options.find((candidate) => candidate.value === value)
+  return option?.value ?? null
+}
+
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
@@ -322,47 +292,6 @@ const DATE_PRECISION_OPTIONS: {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getVisualTypeKey(
-  type: string | undefined,
-  subType: string | undefined,
-): string | undefined {
-  if (type === 'plot' && subType) return subType
-  if (type === 'table') return 'table'
-  if (type === 'map') return 'map'
-  if (type === 'kpi') return 'kpi'
-  return undefined
-}
-
-function inferSeriesDimension(
-  chart: ChartConfiguration | null,
-): SeriesDimension {
-  if (!chart) return 'indicators'
-  if (chart.type === 'map' || chart.type === 'kpi') return 'indicators'
-
-  const indicatorIds = 'indicatorIds' in chart ? chart.indicatorIds : undefined
-  const geometryOutputIds =
-    'geometryOutputIds' in chart ? chart.geometryOutputIds : undefined
-  const timePoints = 'timePoints' in chart ? chart.timePoints : undefined
-
-  const multiIndicators = (indicatorIds?.length ?? 0) > 1
-  const multiGeometries =
-    !geometryOutputIds?.length || geometryOutputIds.length > 1
-  const multiTime = !timePoints?.length || timePoints.length > 1
-
-  // For donut / ranked-bar: time can be the series dimension
-  if (
-    chart.type === 'plot' &&
-    (chart.subType === 'donut' || chart.subType === 'ranked-bar')
-  ) {
-    if (multiTime && !multiIndicators && !multiGeometries) return 'time'
-    if (multiGeometries && !multiIndicators) return 'geometries'
-    return 'indicators'
-  }
-
-  if (multiGeometries && !multiIndicators) return 'geometries'
-  return 'indicators'
-}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -435,23 +364,23 @@ const TypeGrid = ({
   onSelect,
   timePointCount,
 }: {
-  selected: string | undefined
-  onSelect: (vt: VisualTypeOption) => void
+  selected: string | null | undefined
+  onSelect: (definition: ChartDefinition) => void
   timePointCount: number | null
 }) => {
   const hasMultiTime = timePointCount !== null && timePointCount > 1
   return (
     <div className="grid grid-cols-3 gap-2">
-      {VISUAL_TYPES.map((vt) => {
-        const Icon = vt.icon
-        const isSelected = selected === vt.key
-        const isLimited = vt.requiresMultiTime && !hasMultiTime
+      {getChartDefinitions().map((definition) => {
+        const Icon = CHART_ICONS[definition.icon]
+        const isSelected = selected === definition.key
+        const isLimited = definition.requiresMultiTime && !hasMultiTime
 
         const btn = (
           <button
-            key={vt.key}
+            key={definition.key}
             type="button"
-            onClick={() => onSelect(vt)}
+            onClick={() => onSelect(definition)}
             className={cn(
               'flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 text-center transition-colors',
               isSelected
@@ -464,7 +393,6 @@ const TypeGrid = ({
               className={cn(
                 'h-6 w-6',
                 isSelected ? 'text-primary' : 'text-muted-foreground',
-                vt.iconClassName,
               )}
             />
             <span
@@ -473,17 +401,17 @@ const TypeGrid = ({
                 isSelected ? 'text-primary' : 'text-foreground',
               )}
             >
-              {vt.label}
+              {definition.label}
             </span>
             <span className="text-[10px] leading-tight text-muted-foreground">
-              {vt.description}
+              {definition.description}
             </span>
           </button>
         )
 
         if (isLimited) {
           return (
-            <Tooltip key={vt.key}>
+            <Tooltip key={definition.key}>
               <TooltipTrigger asChild>{btn}</TooltipTrigger>
               <TooltipContent
                 side="bottom"
@@ -506,49 +434,48 @@ const TypeGrid = ({
 const SeriesDimensionToggle = ({
   value,
   onChange,
-  isSingleXChart,
+  definition,
   indicatorCount,
   geometryCount,
   timePointCount,
 }: {
-  value: SeriesDimension
-  onChange: (dim: SeriesDimension) => void
-  isSingleXChart: boolean
+  value: ChartDataDimension
+  onChange: (dim: ChartDataDimension) => void
+  definition: ChartDefinition
   indicatorCount: number
   geometryCount: number
   timePointCount: number
 }) => {
-  const options: { key: SeriesDimension; label: string; count: number }[] =
-    isSingleXChart
-      ? [
-          { key: 'indicators', label: 'Indicators', count: indicatorCount },
-          { key: 'geometries', label: 'Geometries', count: geometryCount },
-          { key: 'time', label: 'Time points', count: timePointCount },
-        ]
-      : [
-          { key: 'indicators', label: 'Indicators', count: indicatorCount },
-          { key: 'geometries', label: 'Geometries', count: geometryCount },
-        ]
+  const counts: Record<ChartDataDimension, number> = {
+    indicators: indicatorCount,
+    geometries: geometryCount,
+    time: timePointCount,
+  }
+  const labels: Record<ChartDataDimension, string> = {
+    indicators: 'Indicators',
+    geometries: 'Geometries',
+    time: 'Time points',
+  }
 
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium">
-        {isSingleXChart ? 'Slice by' : 'Compare by'}
+        {getSeriesDimensionLabel(definition)}
       </span>
       <div className="flex gap-1.5">
-        {options.map((opt) => {
-          const disabled = opt.count <= 1
+        {definition.selection.selectableDimensions.map((dimension) => {
+          const disabled = counts[dimension] <= 1
           return (
             <Button
-              key={opt.key}
+              key={dimension}
               type="button"
               size="sm"
-              variant={value === opt.key ? 'default' : 'outline'}
+              variant={value === dimension ? 'default' : 'outline'}
               className="h-7 text-xs"
               disabled={disabled}
-              onClick={() => onChange(opt.key)}
+              onClick={() => onChange(dimension)}
             >
-              {opt.label}
+              {labels[dimension]}
             </Button>
           )
         })}
@@ -568,86 +495,6 @@ const SeriesWarning = ({ count }: { count: number | null }) => {
       </span>
     </div>
   )
-}
-
-/**
- * Build a ChartConfiguration from form values leniently — bypasses superRefine
- * so the preview renders even while the user is still filling in fields.
- * Returns null only when the essential fields are missing.
- */
-function buildPreviewConfig(
-  formValues: ChartFormValues,
-): ChartConfiguration | null {
-  if (!formValues.productRunId) return null
-
-  // Strict parse: if it passes, use it (includes superRefine)
-  const strict = chartConfigurationSchema.safeParse(formValues)
-  if (strict.success) return strict.data
-
-  const appearance = formValues.appearance ?? undefined
-
-  // Lenient fallback: construct directly, skip cross-field validation
-  if (formValues.type === 'plot') {
-    if (!formValues.subType) return null
-    return {
-      type: 'plot',
-      subType: formValues.subType,
-      productRunId: formValues.productRunId,
-      indicatorIds: formValues.indicatorIds,
-      geometryOutputIds: formValues.geometryOutputIds,
-      timePoints: formValues.timePoints,
-      title: formValues.title,
-      description: formValues.description,
-      appearance,
-    }
-  }
-  if (formValues.type === 'map') {
-    if (!formValues.indicatorId || !formValues.timePoint) return null
-    return {
-      type: 'map',
-      productRunId: formValues.productRunId,
-      indicatorId: formValues.indicatorId,
-      timePoint: formValues.timePoint,
-      geometryOutputIds: formValues.geometryOutputIds,
-      title: formValues.title,
-      description: formValues.description,
-      appearance,
-    }
-  }
-  if (formValues.type === 'kpi') {
-    if (!formValues.indicatorId || !formValues.timePoint) return null
-    if (
-      !formValues.geometryOutputIds ||
-      formValues.geometryOutputIds.length !== 1
-    )
-      return null
-    return {
-      type: 'kpi',
-      productRunId: formValues.productRunId,
-      indicatorId: formValues.indicatorId,
-      timePoint: formValues.timePoint,
-      geometryOutputIds: formValues.geometryOutputIds,
-      title: formValues.title,
-      description: formValues.description,
-      appearance,
-    }
-  }
-  if (formValues.type === 'table') {
-    if (!formValues.xDimension || !formValues.yDimension) return null
-    return {
-      type: 'table',
-      productRunId: formValues.productRunId,
-      xDimension: formValues.xDimension,
-      yDimension: formValues.yDimension,
-      indicatorIds: formValues.indicatorIds,
-      geometryOutputIds: formValues.geometryOutputIds,
-      timePoints: formValues.timePoints,
-      title: formValues.title,
-      description: formValues.description,
-      appearance,
-    }
-  }
-  return null
 }
 
 /** Small component rendered inside the MapPreviewProvider so it can use the context hook. */
@@ -690,7 +537,7 @@ const ChartPreview = ({ form }: { form: UseFormReturn<ChartFormValues> }) => {
   const formValues = form.watch()
 
   const chartConfig = useMemo(
-    () => buildPreviewConfig(formValues),
+    () => buildChartPreviewConfiguration(formValues),
     [formValues],
   )
 
@@ -746,7 +593,7 @@ export const ChartFormDialog = ({
 
   const form = useForm<ChartFormValues>({
     resolver: zodResolver(chartFormSchema),
-    defaultValues: chart as Partial<ChartFormValues> | undefined,
+    defaultValues: chart ?? undefined,
     mode: 'all',
     criteriaMode: 'all',
   })
@@ -766,8 +613,8 @@ export const ChartFormDialog = ({
   const mapBbox = form.watch('appearance.mapBbox')
   const appearanceDatePrecision = form.watch('appearance.datePrecision')
 
-  const [seriesDimension, setSeriesDimension] = useState<SeriesDimension>(() =>
-    inferSeriesDimension(chart),
+  const [seriesDimension, setSeriesDimension] = useState<ChartDataDimension>(
+    () => inferChartSeriesDimension(chart),
   )
 
   // Indicator filter for the product selector (not part of the chart config)
@@ -861,14 +708,14 @@ export const ChartFormDialog = ({
 
   // --- Derived state ---
 
-  const visualTypeKey = getVisualTypeKey(chartType, subType)
-  const isDonut = chartType === 'plot' && subType === 'donut'
-  const isRankedBar = chartType === 'plot' && subType === 'ranked-bar'
-  /** Chart types where only the series dimension is multi; all others are single. */
-  const isSingleXChart = isDonut || isRankedBar
+  const visualTypeKey = getChartConfigKey({ type: chartType, subType })
+  const selectedChartDefinition = getChartDefinitionForValues({
+    type: chartType,
+    subType,
+  })
 
   const sourceComplete = !!productRunId
-  const typeComplete = !!chartType && (chartType !== 'plot' || !!subType)
+  const typeComplete = selectedChartDefinition !== null
 
   const canNavigateTo = useCallback(
     (targetStep: number) => {
@@ -882,298 +729,172 @@ export const ChartFormDialog = ({
     [firstVisibleStep, sourceComplete, typeComplete],
   )
 
-  // Multi/single select logic per data dimension
-  const { isIndicatorsMulti, isGeometriesMulti, isTimeMulti } = useMemo(() => {
-    if (chartType === 'map') {
-      return {
-        isIndicatorsMulti: false,
-        isGeometriesMulti: true,
-        isTimeMulti: false,
-      }
-    }
-    if (chartType === 'kpi') {
-      return {
-        isIndicatorsMulti: false,
-        isGeometriesMulti: false,
-        isTimeMulti: false,
-      }
-    }
-    if (chartType === 'table') {
-      return {
-        isIndicatorsMulti:
-          xDimension === 'indicatorName' || yDimension === 'indicatorName',
-        isGeometriesMulti:
-          xDimension === 'geometryOutputName' ||
-          yDimension === 'geometryOutputName',
-        isTimeMulti: xDimension === 'timePoint' || yDimension === 'timePoint',
-      }
-    }
-    // Plot types where only the series dimension is multi (donut, ranked-bar).
-    if (isSingleXChart) {
-      return {
-        isIndicatorsMulti: seriesDimension === 'indicators',
-        isGeometriesMulti: seriesDimension === 'geometries',
-        isTimeMulti: seriesDimension === 'time',
-      }
-    }
-    // Cartesian plots: time always multi, series dimension multi, other single
-    return {
-      isIndicatorsMulti: seriesDimension === 'indicators',
-      isGeometriesMulti: seriesDimension === 'geometries',
-      isTimeMulti: true,
-    }
-  }, [chartType, isSingleXChart, seriesDimension, xDimension, yDimension])
+  const dimensionModes = useMemo(
+    () =>
+      getChartDimensionModes({
+        definition: selectedChartDefinition,
+        seriesDimension,
+        xDimension,
+        yDimension,
+      }),
+    [selectedChartDefinition, seriesDimension, xDimension, yDimension],
+  )
+  const isIndicatorsMulti = dimensionModes.indicators === 'multi'
+  const isGeometriesMulti = dimensionModes.geometries !== 'single'
+  const isGeometryOptional = dimensionModes.geometries === 'optionalMulti'
+  const isTimeMulti = dimensionModes.time === 'multi'
+  const hasAppearanceControl = useCallback(
+    (control: ChartAppearanceControl) =>
+      selectedChartDefinition?.appearanceControls.includes(control) === true,
+    [selectedChartDefinition],
+  )
 
   // Estimate series count for warnings
-  const estimatedSeriesCount = useMemo(() => {
-    if (chartType !== 'plot') return null
-    switch (seriesDimension) {
-      case 'indicators':
-        return indicatorIds?.length || null
-      case 'geometries':
-        return geometryOutputIds?.length || null
-      case 'time':
-        return timePoints?.length || productSummary?.timePointCount || null
-    }
-  }, [
-    chartType,
-    seriesDimension,
-    indicatorIds,
-    geometryOutputIds,
-    timePoints,
-    productSummary,
-  ])
+  const estimatedSeriesCount = useMemo(
+    () =>
+      getChartEstimatedSeriesCount({
+        definition: selectedChartDefinition,
+        seriesDimension,
+        indicatorIds,
+        geometryOutputIds,
+        timePoints,
+        timePointCount: productSummary?.timePointCount,
+      }),
+    [
+      selectedChartDefinition,
+      seriesDimension,
+      indicatorIds,
+      geometryOutputIds,
+      timePoints,
+      productSummary?.timePointCount,
+    ],
+  )
 
   // Series labels used for the colour-override list in Step 3.
   // These mirror the keys that pivotData / groupBySeries produce at render time.
   const effectiveDatePrecision =
     appearanceDatePrecision ?? DEFAULT_PRODUCT_DATE_PRECISION
 
-  const previewPlotGroupBy = useMemo(() => {
-    if (chartType !== 'plot') return null
-    return getPlotChartGroupBy({
-      geometryOutputIds,
+  const chartDraft = useMemo(
+    () => ({
+      type: chartType,
+      subType,
+      productRunId,
+      indicatorId,
       indicatorIds,
+      geometryOutputIds,
+      timePoint,
       timePoints,
-    })
-  }, [chartType, geometryOutputIds, indicatorIds, timePoints])
+      xDimension,
+      yDimension,
+    }),
+    [
+      chartType,
+      subType,
+      productRunId,
+      indicatorId,
+      indicatorIds,
+      geometryOutputIds,
+      timePoint,
+      timePoints,
+      xDimension,
+      yDimension,
+    ],
+  )
+
+  const seriesPreviewConfig = useMemo(
+    () => buildChartPreviewConfiguration(chartDraft),
+    [chartDraft],
+  )
+  const seriesPreviewQuery = seriesPreviewConfig
+    ? selectedChartDefinition?.data.getProductOutputsQuery(seriesPreviewConfig)
+    : null
+  const shouldFetchSeriesPreview =
+    selectedChartDefinition?.appearanceControls.includes('colorOverrides') ===
+      true && seriesPreviewConfig !== null
 
   const { data: previewProductOutputs } = useProductOutputsExport(
-    chartType === 'plot' ? (productRunId ?? undefined) : undefined,
-    chartType === 'plot' && productRunId
-      ? {
-          indicatorId: indicatorIds,
-          geometryOutputId: geometryOutputIds,
-          timePoint: timePoints,
-        }
+    shouldFetchSeriesPreview && seriesPreviewConfig
+      ? seriesPreviewConfig.productRunId
+      : undefined,
+    shouldFetchSeriesPreview && seriesPreviewConfig
+      ? (seriesPreviewQuery ?? undefined)
       : undefined,
     false,
   )
 
-  const currentSeriesEntries: SeriesColorEntry[] = useMemo(() => {
-    if (chartType !== 'plot') return []
-    const allIndicators = productRunDetail?.outputSummary?.indicators ?? []
-    const allGeometries = geometryOutputsData?.data ?? []
-    const fallbackEntries = (() => {
-      switch (seriesDimension) {
-        case 'indicators': {
-          // Each summary indicator has a nested `.indicator` (measured or derived)
-          const ids = indicatorIds
-          if (ids && ids.length > 0) {
-            const idSet = new Set(ids)
-            return allIndicators
-              .filter((si) => {
-                const indId = si.indicator?.id
-                return indId !== undefined && idSet.has(indId)
-              })
-              .map((si) => {
-                const label =
-                  si.indicator?.name ?? si.indicator?.id ?? 'Unknown'
-                return { label, overrideKeys: [label] }
-              })
-          }
-          return allIndicators.map((si) => {
-            const label = si.indicator?.name ?? si.indicator?.id ?? 'Unknown'
-            return { label, overrideKeys: [label] }
-          })
-        }
-        case 'geometries': {
-          const ids = geometryOutputIds
-          if (ids && ids.length > 0) {
-            const idSet = new Set(ids)
-            return allGeometries
-              .filter((g) => idSet.has(g.id))
-              .map((g) => {
-                const label = g.name ?? g.id
-                return { label, overrideKeys: [label] }
-              })
-          }
-          return allGeometries.map((g) => {
-            const label = g.name ?? g.id
-            return { label, overrideKeys: [label] }
-          })
-        }
-        case 'time': {
-          const allTimePoints =
-            productRunDetail?.outputSummary?.timePoints ?? []
-          const selected = timePoints
-          const fmt = makeDateFormatter(effectiveDatePrecision)
-          const points =
-            selected && selected.length > 0 ? selected : allTimePoints
-          return points.map((tp) => {
-            const rawKey = String(tp)
-            const label = fmt.format(new Date(rawKey))
-            return {
-              label,
-              overrideKeys: label === rawKey ? [rawKey] : [rawKey, label],
-            }
-          })
-        }
-      }
-    })()
+  const chartTitleIndicators = useMemo(
+    () =>
+      (productRunDetail?.outputSummary?.indicators ?? []).map((item) => ({
+        id: item.indicator?.id ?? null,
+        name: item.indicator?.name ?? item.indicator?.id ?? null,
+      })),
+    [productRunDetail],
+  )
 
-    const plotData = previewProductOutputs?.data ?? []
-    if (!previewPlotGroupBy || plotData.length === 0) {
-      return fallbackEntries
-    }
+  const defaultChartTitleGeometries = useMemo(
+    () =>
+      (geometryOutputsData?.data ?? []).map((geometry) => ({
+        id: geometry.id,
+        name: geometry.name,
+      })),
+    [geometryOutputsData],
+  )
 
-    const seriesEntries: SeriesColorEntry[] = []
-    const seenKeys = new Set<string>()
-    const dateFormatter = makeDateFormatter(effectiveDatePrecision)
+  const selectedChartTitleGeometries = useMemo(
+    () =>
+      (selectedGeometryOutputsData?.data ?? []).map((geometry) => ({
+        id: geometry.id,
+        name: geometry.name,
+      })),
+    [selectedGeometryOutputsData],
+  )
 
-    for (const output of plotData) {
-      const rawKey = toSeriesKey(output[previewPlotGroupBy])
-      if (seenKeys.has(rawKey)) continue
-      seenKeys.add(rawKey)
+  const currentSeriesEntries: ChartSeriesColorEntry[] = useMemo(
+    () =>
+      getChartSeriesEntries({
+        definition: selectedChartDefinition,
+        values: chartDraft,
+        seriesDimension,
+        indicators: chartTitleIndicators,
+        geometries: defaultChartTitleGeometries,
+        productOutputs: previewProductOutputs?.data ?? [],
+        availableTimePoints:
+          productRunDetail?.outputSummary?.timePoints ?? undefined,
+        datePrecision: effectiveDatePrecision,
+      }),
+    [
+      selectedChartDefinition,
+      chartDraft,
+      seriesDimension,
+      chartTitleIndicators,
+      defaultChartTitleGeometries,
+      previewProductOutputs,
+      productRunDetail?.outputSummary?.timePoints,
+      effectiveDatePrecision,
+    ],
+  )
 
-      if (previewPlotGroupBy === 'timePoint') {
-        const label = dateFormatter.format(new Date(rawKey))
-        seriesEntries.push({
-          label,
-          overrideKeys: label === rawKey ? [rawKey] : [rawKey, label],
-        })
-        continue
-      }
-
-      seriesEntries.push({
-        label: rawKey,
-        overrideKeys: [rawKey],
-      })
-    }
-
-    return seriesEntries.length > 0 ? seriesEntries : fallbackEntries
-  }, [
-    chartType,
-    seriesDimension,
-    indicatorIds,
-    geometryOutputIds,
-    timePoints,
-    productRunDetail,
-    geometryOutputsData,
-    effectiveDatePrecision,
-    previewPlotGroupBy,
-    previewProductOutputs,
-  ])
-
-  // Build a sensible default title from the current configuration.
-  //
-  // Rules:
-  //  - Always include the product name.
-  //  - Include the name of every single-selected (non-series) dimension:
-  //      * indicator name  — when only one indicator is selected
-  //      * geometry name   — when only one geometry is selected
-  //      * time            — when only one time point is selected
-  //  - For map: uses indicatorId (singular) and timePoint (singular).
-  //  - For table: include whatever single dimensions are selected.
-  //  - Parts are joined with " — ".
-  const suggestedTitle = useMemo(() => {
-    const productName = productSummary?.productName
-    if (!productName) return ''
-
-    const allIndicators = productRunDetail?.outputSummary?.indicators ?? []
-    // Use the dedicated selected-geometry fetch so we always resolve the name,
-    // even if the geometry isn't in the first-N default fetch.
-    const selectedGeometries = selectedGeometryOutputsData?.data ?? []
-
-    // Resolve a single indicator name from an array of IDs.
-    const resolveIndicatorName = (ids: string[] | undefined): string | null => {
-      if (!ids || ids.length !== 1) return null
-      const match = allIndicators.find((si) => si.indicator?.id === ids[0])
-      return match?.indicator?.name ?? null
-    }
-
-    // Resolve a single geometry name from an array of IDs.
-    const resolveGeometryName = (ids: string[] | undefined): string | null => {
-      if (!ids || ids.length !== 1) return null
-      const match = selectedGeometries.find((g) => g.id === ids[0])
-      return match?.name ?? null
-    }
-
-    // Format a single time point for the title.
-    const resolveTimeName = (tp: string | undefined): string | null => {
-      if (!tp) return null
-      const fmt = makeDateFormatter(DEFAULT_PRODUCT_DATE_PRECISION)
-      return fmt.format(new Date(tp))
-    }
-
-    // Join non-null parts with " — ".
-    const join = (...parts: (string | null)[]) =>
-      parts.filter(Boolean).join(' — ')
-
-    if (chartType === 'map') {
-      // Map: single indicator (indicatorId), single time (timePoint),
-      // optional geometry filter.
-      const indMatch = allIndicators.find(
-        (si) => si.indicator?.id === indicatorId,
-      )
-      const indName = indMatch?.indicator?.name ?? null
-      const timeName = resolveTimeName(timePoint)
-      const geoName = resolveGeometryName(geometryOutputIds)
-      return join(indName, geoName, timeName) || productName
-    }
-
-    if (chartType === 'kpi') {
-      return productName
-    }
-
-    if (chartType === 'table') {
-      const indName = resolveIndicatorName(indicatorIds)
-      const geoName = resolveGeometryName(geometryOutputIds)
-      const timeName =
-        timePoints?.length === 1 ? resolveTimeName(timePoints[0]) : null
-      return join(productName, indName, geoName, timeName) || productName
-    }
-
-    // Plot types — include the product name and every single-selected
-    // (non-series) dimension.
-    const indName = resolveIndicatorName(indicatorIds)
-    const geoName = resolveGeometryName(geometryOutputIds)
-    const timeName =
-      timePoints?.length === 1 ? resolveTimeName(timePoints[0]) : null
-
-    switch (seriesDimension) {
-      case 'indicators':
-        // Series = indicators → indicator is multi, geometry & time are single
-        return join(productName, geoName, timeName) || productName
-      case 'geometries':
-        // Series = geometries → geometry is multi, indicator & time are single
-        return join(indName, productName, timeName) || productName
-      case 'time':
-        // Series = time → time is multi, indicator & geometry are single
-        return join(indName, productName, geoName) || productName
-    }
-  }, [
-    productSummary?.productName,
-    chartType,
-    seriesDimension,
-    indicatorId,
-    indicatorIds,
-    geometryOutputIds,
-    timePoint,
-    timePoints,
-    productRunDetail,
-    selectedGeometryOutputsData,
-  ])
+  const suggestedTitle = useMemo(
+    () =>
+      suggestTitleForDefinition({
+        definition: selectedChartDefinition,
+        productName: productSummary?.productName,
+        values: chartDraft,
+        seriesDimension,
+        indicators: chartTitleIndicators,
+        geometries: selectedChartTitleGeometries,
+        datePrecision: DEFAULT_PRODUCT_DATE_PRECISION,
+      }),
+    [
+      selectedChartDefinition,
+      productSummary?.productName,
+      chartDraft,
+      seriesDimension,
+      chartTitleIndicators,
+      selectedChartTitleGeometries,
+    ],
+  )
 
   // Track whether the title was auto-generated (true) or manually typed by the
   // user (false).  When auto, we keep it in sync with `suggestedTitle`.
@@ -1315,105 +1036,76 @@ export const ChartFormDialog = ({
   )
 
   const handleSeriesDimensionChange = useCallback(
-    (dim: SeriesDimension) => {
+    (dim: ChartDataDimension) => {
       setSeriesDimension(dim)
 
       const values = form.getValues()
-      if (values.type === 'map') return
+      const definition = getChartDefinitionForValues(values)
+      const modes = getChartDimensionModes({
+        definition,
+        seriesDimension: dim,
+        xDimension: form.getValues('xDimension'),
+        yDimension: form.getValues('yDimension'),
+      })
 
-      const isSingleX =
-        values.type === 'plot' &&
-        (values.subType === 'donut' || values.subType === 'ranked-bar')
-
-      if (isSingleX) {
-        // Donut / Ranked-bar: only the series dim is multi, others single
-        applyDimensionDefaults({
-          indicatorsMulti: dim === 'indicators',
-          geometriesMulti: dim === 'geometries',
-          timeMulti: dim === 'time',
-        })
-      } else {
-        // Cartesian plots: series dim is multi, time is ALWAYS multi, remaining is single
-        applyDimensionDefaults({
-          indicatorsMulti: dim === 'indicators',
-          geometriesMulti: dim === 'geometries',
-          timeMulti: true,
-        })
-      }
+      applyDimensionDefaults({
+        indicatorsMulti: modes.indicators === 'multi',
+        geometriesMulti: modes.geometries !== 'single',
+        timeMulti: modes.time === 'multi',
+      })
     },
     [form, applyDimensionDefaults],
   )
 
   const handleTypeSelect = useCallback(
-    (vt: VisualTypeOption) => {
-      const oldType = form.getValues('type')
+    (definition: ChartDefinition) => {
+      const previousDefinition = getChartDefinitionForValues({
+        type: form.getValues('type'),
+        subType: form.getValues('subType'),
+      })
       const sv = { shouldValidate: false }
 
-      form.setValue('type', vt.type, sv)
-
-      if (vt.type === 'plot' && vt.subType) {
-        form.setValue('subType', vt.subType, sv)
+      form.setValue('type', definition.type, sv)
+      if (definition.subType) {
+        form.setValue('subType', definition.subType, sv)
       }
 
-      // Defaults for each dimension (prefer hook data, fall back to productSummary)
       const defaultIndicator =
         hookDefaults?.firstIndicatorId ?? productSummary?.firstIndicatorId
       const defaultTime =
         hookDefaults?.firstTimePoint ?? productSummary?.firstTimePoint
 
-      const oldTypeIsSingular = oldType === 'map' || oldType === 'kpi'
-      const nextTypeIsArray = vt.type === 'plot' || vt.type === 'table'
-      const oldTypeIsArray = oldType === 'plot' || oldType === 'table'
-      const nextTypeIsSingular = vt.type === 'map' || vt.type === 'kpi'
-
-      if (oldTypeIsSingular && nextTypeIsArray) {
+      if (
+        previousDefinition?.selection.indicatorField === 'indicatorId' &&
+        definition.selection.indicatorField === 'indicatorIds'
+      ) {
         const singularIndicatorId = form.getValues('indicatorId')
-        const singularTimePoint = form.getValues('timePoint')
         if (singularIndicatorId) {
           form.setValue('indicatorIds', [singularIndicatorId], sv)
         }
+      }
+
+      if (
+        previousDefinition?.selection.timeField === 'timePoint' &&
+        definition.selection.timeField === 'timePoints'
+      ) {
+        const singularTimePoint = form.getValues('timePoint')
         if (singularTimePoint) {
           form.setValue('timePoints', [singularTimePoint], sv)
         }
       }
 
-      if (oldTypeIsArray && nextTypeIsSingular) {
+      if (definition.selection.indicatorField === 'indicatorId') {
         const ids = form.getValues('indicatorIds')
-        const tps = form.getValues('timePoints')
         form.setValue('indicatorId', ids?.[0] ?? defaultIndicator ?? '', sv)
-        form.setValue('timePoint', tps?.[0] ?? defaultTime ?? '', sv)
       }
 
-      if (vt.type === 'map') {
-        form.setValue('geometryOutputIds', undefined, sv)
-
-        if (!form.getValues('indicatorId')) {
-          form.setValue('indicatorId', defaultIndicator ?? '', sv)
-        }
-        if (!form.getValues('timePoint')) {
-          form.setValue('timePoint', defaultTime ?? '', sv)
-        }
+      if (definition.selection.timeField === 'timePoint') {
+        const points = form.getValues('timePoints')
+        form.setValue('timePoint', points?.[0] ?? defaultTime ?? '', sv)
       }
 
-      if (vt.type === 'kpi') {
-        const currentGeo = form.getValues('geometryOutputIds')?.[0]
-        const resolvedGeo = currentGeo ?? firstGeometryId
-        form.setValue(
-          'geometryOutputIds',
-          resolvedGeo ? [resolvedGeo] : undefined,
-          sv,
-        )
-
-        if (!form.getValues('indicatorId')) {
-          form.setValue('indicatorId', defaultIndicator ?? '', sv)
-        }
-        if (!form.getValues('timePoint')) {
-          form.setValue('timePoint', defaultTime ?? '', sv)
-        }
-      }
-
-      // Set default table dimensions
-      if (vt.type === 'table') {
+      if (definition.selection.tableDimensions) {
         if (!form.getValues('xDimension')) {
           form.setValue('xDimension', 'timePoint', sv)
         }
@@ -1422,57 +1114,46 @@ export const ChartFormDialog = ({
         }
       }
 
-      // Apply dimension defaults based on the chart type's implicit rules.
-      if (vt.type === 'plot') {
-        const isSingleX = vt.subType === 'donut' || vt.subType === 'ranked-bar'
-        const indCount = productSummary?.indicatorCount ?? 0
-        const geoCount = geometryOutputsData?.data?.length ?? 0
-        const timeCount = productSummary?.timePointCount ?? 0
+      const nextSeriesDimension = resolveSeriesDimension({
+        definition,
+        current: seriesDimension,
+        counts: {
+          indicators: productSummary?.indicatorCount ?? 0,
+          geometries: geometryOutputsData?.data?.length ?? 0,
+          time: productSummary?.timePointCount ?? 0,
+        },
+      })
+      setSeriesDimension(nextSeriesDimension)
 
-        // Keep the current dimension if it's viable; only override if not
-        let dim: SeriesDimension = seriesDimension
-        // Cartesian charts don't support 'time' as the series dimension
-        if (!isSingleX && dim === 'time') dim = 'indicators'
-        if (
-          (dim === 'indicators' && indCount <= 1) ||
-          (dim === 'geometries' && geoCount <= 1) ||
-          (dim === 'time' && timeCount <= 1)
-        ) {
-          if (indCount > 1) dim = 'indicators'
-          else if (geoCount > 1) dim = 'geometries'
-          else if (isSingleX && timeCount > 1) dim = 'time'
-          else dim = 'indicators' // fallback
-        }
-        setSeriesDimension(dim)
+      const modes = getChartDimensionModes({
+        definition,
+        seriesDimension: nextSeriesDimension,
+        xDimension: form.getValues('xDimension'),
+        yDimension: form.getValues('yDimension'),
+      })
 
-        if (isSingleX) {
-          // Donut / Ranked-bar: only the series dim is multi, others single
-          applyDimensionDefaults({
-            indicatorsMulti: dim === 'indicators',
-            geometriesMulti: dim === 'geometries',
-            timeMulti: dim === 'time',
-          })
-        } else {
-          // Cartesian: series dim multi, time ALWAYS multi, remaining single
-          applyDimensionDefaults({
-            indicatorsMulti: dim === 'indicators',
-            geometriesMulti: dim === 'geometries',
-            timeMulti: true,
-          })
-        }
-      } else if (vt.type === 'table') {
-        const xd = form.getValues('xDimension')
-        const yd = form.getValues('yDimension')
+      if (definition.selection.indicatorField === 'indicatorIds') {
         applyDimensionDefaults({
-          indicatorsMulti: xd === 'indicatorName' || yd === 'indicatorName',
-          geometriesMulti:
-            xd === 'geometryOutputName' || yd === 'geometryOutputName',
-          timeMulti: xd === 'timePoint' || yd === 'timePoint',
+          indicatorsMulti: modes.indicators === 'multi',
+          geometriesMulti: modes.geometries !== 'single',
+          timeMulti: modes.time === 'multi',
         })
-      } else {
-        // Map / KPI — just trigger validation
-        form.trigger()
+        return
       }
+
+      if (modes.geometries === 'optionalMulti') {
+        form.setValue('geometryOutputIds', undefined, sv)
+      } else if (modes.geometries === 'single') {
+        const currentGeo = form.getValues('geometryOutputIds')?.[0]
+        const resolvedGeo = currentGeo ?? firstGeometryId
+        form.setValue(
+          'geometryOutputIds',
+          resolvedGeo ? [resolvedGeo] : undefined,
+          sv,
+        )
+      }
+
+      void form.trigger()
     },
     [
       form,
@@ -1498,7 +1179,7 @@ export const ChartFormDialog = ({
             form.reset(chart)
             form.trigger()
             setStep(getInitialStep(chart))
-            setSeriesDimension(inferSeriesDimension(chart))
+            setSeriesDimension(inferChartSeriesDimension(chart))
             // Preserve manually-set title in edit mode
             titleAutoRef.current = !chart.title
           } else {
@@ -1526,7 +1207,10 @@ export const ChartFormDialog = ({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:w-2xl lg:w-[900px] max-w-full">
+      <DialogContent
+        className="flex max-h-[90vh] flex-col overflow-hidden sm:w-2xl lg:w-[900px] max-w-full"
+        data-report-editor-interaction="true"
+      >
         <MapPreviewProvider>
           <Form {...form}>
             <form
@@ -1644,11 +1328,11 @@ export const ChartFormDialog = ({
                   {step === 2 && (
                     <div className="flex flex-col gap-4">
                       {/* Series dimension toggle for plot types */}
-                      {chartType === 'plot' && (
+                      {supportsSeriesDimension(selectedChartDefinition) && (
                         <SeriesDimensionToggle
                           value={seriesDimension}
                           onChange={handleSeriesDimensionChange}
-                          isSingleXChart={isSingleXChart}
+                          definition={selectedChartDefinition}
                           indicatorCount={productSummary?.indicatorCount ?? 0}
                           geometryCount={geometryOutputsData?.data?.length ?? 0}
                           timePointCount={productSummary?.timePointCount ?? 0}
@@ -1656,7 +1340,7 @@ export const ChartFormDialog = ({
                       )}
 
                       {/* Table axis selectors */}
-                      {chartType === 'table' && (
+                      {selectedChartDefinition?.selection.tableDimensions && (
                         <FieldGroup title="Table Axes">
                           <div className="grid gap-3 sm:grid-cols-2">
                             <FormField
@@ -1667,11 +1351,13 @@ export const ChartFormDialog = ({
                                   <FormLabel>X (Columns)</FormLabel>
                                   <Select
                                     value={field.value}
-                                    onValueChange={(value) =>
-                                      field.onChange(
-                                        value as TableChartDimension,
+                                    onValueChange={(value) => {
+                                      const next = findOptionValue(
+                                        tableDimensionOptions,
+                                        value,
                                       )
-                                    }
+                                      if (next) field.onChange(next)
+                                    }}
                                   >
                                     <SelectTrigger>
                                       <SelectValue placeholder="Select column dimension" />
@@ -1699,11 +1385,13 @@ export const ChartFormDialog = ({
                                   <FormLabel>Y (Rows)</FormLabel>
                                   <Select
                                     value={field.value}
-                                    onValueChange={(value) =>
-                                      field.onChange(
-                                        value as TableChartDimension,
+                                    onValueChange={(value) => {
+                                      const next = findOptionValue(
+                                        tableDimensionOptions,
+                                        value,
                                       )
-                                    }
+                                      if (next) field.onChange(next)
+                                    }}
                                   >
                                     <SelectTrigger>
                                       <SelectValue placeholder="Select row dimension" />
@@ -1730,7 +1418,8 @@ export const ChartFormDialog = ({
                       {/* Data selectors */}
                       <FieldGroup title="Data">
                         {/* Indicators */}
-                        {chartType === 'map' || chartType === 'kpi' ? (
+                        {selectedChartDefinition?.selection.indicatorField ===
+                        'indicatorId' ? (
                           <FormField
                             control={form.control}
                             name="indicatorId"
@@ -1798,7 +1487,7 @@ export const ChartFormDialog = ({
                               <FormItem key="geo-multi">
                                 <ProductGeometryOutputSelect
                                   title={
-                                    chartType === 'map'
+                                    isGeometryOptional
                                       ? 'Zoom to selected geometry'
                                       : undefined
                                   }
@@ -1808,10 +1497,7 @@ export const ChartFormDialog = ({
                                   isMulti
                                   onChange={(value) => {
                                     const ids = value.map((v) => v.id)
-                                    // For map, clearing means "show all" which is
-                                    // fine.  For other chart types prevent clearing
-                                    // to empty so we don't fetch unlimited items.
-                                    if (ids.length === 0 && chartType !== 'map')
+                                    if (ids.length === 0 && !isGeometryOptional)
                                       return
                                     field.onChange(
                                       ids.length > 0 ? ids : undefined,
@@ -1840,7 +1526,8 @@ export const ChartFormDialog = ({
                         />
 
                         {/* Time */}
-                        {chartType === 'map' || chartType === 'kpi' ? (
+                        {selectedChartDefinition?.selection.timeField ===
+                        'timePoint' ? (
                           <FormField
                             control={form.control}
                             name="timePoint"
@@ -1960,7 +1647,7 @@ export const ChartFormDialog = ({
                   {step === 3 && (
                     <div className="flex flex-col gap-4">
                       {/* Colour scheme — plot types use categorical */}
-                      {(chartType === 'plot' || chartType === undefined) && (
+                      {hasAppearanceControl('categoricalPalette') && (
                         <FieldGroup title="Colour Palette">
                           <FormField
                             control={form.control}
@@ -1970,9 +1657,13 @@ export const ChartFormDialog = ({
                                 <FormLabel>Colour Scheme</FormLabel>
                                 <Select
                                   value={field.value ?? 'tableau10'}
-                                  onValueChange={(v) =>
-                                    field.onChange(v as CategoricalColorScheme)
-                                  }
+                                  onValueChange={(value) => {
+                                    const next = findOptionValue(
+                                      CATEGORICAL_SCHEME_OPTIONS,
+                                      value,
+                                    )
+                                    if (next) field.onChange(next)
+                                  }}
                                 >
                                   <SelectTrigger>
                                     <SelectValue />
@@ -1992,7 +1683,7 @@ export const ChartFormDialog = ({
                       )}
 
                       {/* Colour scheme — table/map use sequential/diverging */}
-                      {(chartType === 'table' || chartType === 'map') && (
+                      {hasAppearanceControl('continuousScale') && (
                         <FieldGroup title="Colour and Scale">
                           <FormItem>
                             <FormLabel>Colour Map</FormLabel>
@@ -2015,7 +1706,7 @@ export const ChartFormDialog = ({
                                 if (opt.type === 'sequential') {
                                   form.setValue(
                                     'appearance.sequentialScheme',
-                                    v as SequentialColorScheme,
+                                    opt.value,
                                     sv,
                                   )
                                   form.setValue(
@@ -2031,7 +1722,7 @@ export const ChartFormDialog = ({
                                 } else {
                                   form.setValue(
                                     'appearance.divergingScheme',
-                                    v as DivergingColorScheme,
+                                    opt.value,
                                     sv,
                                   )
                                   form.setValue(
@@ -2082,6 +1773,7 @@ export const ChartFormDialog = ({
                                   <FormLabel>Midpoint Value</FormLabel>
                                   <Input
                                     type="number"
+                                    aria-label="Midpoint Value"
                                     value={field.value ?? 0}
                                     onChange={(e) =>
                                       field.onChange(
@@ -2160,7 +1852,7 @@ export const ChartFormDialog = ({
                       )}
 
                       {/* Legend position — applies to plot and map */}
-                      {(chartType === 'plot' || chartType === 'map') && (
+                      {hasAppearanceControl('legend') && (
                         <FieldGroup title="Legend">
                           <FormField
                             control={form.control}
@@ -2170,9 +1862,13 @@ export const ChartFormDialog = ({
                                 <FormLabel>Position</FormLabel>
                                 <Select
                                   value={field.value ?? 'bottom'}
-                                  onValueChange={(v) =>
-                                    field.onChange(v as LegendPosition)
-                                  }
+                                  onValueChange={(value) => {
+                                    const next = findOptionValue(
+                                      LEGEND_POSITION_OPTIONS,
+                                      value,
+                                    )
+                                    if (next) field.onChange(next)
+                                  }}
                                 >
                                   <SelectTrigger>
                                     <SelectValue />
@@ -2192,7 +1888,7 @@ export const ChartFormDialog = ({
                       )}
 
                       {/* Chart-specific options — Map type */}
-                      {chartType === 'map' && (
+                      {hasAppearanceControl('mapOptions') && (
                         <FieldGroup title="Map Options">
                           {/* Show outlines */}
                           <FormField
@@ -2341,27 +2037,33 @@ export const ChartFormDialog = ({
                       )}
 
                       {/* Chart-specific options — Plot types */}
-                      {chartType === 'plot' && (
+                      {(hasAppearanceControl('cartesianOptions') ||
+                        hasAppearanceControl('lineOptions') ||
+                        hasAppearanceControl('areaOptions') ||
+                        hasAppearanceControl('groupedBarOptions') ||
+                        hasAppearanceControl('donutOptions')) && (
                         <FieldGroup title="Chart Options">
                           {/* Show grid */}
-                          <FormField
-                            control={form.control}
-                            name="appearance.showGrid"
-                            render={({ field }) => (
-                              <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-                                <FormLabel className="m-0">
-                                  Grid lines
-                                </FormLabel>
-                                <Switch
-                                  checked={field.value ?? true}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormItem>
-                            )}
-                          />
+                          {hasAppearanceControl('cartesianOptions') && (
+                            <FormField
+                              control={form.control}
+                              name="appearance.showGrid"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                                  <FormLabel className="m-0">
+                                    Grid lines
+                                  </FormLabel>
+                                  <Switch
+                                    checked={field.value ?? true}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormItem>
+                              )}
+                            />
+                          )}
 
                           {/* Include zero */}
-                          {subType !== 'donut' && (
+                          {hasAppearanceControl('cartesianOptions') && (
                             <FormField
                               control={form.control}
                               name="appearance.includeZero"
@@ -2379,10 +2081,57 @@ export const ChartFormDialog = ({
                             />
                           )}
 
+                          {hasAppearanceControl('cartesianOptions') && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <FormField
+                                control={form.control}
+                                name="appearance.yMin"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Y-axis Min</FormLabel>
+                                    <Input
+                                      type="number"
+                                      aria-label="Y-axis Min"
+                                      placeholder="Auto"
+                                      value={field.value ?? ''}
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          e.target.value === ''
+                                            ? undefined
+                                            : Number(e.target.value),
+                                        )
+                                      }
+                                    />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="appearance.yMax"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Y-axis Max</FormLabel>
+                                    <Input
+                                      type="number"
+                                      aria-label="Y-axis Max"
+                                      placeholder="Auto"
+                                      value={field.value ?? ''}
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          e.target.value === ''
+                                            ? undefined
+                                            : Number(e.target.value),
+                                        )
+                                      }
+                                    />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
                           {/* Curve type — line & area only */}
-                          {(subType === 'line' ||
-                            subType === 'area' ||
-                            subType === 'stacked-area') && (
+                          {hasAppearanceControl('lineOptions') && (
                             <FormField
                               control={form.control}
                               name="appearance.curveType"
@@ -2391,9 +2140,13 @@ export const ChartFormDialog = ({
                                   <FormLabel>Curve</FormLabel>
                                   <Select
                                     value={field.value ?? 'linear'}
-                                    onValueChange={(v) =>
-                                      field.onChange(v as CurveType)
-                                    }
+                                    onValueChange={(value) => {
+                                      const next = findOptionValue(
+                                        CURVE_TYPE_OPTIONS,
+                                        value,
+                                      )
+                                      if (next) field.onChange(next)
+                                    }}
                                   >
                                     <SelectTrigger>
                                       <SelectValue />
@@ -2415,9 +2168,7 @@ export const ChartFormDialog = ({
                           )}
 
                           {/* Show dots — line & area only */}
-                          {(subType === 'line' ||
-                            subType === 'area' ||
-                            subType === 'stacked-area') && (
+                          {hasAppearanceControl('lineOptions') && (
                             <FormField
                               control={form.control}
                               name="appearance.showDots"
@@ -2436,8 +2187,7 @@ export const ChartFormDialog = ({
                           )}
 
                           {/* Area opacity */}
-                          {(subType === 'area' ||
-                            subType === 'stacked-area') && (
+                          {hasAppearanceControl('areaOptions') && (
                             <FormField
                               control={form.control}
                               name="appearance.areaOpacity"
@@ -2464,7 +2214,7 @@ export const ChartFormDialog = ({
                           )}
 
                           {/* Bar radius — grouped bar only */}
-                          {subType === 'grouped-bar' && (
+                          {hasAppearanceControl('groupedBarOptions') && (
                             <FormField
                               control={form.control}
                               name="appearance.barRadius"
@@ -2490,7 +2240,7 @@ export const ChartFormDialog = ({
                           )}
 
                           {/* Donut inner radius */}
-                          {subType === 'donut' && (
+                          {hasAppearanceControl('donutOptions') && (
                             <FormField
                               control={form.control}
                               name="appearance.donutInnerRadius"
@@ -2518,176 +2268,203 @@ export const ChartFormDialog = ({
                       )}
 
                       {/* Formatting */}
-                      <FieldGroup title="Formatting">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                      {hasAppearanceControl('formatting') && (
+                        <FieldGroup title="Formatting">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name="appearance.decimalPlaces"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Decimal Places</FormLabel>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={6}
+                                    value={field.value ?? 3}
+                                    onChange={(e) =>
+                                      field.onChange(
+                                        e.target.value === ''
+                                          ? undefined
+                                          : Number(e.target.value),
+                                      )
+                                    }
+                                  />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="appearance.datePrecision"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Date Format</FormLabel>
+                                  <Select
+                                    value={
+                                      field.value ??
+                                      DEFAULT_PRODUCT_DATE_PRECISION
+                                    }
+                                    onValueChange={(value) => {
+                                      const next = findOptionValue(
+                                        DATE_PRECISION_OPTIONS,
+                                        value,
+                                      )
+                                      if (next) field.onChange(next)
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {DATE_PRECISION_OPTIONS.map((o) => (
+                                        <SelectItem
+                                          key={o.value}
+                                          value={o.value}
+                                        >
+                                          {o.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
                           <FormField
                             control={form.control}
-                            name="appearance.decimalPlaces"
+                            name="appearance.compactNumbers"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Decimal Places</FormLabel>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={6}
-                                  value={field.value ?? 3}
-                                  onChange={(e) =>
-                                    field.onChange(
-                                      e.target.value === ''
-                                        ? undefined
-                                        : Number(e.target.value),
-                                    )
-                                  }
+                              <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                                <FormLabel className="m-0">
+                                  Compact numbers (1.2k, 3.4M)
+                                </FormLabel>
+                                <Switch
+                                  checked={field.value ?? true}
+                                  onCheckedChange={field.onChange}
                                 />
                               </FormItem>
                             )}
                           />
-                          <FormField
-                            control={form.control}
-                            name="appearance.datePrecision"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Date Format</FormLabel>
-                                <Select
-                                  value={
-                                    field.value ??
-                                    DEFAULT_PRODUCT_DATE_PRECISION
-                                  }
-                                  onValueChange={(v) =>
-                                    field.onChange(
-                                      v as AppearanceConfig['datePrecision'],
-                                    )
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DATE_PRECISION_OPTIONS.map((o) => (
-                                      <SelectItem key={o.value} value={o.value}>
-                                        {o.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <FormField
-                          control={form.control}
-                          name="appearance.compactNumbers"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-                              <FormLabel className="m-0">
-                                Compact numbers (1.2k, 3.4M)
-                              </FormLabel>
-                              <Switch
-                                checked={field.value ?? true}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormItem>
-                          )}
-                        />
-                      </FieldGroup>
-
-                      {/* Colour overrides — list all series with their current colour */}
-                      {currentSeriesEntries.length > 0 && (
-                        <FieldGroup title="Colour Overrides">
-                          <p className="text-xs text-muted-foreground">
-                            Enter a hex colour (e.g. #3b82f6) to override the
-                            scheme default for a series.
-                          </p>
-                          <FormField
-                            control={form.control}
-                            name="appearance.colorOverrides"
-                            render={({ field }) => {
-                              const overrides = field.value ?? {}
-                              const scheme = form.getValues(
-                                'appearance.categoricalScheme',
-                              ) as CategoricalColorScheme | undefined
-                              return (
-                                <FormItem className="flex flex-col gap-2">
-                                  {currentSeriesEntries.map(
-                                    ({ label, overrideKeys }, index) => {
-                                      const activeOverrideKey =
-                                        overrideKeys.find(
-                                          (key) => overrides[key] !== undefined,
-                                        ) ?? overrideKeys[0]!
-                                      const currentColor = resolveSeriesColor(
-                                        index,
-                                        scheme,
-                                        overrides,
-                                        overrideKeys,
-                                      )
-                                      const hasOverride =
-                                        activeOverrideKey in overrides
-
-                                      return (
-                                        <div
-                                          key={label}
-                                          className="flex items-center gap-2"
-                                        >
-                                          <div
-                                            className="h-5 w-5 shrink-0 rounded border"
-                                            style={{
-                                              backgroundColor: currentColor,
-                                            }}
-                                          />
-                                          <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                                            {label}
-                                          </span>
-                                          <Input
-                                            className="h-7 w-24 font-mono text-xs"
-                                            value={
-                                              overrides[activeOverrideKey] ?? ''
-                                            }
-                                            placeholder={resolveSeriesColor(
-                                              index,
-                                              scheme,
-                                              undefined,
-                                              overrideKeys,
-                                            )}
-                                            onChange={(e) => {
-                                              const next = { ...overrides }
-                                              for (const key of overrideKeys) {
-                                                delete next[key]
-                                              }
-                                              if (e.target.value) {
-                                                next[overrideKeys[0]!] =
-                                                  e.target.value
-                                              }
-                                              field.onChange(next)
-                                            }}
-                                          />
-                                          {hasOverride && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-7 w-7 p-0 text-xs text-muted-foreground"
-                                              title="Reset to default"
-                                              onClick={() => {
-                                                const next = { ...overrides }
-                                                for (const key of overrideKeys) {
-                                                  delete next[key]
-                                                }
-                                                field.onChange(next)
-                                              }}
-                                            >
-                                              ×
-                                            </Button>
-                                          )}
-                                        </div>
-                                      )
-                                    },
-                                  )}
-                                </FormItem>
-                              )
-                            }}
-                          />
                         </FieldGroup>
                       )}
+
+                      {/* Colour overrides — list all series with their current colour */}
+                      {hasAppearanceControl('colorOverrides') &&
+                        currentSeriesEntries.length > 0 && (
+                          <FieldGroup title="Colour Overrides">
+                            <p className="text-xs text-muted-foreground">
+                              Enter a hex colour (e.g. #3b82f6) to override the
+                              scheme default for a series.
+                            </p>
+                            <FormField
+                              control={form.control}
+                              name="appearance.colorOverrides"
+                              render={({ field }) => {
+                                const overrides = field.value ?? {}
+                                const scheme = form.getValues(
+                                  'appearance.categoricalScheme',
+                                )
+                                return (
+                                  <FormItem className="flex flex-col gap-2">
+                                    {currentSeriesEntries.map(
+                                      ({ label, overrideKeys }, index) => {
+                                        const firstOverrideKey = overrideKeys[0]
+                                        if (!firstOverrideKey) return null
+                                        const activeOverrideKey =
+                                          overrideKeys.find(
+                                            (key) =>
+                                              overrides[key] !== undefined,
+                                          ) ?? firstOverrideKey
+                                        const currentColor = resolveSeriesColor(
+                                          index,
+                                          scheme,
+                                          overrides,
+                                          overrideKeys,
+                                        )
+                                        const hasOverride =
+                                          activeOverrideKey in overrides
+                                        const updateOverride = (
+                                          value: string,
+                                        ) => {
+                                          const next = { ...overrides }
+                                          for (const key of overrideKeys) {
+                                            delete next[key]
+                                          }
+                                          if (value) {
+                                            next[firstOverrideKey] = value
+                                          }
+                                          field.onChange(next)
+                                        }
+
+                                        return (
+                                          <div
+                                            key={label}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <Input
+                                              type="color"
+                                              aria-label={`${label} colour`}
+                                              className="h-7 w-8 shrink-0 cursor-pointer rounded border p-0"
+                                              value={toColourInputValue(
+                                                currentColor,
+                                              )}
+                                              onChange={(e) =>
+                                                updateOverride(e.target.value)
+                                              }
+                                              onInput={(e) =>
+                                                updateOverride(
+                                                  e.currentTarget.value,
+                                                )
+                                              }
+                                            />
+                                            <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                                              {label}
+                                            </span>
+                                            <Input
+                                              className="h-7 w-24 font-mono text-xs"
+                                              aria-label={`${label} colour hex`}
+                                              value={
+                                                overrides[activeOverrideKey] ??
+                                                ''
+                                              }
+                                              placeholder={resolveSeriesColor(
+                                                index,
+                                                scheme,
+                                                undefined,
+                                                overrideKeys,
+                                              )}
+                                              onChange={(e) =>
+                                                updateOverride(e.target.value)
+                                              }
+                                            />
+                                            {hasOverride && (
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-xs text-muted-foreground"
+                                                title="Reset to default"
+                                                onClick={() => {
+                                                  const next = { ...overrides }
+                                                  for (const key of overrideKeys) {
+                                                    delete next[key]
+                                                  }
+                                                  field.onChange(next)
+                                                }}
+                                              >
+                                                ×
+                                              </Button>
+                                            )}
+                                          </div>
+                                        )
+                                      },
+                                    )}
+                                  </FormItem>
+                                )
+                              }}
+                            />
+                          </FieldGroup>
+                        )}
                     </div>
                   )}
                 </div>

@@ -102,7 +102,7 @@ Notes:
 - the seed script is intended for local/dev bootstrap
 - the example local environment expects PostGIS on `localhost:5431`
 - production seed/bootstrap is separate from release execution
-- migration policy lives in [docs/DATABASE.md](./DATABASE.md)
+- migration policy lives in [docs/database.md](./database.md)
 
 ## Better Auth Schema Updates
 

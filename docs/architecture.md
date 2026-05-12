@@ -32,8 +32,9 @@ The current domain model centers on datasets, geometries, products, and reportin
 
 The older internal model notes are still useful references:
 
-- [docs/MODEL.md](./MODEL.md)
-- [docs/REQUIREMENTS.md](./REQUIREMENTS.md)
+- [docs/model.md](./model.md)
+- [docs/requirements.md](./requirements.md)
+- [docs/chart-development.md](./chart-development.md)
 - [docs/requirements/access-control.md](./requirements/access-control.md)
 - [docs/requirements/report-publishing.md](./requirements/report-publishing.md)
 

@@ -1,6 +1,6 @@
 # Spatial Data Framework Data Model
 
-Simplified data model diagram - see [`schema.ts`](../apps/server/src/schemas/index.ts) for the full schema.
+Simplified data model diagram - see [`db.ts`](../apps/server/src/schemas/db.ts) for the full schema.
 
 ```mermaid
 erDiagram
