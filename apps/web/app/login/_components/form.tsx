@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
@@ -39,6 +39,7 @@ const labelClassName = 'text-sm font-medium leading-4 text-neutral-950'
 const LoginForm = () => {
   const authClient = useAuthClient()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const { appUrl } = useConfig()
   const [twoFactorPending, setTwoFactorPending] = useState(false)
@@ -72,6 +73,7 @@ const LoginForm = () => {
               return
             }
 
+            void queryClient.invalidateQueries()
             router.push('/')
           },
         },
@@ -90,7 +92,7 @@ const LoginForm = () => {
     },
   })
 
-  async function onSubmit(data: Data) {
+  function onSubmit(data: Data) {
     submitMutation.mutate(data)
   }
 

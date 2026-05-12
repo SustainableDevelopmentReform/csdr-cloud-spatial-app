@@ -137,6 +137,7 @@ const UserProfile = () => {
         throw res.error
       }
 
+      await queryClient.invalidateQueries()
       window.open('/', '_self')
     },
   })

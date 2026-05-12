@@ -1,5 +1,6 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useConfig } from '~/components/providers'
 import { useAuthClient } from '~/hooks/useAuthClient'
@@ -9,6 +10,7 @@ import SignupForm from './_components/form'
 
 const Page = () => {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const authClient = useAuthClient()
   const { appUrl } = useConfig()
 
@@ -45,6 +47,7 @@ const Page = () => {
             return
           }
 
+          await queryClient.invalidateQueries()
           router.push('/')
         }}
       />

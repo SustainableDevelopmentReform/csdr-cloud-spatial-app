@@ -29,7 +29,7 @@ export const SignOutButton = ({
         if (res.error) {
           toast.error(res.error.message)
         } else {
-          queryClient.invalidateQueries()
+          await queryClient.invalidateQueries()
           router.push('/')
           onClick?.()
         }
