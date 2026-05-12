@@ -1,7 +1,7 @@
 import {
   chartConfigurationSchema,
   type ChartConfiguration,
-} from '@repo/schemas/chart'
+} from '@repo/plot/types'
 import { z } from 'zod'
 
 export const chartFormSchema = z.intersection(

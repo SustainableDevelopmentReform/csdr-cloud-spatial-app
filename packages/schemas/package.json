@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
+    "@repo/plot": "workspace:*",
     "zod": "catalog:",
     "wkx": "catalog:"
   }

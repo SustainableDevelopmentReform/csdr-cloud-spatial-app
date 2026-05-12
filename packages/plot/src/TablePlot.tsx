@@ -36,8 +36,8 @@ type BaseTableRecord = {
 }
 
 export const DEFAULT_TABLE_DATA_PROPS = {
-  xDimension: 'indicatorName' as const,
-  yDimension: 'timePoint' as const,
+  xDimension: 'indicatorName',
+  yDimension: 'timePoint',
   data: [
     {
       id: 'sample-1',
@@ -81,9 +81,11 @@ export function getTablePlotCodeSnippet() {
 // Colour scale helpers
 // ---------------------------------------------------------------------------
 
+type ColorInterpolator = typeof interpolateYlOrRd
+
 const SEQUENTIAL_INTERPOLATORS: Record<
   SequentialColorScheme,
-  (t: number) => string
+  ColorInterpolator
 > = {
   ylOrRd: interpolateYlOrRd,
   viridis: interpolateViridis,
@@ -96,22 +98,20 @@ const SEQUENTIAL_INTERPOLATORS: Record<
   buPu: interpolateBuPu,
 }
 
-const DIVERGING_INTERPOLATORS: Record<
-  DivergingColorScheme,
-  (t: number) => string
-> = {
-  rdBu: interpolateRdBu,
-  brBG: interpolateBrBG,
-  piYG: interpolatePiYG,
-  prGn: interpolatePRGn,
-  rdYlGn: interpolateRdYlGn,
-}
+const DIVERGING_INTERPOLATORS: Record<DivergingColorScheme, ColorInterpolator> =
+  {
+    rdBu: interpolateRdBu,
+    brBG: interpolateBrBG,
+    piYG: interpolatePiYG,
+    prGn: interpolatePRGn,
+    rdYlGn: interpolateRdYlGn,
+  }
 
 const dimensionLabels = {
   timePoint: 'Time',
   indicatorName: 'Indicator',
   geometryOutputName: 'Geometry',
-} as const
+}
 
 export type TablePlotDimension =
   | 'timePoint'
@@ -124,12 +124,13 @@ type DimensionMeta = {
   sortValue: number | string
 }
 
-type TablePlotRow<T> = {
+type TablePlotRow<TRecord extends BaseTableRecord = BaseTableRecord> = {
   meta: DimensionMeta
-  cells: Record<string, T | undefined>
+  cells: Record<string, NormalizedTableRecord<TRecord> | undefined>
 }
 
-type NormalizedTableRecord = BaseTableRecord & { timePoint: Date }
+type NormalizedTableRecord<TRecord extends BaseTableRecord = BaseTableRecord> =
+  TRecord & { timePoint: Date }
 
 function getDimensionMeta(
   record: NormalizedTableRecord,
@@ -175,23 +176,23 @@ function compareDimensionMeta(
   b: DimensionMeta,
 ) {
   if (dimension === 'timePoint') {
-    return (a.sortValue as number) - (b.sortValue as number)
+    return Number(a.sortValue) - Number(b.sortValue)
   }
   return String(a.sortValue).localeCompare(String(b.sortValue))
 }
 
-export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
+export function TablePlot<TRecord extends BaseTableRecord>({
   data,
   xDimension,
   yDimension,
   appearance,
   onSelect,
 }: {
-  data: T[]
+  data: TRecord[]
   xDimension: TablePlotDimension
   yDimension: TablePlotDimension
   appearance?: AppearanceConfig
-  onSelect?: OnSelectCallback<T>
+  onSelect?: OnSelectCallback<TRecord>
 }) {
   const numFmt = useMemo(
     () =>
@@ -207,7 +208,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
     [appearance?.datePrecision],
   )
 
-  const normalizedData = useMemo<NormalizedTableRecord[]>(() => {
+  const normalizedData = useMemo<NormalizedTableRecord<TRecord>[]>(() => {
     return data.map((record) => {
       const time =
         record.timePoint instanceof Date
@@ -223,7 +224,7 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
 
   const { columns, rows } = useMemo(() => {
     const columnMap = new Map<string, DimensionMeta>()
-    const rowMap = new Map<string, TablePlotRow<T>>()
+    const rowMap = new Map<string, TablePlotRow<TRecord>>()
 
     for (const record of normalizedData) {
       const columnMeta = getDimensionMeta(record, xDimension, dateFmt)
@@ -236,14 +237,16 @@ export function TablePlot<T extends BaseTableRecord = BaseTableRecord>({
       }
 
       const rowKey = rowMeta.key
-      if (!rowMap.has(rowKey)) {
-        rowMap.set(rowKey, {
+      let row = rowMap.get(rowKey)
+      if (!row) {
+        row = {
           meta: rowMeta,
           cells: {},
-        })
+        }
+        rowMap.set(rowKey, row)
       }
 
-      rowMap.get(rowKey)!.cells[columnMeta.key] = record as T
+      row.cells[columnMeta.key] = record
     }
 
     const sortedColumns = Array.from(columnMap.values()).sort((a, b) =>

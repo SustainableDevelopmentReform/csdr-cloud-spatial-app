@@ -7,6 +7,8 @@ import { ChartRenderer } from './chart-renderer'
 import type { ProductOutputExportListItem } from '../../product/_hooks'
 
 type ReportChartFormBuilderOptions = {
+  onChartDialogClose?: () => void
+  onChartDialogOpen?: () => void
   readOnly?: boolean
 }
 
@@ -29,15 +31,21 @@ const renderChart = (
 
 const useReportChartEditor = ({
   chart,
+  onChartDialogClose,
+  onChartDialogOpen,
   onChartChange,
 }: {
   chart: ChartConfiguration | null
+  onChartDialogClose?: () => void
+  onChartDialogOpen?: () => void
   onChartChange: (chart: ChartConfiguration | null) => void
 }) => {
   const controls = (
     <ChartFormDialog
       buttonText="Edit chart"
       chart={chart}
+      onClose={onChartDialogClose}
+      onOpen={onChartDialogOpen}
       onSubmit={onChartChange}
     />
   )
@@ -52,5 +60,10 @@ export const reportChartFormBuilder: (
   renderChart: (chartConfiguration) =>
     renderChart(chartConfiguration, onSelect, options?.readOnly === true),
   useChartEditor: ({ chart, onChartChange }) =>
-    useReportChartEditor({ chart, onChartChange }),
+    useReportChartEditor({
+      chart,
+      onChartChange,
+      onChartDialogClose: options?.onChartDialogClose,
+      onChartDialogOpen: options?.onChartDialogOpen,
+    }),
 })

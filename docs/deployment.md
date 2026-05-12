@@ -129,4 +129,4 @@ cd /app/backend/migrate/
 node index.js
 ```
 
-See [docs/DATABASE.md](./DATABASE.md) for the migration policy.
+See [docs/database.md](./database.md) for the migration policy.

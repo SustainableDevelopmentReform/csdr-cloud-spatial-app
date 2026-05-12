@@ -60,7 +60,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
@@ -165,7 +165,9 @@ const isReportEditorInteraction = () => {
 
   return (
     activeElement instanceof HTMLElement &&
-    activeElement.closest('.simple-editor-wrapper') !== null
+    activeElement.closest(
+      '.simple-editor-wrapper, [data-report-editor-interaction="true"]',
+    ) !== null
   )
 }
 
@@ -226,6 +228,7 @@ const ReportDetails = () => {
   const [hydratedReportVersion, setHydratedReportVersion] = useState<
     string | null
   >(null)
+  const chartDialogInteractionRef = useRef(false)
 
   const form = useForm<UpdateReportPayload>({
     resolver: zodResolver(updateReportSchema),
@@ -304,12 +307,27 @@ const ReportDetails = () => {
     () => getReportEditorContent(watchedContent),
     [watchedContent],
   )
+  const handleChartDialogOpen = useCallback(() => {
+    chartDialogInteractionRef.current = true
+  }, [])
+  const handleChartDialogClose = useCallback(() => {
+    window.setTimeout(() => {
+      chartDialogInteractionRef.current = false
+    }, 0)
+  }, [])
   const formBuilder = useMemo(
     () =>
       reportChartFormBuilder(setSelectedDataPoint, {
+        onChartDialogClose: handleChartDialogClose,
+        onChartDialogOpen: handleChartDialogOpen,
         readOnly: !isEditMode,
       }),
-    [isEditMode, setSelectedDataPoint],
+    [
+      handleChartDialogClose,
+      handleChartDialogOpen,
+      isEditMode,
+      setSelectedDataPoint,
+    ],
   )
   const isEditorHydrating = Boolean(
     report && !isDirty && hydratedReportVersion !== reportVersion,
@@ -921,7 +939,8 @@ const ReportDetails = () => {
 
                             if (
                               !form.formState.isDirty &&
-                              !isReportEditorInteraction()
+                              !isReportEditorInteraction() &&
+                              !chartDialogInteractionRef.current
                             ) {
                               return
                             }
