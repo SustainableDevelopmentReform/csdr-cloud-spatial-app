@@ -38,6 +38,7 @@ import {
   baseDatasetRunSchema,
   baseDatasetSchema,
   createDatasetSchema,
+  datasetStyleSchema,
   datasetQuerySchema,
   datasetRunQuerySchema,
   fullDatasetSchema,
@@ -79,14 +80,17 @@ export const parseBaseDataset = <
   T extends InferQueryModel<'dataset', typeof baseDatasetQuery>,
 >(
   record: T,
-) => record
+) => ({
+  ...record,
+  style: datasetStyleSchema.nullable().parse(record.style),
+})
 
 export const parseFullDataset = <
   T extends InferQueryModel<'dataset', typeof fullDatasetQuery>,
 >(
   record: T,
 ) => ({
-  ...record,
+  ...parseBaseDataset(record),
   mainRun:
     record.mainRun && record.mainRun.dataset.id === record.id
       ? parseBaseDatasetRun(record.mainRun)
@@ -210,7 +214,7 @@ const app = createOpenAPIApp()
         c,
         {
           ...meta,
-          data,
+          data: data.map(parseBaseDataset),
         },
         200,
       )

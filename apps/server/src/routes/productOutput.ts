@@ -4,6 +4,7 @@ import {
   baseProductOutputSchema,
   createManyProductOutputSchema,
   createProductOutputSchema,
+  datasetStyleSchema,
   fullProductOutputSchema,
   importProductOutputsSchema,
   updateProductOutputSchema,
@@ -64,7 +65,10 @@ export const baseProductOutputQuery = {
           columns: idColumns,
           with: {
             dataset: {
-              columns: idColumnsWithMainRunId,
+              columns: {
+                ...idColumnsWithMainRunId,
+                style: true,
+              },
             },
           },
         },
@@ -96,6 +100,22 @@ type BaseProductOutputRecord = InferQueryModel<
   'productOutput',
   typeof baseProductOutputQuery
 >
+const parseProductOutputProductRun = (
+  productRunRecord: BaseProductOutputRecord['productRun'],
+) => ({
+  ...productRunRecord,
+  datasetRun: productRunRecord.datasetRun
+    ? {
+        ...productRunRecord.datasetRun,
+        dataset: {
+          ...productRunRecord.datasetRun.dataset,
+          style: datasetStyleSchema
+            .nullable()
+            .parse(productRunRecord.datasetRun.dataset.style),
+        },
+      }
+    : null,
+})
 type ParsedMeasuredIndicator = ReturnType<
   typeof parseFullMeasuredIndicator<
     InferQueryModel<'indicator', typeof fullMeasuredIndicatorQuery>
@@ -108,8 +128,9 @@ type ParsedDerivedIndicator = ReturnType<
 >
 type ParsedBaseProductOutput = Omit<
   BaseProductOutputRecord,
-  'indicator' | 'derivedIndicator'
+  'indicator' | 'derivedIndicator' | 'productRun'
 > & {
+  productRun: ReturnType<typeof parseProductOutputProductRun>
   indicator: ParsedMeasuredIndicator | ParsedDerivedIndicator | null
   derivedIndicator?: undefined
 }
@@ -219,11 +240,12 @@ const assertProductOutputReadableReferences = async (
   }
 }
 
-const parseBaseProductOutput = (
+export const parseBaseProductOutput = (
   record: BaseProductOutputRecord,
 ): ParsedBaseProductOutput => {
   return {
     ...record,
+    productRun: parseProductOutputProductRun(record.productRun),
     derivedIndicator: undefined,
     indicator: record.indicator
       ? parseFullMeasuredIndicator(record.indicator)
@@ -578,14 +600,7 @@ const app = createOpenAPIApp()
           })
         }
 
-        return {
-          ...record,
-          indicator: record.indicator
-            ? parseFullMeasuredIndicator(record.indicator)
-            : record.derivedIndicator
-              ? parseBaseDerivedIndicator(record.derivedIndicator)
-              : null,
-        }
+        return parseBaseProductOutput(record)
       })
 
       return generateJsonResponse(

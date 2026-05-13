@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from '@repo/ui/components/ui/card'
 import { cn } from '@repo/ui/lib/utils'
+import { workflowDagSchema, type WorkflowStep } from '@repo/schemas/crud'
 import {
   CheckCircle2Icon,
   ChevronDownIcon,
@@ -15,28 +16,6 @@ import {
   TerminalIcon,
 } from 'lucide-react'
 import { useState } from 'react'
-import { z } from 'zod'
-
-const workflowStepSchema = z.object({
-  label: z.string(),
-  order: z.number(),
-  inputs: z.record(z.string(), z.string()).optional(),
-  outputs: z.record(z.string(), z.string()).optional(),
-  source: z
-    .object({
-      file: z.string().optional(),
-      line: z.number().optional(),
-      github: z.string().optional(),
-      function: z.string().optional(),
-    })
-    .optional(),
-  command: z.string().optional(),
-  completed_at: z.string().optional(),
-})
-
-const workflowDagSchema = z.array(workflowStepSchema)
-
-type WorkflowStep = z.infer<typeof workflowStepSchema>
 
 interface WorkflowDagChartProps {
   emptyMessage?: string

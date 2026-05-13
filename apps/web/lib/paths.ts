@@ -2,6 +2,8 @@ export const DASHBOARDS_BASE_PATH = '/console/dashboard'
 export const DATA_LIBRARY_BASE_PATH = '/console/library'
 export const DATA_LIBRARY_SOURCE_PARAM = 'from'
 export const DATA_LIBRARY_SOURCE_VALUE = 'library'
+export const RESOURCE_SECTION_PARAM = 'section'
+export const RESOURCE_SUB_SECTION_PARAM = 'sub'
 export const DATASETS_BASE_PATH = '/console/dataset'
 export const DATASETS_RUNS_BASE_PATH = '/console/dataset/run'
 export const GEOMETRIES_BASE_PATH = '/console/geometries'
@@ -29,19 +31,50 @@ export const TWO_FACTOR_BASE_PATH = '/console/me/two-factor'
 export const isDataLibrarySource = (value: string | null | undefined) =>
   value === DATA_LIBRARY_SOURCE_VALUE
 
-export const withDataLibrarySource = (href: string) => {
-  const sourceQuery = `${DATA_LIBRARY_SOURCE_PARAM}=${DATA_LIBRARY_SOURCE_VALUE}`
+export const withQueryParams = (
+  href: string,
+  params: Record<string, string | null | undefined>,
+) => {
+  const hashIndex = href.indexOf('#')
+  const hrefWithoutHash = hashIndex === -1 ? href : href.slice(0, hashIndex)
+  const hash = hashIndex === -1 ? '' : href.slice(hashIndex)
+  const queryIndex = hrefWithoutHash.indexOf('?')
+  const path =
+    queryIndex === -1 ? hrefWithoutHash : hrefWithoutHash.slice(0, queryIndex)
+  const query = queryIndex === -1 ? '' : hrefWithoutHash.slice(queryIndex + 1)
+  const searchParams = new URLSearchParams(query)
 
-  if (href.includes(sourceQuery)) {
-    return href
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === '') {
+      searchParams.delete(key)
+      return
+    }
+
+    searchParams.set(key, value)
+  })
+
+  const nextQuery = searchParams.toString()
+
+  return `${path}${nextQuery ? `?${nextQuery}` : ''}${hash}`
+}
+
+export const withDataLibrarySource = (href: string) =>
+  withQueryParams(href, {
+    [DATA_LIBRARY_SOURCE_PARAM]: DATA_LIBRARY_SOURCE_VALUE,
+  })
+
+export const withResourceSection = (
+  href: string,
+  section: string,
+  subSection?: string | null,
+) => {
+  const params: Record<string, string | null | undefined> = {
+    [RESOURCE_SECTION_PARAM]: section,
   }
 
-  const separator =
-    href.endsWith('?') || href.endsWith('&')
-      ? ''
-      : href.includes('?')
-        ? '&'
-        : '?'
+  if (subSection !== undefined) {
+    params[RESOURCE_SUB_SECTION_PARAM] = subSection
+  }
 
-  return `${href}${separator}${sourceQuery}`
+  return withQueryParams(href, params)
 }

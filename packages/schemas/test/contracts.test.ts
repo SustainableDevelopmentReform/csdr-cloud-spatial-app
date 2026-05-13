@@ -7,6 +7,7 @@ import {
 import {
   dashboardQuerySchema,
   dashboardContentSchema,
+  datasetStyleSchema,
   fullDatasetRunSchema,
   fullMeasuredIndicatorSchema,
   fullProductSchema,
@@ -14,6 +15,8 @@ import {
   fullReportSchema,
   reportQuerySchema,
   reportStoredContentSchema,
+  workflowDagSchema,
+  workflowDagSimpleSchema,
 } from '../src/crud'
 import {
   extractReportChartReferences,
@@ -334,6 +337,64 @@ describe('chartConfigurationSchema', () => {
 })
 
 describe('crud schemas', () => {
+  it('accepts workflow DAG payloads from runs', () => {
+    expect(
+      workflowDagSchema.parse([
+        {
+          label: 'Load source raster',
+          order: 1,
+          inputs: {
+            source: 's3://bucket/source.tif',
+          },
+          outputs: {
+            raster: 's3://bucket/processed.tif',
+          },
+          source: {
+            github: 'https://example.com/repo/blob/main/workflow.py',
+            function: 'load_source_raster',
+          },
+          command: 'python workflow.py',
+          completed_at: '2024-01-01T00:00:00.000Z',
+        },
+      ]),
+    ).toHaveLength(1)
+
+    expect(
+      workflowDagSimpleSchema.parse({
+        description: 'Summarise mangrove area by boundary.',
+        inputs: ['Mangrove raster', 'Tonga EEZ'],
+        methods: ['Clip raster to EEZ', 'Calculate area by pixel class'],
+        outputs: ['Mangrove area'],
+        indicators: ['Mangrove Area'],
+      }).methods,
+    ).toEqual(['Clip raster to EEZ', 'Calculate area by pixel class'])
+  })
+
+  it('accepts dataset style payloads', () => {
+    expect(
+      datasetStyleSchema.parse({
+        asset: 'mangroves',
+        type: 'raster',
+        display: 'categorical',
+        values: {
+          '1': {
+            color: 'rgba(86, 173, 60, 1)',
+            label: 'Mangrove',
+          },
+        },
+      }).values?.['1']?.label,
+    ).toBe('Mangrove')
+
+    expect(
+      datasetStyleSchema.parse({
+        type: 'vector-polygon',
+        display: 'simple',
+        color: 'rgba(209, 255, 93, 1)',
+        label: 'Reef',
+      }).label,
+    ).toBe('Reef')
+  })
+
   it('accepts usage counts on full detail schemas', () => {
     const measuredIndicator = fullMeasuredIndicatorSchema.parse({
       id: 'indicator-1',
@@ -395,6 +456,8 @@ describe('crud schemas', () => {
         dataType: null,
         dataSize: null,
         dataEtag: null,
+        workflowDag: null,
+        workflowDagSimple: null,
         dataset: {
           id: 'dataset-1',
           name: 'Dataset',

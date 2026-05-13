@@ -8,6 +8,8 @@ import {
   geometryOutputExportSchema,
   geometryOutputQuerySchema,
   updateGeometriesRunSchema,
+  workflowDagSchema,
+  workflowDagSimpleSchema,
 } from '@repo/schemas/crud'
 import { and, desc, eq, inArray, notInArray, sql, SQL } from 'drizzle-orm'
 import { assertResourceWritable } from '~/lib/authorization'
@@ -37,6 +39,7 @@ import {
   baseRunColumns,
   createPayload,
   idColumnsWithMainRunId,
+  InferQueryModel,
   QueryForTable,
   updatePayload,
 } from '../schemas/util'
@@ -59,6 +62,18 @@ export const baseGeometriesRunQuery = {
 } satisfies QueryForTable<'geometriesRun'>
 
 export const fullGeometriesRunQuery = baseGeometriesRunQuery
+
+export const parseBaseGeometriesRun = <
+  T extends InferQueryModel<'geometriesRun', typeof baseGeometriesRunQuery>,
+>(
+  record: T,
+) => ({
+  ...record,
+  workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
+  workflowDagSimple: workflowDagSimpleSchema
+    .nullable()
+    .parse(record.workflowDagSimple),
+})
 
 const TILE_EXTENT = 4096
 const TILE_BUFFER = 64
@@ -136,7 +151,7 @@ const fetchBaseGeometriesRun = async (id: string) => {
     return null
   }
 
-  return geometriesRunRecord
+  return parseBaseGeometriesRun(geometriesRunRecord)
 }
 
 export const fetchBaseGeometriesRunOrThrow = async (id: string) => {

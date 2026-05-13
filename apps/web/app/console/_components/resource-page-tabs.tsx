@@ -2,12 +2,18 @@
 
 import { Tabs, TabsContent } from '@repo/ui/components/ui/tabs'
 import { Code2Icon, MapIcon, Table2Icon, WorkflowIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   DEFAULT_LINEAGE_EMPTY_MESSAGE,
   LineageEmptyState,
 } from '~/components/workflow-dag-chart'
 import { SimpleWorkflowDagChart } from '~/components/simple-workflow-dag-chart'
+import {
+  RESOURCE_SECTION_PARAM,
+  RESOURCE_SUB_SECTION_PARAM,
+  withQueryParams,
+} from '~/lib/paths'
 import {
   ConsolePrimaryTabsList,
   ConsolePrimaryTabsTrigger,
@@ -48,7 +54,7 @@ interface ResourcePageTabsProps {
   usage?: React.ReactNode
 }
 
-const toResourceTab = (value: string): ResourceTab => {
+const toResourceTab = (value: string | null | undefined): ResourceTab => {
   switch (value) {
     case 'explore':
       return 'explore'
@@ -60,6 +66,32 @@ const toResourceTab = (value: string): ResourceTab => {
       return 'usage'
     default:
       return 'overview'
+  }
+}
+
+const toExploreSubTab = (
+  value: string | null | undefined,
+): ExploreSubTab | null => {
+  switch (value) {
+    case 'map':
+      return 'map'
+    case 'table':
+      return 'table'
+    default:
+      return null
+  }
+}
+
+const toLineageSubTab = (
+  value: string | null | undefined,
+): LineageSubTab | null => {
+  switch (value) {
+    case 'simple':
+      return 'simple'
+    case 'technical':
+      return 'technical'
+    default:
+      return null
   }
 }
 
@@ -77,10 +109,44 @@ export function ResourcePageTabs({
   versions,
   usage,
 }: ResourcePageTabsProps) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [internalTab, setInternalTab] = useState<ResourceTab>(defaultTab)
   const [exploreSubTab, setExploreSubTab] = useState<ExploreSubTab>('map')
   const [lineageSubTab, setLineageSubTab] = useState<LineageSubTab>('simple')
-  const activeTab = value ?? internalTab
+  const sectionParam = searchParams.get(RESOURCE_SECTION_PARAM)
+  const subSectionParam = searchParams.get(RESOURCE_SUB_SECTION_PARAM)
+  const hasUrlTab = !hideTabs && searchParams.has(RESOURCE_SECTION_PARAM)
+  const activeTab = hasUrlTab
+    ? toResourceTab(sectionParam)
+    : (value ?? internalTab)
+  const activeExploreSubTab =
+    activeTab === 'explore'
+      ? (toExploreSubTab(subSectionParam) ?? exploreSubTab)
+      : exploreSubTab
+  const activeLineageSubTab =
+    activeTab === 'lineage'
+      ? (toLineageSubTab(subSectionParam) ?? lineageSubTab)
+      : lineageSubTab
+
+  const updateResourceTabParams = useCallback(
+    (nextTab: ResourceTab, nextSubTab?: string) => {
+      if (hideTabs) {
+        return
+      }
+
+      const query = searchParams.toString()
+      const currentHref = query ? `${pathname}?${query}` : pathname
+      const nextHref = withQueryParams(currentHref, {
+        [RESOURCE_SECTION_PARAM]: nextTab,
+        [RESOURCE_SUB_SECTION_PARAM]: nextSubTab ?? null,
+      })
+
+      router.replace(nextHref, { scroll: false })
+    },
+    [hideTabs, pathname, router, searchParams],
+  )
 
   const handleTabChange = (nextValue: string) => {
     if (disabled) {
@@ -90,6 +156,28 @@ export function ResourcePageTabs({
     const nextTab = toResourceTab(nextValue)
     setInternalTab(nextTab)
     onValueChange?.(nextTab)
+
+    if (nextTab === 'explore') {
+      updateResourceTabParams(nextTab, activeExploreSubTab)
+      return
+    }
+
+    if (nextTab === 'lineage') {
+      updateResourceTabParams(nextTab, activeLineageSubTab)
+      return
+    }
+
+    updateResourceTabParams(nextTab)
+  }
+
+  const handleExploreSubTabChange = (nextSubTab: ExploreSubTab) => {
+    setExploreSubTab(nextSubTab)
+    updateResourceTabParams('explore', nextSubTab)
+  }
+
+  const handleLineageSubTabChange = (nextSubTab: LineageSubTab) => {
+    setLineageSubTab(nextSubTab)
+    updateResourceTabParams('lineage', nextSubTab)
   }
 
   return (
@@ -122,10 +210,10 @@ export function ResourcePageTabs({
         <div className="flex flex-col gap-4">
           <ConsoleSecondaryTabs
             items={exploreSubTabItems}
-            value={exploreSubTab}
-            onValueChange={setExploreSubTab}
+            value={activeExploreSubTab}
+            onValueChange={handleExploreSubTabChange}
           />
-          {exploreSubTab === 'map' && (
+          {activeExploreSubTab === 'map' && (
             <div>
               {exploreMap ?? (
                 <p className="py-8 text-center text-muted-foreground">
@@ -134,7 +222,7 @@ export function ResourcePageTabs({
               )}
             </div>
           )}
-          {exploreSubTab === 'table' && (
+          {activeExploreSubTab === 'table' && (
             <div className="overflow-hidden rounded-[10px] bg-white p-6 text-card-foreground">
               {exploreTable ?? (
                 <p className="py-8 text-center text-muted-foreground">
@@ -150,20 +238,20 @@ export function ResourcePageTabs({
         <div className="flex flex-col gap-4">
           <ConsoleSecondaryTabs
             items={lineageSubTabItems}
-            value={lineageSubTab}
-            onValueChange={setLineageSubTab}
+            value={activeLineageSubTab}
+            onValueChange={handleLineageSubTabChange}
           />
-          {lineageSubTab === 'simple' &&
+          {activeLineageSubTab === 'simple' &&
             (workflowDagSimple ? (
               <SimpleWorkflowDagChart
                 emptyMessage={DEFAULT_LINEAGE_EMPTY_MESSAGE}
                 workflowDagSimple={workflowDagSimple}
-                onMethodClick={() => setLineageSubTab('technical')}
+                onMethodClick={() => handleLineageSubTabChange('technical')}
               />
             ) : (
               <LineageEmptyState />
             ))}
-          {lineageSubTab === 'technical' && (
+          {activeLineageSubTab === 'technical' && (
             <div>{lineage ?? <LineageEmptyState />}</div>
           )}
         </div>

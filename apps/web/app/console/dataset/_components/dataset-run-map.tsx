@@ -1,4 +1,5 @@
 'use client' // Redundant but explicit.
+import type { DatasetStyle } from '@repo/schemas/crud'
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { Map, Source, Layer } from '@vis.gl/react-maplibre'
 import maplibregl from 'maplibre-gl'
@@ -15,50 +16,6 @@ import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import { DatasetRunListItem } from '../_hooks'
 
 // --- Types ---
-
-/**
- * Visualization style for a dataset. Stored as a nullable JSON column on the
- * dataset model.
- *
- * Raster / COG (STAC-GeoParquet) example:
- * ```json
- * {
- *   "asset": "mangroves",
- *   "type": "raster",
- *   "display": "categorical",
- *   "values": {
- *     "1": { "color": "rgba(86, 173, 60, 1)", "label": "Mangrove (Open)" },
- *     "2": { "color": "rgba(46, 139, 87, 1)", "label": "Mangrove (Closed)" }
- *   }
- * }
- * ```
- *
- * Vector / PMTiles (GeoParquet) example:
- * ```json
- * {
- *   "type": "vector-polygon",
- *   "display": "simple",
- *   "color": "rgba(209, 255, 93, 1)",
- *   "label": "Reef"
- * }
- * ```
- *
- * When null/undefined the map falls back to rendering with the default blue.
- */
-export type DatasetStyle = {
-  /** Which STAC asset to render (raster only). */
-  asset?: string
-  /** "raster" for COG/STAC-GeoParquet, "vector-polygon" for PMTiles. */
-  type?: 'raster' | 'vector-polygon'
-  /** "categorical" (pixel-value map) or "simple" (single colour). */
-  display?: 'categorical' | 'simple'
-  /** CSS colour for simple/single-colour rendering (PMTiles fill, COG fallback). */
-  color?: string
-  /** Human-readable label for simple/single-colour rendering. */
-  label?: string
-  /** Pixel-value → {label, CSS colour} for categorical COG rendering. Keys are string-encoded integers. */
-  values?: Record<string, { label: string; color: string }>
-}
 
 type ResolvedCategory = {
   value: number

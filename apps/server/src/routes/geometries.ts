@@ -50,7 +50,7 @@ import {
   updatePayload,
 } from '../schemas/util'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
-import { baseGeometriesRunQuery } from './geometriesRun'
+import { baseGeometriesRunQuery, parseBaseGeometriesRun } from './geometriesRun'
 
 export const baseGeometriesQuery = {
   columns: {
@@ -76,7 +76,7 @@ export const parseFullGeometries = <
   ...record,
   mainRun:
     record.mainRun && record.mainRun.geometries.id === record.id
-      ? record.mainRun
+      ? parseBaseGeometriesRun(record.mainRun)
       : null,
 })
 
@@ -356,7 +356,7 @@ const app = createOpenAPIApp()
         c,
         {
           ...meta,
-          data,
+          data: data.map(parseBaseGeometriesRun),
         },
         200,
       )

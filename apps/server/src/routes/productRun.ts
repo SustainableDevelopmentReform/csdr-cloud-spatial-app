@@ -10,6 +10,8 @@ import {
   productOutputQuerySchema,
   productRunAssignDerivedIndicatorSchema,
   updateProductRunSchema,
+  workflowDagSchema,
+  workflowDagSimpleSchema,
 } from '@repo/schemas/crud'
 import {
   and,
@@ -76,14 +78,14 @@ import {
 } from '../schemas/util'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 import { baseDatasetRunQuery, parseBaseDatasetRun } from './datasetRun'
-import { baseGeometriesRunQuery } from './geometriesRun'
+import { baseGeometriesRunQuery, parseBaseGeometriesRun } from './geometriesRun'
 import {
   baseDerivedIndicatorQuery,
   fullMeasuredIndicatorQuery,
   parseBaseDerivedIndicator,
   parseFullMeasuredIndicator,
 } from './indicator'
-import { baseProductOutputQuery } from './productOutput'
+import { baseProductOutputQuery, parseBaseProductOutput } from './productOutput'
 
 const getExportIndicatorType = (
   hasDerivedIndicator: boolean,
@@ -230,6 +232,10 @@ export const parseBaseProductRun = <
 ) => {
   return {
     ...record,
+    workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
+    workflowDagSimple: workflowDagSimpleSchema
+      .nullable()
+      .parse(record.workflowDagSimple),
     // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
     outputSummary: record.outputSummary
       ? parseBaseProductRunOutputSummary(record.outputSummary)
@@ -244,8 +250,15 @@ export const parseFullProductRun = <
 ) => {
   return {
     ...record,
+    workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
+    workflowDagSimple: workflowDagSimpleSchema
+      .nullable()
+      .parse(record.workflowDagSimple),
     datasetRun: record.datasetRun
       ? parseBaseDatasetRun(record.datasetRun)
+      : null,
+    geometriesRun: record.geometriesRun
+      ? parseBaseGeometriesRun(record.geometriesRun)
       : null,
     // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
     outputSummary: record.outputSummary
@@ -596,14 +609,7 @@ const app = createOpenAPIApp()
         ...query,
       })
 
-      const parsedData = data.map((output) => ({
-        ...output,
-        indicator: output.indicator
-          ? parseFullMeasuredIndicator(output.indicator)
-          : output.derivedIndicator
-            ? parseBaseDerivedIndicator(output.derivedIndicator)
-            : null,
-      }))
+      const parsedData = data.map(parseBaseProductOutput)
 
       return generateJsonResponse(
         c,

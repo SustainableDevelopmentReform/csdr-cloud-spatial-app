@@ -41,6 +41,7 @@ import {
 } from './map-choropleth-style'
 
 type MapBounds = [number, number, number, number]
+type ChoroplethIndicator = Pick<IndicatorListItem, 'id' | 'name' | 'unit'>
 
 function toMapBounds(
   minLon: number,
@@ -101,7 +102,7 @@ const ChoroplethMapViewer = ({
   className,
 }: {
   geometriesRun?: GeometriesRunListItem | null
-  indicator?: IndicatorListItem | null
+  indicator?: ChoroplethIndicator | null
   productRun?: ProductRunDetail | null
   productOutputs?: ProductOutputExportListItem[] | null
   zoomToGeometryOutputIds?: string[] | null
@@ -233,15 +234,24 @@ const ChoroplethMapViewer = ({
     const indicatorSummary = productRun?.outputSummary?.indicators.find(
       (v) => v.indicator?.id === indicator.id,
     )
-    const minVal = appearance?.colorScaleMin ?? indicatorSummary?.minValue ?? 0
-    const maxVal = appearance?.colorScaleMax ?? indicatorSummary?.maxValue ?? 1
-    const scale = buildColorScale(
-      indicatorSummary?.minValue ?? 0,
-      indicatorSummary?.maxValue ?? 1,
-      appearance,
-    )
+    const outputValues =
+      productOutputs
+        ?.map((output) => output.value)
+        .filter((value) => Number.isFinite(value)) ?? []
+    const fallbackMin = outputValues.length > 0 ? Math.min(...outputValues) : 0
+    const fallbackMax = outputValues.length > 0 ? Math.max(...outputValues) : 1
+    const autoMin = indicatorSummary?.minValue ?? fallbackMin
+    const autoMax = indicatorSummary?.maxValue ?? fallbackMax
+    const minVal = appearance?.colorScaleMin ?? autoMin
+    const maxVal = appearance?.colorScaleMax ?? autoMax
+    const scale = buildColorScale(autoMin, autoMax, appearance)
     return { min: minVal, max: maxVal, scale }
-  }, [indicator, productRun?.outputSummary?.indicators, appearance])
+  }, [
+    indicator,
+    productRun?.outputSummary?.indicators,
+    productOutputs,
+    appearance,
+  ])
 
   const { linePaint, fillPaint } = useMemo(() => {
     if (!indicator || !colorScaleInfo)

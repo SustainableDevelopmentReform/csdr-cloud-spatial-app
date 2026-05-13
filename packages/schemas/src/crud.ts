@@ -35,6 +35,65 @@ export const baseAclResourceSchema = baseResourceSchema.extend({
   visibility: visibilitySchema,
 })
 
+export const workflowStepSchema = z
+  .object({
+    label: z.string(),
+    order: z.number(),
+    inputs: z.record(z.string(), z.string()).optional(),
+    outputs: z.record(z.string(), z.string()).optional(),
+    source: z
+      .object({
+        file: z.string().optional(),
+        line: z.number().optional(),
+        github: z.string().optional(),
+        function: z.string().optional(),
+      })
+      .optional(),
+    command: z.string().optional(),
+    completed_at: z.string().optional(),
+  })
+  .openapi('WorkflowStepSchema')
+
+export const workflowDagSchema = z
+  .array(workflowStepSchema)
+  .openapi('WorkflowDagSchema')
+
+export const workflowDagSimpleSchema = z
+  .object({
+    description: z.string(),
+    inputs: z.array(z.string()),
+    methods: z.array(z.string()),
+    outputs: z.array(z.string()),
+    indicators: z.array(z.string()).optional(),
+  })
+  .openapi('WorkflowDagSimpleSchema')
+
+export type WorkflowStep = z.infer<typeof workflowStepSchema>
+export type WorkflowDag = z.infer<typeof workflowDagSchema>
+export type WorkflowDagSimple = z.infer<typeof workflowDagSimpleSchema>
+
+export const datasetStyleSchema = z
+  .object({
+    asset: z.string().optional(),
+    type: z.enum(['raster', 'vector-polygon']).optional(),
+    display: z.enum(['categorical', 'simple']).optional(),
+    color: z.string().optional(),
+    label: z.string().optional(),
+    values: z
+      .record(
+        z.string(),
+        z.object({
+          label: z.string(),
+          color: z.string(),
+        }),
+      )
+      .optional(),
+  })
+  .passthrough()
+  .openapi('DatasetStyleSchema')
+
+export type DatasetStyle = z.infer<typeof datasetStyleSchema>
+
 export const baseRunResourceSchema = baseResourceSchema.extend({
   imageCode: z.string().nullable(),
   imageTag: z.string().nullable(),
@@ -46,8 +105,8 @@ export const baseRunResourceSchema = baseResourceSchema.extend({
     .nullable(),
   dataSize: z.number().int().nullable(),
   dataEtag: z.string().nullable(),
-  workflowDag: z.any().nullable(),
-  workflowDagSimple: z.any().nullable(),
+  workflowDag: workflowDagSchema.nullable(),
+  workflowDagSimple: workflowDagSimpleSchema.nullable(),
 })
 
 export const baseQuerySchema = z.object({
@@ -113,8 +172,8 @@ export const baseCreateRunResourceSchema = baseCreateResourceSchema.extend({
     .optional(),
   dataSize: z.number().int().optional(),
   dataEtag: z.string().optional(),
-  workflowDag: z.any().optional(),
-  workflowDagSimple: z.any().optional(),
+  workflowDag: workflowDagSchema.nullable().optional(),
+  workflowDagSimple: workflowDagSimpleSchema.nullable().optional(),
 })
 
 export const baseUpdateResourceSchema = z.object({
@@ -222,7 +281,7 @@ export const baseDatasetRunSchema = baseRunResourceSchema
   .extend({
     dataPmtilesUrl: z.string().nullable().optional(),
     dataset: baseIdResourceSchemaWithMainRunId.extend({
-      style: z.any().nullable().optional(),
+      style: datasetStyleSchema.nullable().optional(),
     }),
     bounds: resourceBoundsSchema.nullable().optional(),
   })
@@ -241,7 +300,7 @@ export const baseDatasetSchema = baseAclResourceSchema
     mainRunId: z.string().nullable(),
     sourceUrl: z.string().nullable(),
     sourceMetadataUrl: z.string().nullable(),
-    style: z.any().nullable(),
+    style: datasetStyleSchema.nullable(),
   })
   .openapi('DatasetBase')
 
@@ -284,12 +343,12 @@ export const dataLibraryQuerySchema = geographicBoundsQuerySchema.extend({
 export const createDatasetSchema = baseCreateResourceSchema.extend({
   sourceUrl: z.string().optional(),
   sourceMetadataUrl: z.string().optional(),
-  style: z.any().nullable().optional(),
+  style: datasetStyleSchema.nullable().optional(),
 })
 
 export const updateDatasetSchema = baseUpdateResourceSchema.extend({
   mainRunId: z.string().nullable().optional(),
-  style: z.any().nullable().optional(),
+  style: datasetStyleSchema.nullable().optional(),
 })
 
 export const datasetRunQuerySchema = geographicBoundsQuerySchema
@@ -614,7 +673,9 @@ export const baseProductOutputSchema = baseResourceSchema
       product: baseIdResourceSchemaWithMainRunId,
       datasetRun: baseIdResourceSchema
         .extend({
-          dataset: baseIdResourceSchemaWithMainRunId,
+          dataset: baseIdResourceSchemaWithMainRunId.extend({
+            style: datasetStyleSchema.nullable().optional(),
+          }),
         })
         .nullable(),
       geometriesRun: baseIdResourceSchema

@@ -1,20 +1,10 @@
 'use client'
 
-import { z } from 'zod'
+import { workflowDagSimpleSchema } from '@repo/schemas/crud'
 import {
   DEFAULT_LINEAGE_EMPTY_MESSAGE,
   LineageEmptyState,
 } from './workflow-dag-chart'
-
-const workflowDagSimpleSchema = z.object({
-  description: z.string(),
-  inputs: z.array(z.string()),
-  methods: z.array(z.string()),
-  outputs: z.array(z.string()),
-  indicators: z.array(z.string()).optional(),
-})
-
-export type WorkflowDagSimple = z.infer<typeof workflowDagSimpleSchema>
 
 export function SimpleWorkflowDagChart({
   emptyMessage = DEFAULT_LINEAGE_EMPTY_MESSAGE,

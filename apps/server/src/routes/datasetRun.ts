@@ -27,8 +27,11 @@ import {
 } from '../schemas/util'
 import {
   createDatasetRunSchema,
+  datasetStyleSchema,
   fullDatasetRunSchema,
   updateDatasetRunSchema,
+  workflowDagSchema,
+  workflowDagSimpleSchema,
 } from '@repo/schemas/crud'
 
 export const baseDatasetRunQuery = {
@@ -57,7 +60,15 @@ export const parseBaseDatasetRun = <
   record: T,
 ) => ({
   ...record,
+  workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
+  workflowDagSimple: workflowDagSimpleSchema
+    .nullable()
+    .parse(record.workflowDagSimple),
   bounds: toResourceBounds(record.bounds),
+  dataset: {
+    ...record.dataset,
+    style: datasetStyleSchema.nullable().parse(record.dataset.style),
+  },
 })
 
 const datasetRunNotFoundError = () =>
