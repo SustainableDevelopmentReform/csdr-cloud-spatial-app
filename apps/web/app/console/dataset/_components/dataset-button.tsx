@@ -4,20 +4,6 @@ import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visi
 import { DatasetLinkParams, useDatasetLink } from '../_hooks'
 import { EarthIcon } from 'lucide-react'
 
-export const DatasetButtons = ({
-  datasets,
-}: {
-  datasets: DatasetLinkParams[] | undefined
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {datasets?.map((dataset) => (
-        <DatasetButton dataset={dataset} key={dataset.id} />
-      ))}
-    </div>
-  )
-}
-
 export const DatasetButton = ({
   dataset,
   fromLibrary = false,

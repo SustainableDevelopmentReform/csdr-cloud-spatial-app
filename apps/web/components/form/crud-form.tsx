@@ -20,7 +20,7 @@ import { z } from 'zod'
 import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning'
 import { CrudFormAction, FormAction } from './crud-form-action'
 
-export interface CrudFormConfig<
+interface CrudFormConfig<
   Data extends z.infer<typeof baseCreateResourceSchema>,
 > {
   entityName: string // e.g., "Dataset", "Product", "Geometry"

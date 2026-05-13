@@ -13,20 +13,6 @@ const badgeVariants = cva(
           'border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90',
         secondary:
           'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
-        dataset:
-          'border-transparent bg-dataset text-dataset-foreground [a&]:hover:bg-dataset/90',
-        datasetRun:
-          'border-transparent bg-datasetRun text-datasetRun-foreground [a&]:hover:bg-datasetRun/90',
-        product:
-          'border-transparent bg-product text-product-foreground [a&]:hover:bg-product/90',
-        productRun:
-          'border-transparent bg-productRun text-productRun-foreground [a&]:hover:bg-productRun/90',
-        geometries:
-          'border-transparent bg-geometry text-geometry-foreground [a&]:hover:bg-geometry/90',
-        geometriesRun:
-          'border-transparent bg-geometriesRun text-geometriesRun-foreground [a&]:hover:bg-geometriesRun/90',
-        indicator:
-          'border-transparent bg-indicator text-indicator-foreground [a&]:hover:bg-indicator/90',
         destructive:
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         outline:

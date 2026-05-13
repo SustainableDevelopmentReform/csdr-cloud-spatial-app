@@ -58,7 +58,7 @@ import {
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 
-export const baseReportQuery = {
+const baseReportQuery = {
   columns: {
     ...baseAclColumns,
     bounds: true,
@@ -68,7 +68,7 @@ export const baseReportQuery = {
   },
 } satisfies QueryForTable<'report'>
 
-export const fullReportQuery = {
+const fullReportQuery = {
   columns: {
     ...baseReportQuery.columns,
     content: true,

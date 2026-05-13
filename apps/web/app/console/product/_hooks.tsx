@@ -113,13 +113,6 @@ export type AssignDerivedIndicatorPayload = NonNullable<
   >['json']
 >
 
-export type ProductRunAssignedDerivedIndicator = NonNullable<
-  InferResponseType<
-    Client['api']['v0']['product-run'][':id']['derived-indicators']['$get'],
-    200
-  >['data']
->[number]
-
 export type ImportProductOutputsPayload = z.infer<
   typeof importProductOutputsSchema
 >

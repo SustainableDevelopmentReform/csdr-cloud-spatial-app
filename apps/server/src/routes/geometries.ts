@@ -52,7 +52,7 @@ import {
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 import { baseGeometriesRunQuery, parseBaseGeometriesRun } from './geometriesRun'
 
-export const baseGeometriesQuery = {
+const baseGeometriesQuery = {
   columns: {
     ...baseAclColumns,
     mainRunId: true,
@@ -116,7 +116,7 @@ const fetchFullGeometries = async (id: string, organizationId: string) => {
   }
 }
 
-export const fetchFullGeometriesOrThrow = async (
+const fetchFullGeometriesOrThrow = async (
   id: string,
   organizationId: string,
 ) => {

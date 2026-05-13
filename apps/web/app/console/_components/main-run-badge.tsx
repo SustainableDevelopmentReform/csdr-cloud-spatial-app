@@ -1,11 +1,6 @@
-import { Badge, BadgeProps } from '@repo/ui/components/ui/badge'
+import { Badge } from '@repo/ui/components/ui/badge'
 
-export const MainRunBadge = ({
-  size = 'md',
-}: {
-  size?: 'xs' | 'md'
-  variant: BadgeProps['variant']
-}) => {
+export const MainRunBadge = ({ size = 'md' }: { size?: 'xs' | 'md' }) => {
   if (size === 'xs') {
     return (
       <Badge

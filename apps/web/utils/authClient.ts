@@ -1,5 +1,4 @@
 import { apiKeyClient } from '@better-auth/api-key/client'
-import { InferSessionFromClient, InferUserFromClient } from 'better-auth'
 import { createAccessControl } from 'better-auth/plugins/access'
 import {
   adminClient,
@@ -60,16 +59,3 @@ export const createAuthClient = (baseURL: string) => {
 export type AuthClient = ReturnType<
   typeof createReactAuthClient<typeof authConfig>
 >
-
-export type User = InferUserFromClient<typeof authConfig>
-export type Session = InferSessionFromClient<typeof authConfig>
-
-export function somePermissions(permissions: string[]) {
-  void permissions
-  return true
-}
-
-export function everyPermissions(permissions: string[]) {
-  void permissions
-  return true
-}

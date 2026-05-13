@@ -8,7 +8,7 @@ import { VerificationEmail } from '~/emails/verification-email'
 import { env } from '~/env'
 import { logAuthSecurity } from './auth-security'
 
-export type AuthEmailKind =
+type AuthEmailKind =
   | 'verification'
   | 'password-reset'
   | 'two-factor-otp'

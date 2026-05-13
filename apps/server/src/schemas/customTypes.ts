@@ -7,51 +7,7 @@ import {
 } from 'geojson'
 import wkx from 'wkx'
 
-export interface TstzRange {
-  start: Date
-  end: Date
-  bounds: '[)' | '(]' | '()'
-}
-
-export const tstzrange = customType<{
-  data: TstzRange
-  driverData: string
-}>({
-  dataType() {
-    return 'tstzrange'
-  },
-  toDriver(value: TstzRange): string {
-    const start = value.start.toISOString()
-    const end = value.end.toISOString()
-    return `${value.bounds[0]}"${start}","${end}"${value.bounds[1]}`
-  },
-  fromDriver(value: string): TstzRange {
-    const boundsString = `${value[0]}${value[value.length - 1]}`
-    if (
-      boundsString !== '[)' &&
-      boundsString !== '(]' &&
-      boundsString !== '()'
-    ) {
-      throw new Error(
-        `Invalid tstzrange value: ${value} - Expected bounds to be [), (], or ()`,
-      )
-    }
-    const bounds = boundsString
-    const parts = value.substring(2, value.length - 2).split('","')
-
-    if (typeof parts[0] === 'undefined' || typeof parts[1] === 'undefined') {
-      throw new Error(`Invalid tstzrange value: ${value}`)
-    }
-
-    return {
-      start: new Date(parts[0]),
-      end: new Date(parts[1]),
-      bounds: bounds,
-    }
-  },
-})
-
-export type BaseGeometryType =
+type BaseGeometryType =
   | 'Point'
   | 'MultiPoint'
   | 'LineString'
@@ -60,7 +16,7 @@ export type BaseGeometryType =
   | 'MultiPolygon'
   | 'GeometryCollection'
 
-export type GeometryType = BaseGeometryType | `${BaseGeometryType}Z`
+type GeometryType = BaseGeometryType | `${BaseGeometryType}Z`
 
 export type GeometrySubtypeOptions = { srid?: number; is3D?: boolean }
 
@@ -108,9 +64,7 @@ const isGeoJSONGeometry = (value: unknown): value is GeoJSONGeometry => {
 const parseGeometryBuffer = (value: Buffer) =>
   wkx.Geometry.parse(value).toGeoJSON({ shortCrs: true })
 
-export function fromDriver<T extends GeoJSONGeometry>(
-  value: GeometryDriverValue,
-) {
+function fromDriver<T extends GeoJSONGeometry>(value: GeometryDriverValue) {
   if (typeof value === 'string') {
     return parseGeometryBuffer(Buffer.from(value, 'hex')) as T
   }

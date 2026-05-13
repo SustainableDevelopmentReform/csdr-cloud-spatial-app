@@ -34,7 +34,6 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/d3": "catalog:",
     "@types/d3-array": "catalog:",
     "@types/d3-color": "catalog:",
     "@types/d3-scale": "catalog:",
@@ -49,7 +48,6 @@
     "@observablehq/plot": "^0.6.17",
     "@hono/zod-openapi": "catalog:",
     "clsx": "catalog:",
-    "d3": "catalog:",
     "d3-array": "catalog:",
     "d3-color": "catalog:",
     "d3-scale": "catalog:",

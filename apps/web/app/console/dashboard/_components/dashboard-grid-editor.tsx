@@ -345,5 +345,4 @@ const DashboardGridEditor = ({
   )
 }
 
-export { DashboardGridEditor }
 export default DashboardGridEditor

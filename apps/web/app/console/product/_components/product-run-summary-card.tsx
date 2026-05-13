@@ -77,7 +77,6 @@ export const ProductRunSummaryCard = ({
                       href={productRunOutputsLink(run, {
                         indicatorId: indicator.indicator?.id,
                       })}
-                      variant="outline"
                     >
                       {indicator.count} outputs
                     </BadgeLink>

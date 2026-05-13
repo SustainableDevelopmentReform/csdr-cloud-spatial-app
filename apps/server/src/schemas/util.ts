@@ -37,7 +37,7 @@ export const baseColumns = {
   updatedAt: true,
 } as const
 
-export const aclColumns = {
+const aclColumns = {
   organizationId: true,
   createdByUserId: true,
   visibility: true,

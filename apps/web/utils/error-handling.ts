@@ -19,7 +19,7 @@ const betterAuthErrorSchema = z.object({
   }),
 })
 
-export type ErrorToastContent = {
+type ErrorToastContent = {
   description?: string
   message: string
 }
@@ -36,7 +36,7 @@ const getCauseMessage = (cause: unknown): string | undefined => {
   return undefined
 }
 
-export const getServerError = (
+const getServerError = (
   error: unknown,
 ): z.infer<typeof serverErrorSchema> | null => {
   const parsedError = serverErrorSchema.safeParse(error)
@@ -79,9 +79,7 @@ export const getUserFacingErrorMessage = (error: unknown): string | null => {
   return null
 }
 
-export const getErrorToastContent = (
-  error: unknown,
-): ErrorToastContent | null => {
+const getErrorToastContent = (error: unknown): ErrorToastContent | null => {
   if (typeof error === 'string') {
     return { message: error }
   }

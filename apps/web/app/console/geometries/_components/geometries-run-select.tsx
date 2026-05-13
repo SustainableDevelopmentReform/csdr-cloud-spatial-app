@@ -47,7 +47,7 @@ export const GeometriesRunSelect = ({
         formatOptionLabel={(option) => (
           <span className="flex items-center gap-1">
             {option.geometries.mainRunId === option.id && (
-              <MainRunBadge size="xs" variant="geometries" />
+              <MainRunBadge size="xs" />
             )}
             {option.name ?? option.id}
           </span>

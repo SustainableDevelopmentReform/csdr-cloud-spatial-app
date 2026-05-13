@@ -52,12 +52,6 @@ export type GeometriesRunListResponse = NonNullable<
   >['data']
 >
 export type GeometriesRunListItem = GeometriesRunListResponse['data'][0]
-export type GeometriesRunExportListItem = NonNullable<
-  InferResponseType<
-    Client['api']['v0']['geometries-run'][':id']['outputs']['export']['$get'],
-    200
-  >['data']
->['data'][0]
 export type GeometriesRunDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries-run'][':id']['$get'],
@@ -192,7 +186,7 @@ const geometryOutputQueryKeys = {
     ] as const,
 }
 
-export const useGeometriesParams = (
+const useGeometriesParams = (
   _geometriesId?: string,
   _geometriesRunId?: string,
   _geometryOutputId?: string,
@@ -928,16 +922,6 @@ export const useDeleteGeometriesRun = (
 
 export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
-}
-
-export const useAllGeometriesLink = () => {
-  const withSource = useDataLibrarySourceHref()
-
-  return useCallback(
-    (query?: z.infer<typeof geometriesQuerySchema>) =>
-      withSource(`${GEOMETRIES_BASE_PATH}?${getSearchParams(query ?? {})}`),
-    [withSource],
-  )
 }
 
 export const useGeometriesLink = () => {

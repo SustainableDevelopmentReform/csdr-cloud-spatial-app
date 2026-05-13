@@ -91,7 +91,7 @@ export const baseDerivedIndicatorQuery = {
   },
 } satisfies QueryForTable<'derivedIndicator'>
 
-export const fullDerivedIndicatorQuery = {
+const fullDerivedIndicatorQuery = {
   ...baseDerivedIndicatorQuery,
   with: {
     ...baseDerivedIndicatorQuery.with,
@@ -165,7 +165,7 @@ export const parseBaseDerivedIndicator = <
   return { ...record, type: 'derived' as const }
 }
 
-export const parseFullDerivedIndicator = <
+const parseFullDerivedIndicator = <
   T extends InferQueryModel<
     'derivedIndicator',
     typeof fullDerivedIndicatorQuery
@@ -209,7 +209,7 @@ const fetchFullDerivedIndicator = async (
       }
     : null
 }
-export const fetchFullDerivedIndicatorOrThrow = async (
+const fetchFullDerivedIndicatorOrThrow = async (
   id: string,
   organizationId: string,
 ) => {
@@ -222,7 +222,7 @@ export const fetchFullDerivedIndicatorOrThrow = async (
   return record
 }
 
-export const fetchFullMeasuredIndicatorOrThrow = async (
+const fetchFullMeasuredIndicatorOrThrow = async (
   id: string,
   organizationId: string,
 ) => {

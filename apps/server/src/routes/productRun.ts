@@ -158,7 +158,7 @@ export const fullProductRunQuery = {
 } satisfies QueryForTable<'productRun'>
 
 // Separate query for assigned derived indicators (to avoid deeply nested query issues)
-export const assignedDerivedIndicatorsQuery = {
+const assignedDerivedIndicatorsQuery = {
   columns: {
     id: true,
   },
@@ -175,7 +175,7 @@ export const assignedDerivedIndicatorsQuery = {
   },
 } satisfies QueryForTable<'productRunAssignedDerivedIndicator'>
 
-export const parseFullProductRunOutputSummary = <
+const parseFullProductRunOutputSummary = <
   T extends InferQueryModel<
     'productOutputSummary',
     typeof fullProductRunOutputSummaryQuery
@@ -198,7 +198,7 @@ export const parseFullProductRunOutputSummary = <
   }
 }
 
-export const parseBaseProductRunOutputSummary = <
+const parseBaseProductRunOutputSummary = <
   T extends InferQueryModel<
     'productOutputSummary',
     typeof baseProductRunOutputSummaryQuery
@@ -267,7 +267,7 @@ export const parseFullProductRun = <
   }
 }
 
-export const parseAssignedDerivedIndicator = <
+const parseAssignedDerivedIndicator = <
   T extends InferQueryModel<
     'productRunAssignedDerivedIndicator',
     typeof assignedDerivedIndicatorsQuery

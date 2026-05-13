@@ -4,20 +4,6 @@ import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visi
 import { ProductLinkParams, useProductLink } from '../_hooks'
 import { Table2Icon } from 'lucide-react'
 
-export const ProductButtons = ({
-  products,
-}: {
-  products: ProductLinkParams[] | undefined
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {products?.map((product) => (
-        <ProductButton product={product} key={product.id} />
-      ))}
-    </div>
-  )
-}
-
 export const ProductButton = ({
   fromLibrary = false,
   product,

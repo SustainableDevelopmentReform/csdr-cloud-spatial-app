@@ -35,13 +35,6 @@ export const tasmaniaBoundsFilter = {
   boundsMaxY: -40,
 }
 
-export const mainlandBoundsFilter = {
-  boundsMinX: 113,
-  boundsMinY: -39.5,
-  boundsMaxX: 154,
-  boundsMaxY: -10,
-}
-
 export const noMatchBoundsFilter = {
   boundsMinX: -10,
   boundsMinY: 50,
@@ -56,7 +49,7 @@ export const remoteNoMatchBoundsFilter = {
   boundsMaxY: 30,
 }
 
-export const readJson = async <T>(response: Response) =>
+const readJson = async <T>(response: Response) =>
   (await response.json()) as JsonResponse<T>
 
 export const expectBoundsToMatch = (

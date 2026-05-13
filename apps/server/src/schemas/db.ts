@@ -332,8 +332,6 @@ export const productOutput = pgTable(
       mode: 'date',
       withTimezone: false,
     }).notNull(),
-    // Will stick to timePoint for now
-    // timeInterval: tstzrange('time_interval'),
   },
   (table) => [
     index('product_output_run_created_at_idx').on(

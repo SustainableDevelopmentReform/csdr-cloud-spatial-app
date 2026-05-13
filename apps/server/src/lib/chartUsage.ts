@@ -6,7 +6,7 @@ import {
 import { type DashboardContent } from '@repo/schemas/crud'
 import {
   extractReportChartReferences,
-  parseNullableReportStoredContent,
+  parseReportStoredContent,
 } from '@repo/schemas/report-content'
 import { and, eq, exists, inArray, or, sql, type SQL } from 'drizzle-orm'
 import { db } from '~/lib/db'
@@ -90,11 +90,11 @@ const getCountValue = (rows: { count: number | string | null }[]): number => {
 const getReportIndicatorSelections = (
   content: unknown,
 ): ChartIndicatorSelection[] => {
-  const parsedContent = parseNullableReportStoredContent(content)
-
-  if (!parsedContent) {
+  if (content === null) {
     return []
   }
+
+  const parsedContent = parseReportStoredContent(content)
 
   return extractReportChartReferences(parsedContent).map(({ chart }) =>
     extractChartIndicatorSelection(chart),
@@ -122,11 +122,11 @@ const getChartSpatialSelection = (
 const getReportChartSpatialSelections = (
   content: unknown,
 ): ChartSpatialSelection[] => {
-  const parsedContent = parseNullableReportStoredContent(content)
-
-  if (!parsedContent) {
+  if (content === null) {
     return []
   }
+
+  const parsedContent = parseReportStoredContent(content)
 
   return extractReportChartReferences(parsedContent).map(({ chart }) =>
     getChartSpatialSelection(chart),

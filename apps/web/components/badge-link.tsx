@@ -15,7 +15,7 @@ export const BadgeLink = ({
   children: React.ReactNode
   href: string
   icon?: React.ReactNode
-} & BadgeProps) => {
+} & Omit<BadgeProps, 'variant'>) => {
   return (
     <Link
       href={href}

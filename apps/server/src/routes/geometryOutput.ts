@@ -49,7 +49,7 @@ export const baseGeometryOutputQuery = {
   },
 } satisfies QueryForTable<'geometryOutput'>
 
-export const fullGeometryOutputQuery = {
+const fullGeometryOutputQuery = {
   columns: {
     ...baseGeometryOutputQuery.columns,
     geometry: true,
@@ -75,7 +75,7 @@ const geometryOutputNotFoundError = () =>
     description: "geometryOutput you're looking for is not found",
   })
 
-export const fetchFullGeometryOutput = async (id: string) => {
+const fetchFullGeometryOutput = async (id: string) => {
   const record = await db.query.geometryOutput.findFirst({
     where: (geometryOutput, { eq }) => eq(geometryOutput.id, id),
     ...fullGeometryOutputQuery,

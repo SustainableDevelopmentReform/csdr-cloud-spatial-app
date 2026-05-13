@@ -14,7 +14,7 @@ import {
   requireMfaIfNeeded,
 } from './request-actor'
 
-export const topLevelAclResourceTypes = [
+const topLevelAclResourceTypes = [
   'dataset',
   'geometries',
   'product',
@@ -25,9 +25,9 @@ export const topLevelAclResourceTypes = [
   'dashboard',
 ] as const
 
-export type TopLevelAclResourceType = (typeof topLevelAclResourceTypes)[number]
+type TopLevelAclResourceType = (typeof topLevelAclResourceTypes)[number]
 
-export const permissionResourceTypes = [
+const permissionResourceTypes = [
   ...topLevelAclResourceTypes,
   'datasetRun',
   'geometriesRun',
@@ -38,7 +38,7 @@ export const permissionResourceTypes = [
 ] as const
 
 export type PermissionResourceType = (typeof permissionResourceTypes)[number]
-export type PermissionAction = 'read' | 'write'
+type PermissionAction = 'read' | 'write'
 export type RouteAccessScope = 'console' | 'explorer'
 
 type AppContext = Context<{ Variables: AuthType }>
@@ -157,25 +157,6 @@ const isExternallyReadableVisibility = (visibility: AppVisibility): boolean => {
   return visibility !== 'private'
 }
 
-export const buildConsoleReadScope = (
-  c: AppContext,
-  organizationIdColumn: AnyColumn,
-  visibilityColumn: AnyColumn,
-): SQL => {
-  const actor = requireAuthenticatedActor(getRequestActor(c))
-  const activeOrganizationId = requireActiveOrganization(actor)
-  const scopedWhere = or(
-    eq(organizationIdColumn, activeOrganizationId),
-    eq(visibilityColumn, 'global'),
-  )
-
-  if (!scopedWhere) {
-    throw new Error('Failed to build console scope')
-  }
-
-  return scopedWhere
-}
-
 export const buildExplorerReadScope = (
   c: AppContext,
   organizationIdColumn: AnyColumn,
@@ -213,7 +194,7 @@ export const requireOwnedInsertContext = (
   }
 }
 
-export const assertCanWriteResource = (options: {
+const assertCanWriteResource = (options: {
   actor: RequestActor
   resource: PermissionResourceType
   ownerUserId?: string | null
@@ -248,7 +229,7 @@ export const assertCanWriteResource = (options: {
   throw unauthorizedError()
 }
 
-export const assertCanAccessLogs = (actor: RequestActor): void => {
+const assertCanAccessLogs = (actor: RequestActor): void => {
   requireActiveOrganization(actor)
   requireMfaIfNeeded(actor)
 
@@ -382,7 +363,7 @@ const readTopLevelAccessRecord = async (
   }
 }
 
-export const readAccessRecord = async (
+const readAccessRecord = async (
   resource: PermissionResourceType,
   id: string,
 ): Promise<AccessRecord | null> => {
@@ -532,10 +513,6 @@ export const assertResourceWritable = async (options: {
 
   return accessRecord
 }
-
-export const authMiddlewareOptionsDefaults = {
-  scope: 'console',
-} as const
 
 export const runAuthorizationMiddleware = async (
   c: AppContext,

@@ -48,7 +48,7 @@ import {
 import { baseDatasetRunQuery, parseBaseDatasetRun } from './datasetRun'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 
-export const baseDatasetQuery = {
+const baseDatasetQuery = {
   columns: {
     ...baseAclColumns,
     mainRunId: true,
@@ -76,7 +76,7 @@ const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
 
-export const parseBaseDataset = <
+const parseBaseDataset = <
   T extends InferQueryModel<'dataset', typeof baseDatasetQuery>,
 >(
   record: T,
@@ -122,10 +122,7 @@ const fetchFullDataset = async (id: string, organizationId: string) => {
   }
 }
 
-export const fetchFullDatasetOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
+const fetchFullDatasetOrThrow = async (id: string, organizationId: string) => {
   const fullDataset = await fetchFullDataset(id, organizationId)
 
   if (!fullDataset) {

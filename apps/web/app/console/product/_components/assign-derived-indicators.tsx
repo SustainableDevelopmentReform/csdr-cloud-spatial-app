@@ -306,12 +306,7 @@ export const AssignDerivedIndicatorsDialog = ({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <span>
-          <Button
-            disabled={!run?.id}
-            className="bg-indicator text-indicator-foreground hover:bg-indicator/70"
-          >
-            Assign Derived Indicators
-          </Button>
+          <Button disabled={!run?.id}>Assign Derived Indicators</Button>
         </span>
       </DialogTrigger>
       <DialogContent className="w-[900px] max-w-full max-h-[90vh] overflow-y-auto">
@@ -420,7 +415,6 @@ export const AssignDerivedIndicatorsDialog = ({
                         href={productRunOutputsLink(run, {
                           indicatorId: assigned.derivedIndicator.id,
                         })}
-                        variant="outline"
                       >
                         {outputSummaryIndicator?.count ?? 'See'} outputs
                       </BadgeLink>

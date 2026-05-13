@@ -1,21 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
 import { DatasetRunLinkParams, useDatasetRunLink } from '../_hooks'
-import { EarthIcon } from 'lucide-react'
-
-export const DatasetRunButtons = ({
-  datasetRuns,
-}: {
-  datasetRuns: DatasetRunLinkParams[]
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {datasetRuns?.map((datasetRun) => (
-        <DatasetRunButton datasetRun={datasetRun} key={datasetRun.id} />
-      ))}
-    </div>
-  )
-}
+import { SquareFunctionIcon } from 'lucide-react'
 
 export const DatasetRunButton = ({
   datasetRun,
@@ -25,13 +11,9 @@ export const DatasetRunButton = ({
   const datasetRunLink = useDatasetRunLink()
 
   return (
-    <BadgeLink
-      href={datasetRunLink(datasetRun)}
-      variant="datasetRun"
-      icon={<EarthIcon />}
-    >
+    <BadgeLink href={datasetRunLink(datasetRun)} icon={<SquareFunctionIcon />}>
       {datasetRun.dataset.mainRunId === datasetRun.id && (
-        <MainRunBadge size="xs" variant="dataset" />
+        <MainRunBadge size="xs" />
       )}
       {datasetRun.name}
     </BadgeLink>

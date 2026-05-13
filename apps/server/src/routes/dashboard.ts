@@ -51,14 +51,14 @@ import {
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 
-export const baseDashboardQuery = {
+const baseDashboardQuery = {
   columns: {
     ...baseAclColumns,
     bounds: true,
   },
 } satisfies QueryForTable<'dashboard'>
 
-export const fullDashboardQuery = {
+const fullDashboardQuery = {
   columns: {
     ...baseDashboardQuery.columns,
     content: true,

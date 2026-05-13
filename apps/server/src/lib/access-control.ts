@@ -1,9 +1,9 @@
 import { createAccessControl } from 'better-auth/plugins/access'
 
-export const appVisibilityValues = ['private', 'public', 'global'] as const
+const appVisibilityValues = ['private', 'public', 'global'] as const
 export type AppVisibility = (typeof appVisibilityValues)[number]
 
-export const appAdminStatements = {
+const appAdminStatements = {
   user: [
     'create',
     'list',
@@ -18,7 +18,7 @@ export const appAdminStatements = {
   session: ['list', 'revoke', 'delete'],
 } as const
 
-export const appAdminAccessControl = createAccessControl(appAdminStatements)
+const appAdminAccessControl = createAccessControl(appAdminStatements)
 
 export const appAdminRoles = {
   user: appAdminAccessControl.newRole({
@@ -49,7 +49,7 @@ export const appOrganizationRoleValues = [
 
 export type AppOrganizationRole = (typeof appOrganizationRoleValues)[number]
 
-export const appOrganizationStatements = {
+const appOrganizationStatements = {
   organization: ['update'],
   member: ['create', 'update', 'delete'],
   invitation: ['create', 'cancel'],
@@ -123,22 +123,6 @@ export const getHighestOrganizationRole = (
         ? currentRole
         : highestRole,
     firstRole,
-  )
-}
-
-export const hasAtLeastOrganizationRole = (
-  rawRole: string | null | undefined,
-  requiredRole: AppOrganizationRole,
-): boolean => {
-  const highestRole = getHighestOrganizationRole(rawRole)
-
-  if (!highestRole) {
-    return false
-  }
-
-  return (
-    appOrganizationRoleRank[highestRole] >=
-    appOrganizationRoleRank[requiredRole]
   )
 }
 

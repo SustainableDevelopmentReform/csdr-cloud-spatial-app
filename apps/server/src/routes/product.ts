@@ -70,7 +70,7 @@ import {
   parseFullProductRun,
 } from './productRun'
 
-export const baseProductQuery = {
+const baseProductQuery = {
   columns: {
     ...baseAclColumns,
     mainRunId: true,
@@ -82,7 +82,7 @@ export const baseProductQuery = {
   },
 } satisfies QueryForTable<'product'>
 
-export const fullProductQuery = {
+const fullProductQuery = {
   columns: baseProductQuery.columns,
   with: {
     dataset: fullDatasetQuery,
@@ -102,7 +102,7 @@ const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
 
-export const parseBaseProduct = <
+const parseBaseProduct = <
   T extends InferQueryModel<'product', typeof baseProductQuery>,
 >(
   record: T,
@@ -116,7 +116,7 @@ export const parseBaseProduct = <
   }
 }
 
-export const parseFullProduct = <
+const parseFullProduct = <
   T extends InferQueryModel<'product', typeof fullProductQuery>,
 >(
   record: T,
@@ -155,10 +155,7 @@ const fetchFullProduct = async (id: string, organizationId: string) => {
     : null
 }
 
-export const fetchFullProductOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
+const fetchFullProductOrThrow = async (id: string, organizationId: string) => {
   const fullProduct = await fetchFullProduct(id, organizationId)
 
   if (!fullProduct) {

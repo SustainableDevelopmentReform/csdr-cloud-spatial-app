@@ -52,7 +52,7 @@ export const baseDatasetRunQuery = {
   },
 } satisfies QueryForTable<'datasetRun'>
 
-export const fullDatasetRunQuery = baseDatasetRunQuery
+const fullDatasetRunQuery = baseDatasetRunQuery
 
 export const parseBaseDatasetRun = <
   T extends InferQueryModel<'datasetRun', typeof baseDatasetRunQuery>,

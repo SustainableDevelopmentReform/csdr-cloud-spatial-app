@@ -13,7 +13,7 @@ import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
 import { createAuthClient, type AuthClient } from '~/utils/authClient'
 import { toastError } from '~/utils/error-handling'
 
-export const queryClient = new QueryClient({
+const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 24 * 60 * 60 * 1000, // stale time 24 hours

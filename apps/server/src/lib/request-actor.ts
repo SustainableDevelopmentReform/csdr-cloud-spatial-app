@@ -135,24 +135,6 @@ export const requireActiveOrganization = (actor: RequestActor): string => {
   return actor.activeOrganizationId
 }
 
-export const requireOrganizationMembership = (
-  actor: RequestActor,
-  organizationId: string,
-): AppMember => {
-  const membership = actor.memberships.find(
-    (member) => member.organizationId === organizationId,
-  )
-
-  if (!membership) {
-    throw new ServerError({
-      statusCode: 403,
-      message: 'User is not authorized',
-    })
-  }
-
-  return membership
-}
-
 export const requireMfaIfNeeded = (actor: RequestActor): void => {
   const mfaRequired =
     actor.isSuperAdmin || actor.organizationRole === 'org_admin'

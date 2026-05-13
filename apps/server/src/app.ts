@@ -228,7 +228,6 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
 
 const v0ApiBase = app
   .basePath('/api/v0/')
-  // .route('/file', file)
   .route('/data-library', dataLibrary)
   .route('/dataset', dataset)
   .route('/dataset-run', datasetRun)
@@ -453,6 +452,5 @@ app.notFound((c) =>
   ),
 )
 
-export const apiRoutes = v0ApiRoutes
-export type ApiRoutesType = typeof apiRoutes
+export type ApiRoutesType = typeof v0ApiRoutes
 export default app

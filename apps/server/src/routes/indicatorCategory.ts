@@ -31,7 +31,7 @@ import {
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
 
-export const indicatorCategoryQuery = {
+const indicatorCategoryQuery = {
   columns: {
     ...baseAclColumns,
     parentId: true,

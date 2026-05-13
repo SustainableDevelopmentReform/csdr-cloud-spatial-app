@@ -1,21 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
 import { ProductRunLinkParams, useProductRunLink } from '../_hooks'
-import { Table2Icon } from 'lucide-react'
-
-export const ProductRunButtons = ({
-  productRuns,
-}: {
-  productRuns: ProductRunLinkParams[]
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {productRuns?.map((productRun) => (
-        <ProductRunButton productRun={productRun} key={productRun.id} />
-      ))}
-    </div>
-  )
-}
+import { SquareFunctionIcon } from 'lucide-react'
 
 export const ProductRunButton = ({
   productRun,
@@ -25,13 +11,9 @@ export const ProductRunButton = ({
   const productRunLink = useProductRunLink()
 
   return (
-    <BadgeLink
-      href={productRunLink(productRun)}
-      variant="productRun"
-      icon={<Table2Icon />}
-    >
+    <BadgeLink href={productRunLink(productRun)} icon={<SquareFunctionIcon />}>
       {productRun.product.mainRunId === productRun.id && (
-        <MainRunBadge size="xs" variant="product" />
+        <MainRunBadge size="xs" />
       )}
       {productRun.name}
     </BadgeLink>

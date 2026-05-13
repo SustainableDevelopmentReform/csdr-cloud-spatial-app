@@ -52,14 +52,7 @@ export async function unwrapResponse<
 }
 
 export enum QueryKey {
-  Dataset = 'dataset',
-  DatasetRun = 'dataset-run',
-  Geometries = 'geometries',
-  GeometriesRun = 'geometries-run',
-  GeometryOutput = 'geometry-output',
   Users = 'users',
   ApiKeys = 'api-keys',
   UserProfile = 'user-profile',
-  Indicator = 'indicator',
-  IndicatorCategory = 'indicator-category',
 }

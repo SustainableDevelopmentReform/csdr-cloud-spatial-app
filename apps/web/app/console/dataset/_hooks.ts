@@ -547,16 +547,6 @@ export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
 }
 
-export const useDatasetsLink = () => {
-  const withSource = useDataLibrarySourceHref()
-
-  return useCallback(
-    (query?: z.infer<typeof datasetQuerySchema>) =>
-      withSource(`${DATASETS_BASE_PATH}?${getSearchParams(query ?? {})}`),
-    [withSource],
-  )
-}
-
 export const useDatasetLink = () => {
   const withSource = useDataLibrarySourceHref()
 

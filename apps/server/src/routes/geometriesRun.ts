@@ -61,7 +61,7 @@ export const baseGeometriesRunQuery = {
   },
 } satisfies QueryForTable<'geometriesRun'>
 
-export const fullGeometriesRunQuery = baseGeometriesRunQuery
+const fullGeometriesRunQuery = baseGeometriesRunQuery
 
 export const parseBaseGeometriesRun = <
   T extends InferQueryModel<'geometriesRun', typeof baseGeometriesRunQuery>,

@@ -85,7 +85,7 @@ export type VisibilityImpactDialogState = {
   title: string
 }
 
-export const getVisibilityImpactDialogStateFromError = (
+const getVisibilityImpactDialogStateFromError = (
   error: unknown,
 ): VisibilityImpactDialogState | null => {
   const visibilityImpactError = visibilityImpactErrorSchema.safeParse(error)

@@ -20,7 +20,7 @@ import Link from '~/components/link'
 import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import type { ResourceVisibility } from '~/utils/access-control'
 
-export interface BaseItem {
+interface BaseItem {
   name: string
   id: string
   description?: string | null
