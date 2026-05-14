@@ -8,6 +8,30 @@ import { useCallback, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { getSearchParams } from '../utils/browser'
 
+const getCurrentSearchParams = (
+  searchParams: ReturnType<typeof useSearchParamsNext>,
+) => {
+  const next: Record<string, string | string[]> = {}
+  if (!searchParams) {
+    return next
+  }
+
+  const uniqueKeys = new Set(searchParams.keys())
+  for (const key of uniqueKeys) {
+    const values = searchParams.getAll(key)
+    if (values.length === 1) {
+      const onlyValue = values[0]
+      if (typeof onlyValue === 'string') {
+        next[key] = onlyValue
+      }
+    } else if (values.length > 1) {
+      next[key] = values
+    }
+  }
+
+  return next
+}
+
 export const useQueryWithSearchParams = <
   Schema extends z.ZodObject<z.ZodRawShape>,
 >(
@@ -21,41 +45,30 @@ export const useQueryWithSearchParams = <
     Record<string, unknown>
   >({})
 
+  const urlQueryState = useMemo(
+    () => getCurrentSearchParams(searchParams),
+    [searchParams],
+  )
+
   const parsedResult = useMemo(() => {
-    const params = syncWithUrl
-      ? (() => {
-          const next: Record<string, string | string[]> = {}
-          if (!searchParams) {
-            return next
-          }
-
-          const uniqueKeys = new Set(searchParams.keys())
-          for (const key of uniqueKeys) {
-            const values = searchParams.getAll(key)
-            if (values.length === 1) {
-              const onlyValue = values[0]
-              if (typeof onlyValue === 'string') {
-                next[key] = onlyValue
-              }
-            } else if (values.length > 1) {
-              next[key] = values
-            }
-          }
-
-          return next
-        })()
-      : localQueryState
+    const params = syncWithUrl ? urlQueryState : localQueryState
 
     return schema.safeParse({
       ...override,
       ...params,
     })
-  }, [schema, searchParams, override, localQueryState, syncWithUrl])
+  }, [schema, override, localQueryState, syncWithUrl, urlQueryState])
 
   const setSearchParams = useCallback(
     (params: Partial<z.infer<Schema>>, replace = false) => {
+      const existingParams = syncWithUrl
+        ? {
+            ...urlQueryState,
+            ...(parsedResult.data ?? {}),
+          }
+        : (parsedResult.data ?? {})
       const nextParams: Record<string, unknown> = {
-        ...(replace ? {} : (parsedResult.data ?? {})),
+        ...(replace ? {} : existingParams),
         ...params,
       }
 
@@ -79,7 +92,7 @@ export const useQueryWithSearchParams = <
 
       setLocalQueryState(nextParams)
     },
-    [parsedResult.data, router, syncWithUrl],
+    [parsedResult.data, router, syncWithUrl, urlQueryState],
   )
 
   return {

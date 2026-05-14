@@ -144,7 +144,7 @@ const ColumnMappingRow = memo(function ColumnMappingRow({
       <div className="flex items-center justify-between">
         <div className="font-medium">{column}</div>
         {column === geometryColumn ? (
-          <Badge variant="outline">Geometry column</Badge>
+          <Badge variant="outline">Boundary column</Badge>
         ) : null}
       </div>
       <div className="text-xs text-muted-foreground">
@@ -160,7 +160,7 @@ const ColumnMappingRow = memo(function ColumnMappingRow({
         isClearable
         placeholder={
           column === geometryColumn
-            ? 'Geometry column selected above'
+            ? 'Boundary column selected above'
             : 'Map to a indicator (optional)'
         }
         creatable
@@ -532,7 +532,7 @@ const ProductOutputsImportForm = ({
                       Drag & drop your CSV file here
                     </p>
                     <p>
-                      Include one row per geometry with columns for each
+                      Include one row per boundary with columns for each
                       indicator.
                     </p>
                     <div className="flex gap-2">
@@ -599,7 +599,7 @@ const ProductOutputsImportForm = ({
             name="geometryColumn"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Geometry column</FormLabel>
+                <FormLabel>Boundary column</FormLabel>
                 <Select
                   value={field.value}
                   onValueChange={(value) => field.onChange(value)}
@@ -621,11 +621,11 @@ const ProductOutputsImportForm = ({
                 <FormDescription>
                   {geometriesRunId ? (
                     <>
-                      Note: the Geometry Output ID will be{' '}
-                      <code>{'$GEOMETRIES_RUN_ID-{column-value}'}</code>.
+                      Note: the Boundary Feature ID will be{' '}
+                      <code>{'<boundary-run-id>-{column-value}'}</code>.
                     </>
                   ) : (
-                    'Each geometry value will be prefixed with the geometries run ID.'
+                    'Each boundary value will be prefixed with the boundary run ID.'
                   )}
                 </FormDescription>
                 <FormMessage />

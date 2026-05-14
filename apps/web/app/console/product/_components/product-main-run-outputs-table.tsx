@@ -2,7 +2,7 @@
 
 import { productOutputQuerySchema } from '@repo/schemas/crud'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import BaseCrudTable, {
@@ -20,6 +20,8 @@ import { ProductRunIndicatorsSelect } from '../_components/product-run-indicator
 import { ProductGeometryOutputSelect } from '../_components/product-run-geometry-output-select'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { Value } from '../../../../components/value'
+import { getEditModeHref } from '../../_components/resource-detail-mode'
+import { ProductOutputDetailsSidebar } from '../../report/_components/chart-selected-item'
 import {
   ProductOutputListItem,
   useProductOutputLink,
@@ -30,8 +32,10 @@ import z from 'zod'
 const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 export function ProductMainRunOutputsTable({
+  canEdit,
   productRunId,
 }: {
+  canEdit: boolean
   productRunId: string
 }) {
   const {
@@ -44,6 +48,44 @@ export function ProductMainRunOutputsTable({
     isFetchingNextPage,
   } = useProductOutputs(productRunId, undefined, false)
   const productLink = useProductOutputLink()
+  const [selectedProductOutputId, setSelectedProductOutputId] = useState<
+    string | null
+  >(null)
+
+  const closeProductOutputDetails = useCallback(() => {
+    setSelectedProductOutputId(null)
+  }, [])
+
+  const openProductOutputDetails = useCallback(
+    (productOutput: ProductOutputListItem) => {
+      setSelectedProductOutputId(productOutput.id)
+    },
+    [],
+  )
+
+  const editProductOutputLink = useCallback(
+    (productOutput: ProductOutputListItem) =>
+      getEditModeHref(productLink(productOutput)),
+    [productLink],
+  )
+
+  useEffect(() => {
+    if (!selectedProductOutputId) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeProductOutputDetails()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeProductOutputDetails, selectedProductOutputId])
 
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
@@ -108,7 +150,7 @@ export function ProductMainRunOutputsTable({
         }),
         columnHelper.display({
           id: 'geometry',
-          header: () => <span>Geometry</span>,
+          header: () => <span>Boundary</span>,
           cell: ({ row }) => (
             <div className="flex flex-wrap items-center gap-2">
               {row.original.geometryOutput && (
@@ -149,7 +191,7 @@ export function ProductMainRunOutputsTable({
           </div>
           <div className="min-w-[220px] md:min-w-[260px]">
             <ProductGeometryOutputSelect
-              title="Filter Geometry Outputs"
+              title="Filter Boundary Features"
               productRunId={productRunId}
               value={selectedGeometryOutputIds}
               onChange={(selected) =>
@@ -178,13 +220,22 @@ export function ProductMainRunOutputsTable({
         data={data?.data || []}
         isLoading={isLoading}
         baseColumns={baseColumns}
+        canModifyItem={() => canEdit}
+        editLink={editProductOutputLink}
         extraColumns={columns}
         title="ProductOutput"
+        itemAction={openProductOutputDetails}
         itemLink={productLink}
+        selectedItemId={selectedProductOutputId}
         stickyColumnClassName="bg-white"
         sortOptions={['name', 'value', 'timePoint', 'createdAt', 'updatedAt']}
         query={{ sort: query?.sort, order: query?.order }}
         onSortChange={(next) => setSearchParams(next)}
+      />
+      <ProductOutputDetailsSidebar
+        onClose={closeProductOutputDetails}
+        open={Boolean(selectedProductOutputId)}
+        productOutputId={selectedProductOutputId}
       />
       <Pagination
         className="justify-end mt-4"

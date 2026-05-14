@@ -40,10 +40,10 @@ export const ProductRunSelect = ({
         }}
         formatOptionLabel={(option) => (
           <span className="flex items-center gap-1">
+            {option.name ?? option.id}
             {option.product.mainRunId === option.id && (
               <MainRunBadge size="xs" />
             )}
-            {option.name ?? option.id}
           </span>
         )}
         isDisabled={disabled}

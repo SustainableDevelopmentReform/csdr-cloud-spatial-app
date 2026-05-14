@@ -91,7 +91,8 @@ export const ProductGeometryOutputSelect = ({
   return (
     <FieldGroup
       title={
-        title ?? `Select Geometry${discriminatedProps.isMulti ? '(s)' : ''}`
+        title ??
+        `Select ${discriminatedProps.isMulti ? 'Boundary Features' : 'Boundary Feature'}`
       }
       disabled={disabled}
     >

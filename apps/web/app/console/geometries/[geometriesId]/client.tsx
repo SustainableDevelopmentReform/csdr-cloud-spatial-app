@@ -52,7 +52,10 @@ import {
   ResourcePageTabs,
   type ResourceTab,
 } from '../../_components/resource-page-tabs'
-import ChoroplethMapViewer from '../_components/choropleth-map-viewer'
+import ChoroplethMapViewer, {
+  type GeometryOutputMapSelection,
+} from '../_components/choropleth-map-viewer'
+import { GeometryOutputDetailsSidebar } from '../_components/geometry-output-details-sidebar'
 import { GeometriesMainRunOutputsTable } from '../_components/geometries-main-run-outputs-table'
 import GeometriesRunFeature from './runs/client'
 import { GeometriesBreadcrumbs } from '../_components/breadcrumbs'
@@ -94,6 +97,9 @@ const GeometriesDetails = () => {
   const [activeTab, setActiveTab] = useState<ResourceTab>('overview')
   const [visibilityDialog, setVisibilityDialog] =
     useState<GeometriesVisibilityDialogState | null>(null)
+  const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
+    string | null
+  >(null)
 
   const requiresOrganizationSwitch =
     useRequiresActiveOrganizationSwitchForWrite({
@@ -216,6 +222,35 @@ const GeometriesDetails = () => {
     )
   }, [geometries, updateGeometriesVisibility, visibilityDialog])
 
+  const closeGeometryOutputDetails = useCallback(() => {
+    setSelectedGeometryOutputId(null)
+  }, [])
+
+  const openGeometryOutputDetails = useCallback(
+    (selection: GeometryOutputMapSelection) => {
+      setSelectedGeometryOutputId(selection.geometryOutputId)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (!selectedGeometryOutputId) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeGeometryOutputDetails()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeGeometryOutputDetails, selectedGeometryOutputId])
+
   const overview = geometries ? (
     isEditMode ? (
       <CrudForm
@@ -263,10 +298,10 @@ const GeometriesDetails = () => {
       />
       <ResourcePageState
         error={geometriesQuery.error}
-        errorMessage="Failed to load geometries"
+        errorMessage="Failed to load boundaries"
         isLoading={geometriesQuery.isLoading}
-        loadingMessage="Loading geometries"
-        notFoundMessage="Geometries not found"
+        loadingMessage="Loading boundaries"
+        notFoundMessage="Boundaries not found"
       >
         {geometries ? (
           <Form {...form}>
@@ -342,14 +377,23 @@ const GeometriesDetails = () => {
                   hideTabs={isEditMode}
                   overview={overview}
                   exploreMap={
-                    <ChoroplethMapViewer
-                      geometriesRun={geometries.mainRun}
-                      className="h-96"
-                    />
+                    <>
+                      <ChoroplethMapViewer
+                        geometriesRun={geometries.mainRun}
+                        className="h-96"
+                        onGeometryOutputSelect={openGeometryOutputDetails}
+                      />
+                      <GeometryOutputDetailsSidebar
+                        geometryOutputId={selectedGeometryOutputId}
+                        onClose={closeGeometryOutputDetails}
+                        open={Boolean(selectedGeometryOutputId)}
+                      />
+                    </>
                   }
                   exploreTable={
                     geometries.mainRunId ? (
                       <GeometriesMainRunOutputsTable
+                        canEdit={canEdit}
                         geometriesRunId={geometries.mainRunId}
                       />
                     ) : undefined

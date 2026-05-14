@@ -2,7 +2,7 @@
 
 import { geometryOutputQuerySchema } from '@repo/schemas/crud'
 import { ColumnDef } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import BaseCrudTable from '../../../../components/table/crud-table'
 import Pagination from '../../../../components/table/pagination'
 import { SearchInput } from '../../../../components/table/search-input'
@@ -11,6 +11,8 @@ import {
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../../_components/geographic-bounds-picker-dialog'
+import { getEditModeHref } from '../../_components/resource-detail-mode'
+import { GeometryOutputDetailsSidebar } from './geometry-output-details-sidebar'
 import {
   GeometryOutputListItem,
   useGeometryOutputLink,
@@ -19,8 +21,10 @@ import {
 import z from 'zod'
 
 export function GeometriesMainRunOutputsTable({
+  canEdit,
   geometriesRunId,
 }: {
+  canEdit: boolean
   geometriesRunId: string
 }) {
   const {
@@ -33,6 +37,44 @@ export function GeometriesMainRunOutputsTable({
     isFetchingNextPage,
   } = useGeometryOutputs(geometriesRunId, undefined, false)
   const geometryOutputLink = useGeometryOutputLink()
+  const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
+    string | null
+  >(null)
+
+  const closeGeometryOutputDetails = useCallback(() => {
+    setSelectedGeometryOutputId(null)
+  }, [])
+
+  const openGeometryOutputDetails = useCallback(
+    (geometryOutput: GeometryOutputListItem) => {
+      setSelectedGeometryOutputId(geometryOutput.id)
+    },
+    [],
+  )
+
+  const editGeometryOutputLink = useCallback(
+    (geometryOutput: GeometryOutputListItem) =>
+      getEditModeHref(geometryOutputLink(geometryOutput)),
+    [geometryOutputLink],
+  )
+
+  useEffect(() => {
+    if (!selectedGeometryOutputId) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeGeometryOutputDetails()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeGeometryOutputDetails, selectedGeometryOutputId])
 
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
@@ -47,7 +89,7 @@ export function GeometriesMainRunOutputsTable({
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <SearchInput
           className="w-full md:max-w-md"
-          placeholder="Search geometry outputs"
+          placeholder="Search boundary features"
           value={query?.search ?? ''}
           onChange={(e) => setSearchParams({ search: e.target.value })}
         />
@@ -68,13 +110,22 @@ export function GeometriesMainRunOutputsTable({
         data={data?.data || []}
         isLoading={isLoading}
         baseColumns={baseColumns}
+        canModifyItem={() => canEdit}
+        editLink={editGeometryOutputLink}
         extraColumns={columns}
-        title="GeometryOutput"
+        title="BoundaryFeature"
+        itemAction={openGeometryOutputDetails}
         itemLink={geometryOutputLink}
+        selectedItemId={selectedGeometryOutputId}
         stickyColumnClassName="bg-white"
         sortOptions={['name', 'createdAt', 'updatedAt']}
         query={{ sort: query?.sort, order: query?.order }}
         onSortChange={(next) => setSearchParams(next)}
+      />
+      <GeometryOutputDetailsSidebar
+        geometryOutputId={selectedGeometryOutputId}
+        onClose={closeGeometryOutputDetails}
+        open={Boolean(selectedGeometryOutputId)}
       />
       <Pagination
         className="justify-end mt-4"

@@ -9,6 +9,7 @@ import {
   type ChartDataDimension,
   type DivergingColorScheme,
   type LegendPosition,
+  type MapChartConfiguration,
   type SequentialColorScheme,
   type TableChartDimension,
   tableChartDimensionMetadata,
@@ -453,7 +454,7 @@ const SeriesDimensionToggle = ({
   }
   const labels: Record<ChartDataDimension, string> = {
     indicators: 'Indicators',
-    geometries: 'Geometries',
+    geometries: 'Boundaries',
     time: 'Time points',
   }
 
@@ -631,7 +632,7 @@ export const ChartFormDialog = ({
     firstTimePoint: string | null
   } | null>(null)
 
-  // Fetch first geometry output for auto-fill defaults
+  // Fetch first boundary feature for auto-fill defaults
   const { data: productRunDetail } = useProductRun(
     productRunId ?? undefined,
     !!productRunId,
@@ -645,7 +646,7 @@ export const ChartFormDialog = ({
   )
   const firstGeometryId = geometryOutputsData?.data?.[0]?.id ?? null
 
-  // Fetch the specifically selected geometry outputs so we always have their
+  // Fetch the specifically selected boundary features so we always have their
   // names available (the default fetch above only gets the first N).
   const hasSelectedGeometries =
     !!geometryOutputIds && geometryOutputIds.length > 0
@@ -906,6 +907,60 @@ export const ChartFormDialog = ({
     form.setValue('title', suggestedTitle, { shouldValidate: false })
   }, [suggestedTitle, form])
 
+  const applyProductRunMapConfigDefaults = useCallback(
+    (mapConfig: MapChartConfiguration | null | undefined) => {
+      if (isEditing || chartType !== 'map') return
+      if (!productRunId || mapConfig?.productRunId !== productRunId) return
+
+      const sv = {
+        shouldValidate: false,
+        shouldDirty: false,
+        shouldTouch: false,
+      }
+      let didApplyDefault = false
+
+      if (!form.getFieldState('indicatorId').isDirty) {
+        form.setValue('indicatorId', mapConfig.indicatorId, sv)
+        didApplyDefault = true
+      }
+
+      if (!form.getFieldState('timePoint').isDirty) {
+        form.setValue('timePoint', mapConfig.timePoint, sv)
+        didApplyDefault = true
+      }
+
+      if (!form.getFieldState('geometryOutputIds').isDirty) {
+        form.setValue('geometryOutputIds', mapConfig.geometryOutputIds, sv)
+        didApplyDefault = true
+      }
+
+      if (mapConfig.appearance && !form.getFieldState('appearance').isDirty) {
+        form.setValue('appearance', mapConfig.appearance, sv)
+        didApplyDefault = true
+      }
+
+      if (mapConfig.title && !form.getFieldState('title').isDirty) {
+        form.setValue('title', mapConfig.title, sv)
+        titleAutoRef.current = false
+        didApplyDefault = true
+      }
+
+      if (mapConfig.description && !form.getFieldState('description').isDirty) {
+        form.setValue('description', mapConfig.description, sv)
+        didApplyDefault = true
+      }
+
+      if (didApplyDefault) {
+        void form.trigger()
+      }
+    },
+    [chartType, form, isEditing, productRunId],
+  )
+
+  useEffect(() => {
+    applyProductRunMapConfigDefaults(productRunDetail?.mapConfig)
+  }, [applyProductRunMapConfigDefaults, productRunDetail?.mapConfig])
+
   // --- Callbacks ---
 
   const setDefaultsForProduct = useCallback(
@@ -1003,7 +1058,7 @@ export const ChartFormDialog = ({
         form.setValue('indicatorIds', single ? [single] : [], sv)
       }
 
-      // Geometries
+      // Boundaries
       if (opts.geometriesMulti) {
         const defaults =
           defaultMultiGeometryIds.length > 0
@@ -1478,7 +1533,7 @@ export const ChartFormDialog = ({
                           />
                         )}
 
-                        {/* Geometries */}
+                        {/* Boundaries */}
                         <FormField
                           control={form.control}
                           name="geometryOutputIds"
@@ -1488,12 +1543,12 @@ export const ChartFormDialog = ({
                                 <ProductGeometryOutputSelect
                                   title={
                                     isGeometryOptional
-                                      ? 'Zoom to selected geometry'
+                                      ? 'Zoom to selected boundary'
                                       : undefined
                                   }
                                   productRunId={productRunId}
                                   value={field.value ?? []}
-                                  placeholder="Select geometry outputs…"
+                                  placeholder="Select boundary features..."
                                   isMulti
                                   onChange={(value) => {
                                     const ids = value.map((v) => v.id)
@@ -1510,7 +1565,7 @@ export const ChartFormDialog = ({
                               <FormItem key="geo-single">
                                 <ProductGeometryOutputSelect
                                   productRunId={productRunId}
-                                  placeholder="Select a geometry output"
+                                  placeholder="Select a boundary feature"
                                   value={field.value?.find((id) => id) ?? null}
                                   isClearable={false}
                                   onChange={(value) =>

@@ -55,7 +55,7 @@ import {
 } from '../../_components/resource-page-tabs'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { ProductMainRunOutputsTable } from '../_components/product-main-run-outputs-table'
-import { ProductExploreMap } from '../_components/product-explore-map'
+import { ProductRunMapPreview } from '../_components/product-run-map-preview'
 import ProductRunFeature from './runs/client'
 import { ProductsBreadcrumbs } from '../_components/breadcrumbs'
 import {
@@ -375,13 +375,17 @@ Time points: ${outputSummary.timePoints?.length ?? 0}`}
                   hideTabs={isEditMode}
                   overview={overview}
                   exploreMap={
-                    product.mainRunId ? (
-                      <ProductExploreMap productRunId={product.mainRunId} />
+                    product.mainRun ? (
+                      <ProductRunMapPreview
+                        canEdit={canEdit}
+                        run={product.mainRun}
+                      />
                     ) : undefined
                   }
                   exploreTable={
                     product.mainRunId ? (
                       <ProductMainRunOutputsTable
+                        canEdit={canEdit}
                         productRunId={product.mainRunId}
                       />
                     ) : undefined

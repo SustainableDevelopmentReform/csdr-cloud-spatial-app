@@ -23,8 +23,8 @@ import { CrudFormAction, FormAction } from './crud-form-action'
 interface CrudFormConfig<
   Data extends z.infer<typeof baseCreateResourceSchema>,
 > {
-  entityName: string // e.g., "Dataset", "Product", "Geometry"
-  entityNamePlural: string // e.g., "datasets", "products", "geometries"
+  entityName: string // e.g., "Dataset", "Product", "Boundary"
+  entityNamePlural: string // e.g., "datasets", "products", "boundaries"
   readOnlyFields?: (keyof Data | string)[] // Fields that should be displayed but not editable
   hiddenFields?: (keyof Data | string)[] // Fields that should not be displayed at all
   fieldLabels?: Partial<Record<keyof Data, string>> // Custom labels for fields

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
+import type { ProductRunMapConfig } from '@repo/schemas/crud'
 import {
   dashboardIndicatorUsage,
   dataset,
@@ -417,6 +418,84 @@ describe('product-run route', () => {
         message: 'Product run updated',
       },
     )
+
+    const mapConfig: ProductRunMapConfig = {
+      type: 'map',
+      productRunId: createdJson.data.id,
+      indicatorId: seededIds.indicator,
+      timePoint: '2021-01-01T00:00:00.000Z',
+      geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+      title: 'Saved default map',
+      description: 'Default map for new charts',
+      appearance: {
+        compactNumbers: true,
+        datePrecision: 'year-month',
+        sequentialScheme: 'viridis',
+      },
+    }
+    const updatedWithMapJson = await expectJsonResponse<{
+      mapConfig: ProductRunMapConfig | null
+    }>(
+      await adminClient.api.v0['product-run'][':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mapConfig,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Product run updated',
+      },
+    )
+    expect(updatedWithMapJson.data.mapConfig).toEqual(mapConfig)
+
+    const fetchedWithMapJson = await expectJsonResponse<{
+      mapConfig: ProductRunMapConfig | null
+    }>(
+      await memberClient.api.v0['product-run'][':id'].$get({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    expect(fetchedWithMapJson.data.mapConfig).toEqual(mapConfig)
+
+    const mismatchedMapConfig: ProductRunMapConfig = {
+      ...mapConfig,
+      productRunId: 'different-product-run',
+    }
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mapConfig: mismatchedMapConfig,
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to update productRun',
+        description:
+          'Map config product run id must match the product run being updated.',
+      },
+    )
+
+    const clearedMapJson = await expectJsonResponse<{
+      mapConfig: ProductRunMapConfig | null
+    }>(
+      await adminClient.api.v0['product-run'][':id'].$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          mapConfig: null,
+        },
+      }),
+      {
+        status: 200,
+        message: 'Product run updated',
+      },
+    )
+    expect(clearedMapJson.data.mapConfig).toBeNull()
 
     await expectJsonResponse(
       await adminClient.api.v0['product-run'][':id']['set-as-main-run'].$post({

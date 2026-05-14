@@ -1,20 +1,13 @@
 'use client'
 
 import type { SelectedDataPoint } from '@repo/plot/types'
-import { workflowDagSimpleSchema } from '@repo/schemas/crud'
+import { deriveRunStatus, workflowDagSimpleSchema } from '@repo/schemas/crud'
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
 import { formatDateTime } from '@repo/ui/lib/date'
-import { cn } from '@repo/ui/lib/utils'
-import {
-  ChevronDownIcon,
-  ExternalLinkIcon,
-  InfoIcon,
-  XIcon,
-} from 'lucide-react'
+import { ExternalLinkIcon, InfoIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
 import {
-  type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
@@ -23,11 +16,17 @@ import {
   useState,
 } from 'react'
 import { withDataLibrarySource, withResourceSection } from '~/lib/paths'
+import {
+  ConsoleSideDrawer,
+  ConsoleSideDrawerSection,
+} from '../../_components/console-side-drawer'
+import { VersionStatusBadge } from '../../_components/version-status-badge'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
 import { ProductButton } from '../../product/_components/product-button'
 import {
   type ProductOutputExportListItem,
+  useProduct,
   useProductLink,
   useProductOutput,
   useProductRun,
@@ -124,37 +123,6 @@ function SelectedPointCard({
   )
 }
 
-function DataDetailsSection({
-  children,
-  defaultOpen = false,
-  title,
-}: {
-  children: ReactNode
-  defaultOpen?: boolean
-  title: string
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-
-  return (
-    <section className="border-b border-border">
-      <button
-        className="flex w-full items-center justify-between py-4 text-left text-sm font-medium text-foreground"
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
-        <span>{title}</span>
-        <ChevronDownIcon
-          className={cn(
-            'size-4 text-muted-foreground transition-transform',
-            open && 'rotate-180',
-          )}
-        />
-      </button>
-      {open ? <div className="pb-4 text-sm leading-5">{children}</div> : null}
-    </section>
-  )
-}
-
 function MethodDetails({
   isLoading,
   lineageHref,
@@ -233,7 +201,7 @@ function SourceDataDetails({
   )
 }
 
-function DataDetailsSidebar({
+export function ProductOutputDetailsSidebar({
   onClose,
   open,
   productOutputId,
@@ -242,7 +210,7 @@ function DataDetailsSidebar({
   onClose: () => void
   open: boolean
   productOutputId: string | null
-  refElement: RefObject<HTMLDivElement | null>
+  refElement?: RefObject<HTMLElement | null>
 }) {
   const { data: productOutput, isLoading } = useProductOutput(
     productOutputId ?? undefined,
@@ -252,6 +220,8 @@ function DataDetailsSidebar({
     productRunId,
     Boolean(productRunId),
   )
+  const productId = productOutput?.productRun.product.id
+  const { data: product } = useProduct(productId, Boolean(productId))
   const productLink = useProductLink()
 
   const location = getSelectedLocation(null, productOutput)
@@ -267,78 +237,66 @@ function DataDetailsSidebar({
   const productHref = productOutput
     ? withDataLibrarySource(productLink(productOutput.productRun.product))
     : null
+  const outputProductRun = productRun ?? productOutput?.productRun
+  const runStatus = outputProductRun
+    ? deriveRunStatus({
+        latestRunCreatedAt: product?.mainRun?.createdAt,
+        latestRunId: outputProductRun.product.mainRunId,
+        runCreatedAt: productRun?.createdAt,
+        runId: outputProductRun.id,
+      })
+    : null
+  const versionStatusBadge = runStatus ? (
+    <VersionStatusBadge status={runStatus} />
+  ) : null
   const fullLineageHref = productHref
     ? withResourceSection(productHref, 'lineage', 'technical')
     : null
 
-  if (!open) {
-    return null
-  }
-
   return (
-    <aside
-      ref={refElement}
-      className="fixed inset-y-0 right-0 z-50 flex w-80 max-w-full flex-col gap-5 overflow-hidden border-l border-border bg-white px-4 py-2 text-foreground shadow-md"
-    >
-      <div className="flex justify-end">
-        <Button
-          aria-label="Close data details"
-          className="size-7 opacity-60 hover:opacity-100"
-          onClick={onClose}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <XIcon className="size-4" />
-        </Button>
-      </div>
-
-      <div className="space-y-5">
-        <p className="text-sm font-medium text-muted-foreground">
-          {indicatorName}
-        </p>
-        <h2 className="text-4xl font-bold leading-10 tracking-normal text-foreground">
-          {isLoading ? 'Loading...' : value}
-        </h2>
-        <div className="space-y-0.5 text-base leading-6 text-muted-foreground">
+    <ConsoleSideDrawer
+      badge={versionStatusBadge}
+      closeLabel="Close data details"
+      description={
+        <div className="space-y-0.5">
           <p>Location: {location}</p>
           {productOutput?.timePoint ? (
             <p>Date: {formatDateTime(productOutput.timePoint)}</p>
           ) : null}
         </div>
+      }
+      drawerRef={refElement}
+      footer={
+        productHref ? (
+          <Button asChild className="w-full" type="button">
+            <Link href={productHref}>
+              <ExternalLinkIcon className="size-4" />
+              Product Details
+            </Link>
+          </Button>
+        ) : null
+      }
+      onClose={onClose}
+      open={open}
+      tagline={indicatorName}
+      title={isLoading ? 'Loading...' : value}
+    >
+      <div className="border-t border-border">
+        <ConsoleSideDrawerSection defaultOpen title="About">
+          <p className="text-muted-foreground">{about}</p>
+        </ConsoleSideDrawerSection>
+        <ConsoleSideDrawerSection title="Method">
+          <MethodDetails
+            isLoading={isProductRunLoading}
+            lineageHref={fullLineageHref}
+            productRun={productRun}
+          />
+        </ConsoleSideDrawerSection>
+        <ConsoleSideDrawerSection title="Source data">
+          <SourceDataDetails productOutput={productOutput} />
+        </ConsoleSideDrawerSection>
       </div>
-
-      <div className="flex-1 overflow-hidden border-t border-border">
-        <div className="flex h-full flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <DataDetailsSection defaultOpen title="About">
-              <p className="text-muted-foreground">{about}</p>
-            </DataDetailsSection>
-            <DataDetailsSection title="Method">
-              <MethodDetails
-                isLoading={isProductRunLoading}
-                lineageHref={fullLineageHref}
-                productRun={productRun}
-              />
-            </DataDetailsSection>
-            <DataDetailsSection title="Source data">
-              <SourceDataDetails productOutput={productOutput} />
-            </DataDetailsSection>
-          </div>
-
-          <div className="space-y-4 border-t border-border py-4">
-            {productHref ? (
-              <Button asChild className="w-full" type="button">
-                <Link href={productHref}>
-                  <ExternalLinkIcon className="size-4" />
-                  Product Details
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </aside>
+    </ConsoleSideDrawer>
   )
 }
 
@@ -347,7 +305,7 @@ export const ChartSelectedItem = ({
   onSelect,
 }: ChartSelectedItemProps) => {
   const popoverRef = useRef<HTMLDivElement>(null)
-  const sidebarRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [detailsProductOutputId, setDetailsProductOutputId] = useState<
     string | null
@@ -468,7 +426,7 @@ export const ChartSelectedItem = ({
           />
         </div>
       ) : null}
-      <DataDetailsSidebar
+      <ProductOutputDetailsSidebar
         onClose={closeDetails}
         open={detailsOpen && Boolean(activeDetailsProductOutputId)}
         productOutputId={activeDetailsProductOutputId}

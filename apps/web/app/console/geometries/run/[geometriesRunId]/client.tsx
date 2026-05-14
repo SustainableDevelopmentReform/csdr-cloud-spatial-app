@@ -14,7 +14,7 @@ import { Input } from '@repo/ui/components/ui/input'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { pluralize } from '@repo/ui/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   getEditModeHref,
@@ -32,7 +32,10 @@ import { DetailCard } from '../../../_components/detail-cards'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
 import { useProductRunsLink } from '../../../product/_hooks'
-import ChoroplethMapViewer from '../../_components/choropleth-map-viewer'
+import ChoroplethMapViewer, {
+  type GeometryOutputMapSelection,
+} from '../../_components/choropleth-map-viewer'
+import { GeometryOutputDetailsSidebar } from '../../_components/geometry-output-details-sidebar'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
@@ -79,16 +82,19 @@ const GeometriesRunDetails = () => {
   const productRunsLink = useProductRunsLink()
   const setGeometriesMainRun = useSetGeometriesMainRun(geometriesRun)
   const isMainRun = geometriesRun?.id === geometriesRun?.geometries.mainRunId
+  const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
+    string | null
+  >(null)
 
   const formActions: CrudFormAction[] = useMemo(
     () =>
       canEdit
         ? [
             {
-              title: 'Set as Main Run',
-              description: 'Set this as the main run for the boundaries',
+              title: 'Set as Latest Version',
+              description: 'Set this as the latest version for the boundaries',
               buttonVariant: 'default',
-              buttonTitle: 'Set as Main Run',
+              buttonTitle: 'Set as Latest Version',
               mutation: setGeometriesMainRun,
               disabled: isMainRun,
             },
@@ -130,17 +136,50 @@ const GeometriesRunDetails = () => {
     router.replace(resourcePath)
   }, [form, geometriesRun, isDirty, resourcePath, router])
 
+  const closeGeometryOutputDetails = useCallback(() => {
+    setSelectedGeometryOutputId(null)
+  }, [])
+
+  const openGeometryOutputDetails = useCallback(
+    (selection: GeometryOutputMapSelection) => {
+      setSelectedGeometryOutputId(selection.geometryOutputId)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (!selectedGeometryOutputId) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeGeometryOutputDetails()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeGeometryOutputDetails, selectedGeometryOutputId])
+
   const viewContent =
     geometriesRun && !isEditMode ? (
       <>
         <div className="flex flex-col gap-4">
-          <ChoroplethMapViewer geometriesRun={geometriesRun} className="h-96" />
+          <ChoroplethMapViewer
+            geometriesRun={geometriesRun}
+            className="h-96"
+            onGeometryOutputSelect={openGeometryOutputDetails}
+          />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <GeometriesRunSummaryCard run={geometriesRun} />
             <div className="grid grid-cols-1 gap-4">
               <DetailCard
                 title={`${geometriesRun.outputCount} ${pluralize(geometriesRun.outputCount, 'output', 'outputs')}`}
-                description="Geometry Outputs"
+                description="Boundary Features"
                 actionText="Open"
                 actionLink={geometryRunOutputsLink(geometriesRun)}
               />
@@ -176,16 +215,21 @@ Data PMTiles URL: ${geometriesRun.dataPmtilesUrl ?? 'Not recorded'}`}
             </OverviewText>
           </OverviewSection>
         </div>
+        <GeometryOutputDetailsSidebar
+          geometryOutputId={selectedGeometryOutputId}
+          onClose={closeGeometryOutputDetails}
+          open={Boolean(selectedGeometryOutputId)}
+        />
       </>
     ) : null
 
   return (
     <ResourcePageState
       error={geometriesRunQuery.error}
-      errorMessage="Failed to load geometries run"
+      errorMessage="Failed to load boundary run"
       isLoading={geometriesRunQuery.isLoading}
-      loadingMessage="Loading geometries run"
-      notFoundMessage="Geometries run not found"
+      loadingMessage="Loading boundary run"
+      notFoundMessage="Boundary run not found"
     >
       {geometriesRun ? (
         <Form {...form}>

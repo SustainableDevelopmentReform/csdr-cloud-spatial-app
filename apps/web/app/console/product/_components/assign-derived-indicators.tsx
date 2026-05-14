@@ -68,7 +68,7 @@ const DependencyMappingRow = ({
   // Fetch the selected product run to check geometriesRunId
   const { data: selectedProductRun } = useProductRun(productRunId ?? undefined)
 
-  // Check if geometries run differs from current
+  // Check if boundary run differs from current
   const hasDifferentGeometriesRun = useMemo(() => {
     if (!selectedProductRun || !currentGeometriesRunId) return false
     return selectedProductRun.geometriesRun?.id !== currentGeometriesRunId
@@ -129,7 +129,7 @@ const DependencyMappingRow = ({
       </div>
       {hasDifferentGeometriesRun && (
         <StatusMessage variant="warning">
-          This product run uses a different geometries run. Geometry output IDs
+          This product run uses a different boundary run. Boundary feature IDs
           must match for derived indicators to compute correctly.
         </StatusMessage>
       )}

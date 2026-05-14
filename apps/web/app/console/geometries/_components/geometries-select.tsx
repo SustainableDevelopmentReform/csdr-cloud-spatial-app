@@ -104,7 +104,9 @@ export const GeometriesSelect = (props: GeometriesSelectProps) => {
 
   return (
     <FieldGroup
-      title={title ?? `Select Geometr${props.isMulti === true ? 'ies' : 'y'}`}
+      title={
+        title ?? `Select ${props.isMulti === true ? 'Boundaries' : 'Boundary'}`
+      }
       description={description}
       disabled={disabled}
     >

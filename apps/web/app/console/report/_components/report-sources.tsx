@@ -22,7 +22,7 @@ const sourceGroups: {
   },
   {
     resourceType: 'geometries',
-    title: 'Geometries',
+    title: 'Boundaries',
   },
 ]
 

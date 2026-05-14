@@ -9,6 +9,7 @@ import {
   productOutputExportSchema,
   productOutputQuerySchema,
   productRunAssignDerivedIndicatorSchema,
+  productRunMapConfigSchema,
   updateProductRunSchema,
   workflowDagSchema,
   workflowDagSimpleSchema,
@@ -132,6 +133,7 @@ const fullProductRunOutputSummaryQuery = {
 export const baseProductRunQuery = {
   columns: {
     ...baseRunColumns,
+    mapConfig: true,
   },
   with: {
     product: {
@@ -236,6 +238,7 @@ export const parseBaseProductRun = <
     workflowDagSimple: workflowDagSimpleSchema
       .nullable()
       .parse(record.workflowDagSimple),
+    mapConfig: productRunMapConfigSchema.nullable().parse(record.mapConfig),
     // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
     outputSummary: record.outputSummary
       ? parseBaseProductRunOutputSummary(record.outputSummary)
@@ -254,6 +257,7 @@ export const parseFullProductRun = <
     workflowDagSimple: workflowDagSimpleSchema
       .nullable()
       .parse(record.workflowDagSimple),
+    mapConfig: productRunMapConfigSchema.nullable().parse(record.mapConfig),
     datasetRun: record.datasetRun
       ? parseBaseDatasetRun(record.datasetRun)
       : null,
@@ -851,6 +855,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
+        400: jsonErrorResponse('Failed to update product run'),
         404: jsonErrorResponse('Product run not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to update product run'),
@@ -859,6 +864,14 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
+      const mapConfig = payload.mapConfig
+
+      if (mapConfig && mapConfig.productRunId !== id) {
+        throw productRunRelationshipError(
+          'Failed to update productRun',
+          'Map config product run id must match the product run being updated.',
+        )
+      }
 
       const [record] = await db
         .update(productRun)

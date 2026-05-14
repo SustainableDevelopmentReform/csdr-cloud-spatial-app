@@ -161,7 +161,7 @@ const ProductFeature = () => {
               </div>
               <div>
                 <GeometriesSelect
-                  title="Filter Geometries"
+                  title="Filter Boundaries"
                   value={selectedGeometriesIds}
                   onChange={(selected) =>
                     setSearchParams({

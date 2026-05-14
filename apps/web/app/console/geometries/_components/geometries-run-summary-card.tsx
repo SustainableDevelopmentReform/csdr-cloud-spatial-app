@@ -19,7 +19,7 @@ export const GeometriesRunSummaryCard = ({
     <DetailCard
       title={`Created at ${formatDateTime(run?.createdAt)}`}
       description={
-        mainRun ? 'Geometries Main Run Summary' : 'Geometries Run Summary'
+        mainRun ? 'Latest Boundary Version Summary' : 'Boundary Run Summary'
       }
       actionButton={
         run && mainRun ? <GeometriesRunButton geometriesRun={run} /> : undefined

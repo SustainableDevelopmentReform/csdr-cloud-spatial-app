@@ -34,7 +34,7 @@ export const GeometriesRunSelect = ({
   const { data: selectedGeometriesRun } = useGeometriesRun(value ?? undefined)
 
   return (
-    <FieldGroup title={title ?? 'Select Geometries Run'} disabled={disabled}>
+    <FieldGroup title={title ?? 'Select Boundary Run'} disabled={disabled}>
       <SelectWithSearch
         options={geometriesRuns?.data}
         value={selectedGeometriesRun ?? null}
@@ -46,10 +46,10 @@ export const GeometriesRunSelect = ({
         }}
         formatOptionLabel={(option) => (
           <span className="flex items-center gap-1">
+            {option.name ?? option.id}
             {option.geometries.mainRunId === option.id && (
               <MainRunBadge size="xs" />
             )}
-            {option.name ?? option.id}
           </span>
         )}
         isDisabled={disabled}

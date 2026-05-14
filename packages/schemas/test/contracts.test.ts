@@ -13,6 +13,7 @@ import {
   fullProductSchema,
   fullDashboardSchema,
   fullReportSchema,
+  productRunMapConfigSchema,
   reportQuerySchema,
   reportStoredContentSchema,
   workflowDagSchema,
@@ -204,7 +205,7 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'geometryOutputIds',
         message:
-          'Ranked bar chart can only vary one dimension — select a single geometry',
+          'Ranked bar chart can only vary one dimension — select a single boundary',
       },
       {
         path: 'timePoints',
@@ -233,7 +234,7 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'geometryOutputIds',
         message:
-          'Each chart element must map to one product output — select a single geometry',
+          'Each chart element must map to one product output — select a single boundary',
       },
       {
         path: 'timePoints',
@@ -256,12 +257,12 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'indicatorIds',
         message:
-          'Each chart element must map to one product output — select a single indicator or a single geometry',
+          'Each chart element must map to one product output — select a single indicator or a single boundary',
       },
       {
         path: 'geometryOutputIds',
         message:
-          'Each chart element must map to one product output — select a single indicator or a single geometry',
+          'Each chart element must map to one product output — select a single indicator or a single boundary',
       },
     ])
   })
@@ -281,7 +282,7 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'geometryOutputIds',
         message:
-          'Geometry output is not used as a table axis, one must be selected.',
+          'Boundary feature is not used as a table axis, one must be selected.',
       },
     ])
   })
@@ -324,13 +325,13 @@ describe('chartConfigurationSchema', () => {
     expect(issuesFor(missingGeometry)).toEqual([
       {
         path: 'geometryOutputIds',
-        message: 'KPI requires a selected geometry',
+        message: 'KPI requires a selected boundary',
       },
     ])
     expect(issuesFor(tooManyGeometries)).toEqual([
       {
         path: 'geometryOutputIds',
-        message: 'KPI requires exactly one geometry',
+        message: 'KPI requires exactly one boundary',
       },
     ])
   })
@@ -393,6 +394,26 @@ describe('crud schemas', () => {
         label: 'Reef',
       }).label,
     ).toBe('Reef')
+  })
+
+  it('accepts product run map config payloads', () => {
+    const mapConfig = {
+      type: 'map',
+      productRunId: 'product-run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024-01-01T00:00:00.000Z',
+      geometryOutputIds: ['geometry-output-1'],
+      title: 'Default map',
+      description: 'Saved map defaults',
+      appearance: {
+        compactNumbers: true,
+        datePrecision: 'year-month',
+        sequentialScheme: 'viridis',
+      },
+    }
+
+    expect(productRunMapConfigSchema.parse(mapConfig)).toMatchObject(mapConfig)
+    expect(productRunMapConfigSchema.nullable().parse(null)).toBeNull()
   })
 
   it('accepts usage counts on full detail schemas', () => {

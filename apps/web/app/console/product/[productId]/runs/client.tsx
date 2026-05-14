@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createProductRunSchema } from '@repo/schemas/crud'
+import { createProductRunSchema, deriveRunStatus } from '@repo/schemas/crud'
 import { FormField, FormItem, FormMessage } from '@repo/ui/components/ui/form'
 import { ColumnDef } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
@@ -28,6 +28,8 @@ import {
 import { DatasetRunSelect } from '../../../dataset/_components/dataset-run-select'
 import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
 import { ResourcePageState } from '../../../_components/resource-page-state'
+import { useRunVersionSidebar } from '../../../_components/run-version-sidebar'
+import { VersionStatusBadge } from '../../../_components/version-status-badge'
 import {
   ProductRunListItem,
   useCreateProductRun,
@@ -66,6 +68,18 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   } = useProductRuns(undefined, undefined, true)
   const createProductRun = useCreateProductRun()
   const productLink = useProductRunLink()
+  const runVersionSidebar = useRunVersionSidebar()
+  const selectedRun = runVersionSidebar?.selectedRun
+  const selectedProductRunId =
+    selectedRun?.type === 'product' ? selectedRun.id : null
+  const openProductRunVersion = runVersionSidebar
+    ? (productRun: ProductRunListItem) => {
+        runVersionSidebar.openRunVersion({
+          id: productRun.id,
+          type: 'product',
+        })
+      }
+    : undefined
 
   const productQuery = useProduct()
   const product = productQuery.data
@@ -85,23 +99,22 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const columns = useMemo(() => {
     return [
       {
-        id: 'latestRun',
-        header: 'Latest run',
+        id: 'status',
+        header: 'Status',
         cell: ({ row }) => {
-          const isLatest = product?.mainRunId === row.original.id
+          const status = deriveRunStatus({
+            latestRunCreatedAt: product?.mainRun?.createdAt,
+            latestRunId: product?.mainRunId,
+            runCreatedAt: row.original.createdAt,
+            runId: row.original.id,
+          })
 
-          return (
-            <span
-              className={isLatest ? 'text-foreground' : 'text-muted-foreground'}
-            >
-              {isLatest ? 'Latest' : 'No'}
-            </span>
-          )
+          return <VersionStatusBadge status={status} />
         },
-        size: 140,
+        size: 160,
       },
     ] satisfies ColumnDef<ProductRunListItem>[]
-  }, [product?.mainRunId])
+  }, [product?.mainRun?.createdAt, product?.mainRunId])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     const filters: ActiveTableFilter[] = []
 
@@ -252,9 +265,11 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="ProductRun"
           itemLink={productLink}
+          itemAction={openProductRunVersion}
           editLink={(productRun) => getEditModeHref(productLink(productRun))}
           canModifyItem={() => canEdit}
           stickyColumnClassName={embedded ? 'bg-white' : undefined}
+          selectedItemId={selectedProductRunId}
           deleteAction={(productRun) => (
             <ProductRunDeleteAction productRun={productRun} />
           )}

@@ -34,7 +34,7 @@ export const ProductRunSummaryCard = ({
     return (
       <DetailCard
         title={`No summary`}
-        description="Main Run"
+        description="Latest Version"
         actionText="Refresh"
         actionOnClick={() => {
           refreshProductRunSummary.mutate()
@@ -53,7 +53,9 @@ export const ProductRunSummaryCard = ({
   return (
     <DetailCard
       title={`Created at ${formatDateTime(run?.createdAt)}`}
-      description={mainRun ? 'Product Main Run Summary' : 'Product Run Summary'}
+      description={
+        mainRun ? 'Latest Product Version Summary' : 'Product Run Summary'
+      }
       actionButton={
         run && mainRun ? <ProductRunButton productRun={run} /> : undefined
       }

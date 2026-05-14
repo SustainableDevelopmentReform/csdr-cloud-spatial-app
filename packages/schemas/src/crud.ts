@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi'
 import { MultiPolygonSchema, PolygonSchema, WKBSchema } from './geojson'
 import type { MultiPolygon } from 'geojson'
-import { chartConfigurationSchema } from './chart'
+import { chartConfigurationSchema, mapChartConfigurationSchema } from './chart'
 
 const fileSchema = z.instanceof(File).openapi('FileSchema', {
   title: 'File',
@@ -108,6 +108,48 @@ export const baseRunResourceSchema = baseResourceSchema.extend({
   workflowDag: workflowDagSchema.nullable(),
   workflowDagSimple: workflowDagSimpleSchema.nullable(),
 })
+
+export type RunStatus = 'latest' | 'draft' | 'previous'
+
+const getDateTime = (value: Date | string | null | undefined) => {
+  if (!value) {
+    return null
+  }
+
+  const date = typeof value === 'string' ? new Date(value) : value
+  const time = date.getTime()
+
+  return Number.isFinite(time) ? time : null
+}
+
+export const deriveRunStatus = ({
+  latestRunCreatedAt,
+  latestRunId,
+  runCreatedAt,
+  runId,
+}: {
+  latestRunCreatedAt?: Date | string | null
+  latestRunId?: string | null
+  runCreatedAt?: Date | string | null
+  runId?: string | null
+}): RunStatus => {
+  if (runId && latestRunId && runId === latestRunId) {
+    return 'latest'
+  }
+
+  const runCreatedTime = getDateTime(runCreatedAt)
+  const latestRunCreatedTime = getDateTime(latestRunCreatedAt)
+
+  if (
+    runCreatedTime !== null &&
+    latestRunCreatedTime !== null &&
+    runCreatedTime > latestRunCreatedTime
+  ) {
+    return 'draft'
+  }
+
+  return 'previous'
+}
 
 export const baseQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
@@ -548,11 +590,22 @@ export const fullProductRunOutputSummarySchema = z
   })
   .openapi('ProductRunOutputSummaryFull')
 
+export const productRunMapConfigSchema = mapChartConfigurationSchema.openapi(
+  'ProductRunMapConfigSchema',
+  {
+    description:
+      'Default map chart configuration stored on a product run for pre-filling new map charts.',
+  },
+)
+
+export type ProductRunMapConfig = z.infer<typeof productRunMapConfigSchema>
+
 export const baseProductRunSchema = baseRunResourceSchema
   .extend({
     product: baseIdResourceSchemaWithMainRunId,
     datasetRun: baseIdResourceSchema.nullable(),
     geometriesRun: baseIdResourceSchema.nullable(),
+    mapConfig: productRunMapConfigSchema.nullable(),
     outputSummary: baseProductRunOutputSummarySchema,
   })
   .openapi('ProductRunBase')
@@ -647,7 +700,9 @@ export const createProductRunSchema = baseCreateRunResourceSchema.extend({
   geometriesRunId: z.string().optional(),
 })
 
-export const updateProductRunSchema = baseUpdateResourceSchema
+export const updateProductRunSchema = baseUpdateResourceSchema.extend({
+  mapConfig: productRunMapConfigSchema.nullable().optional(),
+})
 
 // Schema for assigning a derived indicator's dependency mappings
 export const assignedDerivedIndicatorDependencySchema = z

@@ -98,10 +98,10 @@ const ProductRunDetails = () => {
               component: <RefreshProductSummary run={productRun} />,
             },
             {
-              title: 'Set as Main Run',
-              description: 'Set this as the main run for the product',
+              title: 'Set as Latest Version',
+              description: 'Set this as the latest version for the product',
               buttonVariant: 'default',
-              buttonTitle: 'Set as Main Run',
+              buttonTitle: 'Set as Latest Version',
               mutation: setProductMainRun,
               disabled: isMainRun,
             },
@@ -147,7 +147,7 @@ const ProductRunDetails = () => {
     productRun && !isEditMode ? (
       <>
         <div className="flex flex-col gap-4">
-          <ProductRunMapPreview run={productRun} />
+          <ProductRunMapPreview canEdit={canEdit} run={productRun} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ProductRunSummaryCard run={productRun} />
             <div className="grid grid-cols-1 gap-4">

@@ -225,6 +225,7 @@ export const productRun = pgTable(
   {
     ...runBaseColumns,
     dataType: productRunDataType('data_type'),
+    mapConfig: jsonb('map_config'),
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),

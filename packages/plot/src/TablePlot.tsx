@@ -110,7 +110,7 @@ const DIVERGING_INTERPOLATORS: Record<DivergingColorScheme, ColorInterpolator> =
 const dimensionLabels = {
   timePoint: 'Time',
   indicatorName: 'Indicator',
-  geometryOutputName: 'Geometry',
+  geometryOutputName: 'Boundary',
 }
 
 export type TablePlotDimension =

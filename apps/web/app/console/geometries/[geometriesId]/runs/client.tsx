@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createGeometriesRunSchema } from '@repo/schemas/crud'
+import { createGeometriesRunSchema, deriveRunStatus } from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,
@@ -33,6 +33,8 @@ import {
   toGeographicBoundsQuery,
 } from '../../../_components/geographic-bounds-picker-dialog'
 import { ResourcePageState } from '../../../_components/resource-page-state'
+import { useRunVersionSidebar } from '../../../_components/run-version-sidebar'
+import { VersionStatusBadge } from '../../../_components/version-status-badge'
 import {
   GeometriesRunListItem,
   useCreateGeometriesRun,
@@ -73,6 +75,18 @@ const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const geometries = geometriesQuery.data
   const createGeometriesRun = useCreateGeometriesRun()
   const geometriesLink = useGeometriesRunLink()
+  const runVersionSidebar = useRunVersionSidebar()
+  const selectedRun = runVersionSidebar?.selectedRun
+  const selectedGeometriesRunId =
+    selectedRun?.type === 'geometries' ? selectedRun.id : null
+  const openGeometriesRunVersion = runVersionSidebar
+    ? (geometriesRun: GeometriesRunListItem) => {
+        runVersionSidebar.openRunVersion({
+          id: geometriesRun.id,
+          type: 'geometries',
+        })
+      }
+    : undefined
   const { access } = useAccessControl()
   const canEdit = canManageConsoleChildResource({
     access,
@@ -87,23 +101,22 @@ const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const columns = useMemo(() => {
     return [
       {
-        id: 'latestRun',
-        header: 'Latest run',
+        id: 'status',
+        header: 'Status',
         cell: ({ row }) => {
-          const isLatest = geometries?.mainRunId === row.original.id
+          const status = deriveRunStatus({
+            latestRunCreatedAt: geometries?.mainRun?.createdAt,
+            latestRunId: geometries?.mainRunId,
+            runCreatedAt: row.original.createdAt,
+            runId: row.original.id,
+          })
 
-          return (
-            <span
-              className={isLatest ? 'text-foreground' : 'text-muted-foreground'}
-            >
-              {isLatest ? 'Latest' : 'No'}
-            </span>
-          )
+          return <VersionStatusBadge status={status} />
         },
-        size: 140,
+        size: 160,
       },
     ] satisfies ColumnDef<GeometriesRunListItem>[]
-  }, [geometries?.mainRunId])
+  }, [geometries?.mainRun?.createdAt, geometries?.mainRunId])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     if (!geographicBounds) {
       return []
@@ -132,10 +145,10 @@ const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   return (
     <ResourcePageState
       error={geometriesQuery.error}
-      errorMessage="Failed to load geometries"
+      errorMessage="Failed to load boundaries"
       isLoading={geometriesQuery.isLoading}
-      loadingMessage="Loading geometries"
-      notFoundMessage="Geometries not found"
+      loadingMessage="Loading boundaries"
+      notFoundMessage="Boundaries not found"
     >
       <ConsoleCrudListFrame
         title="Boundary Runs"
@@ -144,9 +157,9 @@ const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
           <CrudFormDialog
             form={form}
             mutation={createGeometriesRun}
-            buttonText="Add Geometries Run"
-            entityName="Geometries Run"
-            entityNamePlural="geometries runs"
+            buttonText="Add Boundary Run"
+            entityName="Boundary Run"
+            entityNamePlural="boundary runs"
             hiddenFields={['visibility']}
             hideTrigger={!canEdit}
           >
@@ -179,7 +192,7 @@ const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
               className="w-full md:w-72"
-              placeholder="Search geometries runs"
+              placeholder="Search boundary runs"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
@@ -202,13 +215,15 @@ const GeometriesRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
           baseColumns={baseColumns}
           extraColumns={columns}
           sortOptions={['name', 'createdAt', 'updatedAt']}
-          title="GeometriesRun"
+          title="BoundaryRun"
           itemLink={geometriesLink}
+          itemAction={openGeometriesRunVersion}
           editLink={(geometriesRun) =>
             getEditModeHref(geometriesLink(geometriesRun))
           }
           canModifyItem={() => canEdit}
           stickyColumnClassName={embedded ? 'bg-white' : undefined}
+          selectedItemId={selectedGeometriesRunId}
           deleteAction={(geometriesRun) => (
             <GeometriesRunDeleteAction geometriesRun={geometriesRun} />
           )}

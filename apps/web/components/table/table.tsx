@@ -7,6 +7,7 @@ interface Props<T> {
   isLoading?: boolean
   emptyStateLabel?: string
   loadingStateLabel?: string
+  selectedRowId?: string | null
   stickyColumnClassName?: string
 }
 
@@ -15,6 +16,7 @@ const Table = <T,>({
   isLoading = false,
   emptyStateLabel = 'No items found',
   loadingStateLabel = 'Loading...',
+  selectedRowId = null,
   stickyColumnClassName = 'bg-white',
 }: Props<T>) => {
   const rows = table.getRowModel().rows
@@ -66,35 +68,49 @@ const Table = <T,>({
               </td>
             </tr>
           )}
-          {rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  className={cn(
-                    'h-[52px] border-b border-border px-2 py-2 align-middle text-sm leading-5 text-foreground',
-                    cell.column.id !== 'action' && 'min-w-20',
-                    cell.column.id === 'name' &&
-                      cn('sticky left-0 z-10', stickyColumnClassName),
-                    cell.column.id === 'action' && 'text-right',
-                    cell.column.id === 'action' &&
-                      cn('sticky right-0 z-10', stickyColumnClassName),
-                  )}
-                  key={cell.id}
-                  style={{ width: cell.column.getSize() }}
-                >
-                  <div
+          {rows.map((row) => {
+            const isSelected = selectedRowId === row.id
+            const visibleCells = row.getVisibleCells()
+
+            return (
+              <tr
+                aria-selected={isSelected}
+                className={cn(isSelected && 'bg-neutral-50')}
+                data-state={isSelected ? 'selected' : undefined}
+                key={row.id}
+              >
+                {visibleCells.map((cell) => (
+                  <td
                     className={cn(
-                      cell.column.id === 'action'
-                        ? 'flex w-max min-w-max justify-end overflow-visible whitespace-nowrap'
-                        : 'min-w-0 overflow-visible',
+                      'h-12 border-b border-neutral-200 px-2 py-2 align-middle text-sm leading-5 text-foreground transition-colors',
+                      cell.column.id !== 'action' && 'min-w-20',
+                      cell.column.id === 'name' &&
+                        cn('sticky left-0 z-10', stickyColumnClassName),
+                      cell.column.id === 'action' && 'text-right',
+                      cell.column.id === 'action' &&
+                        cn('sticky right-0 z-10', stickyColumnClassName),
+                      isSelected && 'bg-neutral-50',
                     )}
+                    key={cell.id}
+                    style={{ width: cell.column.getSize() }}
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </div>
-                </td>
-              ))}
-            </tr>
-          ))}
+                    <div
+                      className={cn(
+                        cell.column.id === 'action'
+                          ? 'flex w-max min-w-max justify-end overflow-visible whitespace-nowrap'
+                          : 'min-w-0 overflow-visible',
+                      )}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

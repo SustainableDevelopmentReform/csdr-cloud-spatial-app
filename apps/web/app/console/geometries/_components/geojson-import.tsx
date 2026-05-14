@@ -101,9 +101,9 @@ const readGeojsonSummary = async (file: File): Promise<GeojsonSummary> => {
     }
 
     if (!feature.geometry) {
-      console.warn(`Feature ${index + 1} is missing geometry`, feature)
+      console.warn(`Feature ${index + 1} is missing a boundary shape`, feature)
       warnings.push(
-        `Feature ${index + 1} is missing geometry (see console for details)`,
+        `Feature ${index + 1} is missing a boundary shape (see console for details)`,
       )
       return false
     }
@@ -113,11 +113,11 @@ const readGeojsonSummary = async (file: File): Promise<GeojsonSummary> => {
       feature.geometry.type !== 'MultiPolygon'
     ) {
       console.warn(
-        `Feature ${index + 1} geometry must be Polygon or MultiPolygon`,
+        `Feature ${index + 1} boundary shape must be Polygon or MultiPolygon`,
         feature,
       )
       warnings.push(
-        `Feature ${index + 1} geometry must be Polygon or MultiPolygon (see console for details)`,
+        `Feature ${index + 1} boundary shape must be Polygon or MultiPolygon (see console for details)`,
       )
       return false
     }
@@ -481,7 +481,7 @@ const GeojsonImportForm = ({
                   </Select>
                   <FormDescription>
                     Note: the ID field will be{' '}
-                    <code>{'$GEOMETRIES_RUN_ID-{feature-id}'}</code>.
+                    <code>{'<boundary-run-id>-{feature-id}'}</code>.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

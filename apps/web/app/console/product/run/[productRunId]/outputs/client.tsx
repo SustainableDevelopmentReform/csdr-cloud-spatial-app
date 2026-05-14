@@ -151,7 +151,7 @@ const ProductOutputFeature = () => {
     if (selectedGeometryOutputIds.length > 0) {
       filters.push({
         id: 'geometry-outputs',
-        label: 'Geometry outputs',
+        label: 'Boundary features',
         value: `${selectedGeometryOutputIds.length} selected`,
         onClear: () => setSearchParams({ geometryOutputId: undefined }),
       })
@@ -308,7 +308,7 @@ const ProductOutputFeature = () => {
               </div>
               <div>
                 <ProductGeometryOutputSelect
-                  title="Filter Geometry Outputs"
+                  title="Filter Boundary Features"
                   productRunId={productRun?.id}
                   value={selectedGeometryOutputIds}
                   onChange={(selected) =>

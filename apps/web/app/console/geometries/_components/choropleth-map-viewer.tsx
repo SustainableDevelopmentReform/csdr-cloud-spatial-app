@@ -42,6 +42,9 @@ import {
 
 type MapBounds = [number, number, number, number]
 type ChoroplethIndicator = Pick<IndicatorListItem, 'id' | 'name' | 'unit'>
+export type GeometryOutputMapSelection = {
+  geometryOutputId: string | null
+}
 
 function toMapBounds(
   minLon: number,
@@ -98,6 +101,7 @@ const ChoroplethMapViewer = ({
   zoomToGeometryOutputIds,
   appearance,
   onSelect,
+  onGeometryOutputSelect,
   scrollZoom = true,
   className,
 }: {
@@ -108,6 +112,7 @@ const ChoroplethMapViewer = ({
   zoomToGeometryOutputIds?: string[] | null
   appearance?: AppearanceConfig
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
+  onGeometryOutputSelect?: (selection: GeometryOutputMapSelection) => void
   scrollZoom?: boolean
   className?: string
 }) => {
@@ -391,16 +396,27 @@ const ChoroplethMapViewer = ({
   const onMouseClick = useCallback(
     (layer: MapLayerMouseEvent) => {
       const feature = layer.features?.[0]
+      const propertyId =
+        feature?.properties?.[ID_PROPERTY] ?? feature?.properties?.id
+      const geometryOutputId =
+        typeof propertyId === 'string'
+          ? propertyId
+          : typeof propertyId === 'number'
+            ? String(propertyId)
+            : typeof feature?.id === 'string'
+              ? feature.id
+              : typeof feature?.id === 'number'
+                ? String(feature.id)
+                : null
 
       const output = productOutputs?.find(
-        (output) =>
-          output.geometryOutputId === feature?.properties?.[ID_PROPERTY] ||
-          output.geometryOutputId === feature?.id,
+        (output) => output.geometryOutputId === geometryOutputId,
       )
 
       onSelect?.({ dataPoint: output || null, event: layer.originalEvent })
+      onGeometryOutputSelect?.({ geometryOutputId })
     },
-    [onSelect, productOutputs],
+    [onGeometryOutputSelect, onSelect, productOutputs],
   )
 
   const transformRequest: RequestTransformFunction = useCallback(

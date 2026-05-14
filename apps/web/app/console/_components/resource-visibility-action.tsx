@@ -150,7 +150,7 @@ const formatResourceType = (
     case 'dataset':
       return 'Dataset'
     case 'geometries':
-      return 'Geometries'
+      return 'Boundaries'
     case 'product':
       return 'Product'
     case 'indicator':

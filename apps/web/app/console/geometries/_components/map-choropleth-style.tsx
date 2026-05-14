@@ -23,7 +23,7 @@ import {
 import { scaleDiverging, scaleSequential } from 'd3-scale'
 
 export const NO_DATA_COLOR = '#eef'
-export const ID_PROPERTY = 'id'
+export const ID_PROPERTY = 'geometry_output_id'
 
 const LEGEND_STOPS = 10
 

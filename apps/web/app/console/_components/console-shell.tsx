@@ -66,6 +66,8 @@ import {
 } from '~/lib/paths'
 import { ConsoleSidebarOrganizationMenu } from './console-sidebar-organization-menu'
 import { ConsoleSidebarUserSection } from './console-sidebar-user-section'
+import { ConsoleSideDrawerProvider } from './console-side-drawer'
+import { RunVersionSidebarProvider } from './run-version-sidebar'
 
 type ConsoleShellProps = {
   canManageWorkspace: boolean
@@ -607,16 +609,20 @@ export const ConsoleShell = ({
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen}>
-      <ConsoleShellFrame
-        groups={navGroups}
-        isAuthenticated={isAuthenticated}
-        showEmailVerificationWarning={showEmailVerificationWarning}
-        showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
-        userEmail={userEmail}
-        userRoleLabel={userRoleLabel}
-      >
-        {children}
-      </ConsoleShellFrame>
+      <ConsoleSideDrawerProvider>
+        <RunVersionSidebarProvider>
+          <ConsoleShellFrame
+            groups={navGroups}
+            isAuthenticated={isAuthenticated}
+            showEmailVerificationWarning={showEmailVerificationWarning}
+            showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
+            userEmail={userEmail}
+            userRoleLabel={userRoleLabel}
+          >
+            {children}
+          </ConsoleShellFrame>
+        </RunVersionSidebarProvider>
+      </ConsoleSideDrawerProvider>
     </SidebarProvider>
   )
 }

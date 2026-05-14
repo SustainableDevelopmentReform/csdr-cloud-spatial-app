@@ -85,10 +85,10 @@ const DatasetRunDetails = () => {
       canEdit
         ? [
             {
-              title: 'Set as Main Run',
-              description: 'Set this as the main run for the dataset',
+              title: 'Set as Latest Version',
+              description: 'Set this as the latest version for the dataset',
               buttonVariant: 'default',
-              buttonTitle: 'Set as Main Run',
+              buttonTitle: 'Set as Latest Version',
               mutation: setDatasetMainRun,
               disabled: isMainRun,
             },

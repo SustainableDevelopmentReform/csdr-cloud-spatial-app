@@ -180,10 +180,10 @@ const GeometryOutputDetails = () => {
   return (
     <ResourcePageState
       error={geometryOutputQuery.error}
-      errorMessage="Failed to load geometry output"
+      errorMessage="Failed to load boundary feature"
       isLoading={geometryOutputQuery.isLoading}
-      loadingMessage="Loading geometry output"
-      notFoundMessage="Geometry output not found"
+      loadingMessage="Loading boundary feature"
+      notFoundMessage="Boundary feature not found"
     >
       {geometryOutput ? (
         <Form {...form}>
@@ -192,8 +192,8 @@ const GeometryOutputDetails = () => {
               {isEditMode ? (
                 <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
                   <ResourceTitleBlock
-                    title={geometryOutput.name ?? 'Untitled geometry output'}
-                    description="Geometry output"
+                    title={geometryOutput.name ?? 'Untitled boundary feature'}
+                    description="Boundary feature"
                   />
                   <FormField
                     control={form.control}
@@ -215,7 +215,7 @@ const GeometryOutputDetails = () => {
                 </div>
               ) : (
                 <ResourceTitleBlock
-                  title={geometryOutput.name ?? 'Untitled geometry output'}
+                  title={geometryOutput.name ?? 'Untitled boundary feature'}
                   description={geometryOutput.description ?? 'No description'}
                 />
               )}
@@ -226,7 +226,7 @@ const GeometryOutputDetails = () => {
                 isEditMode={isEditMode}
                 onDiscard={discardEdits}
                 resourcePath={resourcePath}
-                resourceTypeLabel="Geometry output"
+                resourceTypeLabel="Boundary feature"
                 savePending={updateGeometryOutput.isPending}
               />
             </div>
@@ -236,8 +236,8 @@ const GeometryOutputDetails = () => {
                 form={form}
                 formId={formId}
                 mutation={updateGeometryOutput}
-                entityName="Geometry Output"
-                entityNamePlural="geometry outputs"
+                entityName="Boundary Feature"
+                entityNamePlural="boundary features"
                 hiddenFields={[
                   'id',
                   'name',
@@ -246,9 +246,9 @@ const GeometryOutputDetails = () => {
                   'visibility',
                 ]}
                 showSubmitAction={false}
-                successMessage="Geometry output saved"
+                successMessage="Boundary feature saved"
                 onError={(error) =>
-                  toastError(error, 'Failed to update geometry output')
+                  toastError(error, 'Failed to update boundary feature')
                 }
                 onSuccess={() => router.replace(resourcePath)}
               >

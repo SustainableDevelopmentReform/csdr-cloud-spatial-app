@@ -281,7 +281,7 @@ const ReportFeature = () => {
               {showGeometriesFilter && (
                 <div>
                   <GeometriesSelect
-                    title="Filter Geometries"
+                    title="Filter Boundaries"
                     value={selectedGeometriesIds}
                     onChange={(selected) =>
                       setSearchParams({
@@ -298,7 +298,7 @@ const ReportFeature = () => {
               {showGeometriesRunFilter && (
                 <div>
                   <GeometriesRunSelect
-                    title="Filter Geometries Run"
+                    title="Filter Boundary Run"
                     value={query?.geometriesRunId}
                     geometriesId="*"
                     onChange={(selected) =>

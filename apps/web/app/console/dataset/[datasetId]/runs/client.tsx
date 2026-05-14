@@ -31,6 +31,8 @@ import {
   toGeographicBoundsQuery,
 } from '../../../_components/geographic-bounds-picker-dialog'
 import { ResourcePageState } from '../../../_components/resource-page-state'
+import { useRunVersionSidebar } from '../../../_components/run-version-sidebar'
+import { VersionStatusBadge } from '../../../_components/version-status-badge'
 import {
   DatasetRunListItem,
   useCreateDatasetRun,
@@ -39,7 +41,7 @@ import {
   useDatasetRunLink,
   useDatasetRuns,
 } from '../../_hooks'
-import { createDatasetRunSchema } from '@repo/schemas/crud'
+import { createDatasetRunSchema, deriveRunStatus } from '@repo/schemas/crud'
 import { SearchInput } from '../../../../../components/table/search-input'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 
@@ -73,6 +75,18 @@ const DatasetRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   } = useDatasetRuns(undefined, undefined, true)
   const createDatasetRun = useCreateDatasetRun()
   const datasetLink = useDatasetRunLink()
+  const runVersionSidebar = useRunVersionSidebar()
+  const selectedRun = runVersionSidebar?.selectedRun
+  const selectedDatasetRunId =
+    selectedRun?.type === 'dataset' ? selectedRun.id : null
+  const openDatasetRunVersion = runVersionSidebar
+    ? (datasetRun: DatasetRunListItem) => {
+        runVersionSidebar.openRunVersion({
+          id: datasetRun.id,
+          type: 'dataset',
+        })
+      }
+    : undefined
   const { access } = useAccessControl()
   const canEdit = canManageConsoleChildResource({
     access,
@@ -87,23 +101,22 @@ const DatasetRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   const columns = useMemo(() => {
     return [
       {
-        id: 'latestRun',
-        header: 'Latest run',
+        id: 'status',
+        header: 'Status',
         cell: ({ row }) => {
-          const isLatest = dataset?.mainRunId === row.original.id
+          const status = deriveRunStatus({
+            latestRunCreatedAt: dataset?.mainRun?.createdAt,
+            latestRunId: dataset?.mainRunId,
+            runCreatedAt: row.original.createdAt,
+            runId: row.original.id,
+          })
 
-          return (
-            <span
-              className={isLatest ? 'text-foreground' : 'text-muted-foreground'}
-            >
-              {isLatest ? 'Latest' : 'No'}
-            </span>
-          )
+          return <VersionStatusBadge status={status} />
         },
-        size: 140,
+        size: 160,
       },
     ] satisfies ColumnDef<DatasetRunListItem>[]
-  }, [dataset?.mainRunId])
+  }, [dataset?.mainRun?.createdAt, dataset?.mainRunId])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     if (!geographicBounds) {
       return []
@@ -310,9 +323,11 @@ const DatasetRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="DatasetRun"
           itemLink={datasetLink}
+          itemAction={openDatasetRunVersion}
           editLink={(datasetRun) => getEditModeHref(datasetLink(datasetRun))}
           canModifyItem={() => canEdit}
           stickyColumnClassName={embedded ? 'bg-white' : undefined}
+          selectedItemId={selectedDatasetRunId}
           deleteAction={(datasetRun) => (
             <DatasetRunDeleteAction datasetRun={datasetRun} />
           )}

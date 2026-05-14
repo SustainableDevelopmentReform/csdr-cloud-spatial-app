@@ -95,7 +95,7 @@ function renderSampleChart(context: ChartRenderContext) {
           <thead className="border-b">
             <tr>
               <th className="py-1 pr-3 font-medium">Indicator</th>
-              <th className="py-1 pr-3 font-medium">Geometry</th>
+              <th className="py-1 pr-3 font-medium">Boundary</th>
               <th className="py-1 pr-3 font-medium">Time</th>
               <th className="py-1 font-medium">Value</th>
             </tr>
@@ -105,7 +105,7 @@ function renderSampleChart(context: ChartRenderContext) {
               <tr key={row.id} className="border-b last:border-0">
                 <td className="py-1 pr-3">{row.indicatorName ?? 'Value'}</td>
                 <td className="py-1 pr-3">
-                  {row.geometryOutputName ?? 'All geometries'}
+                  {row.geometryOutputName ?? 'All boundaries'}
                 </td>
                 <td className="py-1 pr-3">{String(row.timePoint ?? '')}</td>
                 <td className="py-1">{row.value}</td>

@@ -52,7 +52,7 @@ const GeometryOutputDeleteAction = ({
 
   return (
     <TableRowDeleteAction
-      entityName="geometry output"
+      entityName="boundary feature"
       itemName={geometryOutput.name}
       mutation={deleteGeometryOutput}
     />
@@ -111,14 +111,14 @@ const GeometryOutputFeature = () => {
   return (
     <ResourcePageState
       error={geometriesRunQuery.error}
-      errorMessage="Failed to load geometries run"
+      errorMessage="Failed to load boundary run"
       isLoading={geometriesRunQuery.isLoading}
-      loadingMessage="Loading geometries run"
-      notFoundMessage="Geometries run not found"
+      loadingMessage="Loading boundary run"
+      notFoundMessage="Boundary run not found"
     >
       <ConsoleCrudListFrame
-        title="Geometry Outputs"
-        description="Create and manage geometry outputs for this run."
+        title="Boundary Features"
+        description="Create and manage boundary features for this run."
         actions={
           <>
             {geometriesRun?.id && canEdit ? (
@@ -127,9 +127,9 @@ const GeometryOutputFeature = () => {
             <CrudFormDialog
               form={form}
               mutation={createGeometryOutput}
-              buttonText="Add Geometry Output"
-              entityName="Geometry Output"
-              entityNamePlural="geometry outputs"
+              buttonText="Add Boundary Feature"
+              entityName="Boundary Feature"
+              entityNamePlural="boundary features"
               hiddenFields={['visibility']}
               hideTrigger={!canEdit}
             >
@@ -138,7 +138,7 @@ const GeometryOutputFeature = () => {
                 name={'geometry'}
                 render={({ field, fieldState }) => (
                   <FormItem>
-                    <FormLabel>Geometry</FormLabel>
+                    <FormLabel>Boundary</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
@@ -180,7 +180,7 @@ const GeometryOutputFeature = () => {
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
               className="w-full md:w-72"
-              placeholder="Search geometry outputs"
+              placeholder="Search boundary features"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
@@ -202,7 +202,7 @@ const GeometryOutputFeature = () => {
           isLoading={isLoading}
           baseColumns={baseColumns}
           sortOptions={['name', 'createdAt', 'updatedAt']}
-          title="GeometryOutput"
+          title="BoundaryFeature"
           itemLink={geometryOutputLink}
           editLink={(geometryOutput) =>
             getEditModeHref(geometryOutputLink(geometryOutput))

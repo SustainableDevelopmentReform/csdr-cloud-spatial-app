@@ -164,7 +164,10 @@ const multiSeriesSelectionSchema = baseChartConfigurationSchema.extend({
     .min(1, 'At least one indicator must be selected'),
   geometryOutputIds: z
     .array(z.string())
-    .max(MAX_CLASSES, `At most ${MAX_CLASSES} geometry outputs can be selected`)
+    .max(
+      MAX_CLASSES,
+      `At most ${MAX_CLASSES} boundary features can be selected`,
+    )
     .optional(),
   timePoints: z.array(z.string()).optional(),
 })
@@ -204,7 +207,7 @@ export const plotChartConfigurationSchema = multiSeriesSelectionSchema
         if (multipleGeometryOutputsSelected) {
           context.addIssue({
             code: 'custom',
-            message: `${chartLabel} can only vary one dimension — select a single geometry`,
+            message: `${chartLabel} can only vary one dimension — select a single boundary`,
             path: ['geometryOutputIds'],
             input: data.geometryOutputIds,
           })
@@ -237,7 +240,7 @@ export const plotChartConfigurationSchema = multiSeriesSelectionSchema
       context.addIssue({
         code: 'custom',
         message:
-          'Each chart element must map to one product output — select a single geometry',
+          'Each chart element must map to one product output — select a single boundary',
         path: ['geometryOutputIds'],
         input: data.geometryOutputIds,
       })
@@ -252,14 +255,14 @@ export const plotChartConfigurationSchema = multiSeriesSelectionSchema
       context.addIssue({
         code: 'custom',
         message:
-          'Each chart element must map to one product output — select a single indicator or a single geometry',
+          'Each chart element must map to one product output — select a single indicator or a single boundary',
         path: ['indicatorIds'],
         input: data.indicatorIds,
       })
       context.addIssue({
         code: 'custom',
         message:
-          'Each chart element must map to one product output — select a single indicator or a single geometry',
+          'Each chart element must map to one product output — select a single indicator or a single boundary',
         path: ['geometryOutputIds'],
         input: data.geometryOutputIds,
       })
@@ -285,11 +288,11 @@ export const mapChartConfigurationSchema = baseChartConfigurationSchema
     }),
     geometryOutputIds: z
       .array(z.string())
-      .max(10, 'At most 10 geometry outputs can be selected')
+      .max(10, 'At most 10 boundary features can be selected')
       .optional()
       .openapi({
         description:
-          'Optional geometry filter for zooming or limiting the map view.',
+          'Optional boundary filter for zooming or limiting the map view.',
       }),
   })
   .openapi('MapChartConfigurationSchema', {
@@ -310,15 +313,15 @@ export const kpiChartConfigurationSchema = baseChartConfigurationSchema
     }),
     geometryOutputIds: z
       .array(z.string())
-      .min(1, 'KPI requires a selected geometry')
-      .max(1, 'KPI requires exactly one geometry')
+      .min(1, 'KPI requires a selected boundary')
+      .max(1, 'KPI requires exactly one boundary')
       .openapi({
-        description: 'KPI cards require exactly one selected geometry output.',
+        description: 'KPI cards require exactly one selected boundary feature.',
       }),
   })
   .openapi('KpiChartConfigurationSchema', {
     description:
-      'Single highlighted value for one indicator, geometry, and time point.',
+      'Single highlighted value for one indicator, boundary, and time point.',
   })
 
 export type KpiChartConfiguration = z.infer<typeof kpiChartConfigurationSchema>
@@ -355,7 +358,7 @@ export const tableChartConfigurationSchema = multiSeriesSelectionSchema
       context.addIssue({
         code: 'custom',
         message:
-          'Geometry output is not used as a table axis, one must be selected.',
+          'Boundary feature is not used as a table axis, one must be selected.',
         path: ['geometryOutputIds'],
         input: data.geometryOutputIds,
       })
@@ -404,7 +407,7 @@ export type ChartIndicatorSelection = {
 export const tableChartDimensionMetadata = entries(
   { value: 'timePoint', label: 'Time' },
   { value: 'indicatorName', label: 'Indicator' },
-  { value: 'geometryOutputName', label: 'Geometry' },
+  { value: 'geometryOutputName', label: 'Boundary' },
 ) satisfies readonly {
   value: TableChartDimension
   label: string

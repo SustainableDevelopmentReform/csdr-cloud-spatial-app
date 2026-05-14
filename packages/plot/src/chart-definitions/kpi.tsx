@@ -93,7 +93,7 @@ function renderKpiChart(context: ChartRenderContext) {
         )}
       >
         KPI requires exactly one product output. Narrow your selections to a
-        single indicator, geometry, and time point.
+        single indicator, boundary, and time point.
       </div>
     )
   }
@@ -103,7 +103,7 @@ function renderKpiChart(context: ChartRenderContext) {
 
   const contextParts = [
     dataPoint.indicatorName ?? 'Indicator',
-    dataPoint.geometryOutputName ?? 'Geometry',
+    dataPoint.geometryOutputName ?? 'Boundary',
     dateFormatter.format(new Date(dataPoint.timePoint)),
   ]
 

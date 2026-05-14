@@ -9,8 +9,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  ExternalLinkIcon,
   Pen,
-  SquareArrowOutUpRight,
 } from 'lucide-react'
 import { useMemo } from 'react'
 import z from 'zod'
@@ -33,6 +33,7 @@ interface BaseItem {
 interface BaseActionProps<T extends BaseItem> {
   title: string
   itemLink?: (item: T) => string
+  itemAction?: (item: T) => void
   editLink?: (item: T) => string
   itemActionLabel?: string
   showEditAction?: boolean
@@ -72,6 +73,7 @@ const ResourceNameVisibilityIndicator = ({
 
 const Action = <T extends BaseItem>({
   data,
+  itemAction,
   itemLink,
   editLink,
   itemActionLabel = 'View',
@@ -85,16 +87,28 @@ const Action = <T extends BaseItem>({
   const resolvedItemLink = itemLink?.(data)
   const resolvedEditLink = editLink?.(data) ?? resolvedItemLink
   const resolvedDeleteAction = canModify ? deleteAction?.(data) : null
+  const hasViewAction = Boolean(resolvedItemLink || itemAction)
   const shouldShowEditAction =
     showEditAction && canModify && Boolean(resolvedEditLink)
 
-  if (!resolvedItemLink && !shouldShowEditAction && !resolvedDeleteAction) {
+  if (!hasViewAction && !shouldShowEditAction && !resolvedDeleteAction) {
     return null
   }
 
   return (
     <div className="flex w-max flex-nowrap justify-end gap-2 whitespace-nowrap">
-      {resolvedItemLink ? (
+      {itemAction ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className={actionButtonClassName}
+          onClick={() => itemAction(data)}
+          type="button"
+        >
+          {itemActionLabel}
+          <ExternalLinkIcon className="h-4 w-4" />
+        </Button>
+      ) : resolvedItemLink ? (
         <Button
           asChild
           variant="outline"
@@ -103,7 +117,7 @@ const Action = <T extends BaseItem>({
         >
           <Link href={resolvedItemLink}>
             {itemActionLabel}
-            <SquareArrowOutUpRight className="h-4 w-4" />
+            <ExternalLinkIcon className="h-4 w-4" />
           </Link>
         </Button>
       ) : null}
@@ -146,6 +160,7 @@ interface BaseCrudTableProps<
   query?: Q
   sortOptions: readonly NonNullable<Q['sort']>[]
   stickyColumnClassName?: string
+  selectedItemId?: string | null
   onSortChange?: (query: BaseCrudTableSortChange<Q>) => void
 }
 
@@ -199,6 +214,7 @@ const BaseCrudTable = <
   extraColumns,
   title,
   itemLink,
+  itemAction,
   editLink,
   itemActionLabel,
   showEditAction,
@@ -206,6 +222,7 @@ const BaseCrudTable = <
   deleteAction,
   sortOptions,
   stickyColumnClassName,
+  selectedItemId,
   isLoading = false,
   onSortChange,
 }: BaseCrudTableProps<T, Q>) => {
@@ -216,7 +233,7 @@ const BaseCrudTable = <
     canModifyItem !== undefined
       ? data.length === 0 || data.some((item) => canModifyItem(item))
       : false
-  const hasViewAction = Boolean(itemLink)
+  const hasViewAction = Boolean(itemLink || itemAction)
   const hasEditAction =
     showEditAction !== false && canModifyAny && Boolean(editLink ?? itemLink)
   const hasDeleteAction = canModifyAny && Boolean(deleteAction)
@@ -318,6 +335,7 @@ const BaseCrudTable = <
           data={info.row.original}
           title={title}
           itemLink={itemLink}
+          itemAction={itemAction}
           editLink={editLink}
           itemActionLabel={itemActionLabel}
           showEditAction={showEditAction}
@@ -336,6 +354,7 @@ const BaseCrudTable = <
     deleteAction,
     editLink,
     extraColumns,
+    itemAction,
     itemActionLabel,
     itemLink,
     showEditAction,
@@ -346,6 +365,7 @@ const BaseCrudTable = <
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => row.id,
     manualSorting: true, //use pre-sorted row model instead of sorted row model
     state: {
       sorting: sortingState,
@@ -372,6 +392,7 @@ const BaseCrudTable = <
     <Table
       table={table}
       isLoading={isLoading}
+      selectedRowId={selectedItemId}
       stickyColumnClassName={stickyColumnClassName}
     />
   )
