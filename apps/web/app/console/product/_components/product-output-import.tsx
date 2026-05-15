@@ -472,6 +472,7 @@ const ProductOutputsImportForm = ({
           ...defaultValues,
           productRunId: productRunId ?? '',
         })
+        dirtyRef.current = false
         resetCsvState()
         onCompleted()
       },

@@ -155,7 +155,7 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full">
+        <TabsList className="mx-auto w-fit justify-center">
           <TabsTrigger value="totp">
             <Smartphone className="mr-2 h-4 w-4" />
             App

@@ -8,6 +8,7 @@ import {
 } from '@repo/ui/components/ui/card'
 import { cn } from '@repo/ui/lib/utils'
 import { workflowDagSchema, type WorkflowStep } from '@repo/schemas/crud'
+import { EmptyPlaceholder } from '~/components/empty-placeholder'
 import {
   CheckCircle2Icon,
   ChevronDownIcon,
@@ -31,9 +32,7 @@ export function LineageEmptyState({
 }: {
   message?: string
 }) {
-  return (
-    <p className="py-8 text-center text-sm text-muted-foreground">{message}</p>
-  )
+  return <EmptyPlaceholder>{message}</EmptyPlaceholder>
 }
 
 export function WorkflowDagChart({

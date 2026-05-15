@@ -137,6 +137,10 @@ export const deriveRunStatus = ({
     return 'latest'
   }
 
+  if (!latestRunId && runId) {
+    return 'draft'
+  }
+
   const runCreatedTime = getDateTime(runCreatedAt)
   const latestRunCreatedTime = getDateTime(latestRunCreatedAt)
 

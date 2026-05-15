@@ -4,6 +4,7 @@ import { Tabs, TabsContent } from '@repo/ui/components/ui/tabs'
 import { Code2Icon, MapIcon, Table2Icon, WorkflowIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { EmptyPlaceholder } from '~/components/empty-placeholder'
 import {
   DEFAULT_LINEAGE_EMPTY_MESSAGE,
   LineageEmptyState,
@@ -216,18 +217,14 @@ export function ResourcePageTabs({
           {activeExploreSubTab === 'map' && (
             <div>
               {exploreMap ?? (
-                <p className="py-8 text-center text-muted-foreground">
-                  No map data available.
-                </p>
+                <EmptyPlaceholder>No map data available.</EmptyPlaceholder>
               )}
             </div>
           )}
           {activeExploreSubTab === 'table' && (
             <div className="overflow-hidden rounded-[10px] bg-white p-6 text-card-foreground">
               {exploreTable ?? (
-                <p className="py-8 text-center text-muted-foreground">
-                  No table data available.
-                </p>
+                <EmptyPlaceholder>No table data available.</EmptyPlaceholder>
               )}
             </div>
           )}
@@ -260,9 +257,9 @@ export function ResourcePageTabs({
       <TabsContent value="versions">
         <div className="flex flex-col gap-6">
           {versions ?? (
-            <p className="py-8 text-center text-muted-foreground">
+            <EmptyPlaceholder>
               No version information available.
-            </p>
+            </EmptyPlaceholder>
           )}
         </div>
       </TabsContent>
@@ -270,9 +267,7 @@ export function ResourcePageTabs({
       <TabsContent value="usage">
         <div className="flex flex-col gap-6">
           {usage ?? (
-            <p className="py-8 text-center text-muted-foreground">
-              No usage information available.
-            </p>
+            <EmptyPlaceholder>No usage information available.</EmptyPlaceholder>
           )}
         </div>
       </TabsContent>

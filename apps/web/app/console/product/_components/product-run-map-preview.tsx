@@ -188,7 +188,7 @@ const ProductRunMapPreviewContent = ({
                   Save as default
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-64">
+              <TooltipContent>
                 Saved defaults prefill new map charts for this product run when
                 fields are blank.
               </TooltipContent>

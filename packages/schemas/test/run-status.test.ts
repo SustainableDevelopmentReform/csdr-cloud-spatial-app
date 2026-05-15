@@ -44,4 +44,14 @@ describe('deriveRunStatus', () => {
       }),
     ).toBe('previous')
   })
+
+  it('returns draft when a run exists but no latest run is selected', () => {
+    expect(
+      deriveRunStatus({
+        latestRunId: null,
+        runCreatedAt: '2024-02-01T00:00:00.000Z',
+        runId: 'run-1',
+      }),
+    ).toBe('draft')
+  })
 })

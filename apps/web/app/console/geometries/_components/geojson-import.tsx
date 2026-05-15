@@ -310,6 +310,7 @@ const GeojsonImportForm = ({
           ...defaultValues,
           geometriesRunId: currentGeometriesRunId,
         })
+        dirtyRef.current = false
         resetGeojsonState()
         onCompleted()
       },

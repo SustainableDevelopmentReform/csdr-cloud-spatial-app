@@ -16,6 +16,7 @@ import {
 } from '../../_components/geographic-bounds-picker-dialog'
 import { formatDateTime } from '@repo/ui/lib/date'
 import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
+import { GeometryOutputDetailsSidebar } from '../../geometries/_components/geometry-output-details-sidebar'
 import { ProductRunIndicatorsSelect } from '../_components/product-run-indicators-select'
 import { ProductGeometryOutputSelect } from '../_components/product-run-geometry-output-select'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
@@ -51,17 +52,30 @@ export function ProductMainRunOutputsTable({
   const [selectedProductOutputId, setSelectedProductOutputId] = useState<
     string | null
   >(null)
+  const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
+    string | null
+  >(null)
 
   const closeProductOutputDetails = useCallback(() => {
     setSelectedProductOutputId(null)
   }, [])
 
+  const closeGeometryOutputDetails = useCallback(() => {
+    setSelectedGeometryOutputId(null)
+  }, [])
+
   const openProductOutputDetails = useCallback(
     (productOutput: ProductOutputListItem) => {
+      setSelectedGeometryOutputId(null)
       setSelectedProductOutputId(productOutput.id)
     },
     [],
   )
+
+  const openGeometryOutputDetails = useCallback((geometryOutputId: string) => {
+    setSelectedProductOutputId(null)
+    setSelectedGeometryOutputId(geometryOutputId)
+  }, [])
 
   const editProductOutputLink = useCallback(
     (productOutput: ProductOutputListItem) =>
@@ -70,13 +84,14 @@ export function ProductMainRunOutputsTable({
   )
 
   useEffect(() => {
-    if (!selectedProductOutputId) {
+    if (!selectedProductOutputId && !selectedGeometryOutputId) {
       return
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeProductOutputDetails()
+        closeGeometryOutputDetails()
       }
     }
 
@@ -85,7 +100,12 @@ export function ProductMainRunOutputsTable({
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [closeProductOutputDetails, selectedProductOutputId])
+  }, [
+    closeGeometryOutputDetails,
+    closeProductOutputDetails,
+    selectedGeometryOutputId,
+    selectedProductOutputId,
+  ])
 
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
@@ -151,19 +171,24 @@ export function ProductMainRunOutputsTable({
         columnHelper.display({
           id: 'geometry',
           header: () => <span>Boundary</span>,
-          cell: ({ row }) => (
-            <div className="flex flex-wrap items-center gap-2">
-              {row.original.geometryOutput && (
-                <GeometryOutputButton
-                  geometryOutput={row.original.geometryOutput}
-                />
-              )}
-            </div>
-          ),
+          cell: ({ row }) => {
+            const geometryOutput = row.original.geometryOutput
+
+            return (
+              <div className="flex flex-wrap items-center gap-2">
+                {geometryOutput && (
+                  <GeometryOutputButton
+                    geometryOutput={geometryOutput}
+                    onClick={() => openGeometryOutputDetails(geometryOutput.id)}
+                  />
+                )}
+              </div>
+            )
+          },
           size: 180,
         }),
       ] as ColumnDef<ProductOutputListItem>[],
-    [],
+    [openGeometryOutputDetails],
   )
 
   return (
@@ -236,6 +261,11 @@ export function ProductMainRunOutputsTable({
         onClose={closeProductOutputDetails}
         open={Boolean(selectedProductOutputId)}
         productOutputId={selectedProductOutputId}
+      />
+      <GeometryOutputDetailsSidebar
+        geometryOutputId={selectedGeometryOutputId}
+        onClose={closeGeometryOutputDetails}
+        open={Boolean(selectedGeometryOutputId)}
       />
       <Pagination
         className="justify-end mt-4"

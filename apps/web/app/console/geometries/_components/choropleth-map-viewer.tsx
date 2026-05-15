@@ -12,7 +12,6 @@ import {
   Source,
 } from '@vis.gl/react-maplibre'
 import {
-  type ExpressionInputType,
   type ExpressionSpecification,
   type MapLayerMouseEvent,
   type RequestTransformFunction,
@@ -44,6 +43,18 @@ type MapBounds = [number, number, number, number]
 type ChoroplethIndicator = Pick<IndicatorListItem, 'id' | 'name' | 'unit'>
 export type GeometryOutputMapSelection = {
   geometryOutputId: string | null
+}
+type MatchExpressionPart =
+  | string
+  | number
+  | boolean
+  | string[]
+  | number[]
+  | null
+  | ExpressionSpecification
+type MatchColorEntry = {
+  id: string
+  color: string
 }
 
 function toMapBounds(
@@ -91,6 +102,55 @@ function getS3HttpUrl(url: string) {
 function resolvePmtilesUrl(url: string | null | undefined) {
   if (!url) return null
   return url.startsWith('s3://') ? getS3HttpUrl(url) : url
+}
+
+function getFeatureIdExpression(): ExpressionSpecification {
+  return ['to-string', ['coalesce', ['get', ID_PROPERTY], ['get', 'id']]]
+}
+
+function getMatchColorExpression(
+  entries: MatchColorEntry[],
+  fallbackColor: string,
+): string | ExpressionSpecification {
+  const [firstEntry, ...remainingEntries] = entries
+  if (!firstEntry) return fallbackColor
+
+  const expressionParts: MatchExpressionPart[] = []
+  remainingEntries.forEach((entry) => {
+    expressionParts.push(entry.id, entry.color)
+  })
+
+  return [
+    'match',
+    getFeatureIdExpression(),
+    firstEntry.id,
+    firstEntry.color,
+    ...expressionParts,
+    fallbackColor,
+  ]
+}
+
+function getMatchNumberExpression(
+  ids: string[] | null | undefined,
+  matchedValue: number,
+  fallbackValue: number,
+): number | ExpressionSpecification {
+  const [firstId, ...remainingIds] = ids ?? []
+  if (!firstId) return fallbackValue
+
+  const expressionParts: MatchExpressionPart[] = []
+  remainingIds.forEach((id) => {
+    expressionParts.push(id, matchedValue)
+  })
+
+  return [
+    'match',
+    getFeatureIdExpression(),
+    firstId,
+    matchedValue,
+    ...expressionParts,
+    fallbackValue,
+  ]
 }
 
 const ChoroplethMapViewer = ({
@@ -278,71 +338,42 @@ const ChoroplethMapViewer = ({
       return scale(value)
     }
 
-    const fillColourEntries: [
-      ExpressionSpecification,
-      ExpressionInputType,
-      ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
-
-    const lineColourEntries: [
-      ExpressionSpecification,
-      ExpressionInputType,
-      ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', ID_PROPERTY]], NO_DATA_COLOR]
+    const fillColorsByOutputId = new Map<string, string>()
+    const lineColorsByOutputId = new Map<string, string>()
+    const selectedGeometryOutputIds = new Set(zoomToGeometryOutputIds ?? [])
 
     productOutputs?.forEach((output) => {
       if (output.geometryOutputId) {
-        if (zoomToGeometryOutputIds?.includes(output.geometryOutputId)) {
-          lineColourEntries.push(
-            ['==', ['get', ID_PROPERTY], output.geometryOutputId],
-            '#000000',
-          )
-        } else {
-          lineColourEntries.push(
-            ['==', ['get', ID_PROPERTY], output.geometryOutputId],
-            colorFn(output.value),
-          )
-        }
-        fillColourEntries.push(
-          ['==', ['get', ID_PROPERTY], output.geometryOutputId],
-          colorFn(output.value),
-        )
+        const fillColor = colorFn(output.value)
+        const lineColor = selectedGeometryOutputIds.has(output.geometryOutputId)
+          ? '#000000'
+          : fillColor
+        fillColorsByOutputId.set(output.geometryOutputId, fillColor)
+        lineColorsByOutputId.set(output.geometryOutputId, lineColor)
       }
     })
 
-    const selectedGeometriesLineWidth: [
-      ExpressionSpecification,
-      ExpressionInputType,
-      ...(ExpressionInputType | ExpressionSpecification)[],
-    ] = [['!', ['has', ID_PROPERTY]], 1]
+    const fillColourEntries = Array.from(
+      fillColorsByOutputId,
+      ([id, color]) => ({ id, color }),
+    )
+    const lineColourEntries = Array.from(
+      lineColorsByOutputId,
+      ([id, color]) => ({ id, color }),
+    )
 
-    geometryOutputsToZoomTo?.data?.forEach((output) => {
-      selectedGeometriesLineWidth.push(
-        ['==', ['get', ID_PROPERTY], output.id],
-        zoomToGeometryOutputIds?.includes(output.id) ? 2 : 1,
-      )
-    })
-
-    const paint = {
+    return {
       linePaint: {
-        'line-color': ['case', ...lineColourEntries, NO_DATA_COLOR],
-        'line-width': ['case', ...selectedGeometriesLineWidth, 1],
+        'line-color': getMatchColorExpression(lineColourEntries, NO_DATA_COLOR),
+        'line-width': getMatchNumberExpression(zoomToGeometryOutputIds, 2, 1),
         'line-offset': 1,
       } satisfies LineLayerSpecification['paint'],
       fillPaint: {
-        'fill-color': ['case', ...fillColourEntries, NO_DATA_COLOR],
+        'fill-color': getMatchColorExpression(fillColourEntries, NO_DATA_COLOR),
         'fill-opacity': 0.7,
       } satisfies FillLayerSpecification['paint'],
     }
-
-    return paint
-  }, [
-    indicator,
-    colorScaleInfo,
-    productOutputs,
-    geometryOutputsToZoomTo?.data,
-    zoomToGeometryOutputIds,
-  ])
+  }, [indicator, colorScaleInfo, productOutputs, zoomToGeometryOutputIds])
 
   const mapRef = useRef<MapRef | null>(null)
   const mapPreview = useMapPreview()
