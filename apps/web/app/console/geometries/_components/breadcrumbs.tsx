@@ -14,7 +14,6 @@ import {
 import {
   useGeometries,
   useGeometriesRun,
-  useGeometriesRunsLink,
   useGeometryOutput,
   useGeometryRunOutputsLink,
 } from '../_hooks'
@@ -42,17 +41,12 @@ export const GeometriesBreadcrumbs = () => {
   const geometriesRun =
     geometriesRunFromUrl ?? geometryOutputFromUrl?.geometriesRun
 
-  const geometriesRunsLink = useGeometriesRunsLink()
   const geometryRunOutputsLink = useGeometryRunOutputsLink()
-  const sectionHref = fromLibrary
-    ? `${DATA_LIBRARY_BASE_PATH}?resourceType=boundary`
-    : GEOMETRIES_BASE_PATH
 
   const items: BreadcrumbItem[] = [
     fromLibrary
       ? { label: 'Data', href: DATA_LIBRARY_BASE_PATH }
       : { label: 'Admin' },
-    { label: 'Boundaries', href: sectionHref },
   ]
 
   if (geometries) {
@@ -61,18 +55,6 @@ export const GeometriesBreadcrumbs = () => {
       href: fromLibrary
         ? withDataLibrarySource(`${GEOMETRIES_BASE_PATH}/${geometries.id}`)
         : `${GEOMETRIES_BASE_PATH}/${geometries.id}`,
-    })
-  }
-
-  if (
-    geometries &&
-    (pathname?.includes('runs') ||
-      geometriesRunFromUrl ||
-      geometryOutputFromUrl)
-  ) {
-    items.push({
-      label: 'Boundary Runs',
-      href: geometriesRunsLink(geometries),
     })
   }
 

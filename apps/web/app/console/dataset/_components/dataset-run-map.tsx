@@ -7,7 +7,7 @@ import { Protocol } from 'pmtiles'
 import DeckGL from '@deck.gl/react'
 import { MapViewState, LayersList, WebMercatorViewport } from '@deck.gl/core'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import initParquetWasm, { readParquet } from 'parquet-wasm'
+import { readParquet } from 'parquet-wasm/bundler'
 import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useQuery } from '@tanstack/react-query'
@@ -216,18 +216,20 @@ class ColorMappedCOGLayer extends COGLayer {
 
 // --- Component ---
 
-export const DatasetRunMap = ({
-  dataType,
-  dataUrl,
-  dataPmtilesUrl,
-  datasetStyle,
-}: {
+export type DatasetRunMapProps = {
   dataType: DatasetRunListItem['dataType']
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
   dataPmtilesUrl: DatasetRunListItem['dataPmtilesUrl']
   /** Visualization style. If omitted, for raster data, all valid pixels render as the default blue. For vector data, all features render as the default blue. */
   datasetStyle?: DatasetStyle | null
-}) => {
+}
+
+export const DatasetRunMap = ({
+  dataType,
+  dataUrl,
+  dataPmtilesUrl,
+  datasetStyle,
+}: DatasetRunMapProps) => {
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
@@ -301,7 +303,6 @@ export const DatasetRunMap = ({
     queryFn: async () => {
       if (!dataUrl) return null
       const parquetArrowUrl = s3UrlToHttps(dataUrl)
-      await initParquetWasm()
       const resp = await fetch(parquetArrowUrl)
       if (!resp.ok) {
         throw new Error(

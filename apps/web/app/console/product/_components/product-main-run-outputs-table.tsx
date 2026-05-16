@@ -1,15 +1,36 @@
 'use client'
 
-import { productOutputQuerySchema } from '@repo/schemas/crud'
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  createProductOutputSchema,
+  productOutputQuerySchema,
+} from '@repo/schemas/crud'
+import { CalendarSelect } from '@repo/ui/components/ui/calendar-select'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import BaseCrudTable, {
   SortButton,
 } from '../../../../components/table/crud-table'
+import CrudFormDialog from '../../../../components/form/crud-form-dialog'
 import { SearchInput } from '../../../../components/table/search-input'
 import {
+  ActiveTableFilter,
+  formatActiveFilterValue,
+  TableFilterPopover,
+} from '../../../../components/table/filter-popover'
+import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
@@ -17,14 +38,20 @@ import {
 import { formatDateTime } from '@repo/ui/lib/date'
 import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
 import { GeometryOutputDetailsSidebar } from '../../geometries/_components/geometry-output-details-sidebar'
+import { useGeometryOutputs } from '../../geometries/_hooks'
 import { ProductRunIndicatorsSelect } from '../_components/product-run-indicators-select'
 import { ProductGeometryOutputSelect } from '../_components/product-run-geometry-output-select'
+import { ProductOutputsImportDialog } from './product-output-import'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
+import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { Value } from '../../../../components/value'
 import { getEditModeHref } from '../../_components/resource-detail-mode'
 import { ProductOutputDetailsSidebar } from '../../report/_components/chart-selected-item'
+import { useIndicators } from '../../indicator/_hooks'
 import {
   ProductOutputListItem,
+  useCreateProductRunOutput,
+  useProductRun,
   useProductOutputLink,
   useProductOutputs,
 } from '../_hooks'
@@ -34,9 +61,11 @@ const columnHelper = createColumnHelper<ProductOutputListItem>()
 
 export function ProductMainRunOutputsTable({
   canEdit,
+  showManagementActions = false,
   productRunId,
 }: {
   canEdit: boolean
+  showManagementActions?: boolean
   productRunId: string
 }) {
   const {
@@ -47,7 +76,8 @@ export function ProductMainRunOutputsTable({
     hasNextPage,
     isLoading,
     isFetchingNextPage,
-  } = useProductOutputs(productRunId, undefined, false)
+  } = useProductOutputs(productRunId, undefined, true)
+  const createProductOutput = useCreateProductRunOutput()
   const productLink = useProductOutputLink()
   const [selectedProductOutputId, setSelectedProductOutputId] = useState<
     string | null
@@ -75,6 +105,11 @@ export function ProductMainRunOutputsTable({
   const openGeometryOutputDetails = useCallback((geometryOutputId: string) => {
     setSelectedProductOutputId(null)
     setSelectedGeometryOutputId(geometryOutputId)
+  }, [])
+
+  const selectProductOutputDetails = useCallback((productOutputId: string) => {
+    setSelectedGeometryOutputId(null)
+    setSelectedProductOutputId(productOutputId)
   }, [])
 
   const editProductOutputLink = useCallback(
@@ -116,6 +151,75 @@ export function ProductMainRunOutputsTable({
     [query?.geometryOutputId],
   )
   const geographicBounds = getGeographicBoundsFromQuery(query)
+  const { data: productRun } = useProductRun(productRunId)
+  const { data: selectedIndicators } = useIndicators(
+    { indicatorIds: selectedIndicatorIds },
+    false,
+    selectedIndicatorIds.length > 0,
+  )
+  const { data: selectedGeometryOutputs } = useGeometryOutputs(
+    productRun?.geometriesRun?.id,
+    {
+      geometryOutputIds: selectedGeometryOutputIds,
+      size: selectedGeometryOutputIds.length || undefined,
+    },
+    false,
+    selectedGeometryOutputIds.length > 0 && !!productRun?.geometriesRun?.id,
+  )
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (selectedIndicatorIds.length > 0) {
+      filters.push({
+        id: 'indicators',
+        label: 'Indicators',
+        value: formatActiveFilterValue(
+          selectedIndicatorIds,
+          selectedIndicators?.data,
+        ),
+        onClear: () => setSearchParams({ indicatorId: undefined }),
+      })
+    }
+
+    if (selectedGeometryOutputIds.length > 0) {
+      filters.push({
+        id: 'boundary-features',
+        label: 'Boundary features',
+        value: formatActiveFilterValue(
+          selectedGeometryOutputIds,
+          selectedGeometryOutputs?.data,
+        ),
+        onClear: () => setSearchParams({ geometryOutputId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    selectedGeometryOutputs?.data,
+    selectedGeometryOutputIds,
+    selectedGeometryOutputIds.length,
+    selectedIndicators?.data,
+    selectedIndicatorIds,
+    selectedIndicatorIds.length,
+    setSearchParams,
+  ])
+  const form = useForm({
+    resolver: zodResolver(createProductOutputSchema),
+  })
+
+  useEffect(() => {
+    form.setValue('productRunId', productRunId)
+  }, [form, productRunId])
 
   const baseColumns = useMemo(() => {
     return ['updatedAt'] as const
@@ -193,49 +297,124 @@ export function ProductMainRunOutputsTable({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <SearchInput
           className="w-full md:max-w-md"
           placeholder="Search product outputs"
           value={query?.search ?? ''}
           onChange={(e) => setSearchParams({ search: e.target.value })}
         />
-        <div className="flex flex-wrap items-end justify-end gap-3">
-          <div className="min-w-[220px] md:min-w-[260px]">
-            <ProductRunIndicatorsSelect
-              productRunId={productRunId}
-              value={selectedIndicatorIds}
-              onChange={(selected) =>
-                setSearchParams({
-                  indicatorId: selected.map((indicator) => indicator.id),
-                })
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <TableFilterPopover activeFilters={activeFilters}>
+            <div>
+              <ProductRunIndicatorsSelect
+                productRunId={productRunId}
+                value={selectedIndicatorIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    indicatorId: selected.map((indicator) => indicator.id),
+                  })
+                }
+                isMulti
+                isClearable
+              />
+            </div>
+            <div>
+              <ProductGeometryOutputSelect
+                title="Filter Boundary Features"
+                productRunId={productRunId}
+                value={selectedGeometryOutputIds}
+                onChange={(selected) =>
+                  setSearchParams({
+                    geometryOutputId: selected.map((output) => output.id),
+                  })
+                }
+                isMulti
+              />
+            </div>
+            <GeographicBoundsPickerDialog
+              title="Area of Interest"
+              value={geographicBounds}
+              onChange={(bounds) =>
+                setSearchParams(toGeographicBoundsQuery(bounds))
               }
-              isMulti
-              isClearable
+              onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
             />
-          </div>
-          <div className="min-w-[220px] md:min-w-[260px]">
-            <ProductGeometryOutputSelect
-              title="Filter Boundary Features"
-              productRunId={productRunId}
-              value={selectedGeometryOutputIds}
-              onChange={(selected) =>
-                setSearchParams({
-                  geometryOutputId: selected.map((output) => output.id),
-                })
-              }
-              isMulti
-            />
-          </div>
-          <GeographicBoundsPickerDialog
-            title="Area of Interest"
-            className="min-w-[220px] md:min-w-[260px]"
-            value={geographicBounds}
-            onChange={(bounds) =>
-              setSearchParams(toGeographicBoundsQuery(bounds))
-            }
-            onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
-          />
+          </TableFilterPopover>
+          {showManagementActions && canEdit ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <ProductOutputsImportDialog productRunId={productRunId} />
+              <CrudFormDialog
+                form={form}
+                mutation={createProductOutput}
+                buttonText="Add Product Output"
+                entityName="Product Output"
+                entityNamePlural="product outputs"
+                hiddenFields={['visibility']}
+              >
+                <FormField
+                  control={form.control}
+                  name="geometryOutputId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <ProductGeometryOutputSelect
+                        productRunId={productRunId}
+                        value={field.value}
+                        onChange={(value) => field.onChange(value?.id ?? null)}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="indicatorId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <IndicatorsSelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value?.id ?? null)}
+                        creatable
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="value"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Value</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="timePoint"
+                  render={({ field }) => (
+                    <FormItem className="w-full relative">
+                      <FormLabel>Time Point</FormLabel>
+                      <CalendarSelect
+                        label="Time Point"
+                        value={new Date(field.value)}
+                        onChange={(event) => {
+                          field.onChange(
+                            event?.toISOString().replace('+00:00', 'Z'),
+                          )
+                        }}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CrudFormDialog>
+            </div>
+          ) : null}
         </div>
       </div>
       <BaseCrudTable<
@@ -259,6 +438,7 @@ export function ProductMainRunOutputsTable({
       />
       <ProductOutputDetailsSidebar
         onClose={closeProductOutputDetails}
+        onProductOutputSelect={selectProductOutputDetails}
         open={Boolean(selectedProductOutputId)}
         productOutputId={selectedProductOutputId}
       />

@@ -16,12 +16,14 @@ const DetailLayout: React.FC<{
   constrainContent?: boolean
   showHeaderOnDetail?: boolean
   showHeaderOnIndex?: boolean
+  showHeaderOnNestedDetail?: boolean
 }> = ({
   children,
   breadcrumbs,
   constrainContent = true,
   showHeaderOnDetail = true,
   showHeaderOnIndex = true,
+  showHeaderOnNestedDetail = true,
 }) => {
   const selectedLayoutSegment = useSelectedLayoutSegment()
   const selectedLayoutSegments = useSelectedLayoutSegments()
@@ -32,17 +34,27 @@ const DetailLayout: React.FC<{
   const isFocusedTableRoute = selectedLayoutSegments.some((segment) =>
     focusedTableSegments.has(segment),
   )
+  const isNestedDetailRoute =
+    selectedLayoutSegments.length > 1 && !isFocusedTableRoute
   const shouldConstrainContent =
     constrainContent &&
     selectedLayoutSegments.length > 0 &&
     !isFocusedTableRoute
+  const shouldShowNestedDetailHeader =
+    showHeaderOnNestedDetail || !isNestedDetailRoute
 
   return (
     <main className={cn('w-full', shouldConstrainContent && 'max-w-[800px]')}>
-      {shouldShowHeader && breadcrumbs ? (
+      {shouldShowHeader && shouldShowNestedDetailHeader && breadcrumbs ? (
         <ConsolePageHeader breadcrumbs={breadcrumbs} />
       ) : null}
-      <div className={shouldShowHeader ? 'pt-4' : undefined}>{children}</div>
+      <div
+        className={
+          shouldShowHeader && shouldShowNestedDetailHeader ? 'pt-4' : undefined
+        }
+      >
+        {children}
+      </div>
     </main>
   )
 }

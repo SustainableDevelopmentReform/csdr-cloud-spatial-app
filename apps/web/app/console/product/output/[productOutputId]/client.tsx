@@ -17,6 +17,7 @@ import type { FeatureCollection, Geometry } from 'geojson'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
 import {
   getEditModeHref,
   OverviewSection,
@@ -33,6 +34,7 @@ import { toastError } from '../../../../../utils/error-handling'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import { MapViewer } from '../../../geometries/_components/map-viewer'
 import { IndicatorButton } from '../../../indicator/_components/indicator-button'
+import { ProductsBreadcrumbs } from '../../_components/breadcrumbs'
 import { ProductOutputButton } from '../../_components/product-output-button'
 import {
   type ProductOutputDetail,
@@ -186,139 +188,155 @@ const ProductOutputDetails = () => {
   )
 
   return (
-    <ResourcePageState
-      error={productOutputQuery.error}
-      errorMessage="Failed to load product output"
-      isLoading={productOutputQuery.isLoading}
-      loadingMessage="Loading product output"
-      notFoundMessage="Product output not found"
-    >
-      {productOutput ? (
-        <Form {...form}>
-          <div className="flex w-full max-w-[1000px] flex-col gap-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              {isEditMode ? (
-                <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-xl font-semibold leading-7 shadow-none"
-                            placeholder="Product output name"
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
-                            placeholder="Description"
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+    <div className="flex flex-col bg-neutral-100 text-foreground">
+      <ConsolePageHeader
+        actions={
+          productOutput ? (
+            <ResourceHeaderActions
+              canEdit={canEdit}
+              editHref={getEditModeHref(resourcePath)}
+              formId={formId}
+              isEditMode={isEditMode}
+              onDiscard={discardEdits}
+              resourcePath={resourcePath}
+              resourceTypeLabel="Product output"
+              savePending={updateProductOutput.isPending}
+            />
+          ) : null
+        }
+        breadcrumbs={<ProductsBreadcrumbs />}
+        className="border-b border-border"
+      />
+      <ResourcePageState
+        error={productOutputQuery.error}
+        errorMessage="Failed to load product output"
+        isLoading={productOutputQuery.isLoading}
+        loadingMessage="Loading product output"
+        notFoundMessage="Product output not found"
+      >
+        {productOutput ? (
+          <Form {...form}>
+            <div className="flex flex-col p-4">
+              <div className="flex w-full flex-col gap-4 rounded-2xl px-4 pb-8 pt-6 sm:px-8">
+                <div className="flex items-start justify-between gap-4">
+                  {isEditMode ? (
+                    <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-xl font-semibold leading-7 shadow-none"
+                                placeholder="Product output name"
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
+                                placeholder="Description"
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ) : (
+                    <ResourceTitleBlock
+                      title={productOutput.name ?? 'Untitled product output'}
+                      description={
+                        productOutput.description ?? 'No description'
+                      }
+                    />
+                  )}
                 </div>
-              ) : (
-                <ResourceTitleBlock
-                  title={productOutput.name ?? 'Untitled product output'}
-                  description={productOutput.description ?? 'No description'}
-                />
-              )}
-              <ResourceHeaderActions
-                canEdit={canEdit}
-                editHref={getEditModeHref(resourcePath)}
-                formId={formId}
-                isEditMode={isEditMode}
-                onDiscard={discardEdits}
-                resourcePath={resourcePath}
-                resourceTypeLabel="Product output"
-                savePending={updateProductOutput.isPending}
-              />
-            </div>
 
-            {isEditMode ? (
-              <CrudForm
-                form={form}
-                formId={formId}
-                mutation={updateProductOutput}
-                entityName="Product Output"
-                entityNamePlural="product outputs"
-                hiddenFields={[
-                  'id',
-                  'name',
-                  'description',
-                  'metadata',
-                  'visibility',
-                ]}
-                showSubmitAction={false}
-                successMessage="Product output saved"
-                onError={(error) =>
-                  toastError(error, 'Failed to update product output')
-                }
-                onSuccess={() => router.replace(resourcePath)}
-              />
-            ) : (
-              <>
-                {mapPreview}
-                <div className="flex w-full max-w-[720px] flex-col gap-4">
-                  <OverviewSection title="About">
-                    <OverviewText>
-                      {productOutput.description ?? 'No description.'}
-                    </OverviewText>
-                  </OverviewSection>
-                  <OverviewSection title="Output summary">
-                    <div className="flex flex-col gap-3 text-base leading-6 text-muted-foreground">
-                      <div>
-                        <Value
-                          value={productOutput.value}
-                          indicator={productOutput.indicator}
-                        />
-                      </div>
-                      <OverviewText>
-                        {`Time point: ${formatDateTime(productOutput.timePoint)}`}
-                      </OverviewText>
-                      {productOutput.indicator ? (
-                        <IndicatorButton indicator={productOutput.indicator} />
+                {isEditMode ? (
+                  <CrudForm
+                    form={form}
+                    formId={formId}
+                    mutation={updateProductOutput}
+                    entityName="Product Output"
+                    entityNamePlural="product outputs"
+                    hiddenFields={[
+                      'id',
+                      'name',
+                      'description',
+                      'metadata',
+                      'visibility',
+                    ]}
+                    showSubmitAction={false}
+                    successMessage="Product output saved"
+                    onError={(error) =>
+                      toastError(error, 'Failed to update product output')
+                    }
+                    onSuccess={() => router.replace(resourcePath)}
+                  />
+                ) : (
+                  <>
+                    {mapPreview}
+                    <div className="flex w-full max-w-[720px] flex-col gap-4">
+                      <OverviewSection title="About">
+                        <OverviewText>
+                          {productOutput.description ?? 'No description.'}
+                        </OverviewText>
+                      </OverviewSection>
+                      <OverviewSection title="Output summary">
+                        <div className="flex flex-col gap-3 text-base leading-6 text-muted-foreground">
+                          <div>
+                            <Value
+                              value={productOutput.value}
+                              indicator={productOutput.indicator}
+                            />
+                          </div>
+                          <OverviewText>
+                            {`Time point: ${formatDateTime(productOutput.timePoint)}`}
+                          </OverviewText>
+                          {productOutput.indicator ? (
+                            <IndicatorButton
+                              indicator={productOutput.indicator}
+                            />
+                          ) : null}
+                        </div>
+                      </OverviewSection>
+                      {productOutput.dependencyProductOutputs.length > 0 ? (
+                        <OverviewSection title="Derived dependencies">
+                          <div className="flex flex-col gap-2">
+                            {productOutput.dependencyProductOutputs.map(
+                              (dependencyProductOutput) => (
+                                <ProductOutputButton
+                                  key={dependencyProductOutput.id}
+                                  productOutput={dependencyProductOutput}
+                                />
+                              ),
+                            )}
+                          </div>
+                        </OverviewSection>
                       ) : null}
                     </div>
-                  </OverviewSection>
-                  {productOutput.dependencyProductOutputs.length > 0 ? (
-                    <OverviewSection title="Derived dependencies">
-                      <div className="flex flex-col gap-2">
-                        {productOutput.dependencyProductOutputs.map(
-                          (dependencyProductOutput) => (
-                            <ProductOutputButton
-                              key={dependencyProductOutput.id}
-                              productOutput={dependencyProductOutput}
-                            />
-                          ),
-                        )}
-                      </div>
-                    </OverviewSection>
-                  ) : null}
-                </div>
-              </>
-            )}
-          </div>
-        </Form>
-      ) : null}
-    </ResourcePageState>
+                  </>
+                )}
+              </div>
+            </div>
+          </Form>
+        ) : null}
+      </ResourcePageState>
+    </div>
   )
 }
 

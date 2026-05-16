@@ -57,6 +57,34 @@ export const withQueryParams = (
   return `${path}${nextQuery ? `?${nextQuery}` : ''}${hash}`
 }
 
+export type PageSearchParams = Record<string, string | string[] | undefined>
+
+export const getPageSearchParams = (searchParams: PageSearchParams) => {
+  const nextSearchParams = new URLSearchParams()
+
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => nextSearchParams.append(key, entry))
+      return
+    }
+
+    if (value !== undefined) {
+      nextSearchParams.set(key, value)
+    }
+  })
+
+  return nextSearchParams.toString()
+}
+
+export const withPageSearchParams = (
+  href: string,
+  searchParams: PageSearchParams,
+  params: Record<string, string | null | undefined>,
+) => {
+  const query = getPageSearchParams(searchParams)
+  return withQueryParams(query ? `${href}?${query}` : href, params)
+}
+
 export const withDataLibrarySource = (href: string) =>
   withQueryParams(href, {
     [DATA_LIBRARY_SOURCE_PARAM]: DATA_LIBRARY_SOURCE_VALUE,

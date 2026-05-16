@@ -5,6 +5,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import {
   ActiveTableFilter,
+  formatActiveFilterValue,
   TableFilterPopover,
 } from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
@@ -22,11 +23,15 @@ import {
 } from '../_components/geographic-bounds-picker-dialog'
 import { DatasetRunSelect } from '../dataset/_components/dataset-run-select'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
+import { useDatasetRun, useDatasets } from '../dataset/_hooks'
 import { GeometriesRunSelect } from '../geometries/_components/geometries-run-select'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
+import { useAllGeometries, useGeometriesRun } from '../geometries/_hooks'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
+import { useIndicators } from '../indicator/_hooks'
 import { ProductRunSelect } from '../product/_components/product-run-select'
 import { ProductSelect } from '../product/_components/product-select'
+import { useProductRun, useProducts } from '../product/_hooks'
 import { ReportBreadcrumbs } from './_components/breadcrumbs'
 import { ReportCreateAction } from './_components/report-create-action'
 import {
@@ -88,6 +93,47 @@ const ReportFeature = () => {
   const showGeometriesFilter = selectedGeometriesIds.length > 0
   const showGeometriesRunFilter = Boolean(query?.geometriesRunId)
   const geographicBounds = getGeographicBoundsFromQuery(query)
+  const { data: selectedProductRun } = useProductRun(
+    query?.productRunId,
+    Boolean(query?.productRunId),
+  )
+  const { data: selectedDatasetRun } = useDatasetRun(
+    query?.datasetRunId,
+    Boolean(query?.datasetRunId),
+  )
+  const { data: selectedGeometriesRun } = useGeometriesRun(
+    query?.geometriesRunId,
+    Boolean(query?.geometriesRunId),
+  )
+  const { data: selectedIndicators } = useIndicators(
+    { indicatorIds: selectedIndicatorIds },
+    false,
+    selectedIndicatorIds.length > 0,
+  )
+  const { data: selectedProducts } = useProducts(
+    {
+      productIds: selectedProductIds,
+      size: selectedProductIds.length || undefined,
+    },
+    false,
+    selectedProductIds.length > 0,
+  )
+  const { data: selectedDatasets } = useDatasets(
+    {
+      datasetIds: selectedDatasetIds,
+      size: selectedDatasetIds.length || undefined,
+    },
+    false,
+    selectedDatasetIds.length > 0,
+  )
+  const { data: selectedGeometries } = useAllGeometries(
+    {
+      geometriesIds: selectedGeometriesIds,
+      size: selectedGeometriesIds.length || undefined,
+    },
+    false,
+    selectedGeometriesIds.length > 0,
+  )
 
   const baseColumns = useMemo(() => {
     return ['description', 'updatedAt'] as const
@@ -99,7 +145,10 @@ const ReportFeature = () => {
       filters.push({
         id: 'indicators',
         label: 'Indicators',
-        value: `${selectedIndicatorIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedIndicatorIds,
+          selectedIndicators?.data,
+        ),
         onClear: () => setSearchParams({ indicatorId: undefined }),
       })
     }
@@ -108,7 +157,10 @@ const ReportFeature = () => {
       filters.push({
         id: 'products',
         label: 'Products',
-        value: `${selectedProductIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedProductIds,
+          selectedProducts?.data,
+        ),
         onClear: () => setSearchParams({ productId: undefined }),
       })
     }
@@ -117,7 +169,7 @@ const ReportFeature = () => {
       filters.push({
         id: 'product-run',
         label: 'Product run',
-        value: 'Selected',
+        value: selectedProductRun?.name ?? query.productRunId,
         onClear: () => setSearchParams({ productRunId: undefined }),
       })
     }
@@ -126,7 +178,10 @@ const ReportFeature = () => {
       filters.push({
         id: 'datasets',
         label: 'Datasets',
-        value: `${selectedDatasetIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedDatasetIds,
+          selectedDatasets?.data,
+        ),
         onClear: () => setSearchParams({ datasetId: undefined }),
       })
     }
@@ -135,7 +190,7 @@ const ReportFeature = () => {
       filters.push({
         id: 'dataset-run',
         label: 'Dataset run',
-        value: 'Selected',
+        value: selectedDatasetRun?.name ?? query.datasetRunId,
         onClear: () => setSearchParams({ datasetRunId: undefined }),
       })
     }
@@ -144,7 +199,10 @@ const ReportFeature = () => {
       filters.push({
         id: 'geometries',
         label: 'Boundaries',
-        value: `${selectedGeometriesIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedGeometriesIds,
+          selectedGeometries?.data,
+        ),
         onClear: () => setSearchParams({ geometriesId: undefined }),
       })
     }
@@ -153,7 +211,7 @@ const ReportFeature = () => {
       filters.push({
         id: 'geometries-run',
         label: 'Boundary run',
-        value: 'Selected',
+        value: selectedGeometriesRun?.name ?? query.geometriesRunId,
         onClear: () => setSearchParams({ geometriesRunId: undefined }),
       })
     }
@@ -173,10 +231,18 @@ const ReportFeature = () => {
     query?.datasetRunId,
     query?.geometriesRunId,
     query?.productRunId,
-    selectedDatasetIds.length,
+    selectedDatasetRun?.name,
+    selectedDatasets?.data,
+    selectedDatasetIds,
+    selectedGeometriesRun?.name,
+    selectedGeometries?.data,
+    selectedGeometriesIds,
     selectedGeometriesIds.length,
-    selectedIndicatorIds.length,
-    selectedProductIds.length,
+    selectedIndicatorIds,
+    selectedIndicators?.data,
+    selectedProductRun?.name,
+    selectedProductIds,
+    selectedProducts?.data,
     setSearchParams,
   ])
 

@@ -26,6 +26,7 @@ import {
   PRODUCTS_BASE_PATH,
   PRODUCTS_RUNS_BASE_PATH,
   PRODUCTS_RUNS_OUTPUTS_BASE_PATH,
+  withResourceSection,
 } from '../../../lib/paths'
 import {
   ResourceVisibility,
@@ -1088,10 +1089,20 @@ export const useProductRunsLink = () => {
     (
       product: ProductLinkParams | null,
       query?: z.infer<typeof productRunQuerySchema>,
-    ) =>
-      withSource(
-        `${PRODUCTS_BASE_PATH}/${product?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-      ),
+    ) => {
+      if (product) {
+        return withSource(
+          withResourceSection(
+            `${PRODUCTS_BASE_PATH}/${product.id}?${getSearchParams(query ?? {})}`,
+            'versions',
+          ),
+        )
+      }
+
+      return withSource(
+        `${PRODUCTS_BASE_PATH}/*/runs?${getSearchParams(query ?? {})}`,
+      )
+    },
     [withSource],
   )
 }
@@ -1120,7 +1131,11 @@ export const useProductRunOutputsLink = () => {
       query?: z.infer<typeof productOutputQuerySchema>,
     ) =>
       withSource(
-        `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}/outputs?${getSearchParams(query ?? {})}`,
+        withResourceSection(
+          `${PRODUCTS_RUNS_BASE_PATH}/${productRun.id}?${getSearchParams(query ?? {})}`,
+          'explore',
+          'table',
+        ),
       ),
     [withSource],
   )

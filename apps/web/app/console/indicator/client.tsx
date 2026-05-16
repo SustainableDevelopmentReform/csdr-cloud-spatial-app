@@ -6,6 +6,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import {
   ActiveTableFilter,
+  formatActiveFilterValue,
   TableFilterPopover,
 } from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
@@ -18,7 +19,12 @@ import { IndicatorCategoryButton } from './_components/indicator-category-button
 import { IndicatorCategorySelect } from './_components/indicator-category-select'
 import { IndicatorHeaderActions } from './_components/indicator-header-actions'
 import { IndicatorsBreadcrumbs } from './_components/breadcrumbs'
-import { IndicatorListItem, useIndicatorLink, useIndicators } from './_hooks'
+import {
+  IndicatorListItem,
+  useIndicatorCategories,
+  useIndicatorLink,
+  useIndicators,
+} from './_hooks'
 
 const IndicatorFeature = () => {
   const { access } = useAccessControl()
@@ -36,6 +42,7 @@ const IndicatorFeature = () => {
     () => normalizeFilterValues(query?.categoryId),
     [query?.categoryId],
   )
+  const { data: indicatorCategories } = useIndicatorCategories()
 
   const baseColumns = useMemo(() => {
     return ['description', 'updatedAt'] as const
@@ -49,11 +56,14 @@ const IndicatorFeature = () => {
       {
         id: 'categories',
         label: 'Categories',
-        value: `${selectedCategoryIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedCategoryIds,
+          indicatorCategories?.data,
+        ),
         onClear: () => setSearchParams({ categoryId: undefined }),
       },
     ]
-  }, [selectedCategoryIds.length, setSearchParams])
+  }, [indicatorCategories?.data, selectedCategoryIds, setSearchParams])
 
   const columns = useMemo(() => {
     return [

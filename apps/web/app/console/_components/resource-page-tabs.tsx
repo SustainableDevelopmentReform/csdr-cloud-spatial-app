@@ -1,7 +1,14 @@
 'use client'
 
 import { Tabs, TabsContent } from '@repo/ui/components/ui/tabs'
-import { Code2Icon, MapIcon, Table2Icon, WorkflowIcon } from 'lucide-react'
+import {
+  Code2Icon,
+  GitBranchIcon,
+  MapIcon,
+  Table2Icon,
+  WorkflowIcon,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { EmptyPlaceholder } from '~/components/empty-placeholder'
@@ -28,21 +35,35 @@ export type ResourceTab =
   | 'versions'
   | 'usage'
 export type ExploreSubTab = 'map' | 'table'
-export type LineageSubTab = 'simple' | 'technical'
+export type LineageSubTab = 'simple' | 'technical' | 'dependencies'
+
+type LineageSubTabItem = {
+  icon: LucideIcon
+  label: string
+  value: LineageSubTab
+}
 
 const exploreSubTabItems = [
   { icon: MapIcon, label: 'Map', value: 'map' },
   { icon: Table2Icon, label: 'Table', value: 'table' },
 ] as const
 
-const lineageSubTabItems = [
+const baseLineageSubTabItems: readonly LineageSubTabItem[] = [
   { icon: WorkflowIcon, label: 'Simple', value: 'simple' },
   { icon: Code2Icon, label: 'Technical', value: 'technical' },
-] as const
+]
+
+const lineageDependenciesSubTabItem: LineageSubTabItem = {
+  icon: GitBranchIcon,
+  label: 'Dependencies',
+  value: 'dependencies',
+}
 
 interface ResourcePageTabsProps {
   defaultTab?: ResourceTab
+  defaultLineageSubTab?: LineageSubTab
   disabled?: boolean
+  enabledTabs?: readonly ResourceTab[]
   hideTabs?: boolean
   value?: ResourceTab
   onValueChange?: (value: ResourceTab) => void
@@ -50,6 +71,7 @@ interface ResourcePageTabsProps {
   exploreMap?: React.ReactNode
   exploreTable?: React.ReactNode
   lineage?: React.ReactNode
+  lineageDependencies?: React.ReactNode
   workflowDagSimple?: unknown
   versions?: React.ReactNode
   usage?: React.ReactNode
@@ -91,14 +113,18 @@ const toLineageSubTab = (
       return 'simple'
     case 'technical':
       return 'technical'
+    case 'dependencies':
+      return 'dependencies'
     default:
       return null
   }
 }
 
 export function ResourcePageTabs({
+  defaultLineageSubTab = 'simple',
   defaultTab = 'overview',
   disabled = false,
+  enabledTabs,
   hideTabs = false,
   value,
   onValueChange,
@@ -106,6 +132,7 @@ export function ResourcePageTabs({
   exploreMap,
   exploreTable,
   lineage,
+  lineageDependencies,
   workflowDagSimple,
   versions,
   usage,
@@ -115,21 +142,45 @@ export function ResourcePageTabs({
   const searchParams = useSearchParams()
   const [internalTab, setInternalTab] = useState<ResourceTab>(defaultTab)
   const [exploreSubTab, setExploreSubTab] = useState<ExploreSubTab>('map')
-  const [lineageSubTab, setLineageSubTab] = useState<LineageSubTab>('simple')
+  const [lineageSubTab, setLineageSubTab] =
+    useState<LineageSubTab>(defaultLineageSubTab)
   const sectionParam = searchParams.get(RESOURCE_SECTION_PARAM)
   const subSectionParam = searchParams.get(RESOURCE_SUB_SECTION_PARAM)
+  const isTabEnabled = useCallback(
+    (tab: ResourceTab) => !enabledTabs || enabledTabs.includes(tab),
+    [enabledTabs],
+  )
+  const resolveEnabledTab = useCallback(
+    (tab: ResourceTab) => {
+      if (isTabEnabled(tab)) return tab
+      return enabledTabs?.[0] ?? 'overview'
+    },
+    [enabledTabs, isTabEnabled],
+  )
   const hasUrlTab = !hideTabs && searchParams.has(RESOURCE_SECTION_PARAM)
-  const activeTab = hasUrlTab
-    ? toResourceTab(sectionParam)
-    : (value ?? internalTab)
+  const activeTab = resolveEnabledTab(
+    hasUrlTab ? toResourceTab(sectionParam) : (value ?? internalTab),
+  )
   const activeExploreSubTab =
     activeTab === 'explore'
       ? (toExploreSubTab(subSectionParam) ?? exploreSubTab)
       : exploreSubTab
-  const activeLineageSubTab =
+  const fallbackLineageSubTab =
+    defaultLineageSubTab === 'dependencies' && !lineageDependencies
+      ? 'simple'
+      : defaultLineageSubTab
+  const requestedLineageSubTab =
     activeTab === 'lineage'
       ? (toLineageSubTab(subSectionParam) ?? lineageSubTab)
       : lineageSubTab
+  const activeLineageSubTab =
+    requestedLineageSubTab === 'dependencies' && !lineageDependencies
+      ? 'simple'
+      : requestedLineageSubTab
+  const resolvedLineageSubTab = activeLineageSubTab ?? fallbackLineageSubTab
+  const lineageSubTabItems = lineageDependencies
+    ? [...baseLineageSubTabItems, lineageDependenciesSubTabItem]
+    : baseLineageSubTabItems
 
   const updateResourceTabParams = useCallback(
     (nextTab: ResourceTab, nextSubTab?: string) => {
@@ -155,6 +206,10 @@ export function ResourcePageTabs({
     }
 
     const nextTab = toResourceTab(nextValue)
+    if (!isTabEnabled(nextTab)) {
+      return
+    }
+
     setInternalTab(nextTab)
     onValueChange?.(nextTab)
 
@@ -164,7 +219,7 @@ export function ResourcePageTabs({
     }
 
     if (nextTab === 'lineage') {
-      updateResourceTabParams(nextTab, activeLineageSubTab)
+      updateResourceTabParams(nextTab, resolvedLineageSubTab)
       return
     }
 
@@ -185,21 +240,31 @@ export function ResourcePageTabs({
     <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-4">
       {!hideTabs ? (
         <ConsolePrimaryTabsList>
-          <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
-            Overview
-          </ConsolePrimaryTabsTrigger>
-          <ConsolePrimaryTabsTrigger disabled={disabled} value="explore">
-            Explore
-          </ConsolePrimaryTabsTrigger>
-          <ConsolePrimaryTabsTrigger disabled={disabled} value="lineage">
-            Lineage
-          </ConsolePrimaryTabsTrigger>
-          <ConsolePrimaryTabsTrigger disabled={disabled} value="versions">
-            Versions
-          </ConsolePrimaryTabsTrigger>
-          <ConsolePrimaryTabsTrigger disabled={disabled} value="usage">
-            Usage
-          </ConsolePrimaryTabsTrigger>
+          {isTabEnabled('overview') ? (
+            <ConsolePrimaryTabsTrigger disabled={disabled} value="overview">
+              Overview
+            </ConsolePrimaryTabsTrigger>
+          ) : null}
+          {isTabEnabled('explore') ? (
+            <ConsolePrimaryTabsTrigger disabled={disabled} value="explore">
+              Explore
+            </ConsolePrimaryTabsTrigger>
+          ) : null}
+          {isTabEnabled('lineage') ? (
+            <ConsolePrimaryTabsTrigger disabled={disabled} value="lineage">
+              Lineage
+            </ConsolePrimaryTabsTrigger>
+          ) : null}
+          {isTabEnabled('versions') ? (
+            <ConsolePrimaryTabsTrigger disabled={disabled} value="versions">
+              Versions
+            </ConsolePrimaryTabsTrigger>
+          ) : null}
+          {isTabEnabled('usage') ? (
+            <ConsolePrimaryTabsTrigger disabled={disabled} value="usage">
+              Usage
+            </ConsolePrimaryTabsTrigger>
+          ) : null}
         </ConsolePrimaryTabsList>
       ) : null}
 
@@ -221,13 +286,14 @@ export function ResourcePageTabs({
               )}
             </div>
           )}
-          {activeExploreSubTab === 'table' && (
-            <div className="overflow-hidden rounded-[10px] bg-white p-6 text-card-foreground">
-              {exploreTable ?? (
-                <EmptyPlaceholder>No table data available.</EmptyPlaceholder>
-              )}
-            </div>
-          )}
+          {activeExploreSubTab === 'table' &&
+            (exploreTable ? (
+              <div className="overflow-hidden rounded-[10px] bg-white p-6 text-card-foreground">
+                {exploreTable}
+              </div>
+            ) : (
+              <EmptyPlaceholder>No table data available.</EmptyPlaceholder>
+            ))}
         </div>
       </TabsContent>
 
@@ -235,10 +301,10 @@ export function ResourcePageTabs({
         <div className="flex flex-col gap-4">
           <ConsoleSecondaryTabs
             items={lineageSubTabItems}
-            value={activeLineageSubTab}
+            value={resolvedLineageSubTab}
             onValueChange={handleLineageSubTabChange}
           />
-          {activeLineageSubTab === 'simple' &&
+          {resolvedLineageSubTab === 'simple' &&
             (workflowDagSimple ? (
               <SimpleWorkflowDagChart
                 emptyMessage={DEFAULT_LINEAGE_EMPTY_MESSAGE}
@@ -248,8 +314,11 @@ export function ResourcePageTabs({
             ) : (
               <LineageEmptyState />
             ))}
-          {activeLineageSubTab === 'technical' && (
+          {resolvedLineageSubTab === 'technical' && (
             <div>{lineage ?? <LineageEmptyState />}</div>
+          )}
+          {resolvedLineageSubTab === 'dependencies' && (
+            <div>{lineageDependencies ?? <LineageEmptyState />}</div>
           )}
         </div>
       </TabsContent>

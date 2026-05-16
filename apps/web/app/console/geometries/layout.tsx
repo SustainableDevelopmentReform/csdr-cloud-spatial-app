@@ -11,6 +11,7 @@ const GeometriesLayout: React.FC<{
       constrainContent={false}
       showHeaderOnDetail={false}
       showHeaderOnIndex={false}
+      showHeaderOnNestedDetail={false}
     >
       {children}
     </DetailLayout>

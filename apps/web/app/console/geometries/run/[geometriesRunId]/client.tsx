@@ -16,6 +16,7 @@ import { pluralize } from '@repo/ui/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
 import {
   getEditModeHref,
   OverviewSection,
@@ -30,12 +31,19 @@ import { useAccessControl } from '../../../../../hooks/useAccessControl'
 import { GEOMETRIES_RUNS_BASE_PATH } from '../../../../../lib/paths'
 import { DetailCard } from '../../../_components/detail-cards'
 import { ResourcePageState } from '../../../_components/resource-page-state'
+import {
+  ResourcePageTabs,
+  type ResourceTab,
+} from '../../../_components/resource-page-tabs'
 import { ResourceUsageDetailCards } from '../../../_components/resource-usage-detail-cards'
+import { VersionStatusBadge } from '../../../_components/version-status-badge'
 import { useProductRunsLink } from '../../../product/_hooks'
 import ChoroplethMapViewer, {
   type GeometryOutputMapSelection,
 } from '../../_components/choropleth-map-viewer'
+import { GeometriesBreadcrumbs } from '../../_components/breadcrumbs'
 import { GeometryOutputDetailsSidebar } from '../../_components/geometry-output-details-sidebar'
+import { GeometriesMainRunOutputsTable } from '../../_components/geometries-main-run-outputs-table'
 import { GeometriesRunSummaryCard } from '../../_components/geometries-run-summary-card'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { WorkflowDagChart } from '../../../../../components/workflow-dag-chart'
@@ -45,7 +53,6 @@ import {
   type GeometriesRunDetail,
   type UpdateGeometriesRunPayload,
   useGeometriesRun,
-  useGeometryRunOutputsLink,
   useSetGeometriesMainRun,
   useUpdateGeometriesRun,
 } from '../../_hooks'
@@ -73,12 +80,12 @@ const GeometriesRunDetails = () => {
   })
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<ResourceTab>('overview')
   const isEditMode = searchParams.get('mode') === 'edit' && canEdit
   const resourcePath = geometriesRun
     ? getGeometriesRunPath(geometriesRun.id)
     : GEOMETRIES_RUNS_BASE_PATH
 
-  const geometryRunOutputsLink = useGeometryRunOutputsLink()
   const productRunsLink = useProductRunsLink()
   const setGeometriesMainRun = useSetGeometriesMainRun(geometriesRun)
   const isMainRun = geometriesRun?.id === geometriesRun?.geometries.mainRunId
@@ -165,41 +172,10 @@ const GeometriesRunDetails = () => {
     }
   }, [closeGeometryOutputDetails, selectedGeometryOutputId])
 
-  const viewContent =
+  const overview =
     geometriesRun && !isEditMode ? (
-      <>
-        <div className="flex flex-col gap-4">
-          <ChoroplethMapViewer
-            geometriesRun={geometriesRun}
-            className="h-96"
-            onGeometryOutputSelect={openGeometryOutputDetails}
-          />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <GeometriesRunSummaryCard run={geometriesRun} />
-            <div className="grid grid-cols-1 gap-4">
-              <DetailCard
-                title={`${geometriesRun.outputCount} ${pluralize(geometriesRun.outputCount, 'output', 'outputs')}`}
-                description="Boundary Features"
-                actionText="Open"
-                actionLink={geometryRunOutputsLink(geometriesRun)}
-              />
-              <DetailCard
-                title={`${geometriesRun.productRunCount} ${pluralize(geometriesRun.productRunCount, 'product run', 'product runs')}`}
-                description="Used by Products Runs"
-                actionText="Open"
-                actionLink={productRunsLink(null, {
-                  geometriesRunId: geometriesRun.id,
-                })}
-              />
-              <ResourceUsageDetailCards
-                reportCount={geometriesRun.reportCount}
-                dashboardCount={geometriesRun.dashboardCount}
-                reportQuery={{ geometriesRunId: geometriesRun.id }}
-                dashboardQuery={{ geometriesRunId: geometriesRun.id }}
-              />
-            </div>
-          </div>
-        </div>
+      <div className="flex flex-col gap-4">
+        <GeometriesRunSummaryCard run={geometriesRun} />
         <div className="flex w-full max-w-[720px] flex-col gap-4">
           <OverviewSection title="About">
             <OverviewText>
@@ -215,130 +191,194 @@ Data PMTiles URL: ${geometriesRun.dataPmtilesUrl ?? 'Not recorded'}`}
             </OverviewText>
           </OverviewSection>
         </div>
-        <GeometryOutputDetailsSidebar
-          geometryOutputId={selectedGeometryOutputId}
-          onClose={closeGeometryOutputDetails}
-          open={Boolean(selectedGeometryOutputId)}
-        />
-      </>
+      </div>
     ) : null
 
   return (
-    <ResourcePageState
-      error={geometriesRunQuery.error}
-      errorMessage="Failed to load boundary run"
-      isLoading={geometriesRunQuery.isLoading}
-      loadingMessage="Loading boundary run"
-      notFoundMessage="Boundary run not found"
-    >
-      {geometriesRun ? (
-        <Form {...form}>
-          <div className="flex w-full max-w-[1000px] flex-col gap-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              {isEditMode ? (
-                <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-xl font-semibold leading-7 shadow-none"
-                            placeholder="Boundary run name"
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
-                            placeholder="Description"
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+    <div className="flex flex-col bg-neutral-100 text-foreground">
+      <ConsolePageHeader
+        actions={
+          geometriesRun ? (
+            <ResourceHeaderActions
+              canEdit={canEdit}
+              editHref={getEditModeHref(resourcePath)}
+              formId={formId}
+              isEditMode={isEditMode}
+              onDiscard={discardEdits}
+              resourcePath={resourcePath}
+              resourceTypeLabel="Boundary run"
+              savePending={updateGeometriesRun.isPending}
+            />
+          ) : null
+        }
+        breadcrumbs={<GeometriesBreadcrumbs />}
+        className="border-b border-border"
+      />
+      <ResourcePageState
+        error={geometriesRunQuery.error}
+        errorMessage="Failed to load boundary run"
+        isLoading={geometriesRunQuery.isLoading}
+        loadingMessage="Loading boundary run"
+        notFoundMessage="Boundary run not found"
+      >
+        {geometriesRun ? (
+          <Form {...form}>
+            <div className="flex flex-col p-4">
+              <div className="flex w-full flex-col gap-4 rounded-2xl px-4 pb-8 pt-6 sm:px-8">
+                <div className="flex items-start justify-between gap-4">
+                  {isEditMode ? (
+                    <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-xl font-semibold leading-7 shadow-none"
+                                placeholder="Boundary run name"
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
+                                placeholder="Description"
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ) : (
+                    <ResourceTitleBlock
+                      title={geometriesRun.name ?? 'Untitled boundary run'}
+                      description={
+                        geometriesRun.description ?? 'No description'
+                      }
+                      extra={
+                        isMainRun ? (
+                          <VersionStatusBadge status="latest" />
+                        ) : null
+                      }
+                    />
+                  )}
                 </div>
-              ) : (
-                <ResourceTitleBlock
-                  title={geometriesRun.name ?? 'Untitled boundary run'}
-                  description={geometriesRun.description ?? 'No description'}
-                  extra={isMainRun ? <span>Latest run</span> : null}
-                />
-              )}
-              <ResourceHeaderActions
-                canEdit={canEdit}
-                editHref={getEditModeHref(resourcePath)}
-                formId={formId}
-                isEditMode={isEditMode}
-                onDiscard={discardEdits}
-                resourcePath={resourcePath}
-                resourceTypeLabel="Boundary run"
-                savePending={updateGeometriesRun.isPending}
-              />
-            </div>
 
-            {isEditMode ? (
-              <CrudForm
-                form={form}
-                formId={formId}
-                mutation={updateGeometriesRun}
-                entityName="Boundary Run"
-                entityNamePlural="boundary runs"
-                actions={formActions}
-                hiddenFields={[
-                  'id',
-                  'name',
-                  'description',
-                  'metadata',
-                  'visibility',
-                ]}
-                showSubmitAction={false}
-                successMessage="Boundary run saved"
-                onError={(error) =>
-                  toastError(error, 'Failed to update boundary run')
-                }
-                onSuccess={() => router.replace(resourcePath)}
-              >
-                <CrudFormRunFields form={form} readOnlyFields="all" />
-                <FormItem>
-                  <FormLabel>Data PMTiles URL</FormLabel>
-                  <Input
-                    disabled
-                    value={geometriesRun.dataPmtilesUrl ?? ''}
-                    className="bg-gray-100"
-                  />
-                </FormItem>
-                <WorkflowDagChart
-                  workflowDag={geometriesRun.workflowDag}
-                  runType="geometries"
-                />
-                {geometriesRun.workflowDagSimple ? (
-                  <SimpleWorkflowDagChart
+                {isEditMode ? (
+                  <CrudForm
+                    form={form}
+                    formId={formId}
+                    mutation={updateGeometriesRun}
+                    entityName="Boundary Run"
+                    entityNamePlural="boundary runs"
+                    actions={formActions}
+                    hiddenFields={[
+                      'id',
+                      'name',
+                      'description',
+                      'metadata',
+                      'visibility',
+                    ]}
+                    showSubmitAction={false}
+                    successMessage="Boundary run saved"
+                    onError={(error) =>
+                      toastError(error, 'Failed to update boundary run')
+                    }
+                    onSuccess={() => router.replace(resourcePath)}
+                  >
+                    <CrudFormRunFields form={form} readOnlyFields="all" />
+                    <FormItem>
+                      <FormLabel>Data PMTiles URL</FormLabel>
+                      <Input
+                        disabled
+                        value={geometriesRun.dataPmtilesUrl ?? ''}
+                        className="bg-gray-100"
+                      />
+                    </FormItem>
+                    <WorkflowDagChart
+                      workflowDag={geometriesRun.workflowDag}
+                      runType="geometries"
+                    />
+                    {geometriesRun.workflowDagSimple ? (
+                      <SimpleWorkflowDagChart
+                        workflowDagSimple={geometriesRun.workflowDagSimple}
+                      />
+                    ) : null}
+                  </CrudForm>
+                ) : (
+                  <ResourcePageTabs
+                    enabledTabs={['overview', 'explore', 'lineage', 'usage']}
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    overview={overview}
+                    exploreMap={
+                      <>
+                        <ChoroplethMapViewer
+                          geometriesRun={geometriesRun}
+                          className="h-96"
+                          onGeometryOutputSelect={openGeometryOutputDetails}
+                        />
+                        <GeometryOutputDetailsSidebar
+                          geometryOutputId={selectedGeometryOutputId}
+                          onClose={closeGeometryOutputDetails}
+                          open={Boolean(selectedGeometryOutputId)}
+                        />
+                      </>
+                    }
+                    exploreTable={
+                      <GeometriesMainRunOutputsTable
+                        canEdit={canEdit}
+                        geometriesRunId={geometriesRun.id}
+                        showManagementActions
+                      />
+                    }
+                    lineage={
+                      <WorkflowDagChart
+                        workflowDag={geometriesRun.workflowDag}
+                        runType="geometries"
+                      />
+                    }
                     workflowDagSimple={geometriesRun.workflowDagSimple}
+                    usage={
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <DetailCard
+                          title={`${geometriesRun.productRunCount} ${pluralize(geometriesRun.productRunCount, 'product run', 'product runs')}`}
+                          description="Used by Product Runs"
+                          actionText="Open"
+                          actionLink={productRunsLink(null, {
+                            geometriesRunId: geometriesRun.id,
+                          })}
+                        />
+                        <ResourceUsageDetailCards
+                          reportCount={geometriesRun.reportCount}
+                          dashboardCount={geometriesRun.dashboardCount}
+                          reportQuery={{ geometriesRunId: geometriesRun.id }}
+                          dashboardQuery={{ geometriesRunId: geometriesRun.id }}
+                        />
+                      </div>
+                    }
                   />
-                ) : null}
-              </CrudForm>
-            ) : (
-              viewContent
-            )}
-          </div>
-        </Form>
-      ) : null}
-    </ResourcePageState>
+                )}
+              </div>
+            </div>
+          </Form>
+        ) : null}
+      </ResourcePageState>
+    </div>
   )
 }
 

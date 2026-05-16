@@ -17,6 +17,7 @@ import type { FeatureCollection, Geometry } from 'geojson'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
 import {
   getEditModeHref,
   OverviewSection,
@@ -30,6 +31,7 @@ import { GEOMETRIES_RUNS_OUTPUTS_BASE_PATH } from '../../../../../lib/paths'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { toastError } from '../../../../../utils/error-handling'
 import { ResourcePageState } from '../../../_components/resource-page-state'
+import { GeometriesBreadcrumbs } from '../../_components/breadcrumbs'
 import { MapViewer } from '../../_components/map-viewer'
 import {
   type GeometryOutputDetail,
@@ -178,112 +180,136 @@ const GeometryOutputDetails = () => {
   )
 
   return (
-    <ResourcePageState
-      error={geometryOutputQuery.error}
-      errorMessage="Failed to load boundary feature"
-      isLoading={geometryOutputQuery.isLoading}
-      loadingMessage="Loading boundary feature"
-      notFoundMessage="Boundary feature not found"
-    >
-      {geometryOutput ? (
-        <Form {...form}>
-          <div className="flex w-full max-w-[1000px] flex-col gap-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              {isEditMode ? (
-                <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
-                  <ResourceTitleBlock
-                    title={geometryOutput.name ?? 'Untitled boundary feature'}
-                    description="Boundary feature"
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
-                            placeholder="Description"
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              ) : (
-                <ResourceTitleBlock
-                  title={geometryOutput.name ?? 'Untitled boundary feature'}
-                  description={geometryOutput.description ?? 'No description'}
-                />
-              )}
-              <ResourceHeaderActions
-                canEdit={canEdit}
-                editHref={getEditModeHref(resourcePath)}
-                formId={formId}
-                isEditMode={isEditMode}
-                onDiscard={discardEdits}
-                resourcePath={resourcePath}
-                resourceTypeLabel="Boundary feature"
-                savePending={updateGeometryOutput.isPending}
-              />
-            </div>
-
-            {isEditMode ? (
-              <CrudForm
-                form={form}
-                formId={formId}
-                mutation={updateGeometryOutput}
-                entityName="Boundary Feature"
-                entityNamePlural="boundary features"
-                hiddenFields={[
-                  'id',
-                  'name',
-                  'description',
-                  'metadata',
-                  'visibility',
-                ]}
-                showSubmitAction={false}
-                successMessage="Boundary feature saved"
-                onError={(error) =>
-                  toastError(error, 'Failed to update boundary feature')
-                }
-                onSuccess={() => router.replace(resourcePath)}
-              >
-                <FormItem>
-                  <Textarea
-                    className="min-h-40 bg-gray-100 font-mono"
-                    disabled
-                    value={JSON.stringify(geometryOutput.properties, null, 2)}
-                  />
-                  <FormMessage />
-                </FormItem>
-              </CrudForm>
-            ) : (
-              <>
-                {mapPreview}
-                <div className="flex w-full max-w-[720px] flex-col gap-4">
-                  <OverviewSection title="About">
-                    <OverviewText>
-                      {geometryOutput.description ?? 'No description.'}
-                    </OverviewText>
-                  </OverviewSection>
-                  <OverviewSection title="Properties">
-                    <Textarea
-                      className="min-h-40 bg-gray-100 font-mono"
-                      disabled
-                      value={JSON.stringify(geometryOutput.properties, null, 2)}
+    <div className="flex flex-col bg-neutral-100 text-foreground">
+      <ConsolePageHeader
+        actions={
+          geometryOutput ? (
+            <ResourceHeaderActions
+              canEdit={canEdit}
+              editHref={getEditModeHref(resourcePath)}
+              formId={formId}
+              isEditMode={isEditMode}
+              onDiscard={discardEdits}
+              resourcePath={resourcePath}
+              resourceTypeLabel="Boundary feature"
+              savePending={updateGeometryOutput.isPending}
+            />
+          ) : null
+        }
+        breadcrumbs={<GeometriesBreadcrumbs />}
+        className="border-b border-border"
+      />
+      <ResourcePageState
+        error={geometryOutputQuery.error}
+        errorMessage="Failed to load boundary feature"
+        isLoading={geometryOutputQuery.isLoading}
+        loadingMessage="Loading boundary feature"
+        notFoundMessage="Boundary feature not found"
+      >
+        {geometryOutput ? (
+          <Form {...form}>
+            <div className="flex flex-col p-4">
+              <div className="flex w-full flex-col gap-4 rounded-2xl px-4 pb-8 pt-6 sm:px-8">
+                <div className="flex items-start justify-between gap-4">
+                  {isEditMode ? (
+                    <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
+                      <ResourceTitleBlock
+                        title={
+                          geometryOutput.name ?? 'Untitled boundary feature'
+                        }
+                        description="Boundary feature"
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-sm leading-5 shadow-none"
+                                placeholder="Description"
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ) : (
+                    <ResourceTitleBlock
+                      title={geometryOutput.name ?? 'Untitled boundary feature'}
+                      description={
+                        geometryOutput.description ?? 'No description'
+                      }
                     />
-                  </OverviewSection>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
-        </Form>
-      ) : null}
-    </ResourcePageState>
+
+                {isEditMode ? (
+                  <CrudForm
+                    form={form}
+                    formId={formId}
+                    mutation={updateGeometryOutput}
+                    entityName="Boundary Feature"
+                    entityNamePlural="boundary features"
+                    hiddenFields={[
+                      'id',
+                      'name',
+                      'description',
+                      'metadata',
+                      'visibility',
+                    ]}
+                    showSubmitAction={false}
+                    successMessage="Boundary feature saved"
+                    onError={(error) =>
+                      toastError(error, 'Failed to update boundary feature')
+                    }
+                    onSuccess={() => router.replace(resourcePath)}
+                  >
+                    <FormItem>
+                      <Textarea
+                        className="min-h-40 bg-gray-100 font-mono"
+                        disabled
+                        value={JSON.stringify(
+                          geometryOutput.properties,
+                          null,
+                          2,
+                        )}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  </CrudForm>
+                ) : (
+                  <>
+                    {mapPreview}
+                    <div className="flex w-full max-w-[720px] flex-col gap-4">
+                      <OverviewSection title="About">
+                        <OverviewText>
+                          {geometryOutput.description ?? 'No description.'}
+                        </OverviewText>
+                      </OverviewSection>
+                      <OverviewSection title="Properties">
+                        <Textarea
+                          className="min-h-40 bg-gray-100 font-mono"
+                          disabled
+                          value={JSON.stringify(
+                            geometryOutput.properties,
+                            null,
+                            2,
+                          )}
+                        />
+                      </OverviewSection>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </Form>
+        ) : null}
+      </ResourcePageState>
+    </div>
   )
 }
 

@@ -26,7 +26,9 @@ import {
   toGeographicBoundsQuery,
 } from '../../../_components/geographic-bounds-picker-dialog'
 import { DatasetRunSelect } from '../../../dataset/_components/dataset-run-select'
+import { useDatasetRun } from '../../../dataset/_hooks'
 import { GeometriesRunSelect } from '../../../geometries/_components/geometries-run-select'
+import { useGeometriesRun } from '../../../geometries/_hooks'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import { useRunVersionSidebar } from '../../../_components/run-version-sidebar'
 import { VersionStatusBadge } from '../../../_components/version-status-badge'
@@ -91,6 +93,14 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
     resourceData: product,
   })
   const geographicBounds = getGeographicBoundsFromQuery(query)
+  const { data: selectedDatasetRun } = useDatasetRun(
+    query?.datasetRunId,
+    Boolean(query?.datasetRunId),
+  )
+  const { data: selectedGeometriesRun } = useGeometriesRun(
+    query?.geometriesRunId,
+    Boolean(query?.geometriesRunId),
+  )
 
   const baseColumns = useMemo(() => {
     return ['description', 'updatedAt'] as const
@@ -122,7 +132,7 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
       filters.push({
         id: 'dataset-run',
         label: 'Dataset run',
-        value: 'Selected',
+        value: selectedDatasetRun?.name ?? query.datasetRunId,
         onClear: () => setSearchParams({ datasetRunId: undefined }),
       })
     }
@@ -131,7 +141,7 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
       filters.push({
         id: 'geometries-run',
         label: 'Boundary run',
-        value: 'Selected',
+        value: selectedGeometriesRun?.name ?? query.geometriesRunId,
         onClear: () => setSearchParams({ geometriesRunId: undefined }),
       })
     }
@@ -150,6 +160,8 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
     geographicBounds,
     query?.datasetRunId,
     query?.geometriesRunId,
+    selectedDatasetRun?.name,
+    selectedGeometriesRun?.name,
     setSearchParams,
   ])
 

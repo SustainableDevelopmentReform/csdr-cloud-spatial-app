@@ -17,6 +17,26 @@ export type ActiveTableFilter = {
   onClear?: () => void
 }
 
+type ActiveTableFilterItem = {
+  id: string
+  name: string
+}
+
+export const formatActiveFilterValue = (
+  selectedIds: string[],
+  selectedItems?: ActiveTableFilterItem[],
+) => {
+  if (selectedIds.length === 0) {
+    return undefined
+  }
+
+  const namesById = new Map(
+    (selectedItems ?? []).map((item) => [item.id, item.name]),
+  )
+
+  return selectedIds.map((id) => namesById.get(id) ?? id).join(', ')
+}
+
 type TableFilterPopoverProps = {
   activeFilters?: ActiveTableFilter[]
   children: React.ReactNode

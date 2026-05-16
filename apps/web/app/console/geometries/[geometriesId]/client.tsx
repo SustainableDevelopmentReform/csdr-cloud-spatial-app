@@ -411,6 +411,8 @@ const GeometriesDetails = () => {
                   versions={<GeometriesRunFeature embedded />}
                   usage={
                     <ResourceUsageDetailCards
+                      productCount={geometries.productCount}
+                      productQuery={{ geometriesId: geometries.id }}
                       reportCount={geometries.reportCount}
                       dashboardCount={geometries.dashboardCount}
                       reportQuery={{ geometriesId: geometries.id }}

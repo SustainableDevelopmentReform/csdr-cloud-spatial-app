@@ -5,6 +5,7 @@ import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import {
   ActiveTableFilter,
+  formatActiveFilterValue,
   TableFilterPopover,
 } from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
@@ -22,8 +23,11 @@ import {
   toGeographicBoundsQuery,
 } from '../_components/geographic-bounds-picker-dialog'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
+import { useDatasets } from '../dataset/_hooks'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
+import { useAllGeometries } from '../geometries/_hooks'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
+import { useIndicators } from '../indicator/_hooks'
 import { ProductsBreadcrumbs } from './_components/breadcrumbs'
 import { ProductCreateAction } from './_components/product-create-action'
 import {
@@ -70,6 +74,27 @@ const ProductFeature = () => {
     [query?.indicatorId],
   )
   const geographicBounds = getGeographicBoundsFromQuery(query)
+  const { data: selectedDatasets } = useDatasets(
+    {
+      datasetIds: selectedDatasetIds,
+      size: selectedDatasetIds.length || undefined,
+    },
+    false,
+    selectedDatasetIds.length > 0,
+  )
+  const { data: selectedGeometries } = useAllGeometries(
+    {
+      geometriesIds: selectedGeometriesIds,
+      size: selectedGeometriesIds.length || undefined,
+    },
+    false,
+    selectedGeometriesIds.length > 0,
+  )
+  const { data: selectedIndicators } = useIndicators(
+    { indicatorIds: selectedIndicatorIds },
+    false,
+    selectedIndicatorIds.length > 0,
+  )
   const baseColumns = useMemo(() => {
     return ['description', 'updatedAt'] as const
   }, [])
@@ -80,7 +105,10 @@ const ProductFeature = () => {
       filters.push({
         id: 'datasets',
         label: 'Datasets',
-        value: `${selectedDatasetIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedDatasetIds,
+          selectedDatasets?.data,
+        ),
         onClear: () => setSearchParams({ datasetId: undefined }),
       })
     }
@@ -89,7 +117,10 @@ const ProductFeature = () => {
       filters.push({
         id: 'geometries',
         label: 'Boundaries',
-        value: `${selectedGeometriesIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedGeometriesIds,
+          selectedGeometries?.data,
+        ),
         onClear: () => setSearchParams({ geometriesId: undefined }),
       })
     }
@@ -98,7 +129,10 @@ const ProductFeature = () => {
       filters.push({
         id: 'indicators',
         label: 'Indicators',
-        value: `${selectedIndicatorIds.length} selected`,
+        value: formatActiveFilterValue(
+          selectedIndicatorIds,
+          selectedIndicators?.data,
+        ),
         onClear: () => setSearchParams({ indicatorId: undefined }),
       })
     }
@@ -115,9 +149,12 @@ const ProductFeature = () => {
     return filters
   }, [
     geographicBounds,
-    selectedDatasetIds.length,
-    selectedGeometriesIds.length,
-    selectedIndicatorIds.length,
+    selectedDatasets?.data,
+    selectedDatasetIds,
+    selectedGeometries?.data,
+    selectedGeometriesIds,
+    selectedIndicators?.data,
+    selectedIndicatorIds,
     setSearchParams,
   ])
 

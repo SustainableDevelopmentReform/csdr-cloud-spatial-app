@@ -20,7 +20,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { useApiClient } from '../../../hooks/useApiClient'
 import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
 import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
-import { DATASETS_BASE_PATH, DATASETS_RUNS_BASE_PATH } from '../../../lib/paths'
+import {
+  DATASETS_BASE_PATH,
+  DATASETS_RUNS_BASE_PATH,
+  withResourceSection,
+} from '../../../lib/paths'
 import {
   ResourceVisibility,
   VisibilityImpact,
@@ -564,10 +568,20 @@ export const useDatasetRunsLink = () => {
     (
       dataset: DatasetLinkParams | null,
       query?: z.infer<typeof datasetRunQuerySchema>,
-    ) =>
-      withSource(
-        `${DATASETS_BASE_PATH}/${dataset?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-      ),
+    ) => {
+      if (dataset) {
+        return withSource(
+          withResourceSection(
+            `${DATASETS_BASE_PATH}/${dataset.id}?${getSearchParams(query ?? {})}`,
+            'versions',
+          ),
+        )
+      }
+
+      return withSource(
+        `${DATASETS_BASE_PATH}/*/runs?${getSearchParams(query ?? {})}`,
+      )
+    },
     [withSource],
   )
 }

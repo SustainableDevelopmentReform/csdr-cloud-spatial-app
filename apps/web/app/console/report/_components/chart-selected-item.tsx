@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { Value } from '../../../../components/value'
 import { withDataLibrarySource, withResourceSection } from '~/lib/paths'
 import {
   ConsoleSideDrawer,
@@ -22,8 +23,12 @@ import {
 } from '../../_components/console-side-drawer'
 import { VersionStatusBadge } from '../../_components/version-status-badge'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
+import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
+import { IndicatorButton } from '../../indicator/_components/indicator-button'
+import { useDerivedIndicator } from '../../indicator/_hooks'
 import { ProductButton } from '../../product/_components/product-button'
+import { ProductRunButton } from '../../product/_components/product-run-button'
 import {
   type ProductOutputExportListItem,
   useProduct,
@@ -34,6 +39,7 @@ import {
 
 type ProductOutputData = ReturnType<typeof useProductOutput>['data']
 type ProductRunData = ReturnType<typeof useProductRun>['data']
+type DerivedIndicatorData = ReturnType<typeof useDerivedIndicator>['data']
 
 type ChartSelectedItemProps = {
   selectedDataPoint: SelectedDataPoint<ProductOutputExportListItem> | null
@@ -50,6 +56,149 @@ const formatOutputValue = (
     value?.toLocaleString(undefined, { maximumFractionDigits: 100 }) ?? 'null'
 
   return unit ? `${formattedValue} ${unit}` : formattedValue
+}
+
+function DerivedCalculationDetails({
+  derivedIndicator,
+  isLoading,
+  onProductOutputSelect,
+  productOutput,
+}: {
+  derivedIndicator: DerivedIndicatorData
+  isLoading: boolean
+  onProductOutputSelect?: (productOutputId: string) => void
+  productOutput: ProductOutputData
+}) {
+  const productOutputIndicator = productOutput?.indicator
+  const fallbackFormula =
+    productOutputIndicator?.type === 'derived'
+      ? productOutputIndicator.expression
+      : undefined
+  const formula = derivedIndicator?.expression ?? fallbackFormula
+  const dependencyIndicators = derivedIndicator?.indicators ?? []
+  const dependencyProductOutputs = productOutput?.dependencyProductOutputs ?? []
+
+  if (isLoading) {
+    return <p className="text-muted-foreground">Loading calculation...</p>
+  }
+
+  if (!derivedIndicator) {
+    return (
+      <p className="text-muted-foreground">
+        No calculation information available.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase text-muted-foreground">
+          Formula
+        </p>
+        <pre className="max-w-full overflow-x-auto rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs leading-5 text-foreground">
+          {formula ?? 'No formula recorded.'}
+        </pre>
+        {dependencyIndicators.length > 0 ? (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {dependencyIndicators.map((indicator, index) => (
+              <Badge key={indicator.id} variant="secondary">
+                ${index + 1} = {indicator.name}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase text-muted-foreground">
+          Dependencies
+        </p>
+        {dependencyIndicators.length > 0 ? (
+          dependencyIndicators.map((indicator) => {
+            const dependencyProductOutput = dependencyProductOutputs.find(
+              (dependency) => dependency.indicator?.id === indicator.id,
+            )
+
+            return (
+              <div
+                className="space-y-3 rounded-md border border-border bg-background p-3"
+                key={indicator.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <IndicatorButton indicator={indicator} />
+                    </div>
+                  </div>
+                  {dependencyProductOutput && onProductOutputSelect ? (
+                    <Button
+                      className="h-[22px] shrink-0 px-2 py-0 text-xs leading-4 shadow-none [&_svg]:size-3.5"
+                      onClick={() =>
+                        onProductOutputSelect(dependencyProductOutput.id)
+                      }
+                      size="sm"
+                      type="button"
+                    >
+                      View
+                      <ExternalLinkIcon />
+                    </Button>
+                  ) : null}
+                </div>
+
+                {dependencyProductOutput ? (
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium uppercase text-muted-foreground">
+                        Value
+                      </span>
+                      <Value
+                        value={dependencyProductOutput.value}
+                        indicator={dependencyProductOutput.indicator}
+                      />
+                    </div>
+                    {dependencyProductOutput.geometryOutput ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium uppercase text-muted-foreground">
+                          Location
+                        </span>
+                        <GeometryOutputButton
+                          geometryOutput={
+                            dependencyProductOutput.geometryOutput
+                          }
+                        />
+                      </div>
+                    ) : null}
+                    <p>
+                      Time point:{' '}
+                      {formatDateTime(dependencyProductOutput.timePoint)}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <ProductButton
+                        fromLibrary
+                        product={dependencyProductOutput.productRun.product}
+                      />
+                      <ProductRunButton
+                        productRun={dependencyProductOutput.productRun}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No product output found for this dependency.
+                  </p>
+                )}
+              </div>
+            )
+          })
+        ) : (
+          <p className="text-muted-foreground">
+            No dependency indicators recorded.
+          </p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 const getSelectedLocation = (
@@ -203,11 +352,13 @@ function SourceDataDetails({
 
 export function ProductOutputDetailsSidebar({
   onClose,
+  onProductOutputSelect,
   open,
   productOutputId,
   refElement,
 }: {
   onClose: () => void
+  onProductOutputSelect?: (productOutputId: string) => void
   open: boolean
   productOutputId: string | null
   refElement?: RefObject<HTMLElement | null>
@@ -223,6 +374,12 @@ export function ProductOutputDetailsSidebar({
   const productId = productOutput?.productRun.product.id
   const { data: product } = useProduct(productId, Boolean(productId))
   const productLink = useProductLink()
+  const derivedIndicatorId =
+    productOutput?.indicator?.type === 'derived'
+      ? productOutput.indicator.id
+      : undefined
+  const { data: derivedIndicator, isLoading: isDerivedIndicatorLoading } =
+    useDerivedIndicator(derivedIndicatorId)
 
   const location = getSelectedLocation(null, productOutput)
   const indicatorName = getSelectedIndicatorName(null, productOutput)
@@ -258,8 +415,17 @@ export function ProductOutputDetailsSidebar({
       badge={versionStatusBadge}
       closeLabel="Close data details"
       description={
-        <div className="space-y-0.5">
-          <p>Location: {location}</p>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Location:</span>
+            {productOutput?.geometryOutput ? (
+              <GeometryOutputButton
+                geometryOutput={productOutput.geometryOutput}
+              />
+            ) : (
+              <span>{location}</span>
+            )}
+          </div>
           {productOutput?.timePoint ? (
             <p>Date: {formatDateTime(productOutput.timePoint)}</p>
           ) : null}
@@ -285,6 +451,16 @@ export function ProductOutputDetailsSidebar({
         <ConsoleSideDrawerSection defaultOpen title="About">
           <p className="text-muted-foreground">{about}</p>
         </ConsoleSideDrawerSection>
+        {derivedIndicatorId ? (
+          <ConsoleSideDrawerSection defaultOpen title="Calculation">
+            <DerivedCalculationDetails
+              derivedIndicator={derivedIndicator}
+              isLoading={isDerivedIndicatorLoading}
+              onProductOutputSelect={onProductOutputSelect}
+              productOutput={productOutput}
+            />
+          </ConsoleSideDrawerSection>
+        ) : null}
         <ConsoleSideDrawerSection title="Method">
           <MethodDetails
             isLoading={isProductRunLoading}
@@ -386,6 +562,15 @@ export const ChartSelectedItem = ({
     setDetailsOpen(true)
   }, [selectedProductOutputId])
 
+  const selectDetailsProductOutput = useCallback(
+    (productOutputId: string) => {
+      setDetailsProductOutputId(productOutputId)
+      setDetailsOpen(true)
+      onSelect(null)
+    },
+    [onSelect],
+  )
+
   const popoverPosition = useMemo(() => {
     let top = 0
     let left = 0
@@ -428,6 +613,7 @@ export const ChartSelectedItem = ({
       ) : null}
       <ProductOutputDetailsSidebar
         onClose={closeDetails}
+        onProductOutputSelect={selectDetailsProductOutput}
         open={detailsOpen && Boolean(activeDetailsProductOutputId)}
         productOutputId={activeDetailsProductOutputId}
         refElement={sidebarRef}

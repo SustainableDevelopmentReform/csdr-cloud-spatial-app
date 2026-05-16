@@ -1,9 +1,14 @@
-import { dashboardQuerySchema, reportQuerySchema } from '@repo/schemas/crud'
+import {
+  dashboardQuerySchema,
+  productQuerySchema,
+  reportQuerySchema,
+} from '@repo/schemas/crud'
 import { pluralize } from '@repo/ui/lib/utils'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { z } from 'zod'
 import { DetailCard } from './detail-cards'
 import { useDashboardsLink } from '../dashboard/_hooks'
+import { useProductsLink } from '../product/_hooks'
 import { useReportsLink } from '../report/_hooks'
 
 type ResourceUsageDetailCardsProps = {
@@ -11,6 +16,8 @@ type ResourceUsageDetailCardsProps = {
   dashboardCount: number
   reportQuery: z.infer<typeof reportQuerySchema>
   dashboardQuery: z.infer<typeof dashboardQuerySchema>
+  productCount?: number
+  productQuery?: z.infer<typeof productQuerySchema>
 }
 
 export const ResourceUsageDetailCards = ({
@@ -18,12 +25,24 @@ export const ResourceUsageDetailCards = ({
   dashboardCount,
   reportQuery,
   dashboardQuery,
+  productCount,
+  productQuery,
 }: ResourceUsageDetailCardsProps) => {
   const reportsLink = useReportsLink()
   const dashboardsLink = useDashboardsLink()
+  const productsLink = useProductsLink()
 
   return (
     <div className="grid grid-cols-1 gap-4">
+      {typeof productCount === 'number' && productQuery ? (
+        <DetailCard
+          title={`${productCount} ${pluralize(productCount, 'product', 'products')}`}
+          description="Used by Products"
+          actionText="Open"
+          actionLink={productsLink(productQuery)}
+          actionIcon={<ArrowUpRightIcon />}
+        />
+      ) : null}
       <DetailCard
         title={`${reportCount} ${pluralize(reportCount, 'report', 'reports')}`}
         description="Used by Reports"

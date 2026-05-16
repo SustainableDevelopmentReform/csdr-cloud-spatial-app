@@ -16,7 +16,6 @@ import {
   useProductOutput,
   useProductRun,
   useProductRunOutputsLink,
-  useProductRunsLink,
 } from '../_hooks'
 
 type BreadcrumbItem = {
@@ -42,16 +41,11 @@ export const ProductsBreadcrumbs = () => {
   const productRun = productRunFromUrl ?? productOutputFromUrl?.productRun
 
   const productRunOutputsLink = useProductRunOutputsLink()
-  const productRunsLink = useProductRunsLink()
-  const sectionHref = fromLibrary
-    ? `${DATA_LIBRARY_BASE_PATH}?resourceType=product`
-    : PRODUCTS_BASE_PATH
 
   const items: BreadcrumbItem[] = [
     fromLibrary
       ? { label: 'Data', href: DATA_LIBRARY_BASE_PATH }
       : { label: 'Admin' },
-    { label: 'Products', href: sectionHref },
   ]
 
   if (product) {
@@ -60,16 +54,6 @@ export const ProductsBreadcrumbs = () => {
       href: fromLibrary
         ? withDataLibrarySource(`${PRODUCTS_BASE_PATH}/${product.id}`)
         : `${PRODUCTS_BASE_PATH}/${product.id}`,
-    })
-  }
-
-  if (
-    product &&
-    (pathname?.includes('runs') || productRunFromUrl || productOutputFromUrl)
-  ) {
-    items.push({
-      label: 'Product Runs',
-      href: productRunsLink(product),
     })
   }
 

@@ -26,6 +26,7 @@ import {
   GEOMETRIES_BASE_PATH,
   GEOMETRIES_RUNS_BASE_PATH,
   GEOMETRIES_RUNS_OUTPUTS_BASE_PATH,
+  withResourceSection,
 } from '../../../lib/paths'
 import {
   ResourceVisibility,
@@ -941,10 +942,20 @@ export const useGeometriesRunsLink = () => {
     (
       geometries: GeometriesLinkParams | null,
       query?: z.infer<typeof geometriesRunQuerySchema>,
-    ) =>
-      withSource(
-        `${GEOMETRIES_BASE_PATH}/${geometries?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-      ),
+    ) => {
+      if (geometries) {
+        return withSource(
+          withResourceSection(
+            `${GEOMETRIES_BASE_PATH}/${geometries.id}?${getSearchParams(query ?? {})}`,
+            'versions',
+          ),
+        )
+      }
+
+      return withSource(
+        `${GEOMETRIES_BASE_PATH}/*/runs?${getSearchParams(query ?? {})}`,
+      )
+    },
     [withSource],
   )
 }
@@ -973,7 +984,11 @@ export const useGeometryRunOutputsLink = () => {
       query?: z.infer<typeof geometryOutputQuerySchema>,
     ) =>
       withSource(
-        `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}/outputs?${getSearchParams(query ?? {})}`,
+        withResourceSection(
+          `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}?${getSearchParams(query ?? {})}`,
+          'explore',
+          'table',
+        ),
       ),
     [withSource],
   )

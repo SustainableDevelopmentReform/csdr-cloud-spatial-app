@@ -14,6 +14,7 @@ import { Input } from '@repo/ui/components/ui/input'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
@@ -53,8 +54,8 @@ import {
   ResourcePageTabs,
   type ResourceTab,
 } from '../../_components/resource-page-tabs'
-import { DatasetRunMap } from '../_components/dataset-run-map'
-import { DatasetExploreTable } from '../_components/dataset-explore-table'
+import type { DatasetRunMapProps } from '../_components/dataset-run-map'
+import type { DatasetExploreTableProps } from '../_components/dataset-explore-table'
 import DatasetRunFeature from './runs/client'
 import { DatasetBreadcrumbs } from '../_components/breadcrumbs'
 import {
@@ -71,6 +72,22 @@ type DatasetVisibilityDialogState = VisibilityImpactDialogState & {
 }
 
 const formId = 'dataset-detail-form'
+
+const DatasetRunMap = dynamic<DatasetRunMapProps>(
+  () =>
+    import('../_components/dataset-run-map').then(
+      (module) => module.DatasetRunMap,
+    ),
+  { ssr: false },
+)
+
+const DatasetExploreTable = dynamic<DatasetExploreTableProps>(
+  () =>
+    import('../_components/dataset-explore-table').then(
+      (module) => module.DatasetExploreTable,
+    ),
+  { ssr: false },
+)
 
 const getDatasetPath = (datasetId: string) =>
   `${DATASETS_BASE_PATH}/${datasetId}`
@@ -417,6 +434,8 @@ const DatasetDetails = () => {
                   versions={<DatasetRunFeature embedded />}
                   usage={
                     <ResourceUsageDetailCards
+                      productCount={dataset.productCount}
+                      productQuery={{ datasetId: dataset.id }}
                       reportCount={dataset.reportCount}
                       dashboardCount={dataset.dashboardCount}
                       reportQuery={{ datasetId: dataset.id }}
