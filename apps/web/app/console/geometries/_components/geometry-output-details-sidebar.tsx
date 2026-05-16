@@ -84,10 +84,12 @@ function SourceDataDetails({
 
 export function GeometryOutputDetailsSidebar({
   geometryOutputId,
+  onGeometryOutputSelect,
   onClose,
   open,
 }: {
   geometryOutputId: string | null
+  onGeometryOutputSelect?: (geometryOutputId: string) => void
   onClose: () => void
   open: boolean
 }) {
@@ -152,6 +154,11 @@ export function GeometryOutputDetailsSidebar({
         ) : null
       }
       onClose={onClose}
+      onBackRestore={
+        geometryOutputId && onGeometryOutputSelect
+          ? () => onGeometryOutputSelect(geometryOutputId)
+          : undefined
+      }
       open={open}
       tagline="Boundary Feature"
       title={

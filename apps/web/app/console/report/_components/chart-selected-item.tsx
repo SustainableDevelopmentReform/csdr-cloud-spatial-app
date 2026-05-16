@@ -20,6 +20,7 @@ import { withDataLibrarySource, withResourceSection } from '~/lib/paths'
 import {
   ConsoleSideDrawer,
   ConsoleSideDrawerSection,
+  useConsoleSideDrawerStack,
 } from '../../_components/console-side-drawer'
 import { VersionStatusBadge } from '../../_components/version-status-badge'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
@@ -69,6 +70,7 @@ function DerivedCalculationDetails({
   onProductOutputSelect?: (productOutputId: string) => void
   productOutput: ProductOutputData
 }) {
+  const { pushActiveDrawerSnapshot } = useConsoleSideDrawerStack()
   const productOutputIndicator = productOutput?.indicator
   const fallbackFormula =
     productOutputIndicator?.type === 'derived'
@@ -134,9 +136,10 @@ function DerivedCalculationDetails({
                   {dependencyProductOutput && onProductOutputSelect ? (
                     <Button
                       className="h-[22px] shrink-0 px-2 py-0 text-xs leading-4 shadow-none [&_svg]:size-3.5"
-                      onClick={() =>
+                      onClick={() => {
+                        pushActiveDrawerSnapshot()
                         onProductOutputSelect(dependencyProductOutput.id)
-                      }
+                      }}
                       size="sm"
                       type="button"
                     >
@@ -443,6 +446,11 @@ export function ProductOutputDetailsSidebar({
         ) : null
       }
       onClose={onClose}
+      onBackRestore={
+        productOutputId && onProductOutputSelect
+          ? () => onProductOutputSelect(productOutputId)
+          : undefined
+      }
       open={open}
       tagline={indicatorName}
       title={isLoading ? 'Loading...' : value}
@@ -482,6 +490,7 @@ export const ChartSelectedItem = ({
 }: ChartSelectedItemProps) => {
   const popoverRef = useRef<HTMLDivElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
+  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [detailsProductOutputId, setDetailsProductOutputId] = useState<
     string | null
@@ -558,9 +567,10 @@ export const ChartSelectedItem = ({
       return
     }
 
+    closeActiveDrawer()
     setDetailsProductOutputId(selectedProductOutputId)
     setDetailsOpen(true)
-  }, [selectedProductOutputId])
+  }, [closeActiveDrawer, selectedProductOutputId])
 
   const selectDetailsProductOutput = useCallback(
     (productOutputId: string) => {

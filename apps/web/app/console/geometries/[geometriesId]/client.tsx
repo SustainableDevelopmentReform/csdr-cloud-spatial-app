@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
+import { useConsoleSideDrawerStack } from '~/app/console/_components/console-side-drawer'
 import {
   getEditModeHref,
   getResourceVisibilityChangeSummary,
@@ -94,6 +95,7 @@ const GeometriesDetails = () => {
   const { access } = useAccessControl()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const [activeTab, setActiveTab] = useState<ResourceTab>('overview')
   const [visibilityDialog, setVisibilityDialog] =
     useState<GeometriesVisibilityDialogState | null>(null)
@@ -228,7 +230,15 @@ const GeometriesDetails = () => {
 
   const openGeometryOutputDetails = useCallback(
     (selection: GeometryOutputMapSelection) => {
+      closeActiveDrawer()
       setSelectedGeometryOutputId(selection.geometryOutputId)
+    },
+    [closeActiveDrawer],
+  )
+
+  const selectGeometryOutputDetails = useCallback(
+    (geometryOutputId: string) => {
+      setSelectedGeometryOutputId(geometryOutputId)
     },
     [],
   )
@@ -386,6 +396,7 @@ const GeometriesDetails = () => {
                       <GeometryOutputDetailsSidebar
                         geometryOutputId={selectedGeometryOutputId}
                         onClose={closeGeometryOutputDetails}
+                        onGeometryOutputSelect={selectGeometryOutputDetails}
                         open={Boolean(selectedGeometryOutputId)}
                       />
                     </>

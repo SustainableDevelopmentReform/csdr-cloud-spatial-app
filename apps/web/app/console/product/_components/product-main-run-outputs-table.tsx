@@ -45,6 +45,7 @@ import { ProductOutputsImportDialog } from './product-output-import'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { Value } from '../../../../components/value'
+import { useConsoleSideDrawerStack } from '../../_components/console-side-drawer'
 import { getEditModeHref } from '../../_components/resource-detail-mode'
 import { ProductOutputDetailsSidebar } from '../../report/_components/chart-selected-item'
 import { useIndicators } from '../../indicator/_hooks'
@@ -79,6 +80,7 @@ export function ProductMainRunOutputsTable({
   } = useProductOutputs(productRunId, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
   const productLink = useProductOutputLink()
+  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const [selectedProductOutputId, setSelectedProductOutputId] = useState<
     string | null
   >(null)
@@ -96,21 +98,34 @@ export function ProductMainRunOutputsTable({
 
   const openProductOutputDetails = useCallback(
     (productOutput: ProductOutputListItem) => {
+      closeActiveDrawer()
       setSelectedGeometryOutputId(null)
       setSelectedProductOutputId(productOutput.id)
     },
-    [],
+    [closeActiveDrawer],
   )
 
-  const openGeometryOutputDetails = useCallback((geometryOutputId: string) => {
-    setSelectedProductOutputId(null)
-    setSelectedGeometryOutputId(geometryOutputId)
-  }, [])
+  const openGeometryOutputDetails = useCallback(
+    (geometryOutputId: string) => {
+      closeActiveDrawer()
+      setSelectedProductOutputId(null)
+      setSelectedGeometryOutputId(geometryOutputId)
+    },
+    [closeActiveDrawer],
+  )
 
   const selectProductOutputDetails = useCallback((productOutputId: string) => {
     setSelectedGeometryOutputId(null)
     setSelectedProductOutputId(productOutputId)
   }, [])
+
+  const selectGeometryOutputDetails = useCallback(
+    (geometryOutputId: string) => {
+      setSelectedProductOutputId(null)
+      setSelectedGeometryOutputId(geometryOutputId)
+    },
+    [],
+  )
 
   const editProductOutputLink = useCallback(
     (productOutput: ProductOutputListItem) =>
@@ -445,6 +460,7 @@ export function ProductMainRunOutputsTable({
       <GeometryOutputDetailsSidebar
         geometryOutputId={selectedGeometryOutputId}
         onClose={closeGeometryOutputDetails}
+        onGeometryOutputSelect={selectGeometryOutputDetails}
         open={Boolean(selectedGeometryOutputId)}
       />
       <Pagination

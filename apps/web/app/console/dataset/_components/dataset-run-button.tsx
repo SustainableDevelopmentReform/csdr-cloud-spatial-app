@@ -1,4 +1,5 @@
 import { BadgeLink } from '../../../../components/badge-link'
+import { getConsoleSideDrawerOpenSource } from '../../_components/console-side-drawer'
 import { useRunVersionSidebar } from '../../_components/run-version-sidebar'
 import { MainRunBadge } from '../../_components/main-run-badge'
 import { DatasetRunLinkParams, useDatasetRunLink } from '../_hooks'
@@ -31,7 +32,10 @@ export const DatasetRunButton = ({
     }
 
     event.preventDefault()
-    runVersionSidebar.openRunVersion({ id: datasetRun.id, type: 'dataset' })
+    runVersionSidebar.openRunVersion(
+      { id: datasetRun.id, type: 'dataset' },
+      { source: getConsoleSideDrawerOpenSource(event.currentTarget) },
+    )
   }
 
   return (

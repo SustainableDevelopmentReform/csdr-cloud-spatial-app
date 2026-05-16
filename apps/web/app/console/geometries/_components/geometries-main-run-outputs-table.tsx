@@ -32,6 +32,7 @@ import {
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../../_components/geographic-bounds-picker-dialog'
+import { useConsoleSideDrawerStack } from '../../_components/console-side-drawer'
 import { getEditModeHref } from '../../_components/resource-detail-mode'
 import { GeojsonImportDialog } from './geojson-import'
 import { GeometryOutputDetailsSidebar } from './geometry-output-details-sidebar'
@@ -80,6 +81,7 @@ export function GeometriesMainRunOutputsTable({
   } = useGeometryOutputs(geometriesRunId, undefined, true)
   const createGeometryOutput = useCreateGeometryOutput()
   const geometryOutputLink = useGeometryOutputLink()
+  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
     string | null
   >(null)
@@ -90,7 +92,15 @@ export function GeometriesMainRunOutputsTable({
 
   const openGeometryOutputDetails = useCallback(
     (geometryOutput: GeometryOutputListItem) => {
+      closeActiveDrawer()
       setSelectedGeometryOutputId(geometryOutput.id)
+    },
+    [closeActiveDrawer],
+  )
+
+  const selectGeometryOutputDetails = useCallback(
+    (geometryOutputId: string) => {
+      setSelectedGeometryOutputId(geometryOutputId)
     },
     [],
   )
@@ -244,6 +254,7 @@ export function GeometriesMainRunOutputsTable({
       <GeometryOutputDetailsSidebar
         geometryOutputId={selectedGeometryOutputId}
         onClose={closeGeometryOutputDetails}
+        onGeometryOutputSelect={selectGeometryOutputDetails}
         open={Boolean(selectedGeometryOutputId)}
       />
       <Pagination

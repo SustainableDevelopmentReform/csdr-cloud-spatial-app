@@ -1,6 +1,7 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { GeometriesRunLinkParams, useGeometriesRunLink } from '../_hooks'
 import { MainRunBadge } from '../../_components/main-run-badge'
+import { getConsoleSideDrawerOpenSource } from '../../_components/console-side-drawer'
 import { useRunVersionSidebar } from '../../_components/run-version-sidebar'
 import { SquareFunctionIcon, SquareStackIcon } from 'lucide-react'
 import type { MouseEventHandler } from 'react'
@@ -31,10 +32,13 @@ export const GeometriesRunButton = ({
     }
 
     event.preventDefault()
-    runVersionSidebar.openRunVersion({
-      id: geometriesRun.id,
-      type: 'geometries',
-    })
+    runVersionSidebar.openRunVersion(
+      {
+        id: geometriesRun.id,
+        type: 'geometries',
+      },
+      { source: getConsoleSideDrawerOpenSource(event.currentTarget) },
+    )
   }
 
   return (

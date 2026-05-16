@@ -52,6 +52,8 @@ import {
 import {
   ConsoleSideDrawer,
   ConsoleSideDrawerSection,
+  type ConsoleSideDrawerOpenSource,
+  useConsoleSideDrawerStack,
 } from './console-side-drawer'
 import { MainRunBadge } from './main-run-badge'
 import { VersionStatusBadge } from './version-status-badge'
@@ -65,7 +67,10 @@ export type RunVersionSelection = {
 
 type RunVersionSidebarContextValue = {
   closeRunVersion: () => void
-  openRunVersion: (run: RunVersionSelection) => void
+  openRunVersion: (
+    run: RunVersionSelection,
+    options?: { source?: ConsoleSideDrawerOpenSource },
+  ) => void
   selectedRun: RunVersionSelection | null
 }
 
@@ -435,12 +440,16 @@ const getActiveRun = ({
 }
 
 const RunVersionSidebar = ({
+  onBackRestore,
   onClose,
   onSelect,
+  openSource,
   selectedRun,
 }: {
+  onBackRestore: (selection: RunVersionSelection) => void
   onClose: () => void
   onSelect: (selection: RunVersionSelection) => void
+  openSource: ConsoleSideDrawerOpenSource
   selectedRun: RunVersionSelection | null
 }) => {
   const datasetRunId =
@@ -579,7 +588,9 @@ const RunVersionSidebar = ({
         ) : null
       }
       onClose={onClose}
+      onBackRestore={selectedRun ? () => onBackRestore(selectedRun) : undefined}
       open={selectedRun !== null}
+      openSource={openSource}
       tagline="Version"
       title={activeRun?.name ?? (isLoading ? 'Loading...' : 'Version')}
     >
@@ -601,17 +612,43 @@ export const RunVersionSidebarProvider = ({
 }: {
   children: ReactNode
 }) => {
+  const { closeActiveDrawer, pushActiveDrawerSnapshot } =
+    useConsoleSideDrawerStack()
   const [selectedRun, setSelectedRun] = useState<RunVersionSelection | null>(
     null,
   )
+  const [openSource, setOpenSource] =
+    useState<ConsoleSideDrawerOpenSource>('root')
 
   const closeRunVersion = useCallback(() => {
     setSelectedRun(null)
+    setOpenSource('root')
   }, [])
 
-  const openRunVersion = useCallback((run: RunVersionSelection) => {
+  const restoreRunVersion = useCallback((run: RunVersionSelection) => {
     setSelectedRun(run)
   }, [])
+
+  const openRunVersion = useCallback(
+    (
+      run: RunVersionSelection,
+      options?: { source?: ConsoleSideDrawerOpenSource },
+    ) => {
+      const source = options?.source ?? 'root'
+
+      if (source === 'drawer' && selectedRun) {
+        pushActiveDrawerSnapshot()
+      }
+
+      if (source === 'root') {
+        closeActiveDrawer()
+      }
+
+      setOpenSource(source)
+      setSelectedRun(run)
+    },
+    [closeActiveDrawer, pushActiveDrawerSnapshot, selectedRun],
+  )
 
   useEffect(() => {
     if (!selectedRun) {
@@ -644,8 +681,10 @@ export const RunVersionSidebarProvider = ({
     <RunVersionSidebarContext.Provider value={contextValue}>
       {children}
       <RunVersionSidebar
+        onBackRestore={restoreRunVersion}
         onClose={closeRunVersion}
-        onSelect={openRunVersion}
+        onSelect={(run) => openRunVersion(run, { source: 'drawer' })}
+        openSource={openSource}
         selectedRun={selectedRun}
       />
     </RunVersionSidebarContext.Provider>

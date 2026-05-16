@@ -1,5 +1,6 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
+import { getConsoleSideDrawerOpenSource } from '../../_components/console-side-drawer'
 import { useRunVersionSidebar } from '../../_components/run-version-sidebar'
 import { ProductRunLinkParams, useProductRunLink } from '../_hooks'
 import { SquareFunctionIcon, Table2Icon } from 'lucide-react'
@@ -31,7 +32,10 @@ export const ProductRunButton = ({
     }
 
     event.preventDefault()
-    runVersionSidebar.openRunVersion({ id: productRun.id, type: 'product' })
+    runVersionSidebar.openRunVersion(
+      { id: productRun.id, type: 'product' },
+      { source: getConsoleSideDrawerOpenSource(event.currentTarget) },
+    )
   }
 
   return (

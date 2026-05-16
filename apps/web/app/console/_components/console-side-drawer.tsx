@@ -2,7 +2,7 @@
 
 import { Button } from '@repo/ui/components/ui/button'
 import { cn } from '@repo/ui/lib/utils'
-import { ChevronDownIcon, XIcon } from 'lucide-react'
+import { ArrowLeftIcon, ChevronDownIcon, XIcon } from 'lucide-react'
 import {
   createContext,
   type MouseEvent,
@@ -17,48 +17,187 @@ import {
   useState,
 } from 'react'
 
+export type ConsoleSideDrawerOpenSource = 'drawer' | 'root'
+
+type ConsoleSideDrawerSnapshot = {
+  drawerId: string
+  restore: () => void
+}
+
+type ConsoleSideDrawerRegistration = {
+  close: () => void
+  getSnapshot?: () => ConsoleSideDrawerSnapshot | null
+}
+
 type ConsoleSideDrawerActions = {
+  closeActiveDrawer: () => void
   closeDrawer: (drawerId: string) => void
-  registerDrawer: (drawerId: string, onClose: () => void) => () => void
-  requestOpen: (drawerId: string) => void
+  goBack: () => void
+  pushActiveDrawerSnapshot: () => void
+  registerDrawer: (
+    drawerId: string,
+    registration: ConsoleSideDrawerRegistration,
+  ) => () => void
+  requestOpen: (
+    drawerId: string,
+    options?: { source?: ConsoleSideDrawerOpenSource },
+  ) => void
 }
 
 const ConsoleSideDrawerActionsContext =
   createContext<ConsoleSideDrawerActions | null>(null)
 
-const ConsoleSideDrawerStateContext = createContext<string | null>(null)
+const ConsoleSideDrawerStateContext = createContext<{
+  activeDrawerId: string | null
+  historyLength: number
+}>({
+  activeDrawerId: null,
+  historyLength: 0,
+})
+
+export const getConsoleSideDrawerOpenSource = (
+  element: Element | null,
+): ConsoleSideDrawerOpenSource =>
+  element?.closest('[data-console-side-drawer]') ? 'drawer' : 'root'
+
+export const useConsoleSideDrawerStack = () => {
+  const drawerActions = useContext(ConsoleSideDrawerActionsContext)
+
+  return useMemo(
+    () => ({
+      closeActiveDrawer: () => {
+        drawerActions?.closeActiveDrawer()
+      },
+      pushActiveDrawerSnapshot: () => {
+        drawerActions?.pushActiveDrawerSnapshot()
+      },
+    }),
+    [drawerActions],
+  )
+}
 
 export const ConsoleSideDrawerProvider = ({
   children,
 }: {
   children: ReactNode
 }) => {
-  const [activeDrawerId, setActiveDrawerIdState] = useState<string | null>(null)
+  const [drawerState, setDrawerState] = useState<{
+    activeDrawerId: string | null
+    historyLength: number
+  }>({
+    activeDrawerId: null,
+    historyLength: 0,
+  })
   const activeDrawerIdRef = useRef<string | null>(null)
-  const drawerRegistryRef = useRef(new Map<string, () => void>())
+  const drawerHistoryRef = useRef<ConsoleSideDrawerSnapshot[]>([])
+  const drawerRegistryRef = useRef(
+    new Map<string, ConsoleSideDrawerRegistration>(),
+  )
 
-  const setActiveDrawerId = useCallback((drawerId: string | null) => {
-    activeDrawerIdRef.current = drawerId
-    setActiveDrawerIdState(drawerId)
+  const syncDrawerState = useCallback(() => {
+    setDrawerState({
+      activeDrawerId: activeDrawerIdRef.current,
+      historyLength: drawerHistoryRef.current.length,
+    })
   }, [])
+
+  const closeRegisteredDrawers = useCallback((drawerIds: string[]) => {
+    const closedDrawerIds = new Set<string>()
+
+    for (const drawerId of drawerIds) {
+      if (closedDrawerIds.has(drawerId)) {
+        continue
+      }
+
+      closedDrawerIds.add(drawerId)
+      drawerRegistryRef.current.get(drawerId)?.close()
+    }
+  }, [])
+
+  const getActiveDrawerSnapshot = useCallback(() => {
+    const activeDrawerId = activeDrawerIdRef.current
+
+    if (!activeDrawerId) {
+      return null
+    }
+
+    return (
+      drawerRegistryRef.current.get(activeDrawerId)?.getSnapshot?.() ?? null
+    )
+  }, [])
+
+  const pushActiveDrawerSnapshot = useCallback(() => {
+    const activeDrawerSnapshot = getActiveDrawerSnapshot()
+
+    if (!activeDrawerSnapshot) {
+      return
+    }
+
+    drawerHistoryRef.current = [
+      ...drawerHistoryRef.current,
+      activeDrawerSnapshot,
+    ]
+    syncDrawerState()
+  }, [getActiveDrawerSnapshot, syncDrawerState])
+
+  const closeActiveDrawer = useCallback(() => {
+    const activeDrawerId = activeDrawerIdRef.current
+    const drawerIdsToClose = [
+      ...(activeDrawerId ? [activeDrawerId] : []),
+      ...drawerHistoryRef.current.map((entry) => entry.drawerId),
+    ]
+
+    activeDrawerIdRef.current = null
+    drawerHistoryRef.current = []
+    syncDrawerState()
+    closeRegisteredDrawers(drawerIdsToClose)
+  }, [closeRegisteredDrawers, syncDrawerState])
 
   const closeDrawer = useCallback(
     (drawerId: string) => {
-      if (activeDrawerIdRef.current === drawerId) {
-        setActiveDrawerId(null)
+      if (activeDrawerIdRef.current !== drawerId) {
+        return
       }
+
+      const drawerIdsToClose = drawerHistoryRef.current.map(
+        (entry) => entry.drawerId,
+      )
+
+      activeDrawerIdRef.current = null
+      drawerHistoryRef.current = []
+      syncDrawerState()
+      closeRegisteredDrawers(drawerIdsToClose)
     },
-    [setActiveDrawerId],
+    [closeRegisteredDrawers, syncDrawerState],
   )
 
+  const goBack = useCallback(() => {
+    const previousDrawer = drawerHistoryRef.current.at(-1)
+
+    if (!previousDrawer) {
+      return
+    }
+
+    const activeDrawerId = activeDrawerIdRef.current
+    drawerHistoryRef.current = drawerHistoryRef.current.slice(0, -1)
+    activeDrawerIdRef.current = previousDrawer.drawerId
+    syncDrawerState()
+
+    if (activeDrawerId && activeDrawerId !== previousDrawer.drawerId) {
+      drawerRegistryRef.current.get(activeDrawerId)?.close()
+    }
+
+    previousDrawer.restore()
+  }, [syncDrawerState])
+
   const registerDrawer = useCallback(
-    (drawerId: string, onClose: () => void) => {
-      drawerRegistryRef.current.set(drawerId, onClose)
+    (drawerId: string, registration: ConsoleSideDrawerRegistration) => {
+      drawerRegistryRef.current.set(drawerId, registration)
 
       return () => {
-        const registeredClose = drawerRegistryRef.current.get(drawerId)
+        const registeredDrawer = drawerRegistryRef.current.get(drawerId)
 
-        if (registeredClose === onClose) {
+        if (registeredDrawer === registration) {
           drawerRegistryRef.current.delete(drawerId)
         }
       }
@@ -67,30 +206,62 @@ export const ConsoleSideDrawerProvider = ({
   )
 
   const requestOpen = useCallback(
-    (drawerId: string) => {
+    (drawerId: string, options?: { source?: ConsoleSideDrawerOpenSource }) => {
       const activeDrawer = activeDrawerIdRef.current
+      const source = options?.source ?? 'root'
 
-      if (activeDrawer && activeDrawer !== drawerId) {
-        drawerRegistryRef.current.get(activeDrawer)?.()
+      if (source === 'drawer') {
+        if (activeDrawer && activeDrawer !== drawerId) {
+          const activeDrawerSnapshot = getActiveDrawerSnapshot()
+
+          if (activeDrawerSnapshot) {
+            drawerHistoryRef.current = [
+              ...drawerHistoryRef.current,
+              activeDrawerSnapshot,
+            ]
+          }
+        }
+
+        activeDrawerIdRef.current = drawerId
+        syncDrawerState()
+        return
       }
 
-      setActiveDrawerId(drawerId)
+      const drawerIdsToClose = [
+        ...(activeDrawer && activeDrawer !== drawerId ? [activeDrawer] : []),
+        ...drawerHistoryRef.current.map((entry) => entry.drawerId),
+      ]
+
+      activeDrawerIdRef.current = drawerId
+      drawerHistoryRef.current = []
+      syncDrawerState()
+      closeRegisteredDrawers(drawerIdsToClose)
     },
-    [setActiveDrawerId],
+    [closeRegisteredDrawers, getActiveDrawerSnapshot, syncDrawerState],
   )
 
   const actions = useMemo(
     () => ({
+      closeActiveDrawer,
       closeDrawer,
+      goBack,
+      pushActiveDrawerSnapshot,
       registerDrawer,
       requestOpen,
     }),
-    [closeDrawer, registerDrawer, requestOpen],
+    [
+      closeActiveDrawer,
+      closeDrawer,
+      goBack,
+      pushActiveDrawerSnapshot,
+      registerDrawer,
+      requestOpen,
+    ],
   )
 
   return (
     <ConsoleSideDrawerActionsContext.Provider value={actions}>
-      <ConsoleSideDrawerStateContext.Provider value={activeDrawerId}>
+      <ConsoleSideDrawerStateContext.Provider value={drawerState}>
         {children}
       </ConsoleSideDrawerStateContext.Provider>
     </ConsoleSideDrawerActionsContext.Provider>
@@ -104,8 +275,10 @@ type ConsoleSideDrawerProps = {
   description?: ReactNode
   drawerRef?: RefObject<HTMLElement | null>
   footer?: ReactNode
+  onBackRestore?: () => void
   onClose: () => void
   open: boolean
+  openSource?: ConsoleSideDrawerOpenSource
   tagline: ReactNode
   title: ReactNode
 }
@@ -117,18 +290,34 @@ export const ConsoleSideDrawer = ({
   description,
   drawerRef,
   footer,
+  onBackRestore,
   onClose,
   open,
+  openSource = 'root',
   tagline,
   title,
 }: ConsoleSideDrawerProps) => {
   const drawerId = useId()
   const drawerActions = useContext(ConsoleSideDrawerActionsContext)
-  const activeDrawerId = useContext(ConsoleSideDrawerStateContext)
+  const drawerState = useContext(ConsoleSideDrawerStateContext)
+  const openSourceRef = useRef(openSource)
+
+  useEffect(() => {
+    openSourceRef.current = openSource
+  }, [openSource])
+
   const handleClose = useCallback(() => {
-    drawerActions?.closeDrawer(drawerId)
+    if (drawerActions) {
+      drawerActions.closeActiveDrawer()
+      return
+    }
+
     onClose()
-  }, [drawerActions, drawerId, onClose])
+  }, [drawerActions, onClose])
+
+  const handleBack = useCallback(() => {
+    drawerActions?.goBack()
+  }, [drawerActions])
 
   const handleClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
@@ -146,8 +335,16 @@ export const ConsoleSideDrawer = ({
   )
 
   useEffect(() => {
-    return drawerActions?.registerDrawer(drawerId, handleClose)
-  }, [drawerActions, drawerId, handleClose])
+    return drawerActions?.registerDrawer(drawerId, {
+      close: onClose,
+      getSnapshot: onBackRestore
+        ? () => ({
+            drawerId,
+            restore: onBackRestore,
+          })
+        : undefined,
+    })
+  }, [drawerActions, drawerId, onBackRestore, onClose])
 
   useEffect(() => {
     if (!drawerActions) {
@@ -155,14 +352,16 @@ export const ConsoleSideDrawer = ({
     }
 
     if (open) {
-      drawerActions.requestOpen(drawerId)
+      drawerActions.requestOpen(drawerId, { source: openSourceRef.current })
       return
     }
 
     drawerActions.closeDrawer(drawerId)
   }, [drawerActions, drawerId, open])
 
-  const isActiveDrawer = drawerActions ? activeDrawerId === drawerId : open
+  const isActiveDrawer = drawerActions
+    ? drawerState.activeDrawerId === drawerId
+    : open
 
   if (!open || !isActiveDrawer) {
     return null
@@ -171,11 +370,26 @@ export const ConsoleSideDrawer = ({
   return (
     <aside
       ref={drawerRef}
+      data-console-side-drawer="true"
       className="fixed inset-y-0 right-0 z-50 flex w-80 max-w-full flex-col gap-5 overflow-hidden border-l border-border bg-sidebar px-4 py-2 text-foreground shadow-md"
       onClick={handleClick}
       style={{ backgroundColor: 'var(--sidebar)' }}
     >
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        {drawerState.historyLength > 0 ? (
+          <Button
+            aria-label="Back to previous details"
+            className="size-7 opacity-60 hover:opacity-100"
+            onClick={handleBack}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
+        ) : (
+          <div className="size-7" />
+        )}
         <Button
           aria-label={closeLabel}
           className="size-7 opacity-60 hover:opacity-100"
