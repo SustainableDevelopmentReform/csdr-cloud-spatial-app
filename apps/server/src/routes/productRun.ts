@@ -8,6 +8,7 @@ import {
   productOutputExportQuerySchema,
   productOutputExportSchema,
   productOutputQuerySchema,
+  type ProductRunMapConfig,
   productRunAssignDerivedIndicatorSchema,
   productRunMapConfigSchema,
   updateProductRunSchema,
@@ -368,6 +369,101 @@ const assertProductRunUpstreams = async (options: {
       )
     }
   }
+}
+
+const uniqueStrings = (values: readonly string[]): string[] =>
+  Array.from(new Set(values))
+
+const assertProductRunMapConfigReferences = async (options: {
+  mapConfig: ProductRunMapConfig
+  message: string
+  productRunId: string
+}): Promise<ProductRunMapConfig> => {
+  const productRunRecord = await db.query.productRun.findFirst({
+    where: (table, { eq }) => eq(table.id, options.productRunId),
+    columns: {
+      id: true,
+      geometriesRunId: true,
+    },
+    with: {
+      outputSummary: {
+        columns: {
+          timePoints: true,
+        },
+        with: {
+          indicators: {
+            columns: {
+              indicatorId: true,
+              derivedIndicatorId: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!productRunRecord) {
+    throw productRunNotFoundError()
+  }
+
+  const outputSummary = productRunRecord.outputSummary
+  const hasIndicator =
+    outputSummary?.indicators.some(
+      (summaryIndicator) =>
+        summaryIndicator.indicatorId === options.mapConfig.indicatorId ||
+        summaryIndicator.derivedIndicatorId === options.mapConfig.indicatorId,
+    ) ?? false
+
+  if (!hasIndicator) {
+    throw productRunRelationshipError(
+      options.message,
+      'Map config indicator must exist in the product run output summary.',
+    )
+  }
+
+  const hasTimePoint = (outputSummary?.timePoints ?? []).some(
+    (timePoint) => timePoint.toISOString() === options.mapConfig.timePoint,
+  )
+
+  if (!hasTimePoint) {
+    throw productRunRelationshipError(
+      options.message,
+      'Map config time point must exist in the product run output summary.',
+    )
+  }
+
+  const geometryOutputIds = uniqueStrings(
+    options.mapConfig.geometryOutputIds ?? [],
+  )
+
+  if (geometryOutputIds.length === 0) {
+    return options.mapConfig
+  }
+
+  if (!productRunRecord.geometriesRunId) {
+    throw productRunRelationshipError(
+      options.message,
+      'Product run must be linked to a geometries run before map config can reference geometry outputs.',
+    )
+  }
+
+  const geometriesRunId = productRunRecord.geometriesRunId
+  const matchingGeometryOutputCount = await db.$count(
+    geometryOutput,
+    and(
+      inArray(geometryOutput.id, geometryOutputIds),
+      eq(geometryOutput.geometriesRunId, geometriesRunId),
+    ),
+  )
+
+  if (matchingGeometryOutputCount !== geometryOutputIds.length) {
+    throw productRunRelationshipError(
+      options.message,
+      'Map config geometry outputs must belong to the product run geometries run.',
+    )
+  }
+
+  return options.mapConfig
 }
 
 const assertDerivedDependencies = async (options: {
@@ -865,6 +961,7 @@ const app = createOpenAPIApp()
       const { id } = c.req.valid('param')
       const payload = c.req.valid('json')
       const mapConfig = payload.mapConfig
+      let updateValues = payload
 
       if (mapConfig && mapConfig.productRunId !== id) {
         throw productRunRelationshipError(
@@ -873,9 +970,21 @@ const app = createOpenAPIApp()
         )
       }
 
+      if (mapConfig) {
+        const validatedMapConfig = await assertProductRunMapConfigReferences({
+          productRunId: id,
+          mapConfig,
+          message: 'Failed to update productRun',
+        })
+        updateValues = {
+          ...payload,
+          mapConfig: validatedMapConfig,
+        }
+      }
+
       const [record] = await db
         .update(productRun)
-        .set(updatePayload(payload))
+        .set(updatePayload(updateValues))
         .where(eq(productRun.id, id))
         .returning()
 

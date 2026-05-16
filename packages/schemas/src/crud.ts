@@ -378,6 +378,8 @@ export const dataLibraryResourceSchema = baseAclResourceSchema
   .openapi('DataLibraryResource')
 
 export const dataLibraryQuerySchema = geographicBoundsQuerySchema.extend({
+  search: z.string().trim().max(200).optional(),
+  size: z.coerce.number().int().positive().max(100).optional(),
   resourceType: z
     .union([
       dataLibraryResourceTypeSchema,

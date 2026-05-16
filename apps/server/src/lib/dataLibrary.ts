@@ -29,7 +29,6 @@ import {
   product,
   productOutputSummary,
 } from '~/schemas/db'
-import { baseAclColumns } from '~/schemas/util'
 
 type DataLibraryResourceType = z.infer<typeof dataLibraryResourceTypeSchema>
 type DataLibraryQuery = z.infer<typeof dataLibraryQuerySchema>
@@ -50,7 +49,9 @@ type DataLibraryRecord = {
   resourceType: DataLibraryResourceType
 }
 
-type BaseResourceRecord = Omit<DataLibraryRecord, 'resourceType'>
+type DataLibraryCountRow = {
+  totalCount: number
+}
 
 type DataLibraryListResult = {
   pageCount: number
@@ -90,47 +91,77 @@ const buildSearchFilter = (options: {
   )
 }
 
-const toDataLibraryRecord = (
-  record: BaseResourceRecord,
-  resourceType: DataLibraryResourceType,
-): DataLibraryRecord => ({
-  ...record,
-  resourceType,
-})
-
-const compareDataLibraryRecords = (
-  a: DataLibraryRecord,
-  b: DataLibraryRecord,
+const buildDataLibraryOrderBy = (
   sort: DataLibrarySort | undefined,
   order: DataLibraryQuery['order'],
-): number => {
-  const direction = order === 'asc' ? 1 : -1
+): SQL => {
+  const direction = order === 'asc' ? sql`asc` : sql`desc`
   const sortKey = sort ?? 'updatedAt'
-  let comparison = 0
 
   switch (sortKey) {
     case 'name':
-      comparison = a.name.localeCompare(b.name)
-      break
+      return sql`data_library_resources.name ${direction}, data_library_resources."resourceType" asc, data_library_resources.id asc`
     case 'createdAt':
-      comparison = a.createdAt.getTime() - b.createdAt.getTime()
-      break
+      return sql`data_library_resources."createdAt" ${direction}, data_library_resources."resourceType" asc, data_library_resources.id asc`
     case 'updatedAt':
-      comparison = a.updatedAt.getTime() - b.updatedAt.getTime()
-      break
+      return sql`data_library_resources."updatedAt" ${direction}, data_library_resources."resourceType" asc, data_library_resources.id asc`
   }
+}
 
-  if (comparison !== 0) {
-    return comparison * direction
-  }
+const whereOrTrue = (where: SQL | undefined) => where ?? sql`true`
 
-  const typeComparison = a.resourceType.localeCompare(b.resourceType)
+const selectDatasetResources = (where: SQL | undefined): SQL => {
+  return sql`
+    select
+      ${dataset.id} as id,
+      ${dataset.name} as name,
+      ${dataset.description} as description,
+      ${dataset.metadata} as metadata,
+      ${dataset.createdAt} as "createdAt",
+      ${dataset.updatedAt} as "updatedAt",
+      ${dataset.organizationId} as "organizationId",
+      ${dataset.createdByUserId} as "createdByUserId",
+      ${dataset.visibility} as visibility,
+      ${'dataset'} as "resourceType"
+    from ${dataset}
+    where ${whereOrTrue(where)}
+  `
+}
 
-  if (typeComparison !== 0) {
-    return typeComparison
-  }
+const selectBoundaryResources = (where: SQL | undefined): SQL => {
+  return sql`
+    select
+      ${geometries.id} as id,
+      ${geometries.name} as name,
+      ${geometries.description} as description,
+      ${geometries.metadata} as metadata,
+      ${geometries.createdAt} as "createdAt",
+      ${geometries.updatedAt} as "updatedAt",
+      ${geometries.organizationId} as "organizationId",
+      ${geometries.createdByUserId} as "createdByUserId",
+      ${geometries.visibility} as visibility,
+      ${'boundary'} as "resourceType"
+    from ${geometries}
+    where ${whereOrTrue(where)}
+  `
+}
 
-  return a.id.localeCompare(b.id)
+const selectProductResources = (where: SQL | undefined): SQL => {
+  return sql`
+    select
+      ${product.id} as id,
+      ${product.name} as name,
+      ${product.description} as description,
+      ${product.metadata} as metadata,
+      ${product.createdAt} as "createdAt",
+      ${product.updatedAt} as "updatedAt",
+      ${product.organizationId} as "organizationId",
+      ${product.createdByUserId} as "createdByUserId",
+      ${product.visibility} as visibility,
+      ${'product'} as "resourceType"
+    from ${product}
+    where ${whereOrTrue(where)}
+  `
 }
 
 export const listDataLibraryResources = async (
@@ -142,118 +173,137 @@ export const listDataLibraryResources = async (
   const searchValue = queryParams.search?.trim() || undefined
   const page = queryParams.page && queryParams.page > 0 ? queryParams.page : 1
   const size = queryParams.size && queryParams.size > 0 ? queryParams.size : 10
+  const offset = (page - 1) * size
+  const resourceSelects: SQL[] = []
 
-  const [datasetRecords, boundaryRecords, productRecords] = await Promise.all([
-    includesResourceType(resourceTypes, 'dataset')
-      ? db.query.dataset.findMany({
-          columns: baseAclColumns,
-          where: and(
-            buildExplorerReadScope(
-              c,
-              dataset.organizationId,
-              dataset.visibility,
-            ),
-            buildSearchFilter({
-              nameColumn: dataset.name,
-              descriptionColumn: dataset.description,
-              searchValue,
-            }),
-            boundsEnvelope
-              ? inArray(
-                  dataset.mainRunId,
-                  db
-                    .select({ id: datasetRun.id })
-                    .from(datasetRun)
-                    .where(
-                      buildGeometryIntersectsFilter(
-                        datasetRun.bounds,
-                        boundsEnvelope,
-                      ),
+  if (includesResourceType(resourceTypes, 'dataset')) {
+    resourceSelects.push(
+      selectDatasetResources(
+        and(
+          buildExplorerReadScope(c, dataset.organizationId, dataset.visibility),
+          buildSearchFilter({
+            nameColumn: dataset.name,
+            descriptionColumn: dataset.description,
+            searchValue,
+          }),
+          boundsEnvelope
+            ? inArray(
+                dataset.mainRunId,
+                db
+                  .select({ id: datasetRun.id })
+                  .from(datasetRun)
+                  .where(
+                    buildGeometryIntersectsFilter(
+                      datasetRun.bounds,
+                      boundsEnvelope,
                     ),
-                )
-              : undefined,
-          ),
-        })
-      : Promise.resolve([]),
-    includesResourceType(resourceTypes, 'boundary')
-      ? db.query.geometries.findMany({
-          columns: baseAclColumns,
-          where: and(
-            buildExplorerReadScope(
-              c,
-              geometries.organizationId,
-              geometries.visibility,
-            ),
-            buildSearchFilter({
-              nameColumn: geometries.name,
-              descriptionColumn: geometries.description,
-              searchValue,
-            }),
-            boundsEnvelope
-              ? inArray(
-                  geometries.mainRunId,
-                  db
-                    .select({ id: geometryOutput.geometriesRunId })
-                    .from(geometryOutput)
-                    .where(
-                      buildGeometryIntersectsFilter(
-                        geometryOutput.geometry,
-                        boundsEnvelope,
-                      ),
-                    ),
-                )
-              : undefined,
-          ),
-        })
-      : Promise.resolve([]),
-    includesResourceType(resourceTypes, 'product')
-      ? db.query.product.findMany({
-          columns: baseAclColumns,
-          where: and(
-            buildExplorerReadScope(
-              c,
-              product.organizationId,
-              product.visibility,
-            ),
-            buildSearchFilter({
-              nameColumn: product.name,
-              descriptionColumn: product.description,
-              searchValue,
-            }),
-            boundsEnvelope
-              ? inArray(
-                  product.mainRunId,
-                  db
-                    .select({ id: productOutputSummary.productRunId })
-                    .from(productOutputSummary)
-                    .where(
-                      buildGeometryIntersectsFilter(
-                        productOutputSummary.bounds,
-                        boundsEnvelope,
-                      ),
-                    ),
-                )
-              : undefined,
-          ),
-        })
-      : Promise.resolve([]),
-  ])
+                  ),
+              )
+            : undefined,
+        ),
+      ),
+    )
+  }
 
-  const records = [
-    ...datasetRecords.map((record) => toDataLibraryRecord(record, 'dataset')),
-    ...boundaryRecords.map((record) => toDataLibraryRecord(record, 'boundary')),
-    ...productRecords.map((record) => toDataLibraryRecord(record, 'product')),
-  ].sort((a, b) =>
-    compareDataLibraryRecords(a, b, queryParams.sort, queryParams.order),
-  )
+  if (includesResourceType(resourceTypes, 'boundary')) {
+    resourceSelects.push(
+      selectBoundaryResources(
+        and(
+          buildExplorerReadScope(
+            c,
+            geometries.organizationId,
+            geometries.visibility,
+          ),
+          buildSearchFilter({
+            nameColumn: geometries.name,
+            descriptionColumn: geometries.description,
+            searchValue,
+          }),
+          boundsEnvelope
+            ? inArray(
+                geometries.mainRunId,
+                db
+                  .select({ id: geometryOutput.geometriesRunId })
+                  .from(geometryOutput)
+                  .where(
+                    buildGeometryIntersectsFilter(
+                      geometryOutput.geometry,
+                      boundsEnvelope,
+                    ),
+                  ),
+              )
+            : undefined,
+        ),
+      ),
+    )
+  }
 
-  const totalCount = records.length
+  if (includesResourceType(resourceTypes, 'product')) {
+    resourceSelects.push(
+      selectProductResources(
+        and(
+          buildExplorerReadScope(c, product.organizationId, product.visibility),
+          buildSearchFilter({
+            nameColumn: product.name,
+            descriptionColumn: product.description,
+            searchValue,
+          }),
+          boundsEnvelope
+            ? inArray(
+                product.mainRunId,
+                db
+                  .select({ id: productOutputSummary.productRunId })
+                  .from(productOutputSummary)
+                  .where(
+                    buildGeometryIntersectsFilter(
+                      productOutputSummary.bounds,
+                      boundsEnvelope,
+                    ),
+                  ),
+              )
+            : undefined,
+        ),
+      ),
+    )
+  }
+
+  if (resourceSelects.length === 0) {
+    return {
+      pageCount: 0,
+      totalCount: 0,
+      data: [],
+    }
+  }
+
+  const unionedResources = sql.join(resourceSelects, sql` union all `)
+  const resourceQuery = sql`(${unionedResources})`
+  const countResult = await db.execute<DataLibraryCountRow>(sql`
+    select count(*)::int as "totalCount"
+    from ${resourceQuery} as data_library_resources
+  `)
+  const totalCount = countResult.rows[0]?.totalCount ?? 0
   const pageCount = size > 0 ? Math.ceil(totalCount / size) : 0
-  const startIndex = (page - 1) * size
+  const recordsResult = await db.execute<DataLibraryRecord>(sql`
+    select
+      data_library_resources.id,
+      data_library_resources.name,
+      data_library_resources.description,
+      data_library_resources.metadata,
+      data_library_resources."createdAt",
+      data_library_resources."updatedAt",
+      data_library_resources."organizationId",
+      data_library_resources."createdByUserId",
+      data_library_resources.visibility,
+      data_library_resources."resourceType"
+    from ${resourceQuery} as data_library_resources
+    order by ${buildDataLibraryOrderBy(queryParams.sort, queryParams.order)}
+    limit ${size}
+    offset ${offset}
+  `)
 
   return {
     pageCount,
     totalCount,
-    data: records.slice(startIndex, startIndex + size),
+    data: recordsResult.rows,
   }
 }

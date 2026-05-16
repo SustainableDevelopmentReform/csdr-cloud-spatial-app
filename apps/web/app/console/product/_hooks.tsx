@@ -8,6 +8,7 @@ import {
   productRunQuerySchema,
 } from '@repo/schemas/crud'
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -39,6 +40,12 @@ import {
 } from '../geometries/_hooks'
 import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
 import { dataLibraryQueryKeys } from '../data-library/_hooks'
+
+const invalidateDataLibraryQueries = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({
+    queryKey: dataLibraryQueryKeys.all,
+  })
+}
 
 export type ProductListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['product']['$get'], 200>['data']
@@ -379,7 +386,11 @@ export const useProductOutputsExport = (
   const client = useApiClient()
   const { productRunId } = useProductParams(undefined, _productRunId)
   const { data: productRun } = useProductRun(productRunId)
-  const { query, setSearchParams } = useQueryWithSearchParams(
+  const {
+    error: queryError,
+    query,
+    setSearchParams,
+  } = useQueryWithSearchParams(
     productOutputExportQuerySchema,
     _query,
     useSearchParams,
@@ -392,6 +403,10 @@ export const useProductOutputsExport = (
       query,
     ),
     queryFn: async () => {
+      if (queryError) {
+        throw queryError
+      }
+
       if (!productRun) {
         throw new Error('Product run is required to export outputs')
       }
@@ -616,6 +631,7 @@ export const useCreateProductRunOutput = () => {
           response?.data?.productRun?.product?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -654,6 +670,7 @@ export const useImportProductOutputs = () => {
           queryKey: productQueryKeys.detail(productId),
         })
       }
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -798,6 +815,7 @@ export const useUpdateProductOutput = (_productOutputId?: string) => {
           response?.data?.productRun?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }

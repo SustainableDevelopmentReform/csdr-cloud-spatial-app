@@ -31,6 +31,7 @@ export const ChartMapRenderer = ({
   const indicator = indicatorQuery.data
   const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
     indicatorId: chart.indicatorId,
+    geometryOutputId: chart.geometryOutputIds,
     timePoint: chart.timePoint,
   })
   const productOutputs = productOutputsQuery.data

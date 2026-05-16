@@ -7,6 +7,7 @@ import {
   updateDatasetRunSchema,
 } from '@repo/schemas/crud'
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -32,6 +33,12 @@ import {
 import { getSearchParams } from '../../../utils/browser'
 import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
 import { dataLibraryQueryKeys } from '../data-library/_hooks'
+
+const invalidateDataLibraryQueries = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({
+    queryKey: dataLibraryQueryKeys.all,
+  })
+}
 
 export type DatasetListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['dataset']['$get'], 200>['data']
@@ -433,6 +440,7 @@ export const useUpdateDatasetRun = (_datasetRunId?: string) => {
       queryClient.invalidateQueries({
         queryKey: datasetRunQueryKeys.scope(datasetId),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }

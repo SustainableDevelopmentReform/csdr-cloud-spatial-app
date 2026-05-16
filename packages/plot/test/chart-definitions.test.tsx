@@ -11,11 +11,14 @@ import {
 } from '../src/chart-definitions'
 import { sampleChartDefinition } from '../src/chart-template'
 
+const timePoint2024 = '2024-01-01T00:00:00.000Z'
+const timePoint2025 = '2025-01-01T00:00:00.000Z'
+
 const basePlotSelections = {
   productRunId: 'run-1',
   indicatorIds: ['indicator-1'],
   geometryOutputIds: ['geometry-1'],
-  timePoints: ['2024'],
+  timePoints: [timePoint2024],
 }
 
 const persistedChartSamples = [
@@ -23,27 +26,27 @@ const persistedChartSamples = [
     type: 'plot',
     subType: 'line',
     ...basePlotSelections,
-    timePoints: ['2024', '2025'],
+    timePoints: [timePoint2024, timePoint2025],
   },
   {
     type: 'plot',
     subType: 'area',
     ...basePlotSelections,
-    timePoints: ['2024', '2025'],
+    timePoints: [timePoint2024, timePoint2025],
   },
   {
     type: 'plot',
     subType: 'stacked-area',
     ...basePlotSelections,
     indicatorIds: ['indicator-1', 'indicator-2'],
-    timePoints: ['2024', '2025'],
+    timePoints: [timePoint2024, timePoint2025],
   },
   {
     type: 'plot',
     subType: 'stacked-bar',
     ...basePlotSelections,
     geometryOutputIds: ['geometry-1', 'geometry-2'],
-    timePoints: ['2024', '2025'],
+    timePoints: [timePoint2024, timePoint2025],
   },
   {
     type: 'plot',
@@ -61,7 +64,7 @@ const persistedChartSamples = [
     type: 'plot',
     subType: 'dot',
     ...basePlotSelections,
-    timePoints: ['2024', '2025'],
+    timePoints: [timePoint2024, timePoint2025],
   },
   {
     type: 'plot',
@@ -73,14 +76,14 @@ const persistedChartSamples = [
     type: 'map',
     productRunId: 'run-1',
     indicatorId: 'indicator-1',
-    timePoint: '2024',
+    timePoint: timePoint2024,
     geometryOutputIds: ['geometry-1'],
   },
   {
     type: 'table',
     ...basePlotSelections,
     indicatorIds: ['indicator-1', 'indicator-2'],
-    timePoints: ['2024', '2025'],
+    timePoints: [timePoint2024, timePoint2025],
     xDimension: 'indicatorName',
     yDimension: 'timePoint',
   },
@@ -88,7 +91,7 @@ const persistedChartSamples = [
     type: 'kpi',
     productRunId: 'run-1',
     indicatorId: 'indicator-1',
-    timePoint: '2024',
+    timePoint: timePoint2024,
     geometryOutputIds: ['geometry-1'],
   },
 ] satisfies ChartConfigurationDraft[]
@@ -115,6 +118,44 @@ describe('chartDefinitions', () => {
         matchingDefinitions[0],
       )
     }
+  })
+
+  it('emits normalized product-output queries for map and table charts', () => {
+    const mapChart = chartConfigurationSchema.parse({
+      type: 'map',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024-01-01T00:00:00Z',
+      geometryOutputIds: ['geometry-1'],
+    })
+    const tableChart = chartConfigurationSchema.parse({
+      type: 'table',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: ['2024-01-01T00:00:00Z'],
+      xDimension: 'indicatorName',
+      yDimension: 'timePoint',
+    })
+
+    expect(
+      getChartDefinitionForConfiguration(mapChart)?.data.getProductOutputsQuery(
+        mapChart,
+      ),
+    ).toEqual({
+      indicatorId: 'indicator-1',
+      geometryOutputId: ['geometry-1'],
+      timePoint: '2024-01-01T00:00:00.000Z',
+    })
+    expect(
+      getChartDefinitionForConfiguration(
+        tableChart,
+      )?.data.getProductOutputsQuery(tableChart),
+    ).toEqual({
+      indicatorId: ['indicator-1'],
+      geometryOutputId: ['geometry-1'],
+      timePoint: ['2024-01-01T00:00:00.000Z'],
+    })
   })
 
   it('keeps selection rules aligned with existing chart behavior', () => {
@@ -172,7 +213,7 @@ describe('chartDefinitions', () => {
       productRunId: 'run-1',
       indicatorIds: ['indicator-1', 'indicator-2'],
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     } satisfies ChartConfigurationDraft
 
     expect(buildChartPreviewConfiguration(invalidForSubmit)).toMatchObject({
@@ -199,7 +240,7 @@ describe('chartDefinitions', () => {
       productRunId: 'run-1',
       indicatorIds: ['indicator-1'],
       geometryOutputIds: ['geometry-1'],
-      timePoints: ['2024'],
+      timePoints: [timePoint2024],
       sampleOption: 'example',
     } satisfies ChartConfigurationDraft
     const sampleChart = sampleChartDefinition.schema.parse(sampleInput)
@@ -214,7 +255,7 @@ describe('chartDefinitions', () => {
     ).toEqual({
       indicatorId: ['indicator-1'],
       geometryOutputId: ['geometry-1'],
-      timePoint: ['2024'],
+      timePoint: [timePoint2024],
     })
     expect(
       sampleChartDefinition.buildPreviewConfig({
@@ -223,7 +264,7 @@ describe('chartDefinitions', () => {
         productRunId: 'run-1',
         indicatorIds: ['indicator-1'],
         geometryOutputIds: ['geometry-1'],
-        timePoints: ['2024'],
+        timePoints: [timePoint2024],
       }),
     ).toMatchObject({
       type: 'plot',

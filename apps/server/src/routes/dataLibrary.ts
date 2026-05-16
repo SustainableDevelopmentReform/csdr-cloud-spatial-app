@@ -21,7 +21,7 @@ const app = createOpenAPIApp().openapi(
     path: '/',
     middleware: [
       authMiddleware({
-        permission: 'read:dataset',
+        permission: 'read:dataLibrary',
         scope: 'explorer',
       }),
     ],
@@ -52,6 +52,27 @@ const app = createOpenAPIApp().openapi(
   async (c) => {
     const queryParams = c.req.valid('query')
     const dataLibraryResources = await listDataLibraryResources(c, queryParams)
+    const returnedResourceTypes = Array.from(
+      new Set(dataLibraryResources.data.map((item) => item.resourceType)),
+    ).sort()
+
+    c.set('accessLogDetails', {
+      dataLibrary: {
+        returnedResourceTypes,
+        filters: {
+          resourceType: queryParams.resourceType ?? null,
+          hasSearch: Boolean(queryParams.search),
+          hasBoundsFilter: Boolean(
+            queryParams.boundsMinX !== undefined ||
+              queryParams.boundsMinY !== undefined ||
+              queryParams.boundsMaxX !== undefined ||
+              queryParams.boundsMaxY !== undefined,
+          ),
+          sort: queryParams.sort ?? null,
+          order: queryParams.order ?? null,
+        },
+      },
+    })
 
     return generateJsonResponse(c, dataLibraryResources, 200)
   },

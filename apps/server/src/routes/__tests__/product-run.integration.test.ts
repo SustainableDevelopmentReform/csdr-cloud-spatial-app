@@ -421,7 +421,7 @@ describe('product-run route', () => {
 
     const mapConfig: ProductRunMapConfig = {
       type: 'map',
-      productRunId: createdJson.data.id,
+      productRunId: seededIds.productRun,
       indicatorId: seededIds.indicator,
       timePoint: '2021-01-01T00:00:00.000Z',
       geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
@@ -437,7 +437,7 @@ describe('product-run route', () => {
       mapConfig: ProductRunMapConfig | null
     }>(
       await adminClient.api.v0['product-run'][':id'].$patch({
-        param: { id: createdJson.data.id },
+        param: { id: seededIds.productRun },
         json: {
           mapConfig,
         },
@@ -453,7 +453,7 @@ describe('product-run route', () => {
       mapConfig: ProductRunMapConfig | null
     }>(
       await memberClient.api.v0['product-run'][':id'].$get({
-        param: { id: createdJson.data.id },
+        param: { id: seededIds.productRun },
       }),
       {
         status: 200,
@@ -468,7 +468,7 @@ describe('product-run route', () => {
     }
     await expectJsonResponse(
       await adminClient.api.v0['product-run'][':id'].$patch({
-        param: { id: createdJson.data.id },
+        param: { id: seededIds.productRun },
         json: {
           mapConfig: mismatchedMapConfig,
         },
@@ -481,11 +481,65 @@ describe('product-run route', () => {
       },
     )
 
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'].$patch({
+        param: { id: seededIds.productRun },
+        json: {
+          mapConfig: {
+            ...mapConfig,
+            indicatorId: 'unknown-indicator',
+          },
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to update productRun',
+        description:
+          'Map config indicator must exist in the product run output summary.',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'].$patch({
+        param: { id: seededIds.productRun },
+        json: {
+          mapConfig: {
+            ...mapConfig,
+            timePoint: '2020-01-01T00:00:00.000Z',
+          },
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to update productRun',
+        description:
+          'Map config time point must exist in the product run output summary.',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-run'][':id'].$patch({
+        param: { id: seededIds.productRun },
+        json: {
+          mapConfig: {
+            ...mapConfig,
+            geometryOutputIds: ['unknown-geometry-output'],
+          },
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to update productRun',
+        description:
+          'Map config geometry outputs must belong to the product run geometries run.',
+      },
+    )
+
     const clearedMapJson = await expectJsonResponse<{
       mapConfig: ProductRunMapConfig | null
     }>(
       await adminClient.api.v0['product-run'][':id'].$patch({
-        param: { id: createdJson.data.id },
+        param: { id: seededIds.productRun },
         json: {
           mapConfig: null,
         },

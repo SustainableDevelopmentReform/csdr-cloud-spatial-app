@@ -27,7 +27,7 @@ import {
   type SequentialColorScheme,
 } from './types'
 
-type BaseTableRecord = {
+export type BaseTableRecord = {
   id: string
   value: number | null | undefined
   timePoint: Date | string
@@ -118,13 +118,13 @@ export type TablePlotDimension =
   | 'indicatorName'
   | 'geometryOutputName'
 
-type DimensionMeta = {
+export type DimensionMeta = {
   key: string
   label: string
   sortValue: number | string
 }
 
-type TablePlotRow<TRecord extends BaseTableRecord = BaseTableRecord> = {
+export type TablePlotRow<TRecord extends BaseTableRecord = BaseTableRecord> = {
   meta: DimensionMeta
   cells: Record<string, NormalizedTableRecord<TRecord> | undefined>
 }
@@ -181,6 +181,88 @@ function compareDimensionMeta(
   return String(a.sortValue).localeCompare(String(b.sortValue))
 }
 
+export type TablePlotModel<TRecord extends BaseTableRecord = BaseTableRecord> =
+  | {
+      columns: DimensionMeta[]
+      rows: TablePlotRow<TRecord>[]
+      error?: never
+    }
+  | {
+      error: string
+      columns?: never
+      rows?: never
+    }
+
+export function buildTablePlotModel<TRecord extends BaseTableRecord>({
+  data,
+  dateFmt,
+  xDimension,
+  yDimension,
+}: {
+  data: TRecord[]
+  dateFmt: Intl.DateTimeFormat
+  xDimension: TablePlotDimension
+  yDimension: TablePlotDimension
+}): TablePlotModel<TRecord> {
+  const normalizedData = data.map((record) => {
+    const time =
+      record.timePoint instanceof Date
+        ? record.timePoint
+        : new Date(record.timePoint)
+
+    return {
+      ...record,
+      timePoint: time,
+    }
+  })
+  const columnMap = new Map<string, DimensionMeta>()
+  const rowMap = new Map<string, TablePlotRow<TRecord>>()
+
+  for (const record of normalizedData) {
+    const columnMeta = getDimensionMeta(record, xDimension, dateFmt)
+    const rowMeta = getDimensionMeta(record, yDimension, dateFmt)
+
+    if (!columnMeta || !rowMeta) continue
+
+    if (!columnMap.has(columnMeta.key)) {
+      columnMap.set(columnMeta.key, columnMeta)
+    }
+
+    const rowKey = rowMeta.key
+    let row = rowMap.get(rowKey)
+    if (!row) {
+      row = {
+        meta: rowMeta,
+        cells: {},
+      }
+      rowMap.set(rowKey, row)
+    }
+
+    if (row.cells[columnMeta.key]) {
+      return {
+        error:
+          `Data has multiple values for (${dimensionLabels[yDimension]}=${rowMeta.label}, ` +
+          `${dimensionLabels[xDimension]}=${columnMeta.label}). ` +
+          'Each table cell must map to exactly one product output.',
+      }
+    }
+
+    row.cells[columnMeta.key] = record
+  }
+
+  const sortedColumns = Array.from(columnMap.values()).sort((a, b) =>
+    compareDimensionMeta(xDimension, a, b),
+  )
+  const sortedRows = Array.from(rowMap.values()).sort((a, b) =>
+    compareDimensionMeta(yDimension, a.meta, b.meta),
+  )
+
+  return {
+    columns: sortedColumns,
+    rows: sortedRows,
+  }
+}
+
 export function TablePlot<TRecord extends BaseTableRecord>({
   data,
   xDimension,
@@ -208,62 +290,13 @@ export function TablePlot<TRecord extends BaseTableRecord>({
     [appearance?.datePrecision],
   )
 
-  const normalizedData = useMemo<NormalizedTableRecord<TRecord>[]>(() => {
-    return data.map((record) => {
-      const time =
-        record.timePoint instanceof Date
-          ? record.timePoint
-          : new Date(record.timePoint)
-
-      return {
-        ...record,
-        timePoint: time,
-      }
-    })
-  }, [data])
-
-  const { columns, rows } = useMemo(() => {
-    const columnMap = new Map<string, DimensionMeta>()
-    const rowMap = new Map<string, TablePlotRow<TRecord>>()
-
-    for (const record of normalizedData) {
-      const columnMeta = getDimensionMeta(record, xDimension, dateFmt)
-      const rowMeta = getDimensionMeta(record, yDimension, dateFmt)
-
-      if (!columnMeta || !rowMeta) continue
-
-      if (!columnMap.has(columnMeta.key)) {
-        columnMap.set(columnMeta.key, columnMeta)
-      }
-
-      const rowKey = rowMeta.key
-      let row = rowMap.get(rowKey)
-      if (!row) {
-        row = {
-          meta: rowMeta,
-          cells: {},
-        }
-        rowMap.set(rowKey, row)
-      }
-
-      row.cells[columnMeta.key] = record
-    }
-
-    const sortedColumns = Array.from(columnMap.values()).sort((a, b) =>
-      compareDimensionMeta(xDimension, a, b),
-    )
-    const sortedRows = Array.from(rowMap.values()).sort((a, b) =>
-      compareDimensionMeta(yDimension, a.meta, b.meta),
-    )
-
-    return {
-      columns: sortedColumns,
-      rows: sortedRows,
-    }
-  }, [normalizedData, xDimension, yDimension, dateFmt])
+  const tableModel = useMemo(
+    () => buildTablePlotModel({ data, xDimension, yDimension, dateFmt }),
+    [data, xDimension, yDimension, dateFmt],
+  )
 
   const valueExtent = useMemo(() => {
-    const values = normalizedData
+    const values = data
       .map((record) => record.value)
       .filter(
         (value): value is number =>
@@ -274,7 +307,7 @@ export function TablePlot<TRecord extends BaseTableRecord>({
       min: min ?? null,
       max: max ?? null,
     }
-  }, [normalizedData])
+  }, [data])
 
   const colorScale = useMemo(() => {
     const autoMin = valueExtent.min
@@ -325,6 +358,16 @@ export function TablePlot<TRecord extends BaseTableRecord>({
     appearance?.colorScaleMax,
     appearance?.reverseColorScale,
   ])
+
+  if ('error' in tableModel) {
+    return (
+      <div className="flex min-h-32 w-full items-center justify-center rounded-md border border-border px-4 py-8 text-center text-sm text-muted-foreground shadow-sm">
+        {tableModel.error}
+      </div>
+    )
+  }
+
+  const { columns, rows } = tableModel
 
   return (
     <div className="flex w-full max-w-full min-w-0 flex-1 min-h-0 flex-col overflow-x-auto overflow-y-auto rounded-md border border-border shadow-sm">

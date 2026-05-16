@@ -34,6 +34,7 @@ const permissionResourceTypes = [
   'geometryOutput',
   'productRun',
   'productOutput',
+  'dataLibrary',
   'auditLog',
 ] as const
 
@@ -118,6 +119,7 @@ const persistDecisionLog = async (options: {
       null,
     details: {
       permission: options.permission,
+      ...(options.c.get('accessLogDetails') ?? {}),
     },
   })
 }
@@ -426,6 +428,7 @@ const readAccessRecord = async (
       return record ? readAccessRecord('productRun', record.productRunId) : null
     }
     case 'auditLog':
+    case 'dataLibrary':
       return null
   }
 }

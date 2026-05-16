@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { desc } from 'drizzle-orm'
+import { auditLog } from '~/schemas/db'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import {
   expectJsonResponse,
@@ -7,9 +9,8 @@ import {
   tasmaniaBoundsFilter,
 } from './test-helpers'
 
-const { createAppClient, createSessionHeaders } = await setupIsolatedTestFile(
-  import.meta.url,
-)
+const { createAppClient, createSessionHeaders, db } =
+  await setupIsolatedTestFile(import.meta.url)
 
 let adminClient: ReturnType<typeof createAppClient>
 let memberClient: ReturnType<typeof createAppClient>
@@ -216,5 +217,57 @@ describe('data library route', () => {
     expect(secondPageJson.data.data.map((item) => item.id)).toEqual([
       seededIds.product,
     ])
+  })
+
+  it('rejects oversized page sizes', async () => {
+    await expectJsonResponse(
+      await memberClient.api.v0['data-library'].$get({
+        query: {
+          size: 101,
+        },
+      }),
+      {
+        status: 422,
+        message: 'Validation Error',
+      },
+    )
+  })
+
+  it('writes data-library audit details for catalog reads', async () => {
+    await expectJsonResponse<DataLibraryTestResponse>(
+      await memberClient.api.v0['data-library'].$get({
+        query: {
+          resourceType: 'boundary',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    const logEntry = await db.query.auditLog.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.requestPath, '/api/v0/data-library'),
+          eq(table.requestMethod, 'GET'),
+          eq(table.resourceType, 'dataLibrary'),
+          eq(table.action, 'read'),
+          eq(table.decision, 'allow'),
+        ),
+      orderBy: desc(auditLog.createdAt),
+    })
+
+    expect(logEntry?.details).toMatchObject({
+      permission: 'read:dataLibrary',
+      dataLibrary: {
+        returnedResourceTypes: ['boundary'],
+        filters: {
+          resourceType: 'boundary',
+          hasSearch: false,
+          hasBoundsFilter: false,
+        },
+      },
+    })
   })
 })

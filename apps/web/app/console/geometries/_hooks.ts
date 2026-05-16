@@ -8,6 +8,7 @@ import {
   importGeometryOutputsSchema,
 } from '@repo/schemas/crud'
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -34,6 +35,12 @@ import {
 } from '../../../utils/access-control'
 import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
 import { dataLibraryQueryKeys } from '../data-library/_hooks'
+
+const invalidateDataLibraryQueries = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({
+    queryKey: dataLibraryQueryKeys.all,
+  })
+}
 
 export type GeometriesListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
@@ -567,6 +574,7 @@ export const useCreateGeometryOutput = () => {
           response?.data?.geometriesRun?.geometries?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -598,6 +606,7 @@ export const useImportGeometryOutputs = () => {
           response?.data?.geometriesRun?.geometries?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -742,6 +751,7 @@ export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
           response?.data?.geometriesRun?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -784,6 +794,7 @@ export const useDeleteGeometryOutput = (
           response?.data?.geometriesRun?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
 
       if (redirect) {
         router.push(redirect)

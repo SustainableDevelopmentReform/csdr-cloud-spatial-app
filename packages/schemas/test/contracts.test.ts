@@ -27,11 +27,14 @@ import {
   reportTiptapDocumentSchema,
 } from '../src/report-content'
 
+const timePoint2024 = '2024-01-01T00:00:00.000Z'
+const timePoint2025 = '2025-01-01T00:00:00.000Z'
+
 const basePlotSelections = {
   productRunId: 'run-1',
   indicatorIds: ['indicator-1'],
   geometryOutputIds: ['geometry-1'],
-  timePoints: ['2024'],
+  timePoints: [timePoint2024],
 }
 
 const issuesFor = (
@@ -55,7 +58,7 @@ describe('chartConfigurationSchema', () => {
         type: 'plot',
         subType: 'line',
         ...basePlotSelections,
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -64,7 +67,7 @@ describe('chartConfigurationSchema', () => {
         type: 'plot',
         subType: 'area',
         ...basePlotSelections,
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -74,7 +77,7 @@ describe('chartConfigurationSchema', () => {
         subType: 'stacked-area',
         ...basePlotSelections,
         indicatorIds: ['indicator-1', 'indicator-2'],
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -84,7 +87,7 @@ describe('chartConfigurationSchema', () => {
         subType: 'stacked-bar',
         ...basePlotSelections,
         geometryOutputIds: ['geometry-1', 'geometry-2'],
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -111,7 +114,7 @@ describe('chartConfigurationSchema', () => {
         type: 'plot',
         subType: 'dot',
         ...basePlotSelections,
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -129,7 +132,7 @@ describe('chartConfigurationSchema', () => {
         type: 'map',
         productRunId: 'run-1',
         indicatorId: 'indicator-1',
-        timePoint: '2024',
+        timePoint: timePoint2024,
         geometryOutputIds: ['geometry-1'],
       },
     ],
@@ -139,7 +142,7 @@ describe('chartConfigurationSchema', () => {
         type: 'table',
         ...basePlotSelections,
         indicatorIds: ['indicator-1', 'indicator-2'],
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
         xDimension: 'indicatorName',
         yDimension: 'timePoint',
       },
@@ -150,12 +153,59 @@ describe('chartConfigurationSchema', () => {
         type: 'kpi',
         productRunId: 'run-1',
         indicatorId: 'indicator-1',
-        timePoint: '2024',
+        timePoint: timePoint2024,
         geometryOutputIds: ['geometry-1'],
       },
     ],
   ])('accepts %s chart configurations', (_label, chart) => {
-    expect(chartConfigurationSchema.parse(chart)).toMatchObject(chart)
+    const parsed = chartConfigurationSchema.parse(chart)
+
+    expect(parsed).toMatchObject({
+      productRunId: chart.productRunId,
+      type: chart.type,
+    })
+  })
+
+  it('normalizes ISO chart time values to UTC ISO datetimes', () => {
+    const parsedPlot = chartConfigurationSchema.parse({
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: ['2024-01-01T00:00:00Z', '2024-05-20T00:00:00Z'],
+    })
+    const parsedMap = chartConfigurationSchema.parse({
+      type: 'map',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024-05-01T00:00:00Z',
+      geometryOutputIds: ['geometry-1'],
+    })
+
+    expect(parsedPlot).toMatchObject({
+      timePoints: ['2024-01-01T00:00:00.000Z', '2024-05-20T00:00:00.000Z'],
+    })
+    expect(parsedMap).toMatchObject({
+      timePoint: '2024-05-01T00:00:00.000Z',
+    })
+  })
+
+  it('rejects invalid chart time values', () => {
+    const result = chartConfigurationSchema.safeParse({
+      type: 'kpi',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024',
+      geometryOutputIds: ['geometry-1'],
+    })
+
+    expect(issuesFor(result)).toEqual([
+      {
+        path: 'timePoint',
+        message: 'Invalid ISO datetime',
+      },
+    ])
   })
 
   it('strips deprecated productId fields from persisted chart output', () => {
@@ -175,7 +225,7 @@ describe('chartConfigurationSchema', () => {
       subType: 'donut',
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     })
 
     expect(issuesFor(result)).toEqual([
@@ -198,7 +248,7 @@ describe('chartConfigurationSchema', () => {
       subType: 'ranked-bar',
       ...basePlotSelections,
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     })
 
     expect(issuesFor(result)).toEqual([
@@ -222,7 +272,7 @@ describe('chartConfigurationSchema', () => {
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     })
 
     expect(issuesFor(result)).toEqual([
@@ -273,7 +323,7 @@ describe('chartConfigurationSchema', () => {
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
       xDimension: 'timePoint',
       yDimension: 'indicatorName',
     })
@@ -292,7 +342,7 @@ describe('chartConfigurationSchema', () => {
       type: 'table',
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
       xDimension: 'indicatorName',
       yDimension: 'geometryOutputName',
     })
@@ -311,14 +361,14 @@ describe('chartConfigurationSchema', () => {
       type: 'kpi',
       productRunId: 'run-1',
       indicatorId: 'indicator-1',
-      timePoint: '2024',
+      timePoint: timePoint2024,
       geometryOutputIds: [],
     })
     const tooManyGeometries = chartConfigurationSchema.safeParse({
       type: 'kpi',
       productRunId: 'run-1',
       indicatorId: 'indicator-1',
-      timePoint: '2024',
+      timePoint: timePoint2024,
       geometryOutputIds: ['geometry-1', 'geometry-2'],
     })
 
@@ -568,7 +618,7 @@ describe('extractChartIndicatorSelection', () => {
         type: 'map',
         productRunId: 'run-1',
         indicatorId: 'indicator-1',
-        timePoint: '2024',
+        timePoint: timePoint2024,
       }),
     ).toEqual({
       productRunId: 'run-1',
@@ -585,7 +635,7 @@ describe('explicit indicator requirements', () => {
         subType: 'line',
         productRunId: 'run-1',
         geometryOutputIds: ['geometry-1'],
-        timePoints: ['2024'],
+        timePoints: [timePoint2024],
       }).success,
     ).toBe(false)
 
@@ -596,7 +646,7 @@ describe('explicit indicator requirements', () => {
         xDimension: 'timePoint',
         yDimension: 'indicatorName',
         geometryOutputIds: ['geometry-1'],
-        timePoints: ['2024'],
+        timePoints: [timePoint2024],
       }).success,
     ).toBe(false)
   })
@@ -654,7 +704,7 @@ describe('reportTiptapDocumentSchema', () => {
                       type: 'kpi',
                       productRunId: 'run-2',
                       indicatorId: 'indicator-2',
-                      timePoint: '2024',
+                      timePoint: timePoint2024,
                       geometryOutputIds: ['geometry-2'],
                     },
                   },
@@ -734,7 +784,7 @@ describe('reportTiptapDocumentSchema', () => {
               subType: 'donut',
               ...basePlotSelections,
               indicatorIds: ['indicator-1', 'indicator-2'],
-              timePoints: ['2024', '2025'],
+              timePoints: [timePoint2024, timePoint2025],
             },
           },
         },

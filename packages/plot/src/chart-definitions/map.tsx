@@ -38,6 +38,7 @@ function mapOutputsQuery(
   if (chart.type !== 'map') return null
   return {
     indicatorId: chart.indicatorId,
+    geometryOutputId: chart.geometryOutputIds,
     timePoint: chart.timePoint,
   }
 }

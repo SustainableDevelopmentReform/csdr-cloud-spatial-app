@@ -398,6 +398,7 @@ export type AuthType = {
   session: AppSession | null
   activeMember: AppMember | null
   activeOrganizationId: string | null
+  accessLogDetails?: Record<string, unknown>
   requestActor: RequestActor | null
   requestId: string
 }

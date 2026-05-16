@@ -88,6 +88,9 @@ export type ChartType = 'plot' | 'map' | 'table' | 'kpi'
 export type PlotGroupBy = 'geometryOutputName' | 'indicatorName' | 'timePoint'
 
 const MAX_CLASSES = 100
+const chartTimePointSchema = z.iso
+  .datetime()
+  .transform((timePoint) => new Date(timePoint).toISOString())
 
 export const appearanceConfigSchema = z
   .object({
@@ -169,7 +172,7 @@ const multiSeriesSelectionSchema = baseChartConfigurationSchema.extend({
       `At most ${MAX_CLASSES} boundary features can be selected`,
     )
     .optional(),
-  timePoints: z.array(z.string()).optional(),
+  timePoints: z.array(chartTimePointSchema).optional(),
 })
 
 export const plotChartConfigurationSchema = multiSeriesSelectionSchema
@@ -283,7 +286,7 @@ export const mapChartConfigurationSchema = baseChartConfigurationSchema
     indicatorId: z.string().openapi({
       description: 'Map charts require exactly one indicator selection.',
     }),
-    timePoint: z.string().openapi({
+    timePoint: chartTimePointSchema.openapi({
       description: 'Map charts require exactly one time point selection.',
     }),
     geometryOutputIds: z
@@ -308,7 +311,7 @@ export const kpiChartConfigurationSchema = baseChartConfigurationSchema
     indicatorId: z.string().openapi({
       description: 'KPI cards require exactly one indicator selection.',
     }),
-    timePoint: z.string().openapi({
+    timePoint: chartTimePointSchema.openapi({
       description: 'KPI cards require exactly one time point selection.',
     }),
     geometryOutputIds: z
