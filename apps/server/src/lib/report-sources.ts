@@ -95,6 +95,24 @@ const productSourceQuery = {
   },
 } as const
 
+const sourceUsageQuery = {
+  columns: {
+    productRunId: true,
+    derivedIndicatorId: true,
+  },
+  with: {
+    productRun: productSourceQuery,
+  },
+} satisfies {
+  columns: {
+    productRunId: true
+    derivedIndicatorId: true
+  }
+  with: {
+    productRun: typeof productSourceQuery
+  }
+}
+
 const appendProduct = (
   products: Map<string, ProductSourceRecord>,
   record: ProductSourceRecord | null | undefined,
@@ -209,45 +227,7 @@ export const deriveReportSources = async (
 ): Promise<ReportSource[]> => {
   const usages = await dbOrTx.query.reportIndicatorUsage.findMany({
     where: (table, { eq }) => eq(table.reportId, reportId),
-    columns: {
-      productRunId: true,
-      derivedIndicatorId: true,
-    },
-    with: {
-      productRun: {
-        columns: {
-          id: true,
-        },
-        with: {
-          product: {
-            columns: {
-              id: true,
-              name: true,
-              description: true,
-              createdAt: true,
-            },
-            with: {
-              dataset: {
-                columns: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  createdAt: true,
-                },
-              },
-              geometries: {
-                columns: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  createdAt: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    ...sourceUsageQuery,
   })
 
   return deriveSourcesFromUsages(dbOrTx, usages)
@@ -259,45 +239,7 @@ export const deriveDashboardSources = async (
 ): Promise<ReportSource[]> => {
   const usages = await dbOrTx.query.dashboardIndicatorUsage.findMany({
     where: (table, { eq }) => eq(table.dashboardId, dashboardId),
-    columns: {
-      productRunId: true,
-      derivedIndicatorId: true,
-    },
-    with: {
-      productRun: {
-        columns: {
-          id: true,
-        },
-        with: {
-          product: {
-            columns: {
-              id: true,
-              name: true,
-              description: true,
-              createdAt: true,
-            },
-            with: {
-              dataset: {
-                columns: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  createdAt: true,
-                },
-              },
-              geometries: {
-                columns: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  createdAt: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    ...sourceUsageQuery,
   })
 
   return deriveSourcesFromUsages(dbOrTx, usages)

@@ -1,4 +1,5 @@
 import { expect } from 'vitest'
+import { seededIds, type AppClient } from './integration'
 
 export type JsonResponse<T> = {
   statusCode: number
@@ -96,4 +97,81 @@ export const expectJsonResponse = async <T>(
   }
 
   return json
+}
+
+export const createChartUsageArtifacts = async (
+  client: AppClient,
+  resourceLabel: string,
+) => {
+  const reportJson = await expectJsonResponse<{ id: string }>(
+    await client.api.v0.report.$post({
+      json: {
+        name: `${resourceLabel} usage report`,
+      },
+    }),
+    {
+      status: 201,
+      message: 'Report created',
+    },
+  )
+
+  await expectJsonResponse(
+    await client.api.v0.report[':id'].$patch({
+      param: { id: reportJson.data.id },
+      json: {
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'chart',
+              attrs: {
+                chart: {
+                  type: 'plot',
+                  subType: 'line',
+                  productRunId: seededIds.productRun,
+                  indicatorIds: [seededIds.indicator],
+                  geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+                  timePoints: ['2021-01-01T00:00:00.000Z'],
+                },
+              },
+            },
+          ],
+        },
+      },
+    }),
+    {
+      status: 200,
+      message: 'Report updated',
+    },
+  )
+
+  const dashboardJson = await expectJsonResponse<{ id: string }>(
+    await client.api.v0.dashboard.$post({
+      json: {
+        name: `${resourceLabel} usage dashboard`,
+        content: {
+          charts: {
+            primary: {
+              type: 'plot',
+              subType: 'line',
+              productRunId: seededIds.productRun,
+              indicatorIds: [seededIds.indicator],
+              geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
+              timePoints: ['2021-01-01T00:00:00.000Z'],
+            },
+          },
+          layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
+        },
+      },
+    }),
+    {
+      status: 201,
+      message: 'Dashboard created',
+    },
+  )
+
+  return {
+    reportId: reportJson.data.id,
+    dashboardId: dashboardJson.data.id,
+  }
 }

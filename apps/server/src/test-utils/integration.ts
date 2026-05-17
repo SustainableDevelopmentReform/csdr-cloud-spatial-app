@@ -57,7 +57,7 @@ type IntegrationTestModules = {
   db: DbModule['db']
 }
 
-type AppClient = ReturnType<typeof hc<ApiRoutesType>>
+export type AppClient = ReturnType<typeof hc<ApiRoutesType>>
 
 const createTypedAppClient = (
   app: ApiRoutesType,

@@ -1,4 +1,9 @@
-import { createRoute, z } from '@hono/zod-openapi'
+import { createRoute } from '@hono/zod-openapi'
+import {
+  auditLogListResponseSchema,
+  auditLogQuerySchema,
+  type AuditLogQuery,
+} from '@repo/schemas/audit-log'
 import { and, desc, eq, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
 import { authMiddleware } from '~/middlewares/auth'
 import { db } from '~/lib/db'
@@ -18,45 +23,7 @@ import {
 } from '~/lib/auth/access-log'
 import { requireSuperAdminActor } from '~/lib/auth/policy'
 
-const logQuerySchema = z.object({
-  page: z.coerce.number().positive().optional(),
-  size: z.coerce.number().positive().optional(),
-  resourceType: z.string().optional(),
-  action: z.string().optional(),
-  search: z.string().optional(),
-  decision: z.enum(['allow', 'deny']).optional(),
-  requestKind: z.enum(['mutating', 'read']).optional(),
-})
-
-const logEntrySchema = z.object({
-  id: z.string(),
-  createdAt: z.iso.datetime(),
-  actorUserId: z.string().nullable(),
-  actorUser: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      email: z.string(),
-    })
-    .nullable(),
-  actorRole: z.string().nullable(),
-  activeOrganizationId: z.string().nullable(),
-  targetOrganizationId: z.string().nullable(),
-  resourceType: z.string(),
-  resourceId: z.string().nullable(),
-  action: z.string(),
-  decision: z.string(),
-  requestPath: z.string(),
-  requestMethod: z.string(),
-  ipAddress: z.string().nullable(),
-  userAgent: z.string().nullable(),
-  details: z.any().nullable(),
-})
-
-const buildAuditLogFilters = (
-  organizationId: string,
-  query: z.infer<typeof logQuerySchema>,
-) =>
+const buildAuditLogFilters = (organizationId: string, query: AuditLogQuery) =>
   and(
     excludeGetSessionAuditLogs(),
     eq(auditLog.targetOrganizationId, organizationId),
@@ -69,9 +36,7 @@ const buildAuditLogFilters = (
     buildRequestKindFilter(query.requestKind),
   )
 
-const buildSuperAdminAuditLogFilters = (
-  query: z.infer<typeof logQuerySchema>,
-) =>
+const buildSuperAdminAuditLogFilters = (query: AuditLogQuery) =>
   and(
     excludeGetSessionAuditLogs(),
     isNull(auditLog.targetOrganizationId),
@@ -123,9 +88,7 @@ const buildAuditLogSearchFilter = (search: string | undefined) => {
   )
 }
 
-const buildRequestKindFilter = (
-  requestKind: z.infer<typeof logQuerySchema>['requestKind'],
-) => {
+const buildRequestKindFilter = (requestKind: AuditLogQuery['requestKind']) => {
   if (requestKind === 'mutating') {
     return inArray(auditLog.requestMethod, ['POST', 'PUT', 'PATCH', 'DELETE'])
   }
@@ -150,7 +113,7 @@ const app = createOpenAPIApp()
       path: '/audit/super-admin',
       description: 'List super-admin audit logs without a target organization.',
       request: {
-        query: logQuerySchema,
+        query: auditLogQuerySchema,
       },
       responses: {
         200: {
@@ -158,13 +121,7 @@ const app = createOpenAPIApp()
             'List super-admin audit logs without a target organization.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  pageCount: z.number().int(),
-                  totalCount: z.number().int(),
-                  data: z.array(logEntrySchema),
-                }),
-              ),
+              schema: createResponseSchema(auditLogListResponseSchema),
             },
           },
         },
@@ -255,20 +212,14 @@ const app = createOpenAPIApp()
       description: 'List organization-scoped audit logs.',
       middleware: [authMiddleware({ permission: 'read:auditLog' })],
       request: {
-        query: logQuerySchema,
+        query: auditLogQuerySchema,
       },
       responses: {
         200: {
           description: 'List organization-scoped audit logs.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  pageCount: z.number().int(),
-                  totalCount: z.number().int(),
-                  data: z.array(logEntrySchema),
-                }),
-              ),
+              schema: createResponseSchema(auditLogListResponseSchema),
             },
           },
         },

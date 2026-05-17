@@ -908,7 +908,7 @@ export const fullReportSchema = baseReportSchema
   })
   .openapi('ReportSchemaFull')
 
-export const reportQuerySchema = geographicBoundsQuerySchema.extend({
+const presentationResourceQuerySchema = geographicBoundsQuerySchema.extend({
   indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
   productId: z.union([z.string(), z.array(z.string())]).optional(),
   productRunId: z.string().optional(),
@@ -917,6 +917,8 @@ export const reportQuerySchema = geographicBoundsQuerySchema.extend({
   geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
   geometriesRunId: z.string().optional(),
 })
+
+export const reportQuerySchema = presentationResourceQuerySchema
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
   content: reportStoredContentSchema.nullable().optional(),
@@ -970,15 +972,7 @@ export const fullDashboardSchema = baseDashboardSchema
   })
   .openapi('DashboardSchemaFull')
 
-export const dashboardQuerySchema = geographicBoundsQuerySchema.extend({
-  indicatorId: z.union([z.string(), z.array(z.string())]).optional(),
-  productId: z.union([z.string(), z.array(z.string())]).optional(),
-  productRunId: z.string().optional(),
-  datasetId: z.union([z.string(), z.array(z.string())]).optional(),
-  datasetRunId: z.string().optional(),
-  geometriesId: z.union([z.string(), z.array(z.string())]).optional(),
-  geometriesRunId: z.string().optional(),
-})
+export const dashboardQuerySchema = presentationResourceQuerySchema
 export const createDashboardSchema = baseCreateResourceSchema.extend({
   content: dashboardContentSchema,
 })

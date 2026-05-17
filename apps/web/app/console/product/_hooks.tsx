@@ -16,11 +16,14 @@ import {
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/api-client'
 import { getSearchParams } from '~/utils/browser'
-import { mergePaginatedInfiniteData } from '../../../hooks/merge-paginated-infinite-data'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
 import { useApiClient } from '../../../hooks/use-api-client'
 import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import {
@@ -241,18 +244,11 @@ export const useProducts = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled ?? true,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -298,18 +294,11 @@ export const useProductRuns = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: !!productId,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -357,18 +346,11 @@ export const useProductOutputs = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: !!productRun,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,

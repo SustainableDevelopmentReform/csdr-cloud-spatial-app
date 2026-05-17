@@ -1,64 +1,32 @@
 'use client'
 
+import {
+  auditLogListResponseSchema,
+  auditLogQuerySchema,
+  auditLogResponseSchema,
+  type AuditLogEntry,
+  type AuditLogListResponse,
+  type AuditLogQuery,
+} from '@repo/schemas/audit-log'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { z } from 'zod'
 import { useConfig } from '~/components/providers'
-import { mergePaginatedInfiniteData } from '~/hooks/merge-paginated-infinite-data'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '~/hooks/merge-paginated-infinite-data'
 import { useApiClient } from '~/hooks/use-api-client'
 import { unwrapResponse } from '~/utils/api-client'
-
-export const logPageQuerySchema = z.object({
-  decision: z.enum(['allow', 'deny']).optional(),
-  page: z.coerce.number().positive().optional(),
-  requestKind: z.enum(['mutating', 'read']).optional(),
-  search: z.string().optional(),
-  size: z.coerce.number().positive().optional(),
-})
-
-export type LogPageQuery = z.infer<typeof logPageQuerySchema>
-
-const logEntrySchema = z.object({
-  id: z.string(),
-  createdAt: z.string(),
-  actorUserId: z.string().nullable(),
-  actorUser: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      email: z.string(),
-    })
-    .nullable(),
-  actorRole: z.string().nullable(),
-  activeOrganizationId: z.string().nullable(),
-  targetOrganizationId: z.string().nullable(),
-  resourceType: z.string(),
-  resourceId: z.string().nullable(),
-  action: z.string(),
-  decision: z.string(),
-  requestPath: z.string(),
-  requestMethod: z.string(),
-  ipAddress: z.string().nullable(),
-  userAgent: z.string().nullable(),
-  details: z.unknown().nullable(),
-})
-
-const logListResponseSchema = z.object({
-  pageCount: z.number().int(),
-  totalCount: z.number().int(),
-  data: z.array(logEntrySchema),
-})
-
-const logResponseSchema = z.object({
-  data: logListResponseSchema,
-})
 
 const errorResponseSchema = z.object({
   message: z.string().optional(),
 })
 
-export type LogListResponse = z.infer<typeof logListResponseSchema>
-export type LogEntry = LogListResponse['data'][number]
+export const logPageQuerySchema = auditLogQuerySchema
+
+export type LogPageQuery = AuditLogQuery
+export type LogListResponse = AuditLogListResponse
+export type LogEntry = AuditLogEntry
 
 const logQueryKeys = {
   audit: (organizationId: string | null, query: LogPageQuery | undefined) =>
@@ -137,21 +105,14 @@ export const useAuditLogs = (
         }),
       )
 
-      return logListResponseSchema.parse(response.data)
+      return auditLogListResponseSchema.parse(response.data)
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -190,21 +151,14 @@ export const useSuperAdminAuditLogs = (
         )
       }
 
-      return logResponseSchema.parse(payload).data
+      return auditLogResponseSchema.parse(payload).data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,

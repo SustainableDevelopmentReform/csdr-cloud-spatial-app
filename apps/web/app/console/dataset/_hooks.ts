@@ -14,12 +14,15 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/api-client'
 import { useParams, useRouter } from 'next/navigation'
 import { useApiClient } from '../../../hooks/use-api-client'
-import { mergePaginatedInfiniteData } from '../../../hooks/merge-paginated-infinite-data'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
 import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import {
   DATASETS_BASE_PATH,
@@ -163,18 +166,11 @@ export const useDatasets = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled ?? true,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -219,18 +215,11 @@ export const useDatasetRuns = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: !!datasetId,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,

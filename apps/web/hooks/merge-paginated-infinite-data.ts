@@ -1,11 +1,25 @@
 'use client'
 
 import { InfiniteData } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 type PaginatedShape<TItem> = {
   data: TItem[]
   pageCount: number
   totalCount: number
+}
+
+type PaginatedPage = {
+  pageCount: number
+}
+
+export const getNextPaginatedPageParam = <TPage extends PaginatedPage>(
+  lastPage: TPage | undefined,
+  allPages: TPage[],
+): number | undefined => {
+  if (!lastPage) return undefined
+  const nextPage = allPages.length + 1
+  return nextPage <= lastPage.pageCount ? nextPage : undefined
 }
 
 /**
@@ -38,3 +52,11 @@ export const mergePaginatedInfiniteData = <
     }
   }, undefined)
 }
+
+export const useMergedPaginatedInfiniteData = <
+  TItem,
+  TResponse extends PaginatedShape<TItem>,
+>(
+  infiniteData: InfiniteData<TResponse> | undefined,
+): TResponse | undefined =>
+  useMemo(() => mergePaginatedInfiniteData(infiniteData), [infiniteData])

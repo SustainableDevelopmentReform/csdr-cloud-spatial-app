@@ -3,9 +3,11 @@
 import { dataLibraryQuerySchema } from '@repo/schemas/crud'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { InferResponseType } from 'hono/client'
-import { useMemo } from 'react'
 import { z } from 'zod'
-import { mergePaginatedInfiniteData } from '~/hooks/merge-paginated-infinite-data'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '~/hooks/merge-paginated-infinite-data'
 import { useApiClient } from '~/hooks/use-api-client'
 import { useQueryWithSearchParams } from '~/hooks/use-search-params'
 import { Client, unwrapResponse } from '~/utils/api-client'
@@ -49,17 +51,10 @@ export const useDataLibrary = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,

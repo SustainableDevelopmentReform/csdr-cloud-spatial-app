@@ -16,12 +16,15 @@ import {
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/api-client'
 import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/use-api-client'
-import { mergePaginatedInfiniteData } from '../../../hooks/merge-paginated-infinite-data'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
 import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import {
   GEOMETRIES_BASE_PATH,
@@ -237,18 +240,11 @@ export const useAllGeometries = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled ?? true,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -293,18 +289,11 @@ export const useGeometriesRuns = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: !!geometriesId,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -355,18 +344,11 @@ export const useGeometryOutputs = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled && !!geometriesRun,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,

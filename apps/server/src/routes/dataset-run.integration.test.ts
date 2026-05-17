@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { seededIds, setupIsolatedTestFile } from '~/test-utils/integration'
 import {
+  createChartUsageArtifacts,
   expectBoundsToMatch,
   expectJsonResponse,
   seededMainlandBounds,
@@ -29,77 +30,8 @@ beforeEach(async () => {
 })
 
 describe('dataset-run route', () => {
-  const createUsageArtifacts = async () => {
-    const reportJson = await expectJsonResponse<{ id: string }>(
-      await adminClient.api.v0.report.$post({
-        json: {
-          name: 'Dataset run usage report',
-        },
-      }),
-      {
-        status: 201,
-        message: 'Report created',
-      },
-    )
-
-    await expectJsonResponse(
-      await adminClient.api.v0.report[':id'].$patch({
-        param: { id: reportJson.data.id },
-        json: {
-          content: {
-            type: 'doc',
-            content: [
-              {
-                type: 'chart',
-                attrs: {
-                  chart: {
-                    type: 'plot',
-                    subType: 'line',
-                    productRunId: seededIds.productRun,
-                    indicatorIds: [seededIds.indicator],
-                    geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
-                    timePoints: ['2021-01-01T00:00:00.000Z'],
-                  },
-                },
-              },
-            ],
-          },
-        },
-      }),
-      {
-        status: 200,
-        message: 'Report updated',
-      },
-    )
-
-    await expectJsonResponse(
-      await adminClient.api.v0.dashboard.$post({
-        json: {
-          name: 'Dataset run usage dashboard',
-          content: {
-            charts: {
-              primary: {
-                type: 'plot',
-                subType: 'line',
-                productRunId: seededIds.productRun,
-                indicatorIds: [seededIds.indicator],
-                geometryOutputIds: [seededIds.tasmaniaGeometryOutput],
-                timePoints: ['2021-01-01T00:00:00.000Z'],
-              },
-            },
-            layout: [{ i: 'primary', x: 0, y: 0, w: 4, h: 3 }],
-          },
-        },
-      }),
-      {
-        status: 201,
-        message: 'Dashboard created',
-      },
-    )
-  }
-
   it('returns read responses with expected messages', async () => {
-    await createUsageArtifacts()
+    await createChartUsageArtifacts(adminClient, 'Dataset run')
 
     await expectJsonResponse(
       await createAppClient().api.v0['dataset-run'][':id'].$get({
