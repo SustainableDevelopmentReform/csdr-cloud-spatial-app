@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Button } from '@repo/ui/components/ui/button'
 import Link from '~/components/link'
-import { getUserServerSession } from '~/utils/getUserServerSession'
+import { getUserServerSession } from '~/utils/get-user-server-session'
 import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {

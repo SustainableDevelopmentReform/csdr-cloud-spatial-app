@@ -29,8 +29,8 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
-import { useAuthClient } from '~/hooks/useAuthClient'
-import { QueryKey } from '~/utils/apiClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
+import { QueryKey } from '~/utils/api-client'
 import {
   formatGlobalUserRole,
   globalUserRoleSchema,
@@ -46,7 +46,7 @@ import {
 } from '@repo/ui/components/ui/select'
 import { DeleteAlertDialog } from '~/components/form/delete-alert-dialog'
 import { USERS_BASE_PATH } from '~/lib/paths'
-import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
+import { useUnsavedChangesWarning } from '~/hooks/use-unsaved-changes-warning'
 
 const formSchema = z.object({
   name: z.string({ message: 'Name is required' }).min(1, 'Name is required'),

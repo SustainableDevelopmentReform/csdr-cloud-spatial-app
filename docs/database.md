@@ -22,7 +22,7 @@ CI runs the backend migration test suite, including:
 Run locally with:
 
 ```bash
-pnpm --filter @repo/server exec vitest run src/__tests__/migrations.integration.test.ts
+pnpm --filter @repo/server exec vitest run drizzle/migrations.integration.test.ts
 ```
 
 ## Production Execution Contract

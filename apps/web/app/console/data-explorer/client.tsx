@@ -5,9 +5,9 @@ import { createDashboardSchema } from '@repo/schemas/crud'
 import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import CrudFormDialog from '../../../components/form/crud-form-dialog'
-import { useAccessControl } from '../../../hooks/useAccessControl'
-import { useIsHydrated } from '../../../hooks/useIsHydrated'
-import { useUnsavedChangesWarning } from '../../../hooks/useUnsavedChangesWarning'
+import { useAccessControl } from '../../../hooks/use-access-control'
+import { useIsHydrated } from '../../../hooks/use-is-hydrated'
+import { useUnsavedChangesWarning } from '../../../hooks/use-unsaved-changes-warning'
 import DashboardGridEditor, {
   createEmptyDashboardContent,
 } from '../dashboard/_components/dashboard-grid-editor'

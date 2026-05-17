@@ -53,7 +53,7 @@ import {
 import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import { ReportSources } from '~/app/console/report/_components/report-sources'
 import { DeleteAlertDialog } from '~/components/form/delete-alert-dialog'
-import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
+import { useUnsavedChangesWarning } from '~/hooks/use-unsaved-changes-warning'
 import { DASHBOARDS_BASE_PATH } from '~/lib/paths'
 import {
   canChangeConsoleResourceVisibility,
@@ -82,7 +82,7 @@ import {
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../hooks/useAccessControl'
+} from '../../../../hooks/use-access-control'
 import { DashboardBreadcrumbs } from '../_components/breadcrumbs'
 
 type DashboardTab = 'overview' | 'sources'

@@ -17,7 +17,7 @@ import { UseMutationResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
-import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning'
+import { useUnsavedChangesWarning } from '../../hooks/use-unsaved-changes-warning'
 import { CrudFormAction, FormAction } from './crud-form-action'
 
 interface CrudFormConfig<

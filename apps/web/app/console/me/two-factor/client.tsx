@@ -2,7 +2,7 @@
 
 import { Badge } from '@repo/ui/components/ui/badge'
 import { ShieldCheckIcon, ShieldOffIcon } from 'lucide-react'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import TwoFactorButton from '../../_components/two-factor-dialog'
 
 const TwoFactorPageClient = () => {

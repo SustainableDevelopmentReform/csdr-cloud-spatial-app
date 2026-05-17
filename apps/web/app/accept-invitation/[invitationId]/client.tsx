@@ -3,7 +3,7 @@
 import { Button } from '@repo/ui/components/ui/button'
 import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 

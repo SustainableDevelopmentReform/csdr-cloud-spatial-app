@@ -27,7 +27,7 @@ import {
 } from '~/app/console/_components/resource-detail-mode'
 import { Value } from '../../../../../components/value'
 import { CrudForm } from '../../../../../components/form/crud-form'
-import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import { useAccessControl } from '../../../../../hooks/use-access-control'
 import { PRODUCTS_RUNS_OUTPUTS_BASE_PATH } from '../../../../../lib/paths'
 import { canManageConsoleChildResource } from '../../../../../utils/access-control'
 import { toastError } from '../../../../../utils/error-handling'

@@ -5,12 +5,12 @@ import { auth, type AuthType } from '~/lib/auth'
 import {
   appOrganizationRoleValues,
   getHighestOrganizationRole,
-} from '~/lib/access-control'
+} from '~/lib/auth/access-control'
 import {
   persistAccessLog,
   shouldPersistDeniedDecisionLog,
-} from '~/lib/access-log'
-import { sendOrganizationInvitationEmail } from '~/lib/auth-email'
+} from '~/lib/auth/access-log'
+import { sendOrganizationInvitationEmail } from '~/lib/auth/email'
 import { db } from '~/lib/db'
 import { env } from '~/env'
 import { ServerError } from '~/lib/error'
@@ -22,11 +22,11 @@ import {
 } from '~/lib/openapi'
 import { generateJsonResponse } from '~/lib/response'
 import {
-  type RequestActor,
-  requireActiveOrganization,
-  requireAuthenticatedActor,
-  requireMfaIfNeeded,
-} from '~/lib/request-actor'
+  ensureOrgAdminFloor,
+  requireSuperAdminActor,
+  resolveSuperAdminOrganizationId,
+} from '~/lib/auth/policy'
+import type { RequestActor } from '~/lib/auth/request-actor'
 import { invitation, member, organization, session, user } from '~/schemas/db'
 
 const organizationSchema = z.object({
@@ -154,7 +154,7 @@ const runLoggedSuperAdminAction = async <TResponse extends Response>(options: {
   }
 
   try {
-    const actor = requireSuperAdmin(options.c)
+    const actor = requireSuperAdminActor(options.c.get('requestActor'))
     const response = await options.run(actor, logContext)
 
     await persistAccessLog({
@@ -187,78 +187,6 @@ const runLoggedSuperAdminAction = async <TResponse extends Response>(options: {
     }
 
     throw error
-  }
-}
-
-const requireSuperAdmin = (c: AppContext) => {
-  const actor = requireAuthenticatedActor(c.get('requestActor'))
-
-  if (!actor.isSuperAdmin) {
-    throw new ServerError({
-      statusCode: 403,
-      message: 'User is not authorized',
-    })
-  }
-
-  requireMfaIfNeeded(actor)
-
-  return actor
-}
-
-const resolveSuperAdminOrganizationId = async (options: {
-  actor: ReturnType<typeof requireSuperAdmin>
-  organizationId: string | undefined
-}) => {
-  const organizationId =
-    options.organizationId ?? requireActiveOrganization(options.actor)
-  const currentOrganization = await loadOrganizationSummary(organizationId)
-
-  return currentOrganization.id
-}
-
-const ensureOrgAdminFloor = async (options: {
-  memberId: string
-  nextRole: string | null
-  organizationId: string
-}) => {
-  const organizationMembers = await db.query.member.findMany({
-    columns: {
-      id: true,
-      role: true,
-    },
-    where: (table, { eq }) => eq(table.organizationId, options.organizationId),
-  })
-
-  const currentMember = organizationMembers.find(
-    (currentMember) => currentMember.id === options.memberId,
-  )
-
-  if (!currentMember) {
-    throw new ServerError({
-      statusCode: 404,
-      message: 'Member not found',
-    })
-  }
-
-  if (getHighestOrganizationRole(currentMember.role) !== 'org_admin') {
-    return
-  }
-
-  if (getHighestOrganizationRole(options.nextRole) === 'org_admin') {
-    return
-  }
-
-  const orgAdminCount = organizationMembers.filter(
-    (currentMember) =>
-      getHighestOrganizationRole(currentMember.role) === 'org_admin',
-  ).length
-
-  if (orgAdminCount <= 1) {
-    throw new ServerError({
-      statusCode: 400,
-      message:
-        'An organization must keep at least one org admin. Promote another org admin before removing or demoting this member.',
-    })
   }
 }
 

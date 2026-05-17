@@ -16,7 +16,7 @@ import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-
 import BaseCrudTable from '../../../../../components/table/crud-table'
 import { TableRowDeleteAction } from '../../../../../components/table/table-row-delete-action'
 import { SearchInput } from '../../../../../components/table/search-input'
-import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import { useAccessControl } from '../../../../../hooks/use-access-control'
 import { ConsoleCrudListFrame } from '../../../_components/console-crud-list-frame'
 import { getEditModeHref } from '../../../_components/resource-detail-mode'
 import {

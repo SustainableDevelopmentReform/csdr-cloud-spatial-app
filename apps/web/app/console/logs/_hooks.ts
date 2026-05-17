@@ -4,9 +4,9 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { z } from 'zod'
 import { useConfig } from '~/components/providers'
-import { mergePaginatedInfiniteData } from '~/hooks/mergePaginatedInfiniteData'
-import { useApiClient } from '~/hooks/useApiClient'
-import { unwrapResponse } from '~/utils/apiClient'
+import { mergePaginatedInfiniteData } from '~/hooks/merge-paginated-infinite-data'
+import { useApiClient } from '~/hooks/use-api-client'
+import { unwrapResponse } from '~/utils/api-client'
 
 export const logPageQuerySchema = z.object({
   decision: z.enum(['allow', 'deny']).optional(),

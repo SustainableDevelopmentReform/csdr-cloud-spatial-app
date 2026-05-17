@@ -22,7 +22,7 @@ import { ConsolePageHeader } from '~/app/console/_components/console-page-header
 import { ConsoleSimpleBreadcrumbs } from '~/app/console/_components/console-simple-breadcrumbs'
 import CrudFormDialog from '~/components/form/crud-form-dialog'
 import Table from '~/components/table/table'
-import { useAccessControl } from '~/hooks/useAccessControl'
+import { useAccessControl } from '~/hooks/use-access-control'
 import {
   useAdminOrganizations,
   useCreateOrganization,

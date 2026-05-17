@@ -11,7 +11,7 @@ import {
 } from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { SearchInput } from '../../../components/table/search-input'
-import { useAccessControl } from '../../../hooks/useAccessControl'
+import { useAccessControl } from '../../../hooks/use-access-control'
 import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'

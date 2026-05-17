@@ -3,7 +3,7 @@ import { visibilitySchema } from '@repo/schemas/crud'
 import { inArray, or } from 'drizzle-orm'
 import { db } from './db'
 import { ServerError } from './error'
-import type { AppVisibility } from './access-control'
+import type { AppVisibility } from './auth/access-control'
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type ExternallyVisibleVisibility = Exclude<AppVisibility, 'private'>

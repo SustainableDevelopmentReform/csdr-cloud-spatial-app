@@ -9,7 +9,7 @@ import {
   type ChartDataDimension,
 } from '../chart-core'
 import { getPlotCodeSnippet } from '../Plot'
-import { PlotChart } from '../PlotChart'
+import { PlotChart } from '../plot-chart'
 import {
   defineChart,
   tuple,

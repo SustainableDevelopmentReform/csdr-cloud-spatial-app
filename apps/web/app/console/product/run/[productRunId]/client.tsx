@@ -25,7 +25,7 @@ import {
 import { CrudForm } from '../../../../../components/form/crud-form'
 import { CrudFormAction } from '../../../../../components/form/crud-form-action'
 import { CrudFormRunFields } from '../../../../../components/form/crud-form-run-fields'
-import { useAccessControl } from '../../../../../hooks/useAccessControl'
+import { useAccessControl } from '../../../../../hooks/use-access-control'
 import { PRODUCTS_RUNS_BASE_PATH } from '../../../../../lib/paths'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {

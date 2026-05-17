@@ -15,7 +15,7 @@ import { ArrowLeft, KeyRound, Mail, Smartphone } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { OTPCodeInput } from '~/components/otp-code-input'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import { getAuthErrorMessage } from '~/utils/auth-errors'
 
 interface TwoFactorFormProps {

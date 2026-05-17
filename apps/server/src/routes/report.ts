@@ -14,21 +14,22 @@ import type { Polygon } from 'geojson'
 import {
   buildReportUsageFilters,
   syncReportChartUsages,
-} from '~/lib/chartUsage'
+} from '~/lib/chart-usage'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
+} from '~/lib/auth/authorization'
+import { assertCanGenerateReportPdf } from '~/lib/auth/policy'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
   toResourceBounds,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -223,20 +224,6 @@ const assertReportMutable = (record: { publishedAt: Date | null }) => {
   }
 }
 
-const assertCanGenerateReportPdf = (
-  actor: ReturnType<typeof requireOwnedInsertContext>['actor'],
-) => {
-  if (actor.isSuperAdmin || actor.organizationRole === 'org_admin') {
-    return
-  }
-
-  throw new ServerError({
-    statusCode: 403,
-    message: 'User is not authorized',
-    description: 'Only org admins or super admins can generate report PDFs.',
-  })
-}
-
 const fetchFullReportOrThrow = async (id: string, organizationId: string) => {
   const record = await fetchFullReport(id, organizationId)
 
@@ -271,7 +258,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:report', allowPublicRead: true }),
       ],
       request: {
         query: reportQuerySchema,
@@ -303,7 +290,7 @@ const app = createOpenAPIApp()
       const baseWhere =
         usageFilters.length > 0
           ? and(
-              buildExplorerReadScope(
+              buildResourceListReadScope(
                 c,
                 report.organizationId,
                 report.visibility,
@@ -312,7 +299,7 @@ const app = createOpenAPIApp()
               buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
             )
           : and(
-              buildExplorerReadScope(
+              buildResourceListReadScope(
                 c,
                 report.organizationId,
                 report.visibility,
@@ -348,7 +335,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:report', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -374,7 +361,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'report',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: reportNotFoundError,
       })
       const record = await fetchFullReportOrThrow(
@@ -718,7 +705,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id/pdf',
       middleware: [
-        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:report', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -744,7 +731,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'report',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: reportNotFoundError,
       })
       const currentRecord = await fetchReportLifecycleRecord(
@@ -918,7 +905,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:report',
-          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -946,7 +932,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'report',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: reportNotFoundError,
       })
       const sourceRecord = await fetchReportLifecycleRecord(

@@ -2,8 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { QueryKey } from '~/utils/apiClient'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { QueryKey } from '~/utils/api-client'
+import { useAuthClient } from '~/hooks/use-auth-client'
 
 export type ApiKey = NonNullable<
   ReturnType<typeof useApiKeys>['data']

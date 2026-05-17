@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useConfig } from '~/components/providers'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import Link from '../../components/link'
 import AuthPageShell from '../_components/auth-page-shell'
 import SignupForm from './_components/form'

@@ -13,7 +13,7 @@ import type { Polygon } from 'geojson'
 import {
   buildDashboardUsageFilters,
   syncDashboardChartUsages,
-} from '~/lib/chartUsage'
+} from '~/lib/chart-usage'
 import {
   assertDashboardDependenciesExternallyVisible,
   getDashboardVisibilityImpact,
@@ -24,16 +24,16 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
+} from '~/lib/auth/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
   toResourceBounds,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -119,7 +119,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:dashboard', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:dashboard', allowPublicRead: true }),
       ],
       request: {
         query: dashboardQuerySchema,
@@ -151,7 +151,7 @@ const app = createOpenAPIApp()
       const baseWhere =
         usageFilters.length > 0
           ? and(
-              buildExplorerReadScope(
+              buildResourceListReadScope(
                 c,
                 dashboard.organizationId,
                 dashboard.visibility,
@@ -159,7 +159,7 @@ const app = createOpenAPIApp()
               ...usageFilters,
               buildGeometryIntersectsFilter(dashboard.bounds, boundsEnvelope),
             )
-          : buildExplorerReadScope(
+          : buildResourceListReadScope(
               c,
               dashboard.organizationId,
               dashboard.visibility,
@@ -201,7 +201,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:dashboard', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:dashboard', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -227,7 +227,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'dashboard',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: dashboardNotFoundError,
       })
       const record = await fetchFullDashboardOrThrow(
@@ -545,7 +545,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:dashboard',
-          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -573,7 +572,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'dashboard',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: dashboardNotFoundError,
       })
       const sourceRecord = await fetchFullDashboard(

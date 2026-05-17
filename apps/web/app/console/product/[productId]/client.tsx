@@ -35,7 +35,7 @@ import { WorkflowDagChart } from '../../../../components/workflow-dag-chart'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../hooks/useAccessControl'
+} from '../../../../hooks/use-access-control'
 import { PRODUCTS_BASE_PATH } from '../../../../lib/paths'
 import {
   canChangeConsoleResourceVisibility,

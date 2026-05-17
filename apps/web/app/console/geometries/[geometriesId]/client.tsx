@@ -35,7 +35,7 @@ import { CrudForm } from '../../../../components/form/crud-form'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../hooks/useAccessControl'
+} from '../../../../hooks/use-access-control'
 import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
 import {
   canChangeConsoleResourceVisibility,

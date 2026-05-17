@@ -20,7 +20,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import Table from '~/components/table/table'
 import { TableShell } from '~/components/table/table-shell'
-import { useAccessControl } from '~/hooks/useAccessControl'
+import { useAccessControl } from '~/hooks/use-access-control'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
 import {
@@ -54,12 +54,14 @@ type CandidateUser = NonNullable<
 type OrganizationRole = z.infer<typeof organizationRoleSchema>
 
 const MembersTable = ({
+  canManage,
   data,
   isLoading,
   isRemoving,
   onRemove,
   onUpdateRole,
 }: {
+  canManage: boolean
   data: WorkspaceMember[]
   isLoading: boolean
   isRemoving: boolean
@@ -89,6 +91,10 @@ const MembersTable = ({
         cell: (info) => {
           const member = info.row.original
 
+          if (!canManage) {
+            return formatOrganizationRole(member.role)
+          }
+
           return (
             <Select
               value={member.role}
@@ -115,25 +121,29 @@ const MembersTable = ({
         },
         size: 190,
       },
-      {
-        id: 'action',
-        header: () => <span></span>,
-        cell: (info) => (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 text-xs"
-            disabled={isRemoving}
-            onClick={() => onRemove(info.row.original.id)}
-          >
-            Remove
-          </Button>
-        ),
-        size: 120,
-      },
+      ...(canManage
+        ? [
+            {
+              id: 'action',
+              header: () => <span></span>,
+              cell: (info) => (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  disabled={isRemoving}
+                  onClick={() => onRemove(info.row.original.id)}
+                >
+                  Remove
+                </Button>
+              ),
+              size: 120,
+            } satisfies ColumnDef<WorkspaceMember>,
+          ]
+        : []),
     ],
-    [isRemoving, onRemove, onUpdateRole],
+    [canManage, isRemoving, onRemove, onUpdateRole],
   )
   const table = useReactTable({
     data,
@@ -319,6 +329,7 @@ const WorkspacePageClient = () => {
   const { access, activeOrganization } = useAccessControl()
   const activeOrganizationId = activeOrganization.data?.id ?? null
   const hasActiveOrganization = activeOrganization.data !== null
+  const canManageWorkspace = access.isSuperAdmin || access.isOrgAdmin
   const members = useWorkspaceMembers(
     activeOrganizationId,
     hasActiveOrganization,
@@ -326,7 +337,7 @@ const WorkspacePageClient = () => {
   )
   const invitations = useWorkspaceInvitations(
     activeOrganizationId,
-    hasActiveOrganization,
+    hasActiveOrganization && canManageWorkspace,
     access.isSuperAdmin,
   )
   const inviteMember = useInviteWorkspaceMember(
@@ -400,49 +411,53 @@ const WorkspacePageClient = () => {
         </p>
       </div>
 
-      <section className="mb-8 border-b border-gray-200 pb-8">
-        <h2 className="mb-4 text-xl font-medium">Organization settings</h2>
-        {!hasActiveOrganization ? (
-          <div className="text-sm text-gray-500">
-            Select an organization before editing its name.
-          </div>
-        ) : (
-          <div className="grid max-w-xl gap-3">
-            <Input
-              placeholder="Organization name"
-              value={organizationNameDraft}
-              onChange={(event) => setOrganizationNameDraft(event.target.value)}
-            />
-            <Button
-              className="w-fit"
-              disabled={
-                updateOrganization.isPending ||
-                organizationNameDraft.trim() === '' ||
-                organizationNameDraft.trim() === activeOrganization.data?.name
-              }
-              onClick={() => {
-                updateOrganization.mutate(
-                  {
-                    name: organizationNameDraft.trim(),
-                  },
-                  {
-                    onSuccess: () => {
-                      toast.success('Organization updated')
+      {canManageWorkspace ? (
+        <section className="mb-8 border-b border-gray-200 pb-8">
+          <h2 className="mb-4 text-xl font-medium">Organization settings</h2>
+          {!hasActiveOrganization ? (
+            <div className="text-sm text-gray-500">
+              Select an organization before editing its name.
+            </div>
+          ) : (
+            <div className="grid max-w-xl gap-3">
+              <Input
+                placeholder="Organization name"
+                value={organizationNameDraft}
+                onChange={(event) =>
+                  setOrganizationNameDraft(event.target.value)
+                }
+              />
+              <Button
+                className="w-fit"
+                disabled={
+                  updateOrganization.isPending ||
+                  organizationNameDraft.trim() === '' ||
+                  organizationNameDraft.trim() === activeOrganization.data?.name
+                }
+                onClick={() => {
+                  updateOrganization.mutate(
+                    {
+                      name: organizationNameDraft.trim(),
                     },
-                    onError: (error) => {
-                      toast.error(error.message)
+                    {
+                      onSuccess: () => {
+                        toast.success('Organization updated')
+                      },
+                      onError: (error) => {
+                        toast.error(error.message)
+                      },
                     },
-                  },
-                )
-              }}
-            >
-              {updateOrganization.isPending
-                ? 'Saving...'
-                : 'Update organization'}
-            </Button>
-          </div>
-        )}
-      </section>
+                  )
+                }}
+              >
+                {updateOrganization.isPending
+                  ? 'Saving...'
+                  : 'Update organization'}
+              </Button>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <TableShell
         title="Members"
@@ -454,6 +469,7 @@ const WorkspacePageClient = () => {
           </div>
         ) : (
           <MembersTable
+            canManage={canManageWorkspace}
             data={members.data?.members ?? []}
             isLoading={members.isLoading}
             isRemoving={removeMember.isPending}
@@ -574,97 +590,102 @@ const WorkspacePageClient = () => {
         </TableShell>
       ) : null}
 
-      <section className="mb-8 border-b border-gray-200 pb-8">
-        <h2 className="mb-4 text-xl font-medium">Invite member</h2>
-        {!hasActiveOrganization ? (
-          <div className="text-sm text-gray-500">
-            Select an organization before sending invitations.
-          </div>
-        ) : (
-          <div className="grid max-w-xl gap-3">
-            <Input
-              placeholder="colleague@example.com"
-              value={inviteEmail}
-              onChange={(event) => setInviteEmail(event.target.value)}
-            />
-            <Select
-              value={inviteRole}
-              onValueChange={(nextRole) => {
-                const parsedRole = organizationRoleSchema.safeParse(nextRole)
+      {canManageWorkspace ? (
+        <>
+          <section className="mb-8 border-b border-gray-200 pb-8">
+            <h2 className="mb-4 text-xl font-medium">Invite member</h2>
+            {!hasActiveOrganization ? (
+              <div className="text-sm text-gray-500">
+                Select an organization before sending invitations.
+              </div>
+            ) : (
+              <div className="grid max-w-xl gap-3">
+                <Input
+                  placeholder="colleague@example.com"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                />
+                <Select
+                  value={inviteRole}
+                  onValueChange={(nextRole) => {
+                    const parsedRole =
+                      organizationRoleSchema.safeParse(nextRole)
 
-                if (!parsedRole.success) {
-                  return
-                }
+                    if (!parsedRole.success) {
+                      return
+                    }
 
-                setInviteRole(parsedRole.data)
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="org_admin">Org admin</SelectItem>
-                <SelectItem value="org_creator">Org creator</SelectItem>
-                <SelectItem value="org_viewer">Org viewer</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              className="w-fit"
-              disabled={inviteMember.isPending || inviteEmail.trim() === ''}
-              onClick={() => {
-                inviteMember.mutate(
-                  {
-                    email: inviteEmail.trim(),
-                    role: inviteRole,
-                  },
-                  {
-                    onSuccess: () => {
-                      setInviteEmail('')
-                      setInviteRole('org_viewer')
-                      toast.success('Invitation sent')
+                    setInviteRole(parsedRole.data)
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="org_admin">Org admin</SelectItem>
+                    <SelectItem value="org_creator">Org creator</SelectItem>
+                    <SelectItem value="org_viewer">Org viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  className="w-fit"
+                  disabled={inviteMember.isPending || inviteEmail.trim() === ''}
+                  onClick={() => {
+                    inviteMember.mutate(
+                      {
+                        email: inviteEmail.trim(),
+                        role: inviteRole,
+                      },
+                      {
+                        onSuccess: () => {
+                          setInviteEmail('')
+                          setInviteRole('org_viewer')
+                          toast.success('Invitation sent')
+                        },
+                        onError: (error) => {
+                          toast.error(error.message)
+                        },
+                      },
+                    )
+                  }}
+                >
+                  {inviteMember.isPending ? 'Sending...' : 'Send invitation'}
+                </Button>
+              </div>
+            )}
+          </section>
+
+          <TableShell
+            title="Pending Invitations"
+            description={`${pendingInvitations.length} pending invitations for the active organization.`}
+          >
+            {!hasActiveOrganization ? (
+              <div className="text-sm text-muted-foreground">
+                Select an organization before reviewing invitations.
+              </div>
+            ) : (
+              <PendingInvitationsTable
+                data={pendingInvitations}
+                isCanceling={cancelInvitation.isPending}
+                isLoading={invitations.isLoading}
+                onCancel={(invitationId) => {
+                  cancelInvitation.mutate(
+                    { invitationId },
+                    {
+                      onSuccess: () => {
+                        toast.success('Invitation removed')
+                      },
+                      onError: (error) => {
+                        toast.error(error.message)
+                      },
                     },
-                    onError: (error) => {
-                      toast.error(error.message)
-                    },
-                  },
-                )
-              }}
-            >
-              {inviteMember.isPending ? 'Sending...' : 'Send invitation'}
-            </Button>
-          </div>
-        )}
-      </section>
-
-      <TableShell
-        title="Pending Invitations"
-        description={`${pendingInvitations.length} pending invitations for the active organization.`}
-      >
-        {!hasActiveOrganization ? (
-          <div className="text-sm text-muted-foreground">
-            Select an organization before reviewing invitations.
-          </div>
-        ) : (
-          <PendingInvitationsTable
-            data={pendingInvitations}
-            isCanceling={cancelInvitation.isPending}
-            isLoading={invitations.isLoading}
-            onCancel={(invitationId) => {
-              cancelInvitation.mutate(
-                { invitationId },
-                {
-                  onSuccess: () => {
-                    toast.success('Invitation removed')
-                  },
-                  onError: (error) => {
-                    toast.error(error.message)
-                  },
-                },
-              )
-            }}
-          />
-        )}
-      </TableShell>
+                  )
+                }}
+              />
+            )}
+          </TableShell>
+        </>
+      ) : null}
     </div>
   )
 }

@@ -16,11 +16,11 @@ import {
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
-import { Client, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/api-client'
 import { useParams, useRouter } from 'next/navigation'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { useApiClient } from '../../../hooks/use-api-client'
+import { mergePaginatedInfiniteData } from '../../../hooks/merge-paginated-infinite-data'
+import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import {
   DATASETS_BASE_PATH,
   DATASETS_RUNS_BASE_PATH,

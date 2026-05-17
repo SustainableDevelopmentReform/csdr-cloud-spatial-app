@@ -16,7 +16,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { organization, user } from './auth'
-import { multiPolygon, polygon } from './customTypes'
+import { multiPolygon, polygon } from './custom-types'
 
 export * from './auth'
 

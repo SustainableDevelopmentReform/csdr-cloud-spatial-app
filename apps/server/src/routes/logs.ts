@@ -11,15 +11,12 @@ import {
 } from '~/lib/openapi'
 import { generateJsonResponse } from '~/lib/response'
 import { auditLog, user } from '~/schemas/db'
-import { requireOwnedInsertContext } from '~/lib/authorization'
+import { requireOwnedInsertContext } from '~/lib/auth/authorization'
 import {
   persistAccessLog,
   shouldPersistDeniedDecisionLog,
-} from '~/lib/access-log'
-import {
-  requireAuthenticatedActor,
-  requireMfaIfNeeded,
-} from '~/lib/request-actor'
+} from '~/lib/auth/access-log'
+import { requireSuperAdminActor } from '~/lib/auth/policy'
 
 const logQuerySchema = z.object({
   page: z.coerce.number().positive().optional(),
@@ -146,19 +143,6 @@ const excludeGetSessionAuditLogs = () =>
     ne(auditLog.requestPath, '/api/auth/get-session'),
   )
 
-const requireSuperAdmin = (
-  actor: ReturnType<typeof requireAuthenticatedActor>,
-) => {
-  if (!actor.isSuperAdmin) {
-    throw new ServerError({
-      statusCode: 403,
-      message: 'User is not authorized',
-    })
-  }
-
-  requireMfaIfNeeded(actor)
-}
-
 const app = createOpenAPIApp()
   .openapi(
     createRoute({
@@ -193,8 +177,7 @@ const app = createOpenAPIApp()
       const requestActor = c.get('requestActor')
 
       try {
-        const actor = requireAuthenticatedActor(requestActor)
-        requireSuperAdmin(actor)
+        const actor = requireSuperAdminActor(requestActor)
 
         const query = c.req.valid('query')
         const page = query.page ?? 1

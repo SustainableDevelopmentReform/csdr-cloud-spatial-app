@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTablePlotModel } from '../src/TablePlot'
+import { buildTablePlotModel } from '../src/table-plot'
 
 describe('buildTablePlotModel', () => {
   it('returns an error when multiple records map to the same table cell', () => {

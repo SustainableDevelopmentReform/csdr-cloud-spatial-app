@@ -46,7 +46,7 @@ import {
 } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
+import { useUnsavedChangesWarning } from '~/hooks/use-unsaved-changes-warning'
 import { getUserFacingErrorMessage } from '~/utils/error-handling'
 import { useImportProductOutputs } from '../_hooks'
 import type { IndicatorListItem } from '../../indicator/_hooks'

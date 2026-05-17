@@ -5,10 +5,10 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { InferResponseType } from 'hono/client'
 import { useMemo } from 'react'
 import { z } from 'zod'
-import { mergePaginatedInfiniteData } from '~/hooks/mergePaginatedInfiniteData'
-import { useApiClient } from '~/hooks/useApiClient'
-import { useQueryWithSearchParams } from '~/hooks/useSearchParams'
-import { Client, unwrapResponse } from '~/utils/apiClient'
+import { mergePaginatedInfiniteData } from '~/hooks/merge-paginated-infinite-data'
+import { useApiClient } from '~/hooks/use-api-client'
+import { useQueryWithSearchParams } from '~/hooks/use-search-params'
+import { Client, unwrapResponse } from '~/utils/api-client'
 
 export type DataLibraryQuery = z.infer<typeof dataLibraryQuerySchema>
 export type DataLibraryListResponse = NonNullable<

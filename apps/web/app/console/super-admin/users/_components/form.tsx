@@ -9,8 +9,8 @@ import {
 import { Button } from '@repo/ui/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
-import { QueryKey } from '~/utils/apiClient'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { QueryKey } from '~/utils/api-client'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import SignupForm from '~/app/sign-up/_components/form'
 
 interface UserFormProps {

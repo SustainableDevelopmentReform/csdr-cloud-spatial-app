@@ -25,25 +25,25 @@ import {
   persistAuthAuditLog,
   logTwoFactorRouteResult,
   resolveAuthAuditLogContext,
-} from './lib/auth-security'
+} from './lib/auth/security'
 import {
   ACTIVE_ORGANIZATION_HEADER,
   LEGACY_ACTIVE_ORGANIZATION_HEADER,
   loadRequestActor,
-} from './lib/request-actor'
+} from './lib/auth/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
-import dataLibrary from './routes/dataLibrary'
+import dataLibrary from './routes/data-library'
 import dataset from './routes/dataset'
-import datasetRun from './routes/datasetRun'
+import datasetRun from './routes/dataset-run'
 import geometries from './routes/geometries'
-import geometriesRun from './routes/geometriesRun'
-import geometryOutput from './routes/geometryOutput'
+import geometriesRun from './routes/geometries-run'
+import geometryOutput from './routes/geometry-output'
 import product from './routes/product'
-import productOutput from './routes/productOutput'
-import productRun from './routes/productRun'
+import productOutput from './routes/product-output'
+import productRun from './routes/product-run'
 import indicator from './routes/indicator'
-import indicatorCategory from './routes/indicatorCategory'
+import indicatorCategory from './routes/indicator-category'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
 import logs from './routes/logs'
@@ -179,8 +179,9 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
 
   try {
     await enforceAuthRateLimit(c.req.raw, body)
-    enforceProtectedAuthRouteMfa({
+    await enforceProtectedAuthRouteMfa({
       actor,
+      body,
       request: c.req.raw,
     })
 

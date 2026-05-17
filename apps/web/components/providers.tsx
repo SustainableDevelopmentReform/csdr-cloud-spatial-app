@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-query'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
-import { createAuthClient, type AuthClient } from '~/utils/authClient'
+import { createAuthClient, type AuthClient } from '~/utils/auth-client'
 import { toastError } from '~/utils/error-handling'
 
 const queryClient = new QueryClient({

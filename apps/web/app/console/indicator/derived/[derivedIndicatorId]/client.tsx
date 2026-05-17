@@ -19,7 +19,7 @@ import { CrudForm } from '../../../../../components/form/crud-form'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../../hooks/useAccessControl'
+} from '../../../../../hooks/use-access-control'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {

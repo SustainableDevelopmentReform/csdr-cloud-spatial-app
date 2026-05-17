@@ -18,11 +18,11 @@ import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
-import { Client, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/api-client'
 import { getSearchParams } from '~/utils/browser'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { mergePaginatedInfiniteData } from '../../../hooks/merge-paginated-infinite-data'
+import { useApiClient } from '../../../hooks/use-api-client'
+import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import {
   PRODUCTS_BASE_PATH,
   PRODUCTS_RUNS_BASE_PATH,

@@ -2,8 +2,8 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { z } from 'zod'
-import { useAuthClient } from '~/hooks/useAuthClient'
-import { QueryKey } from '~/utils/apiClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
+import { QueryKey } from '~/utils/api-client'
 
 const adminUserSchema = z.object({
   banned: z.boolean().optional(),

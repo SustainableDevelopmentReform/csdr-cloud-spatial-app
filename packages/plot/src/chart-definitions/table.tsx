@@ -8,7 +8,7 @@ import {
   type ChartConfigurationDraft,
   type TableChartDimension,
 } from '../chart-core'
-import { getTablePlotCodeSnippet, TablePlot } from '../TablePlot'
+import { getTablePlotCodeSnippet, TablePlot } from '../table-plot'
 import {
   defineChart,
   tuple,

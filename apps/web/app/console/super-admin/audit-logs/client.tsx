@@ -16,7 +16,7 @@ import {
   ActiveTableFilter,
   TableFilterPopover,
 } from '~/components/table/filter-popover'
-import { useQueryWithSearchParams } from '~/hooks/useSearchParams'
+import { useQueryWithSearchParams } from '~/hooks/use-search-params'
 import { LogTable } from '../../logs/_components/log-table'
 import { logPageQuerySchema, useSuperAdminAuditLogs } from '../../logs/_hooks'
 

@@ -10,7 +10,7 @@ import {
 } from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
 import { TableRowDeleteAction } from '../../../components/table/table-row-delete-action'
-import { useAccessControl } from '../../../hooks/useAccessControl'
+import { useAccessControl } from '../../../hooks/use-access-control'
 import { SearchInput } from '../../../components/table/search-input'
 import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'

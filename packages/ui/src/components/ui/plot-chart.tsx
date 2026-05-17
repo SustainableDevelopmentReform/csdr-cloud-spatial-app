@@ -1,2 +1,2 @@
-export { PlotChart } from '@repo/plot/PlotChart'
-export type { PlotChartProps } from '@repo/plot/PlotChart'
+export { PlotChart } from '@repo/plot/plot-chart'
+export type { PlotChartProps } from '@repo/plot/plot-chart'

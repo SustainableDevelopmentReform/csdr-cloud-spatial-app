@@ -78,8 +78,8 @@ import { useConfig } from '../../../../components/providers'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../hooks/useAccessControl'
-import { useUnsavedChangesWarning } from '../../../../hooks/useUnsavedChangesWarning'
+} from '../../../../hooks/use-access-control'
+import { useUnsavedChangesWarning } from '../../../../hooks/use-unsaved-changes-warning'
 import { REPORTS_BASE_PATH } from '../../../../lib/paths'
 import {
   canChangeConsoleResourceVisibility,

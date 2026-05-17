@@ -13,8 +13,8 @@ import {
   ActiveTableFilter,
   TableFilterPopover,
 } from '~/components/table/filter-popover'
-import { useQueryWithSearchParams } from '~/hooks/useSearchParams'
-import { useAccessControl } from '~/hooks/useAccessControl'
+import { useQueryWithSearchParams } from '~/hooks/use-search-params'
+import { useAccessControl } from '~/hooks/use-access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
 import { ConsoleSimpleBreadcrumbs } from '../_components/console-simple-breadcrumbs'
