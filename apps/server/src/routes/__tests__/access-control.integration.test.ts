@@ -970,6 +970,36 @@ describe('access control integration', () => {
     )
 
     await expectJsonResponse(
+      await createAppClient(creatorHeaders).api.v0.report[':id'][
+        'preview-pdf'
+      ].$post({
+        param: {
+          id: reportJson.data.id,
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description:
+          'Only org admins or super admins can generate report PDFs.',
+      },
+    )
+
+    await expectJsonResponse(
+      await createAppClient(creatorHeaders).api.v0.report[':id'].publish.$post({
+        param: {
+          id: reportJson.data.id,
+        },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+        description:
+          'Only org admins or super admins can generate report PDFs.',
+      },
+    )
+
+    await expectJsonResponse(
       await createAppClient(orgAdminHeaders).api.v0.dataset[':id'][
         'visibility'
       ].$patch({

@@ -281,8 +281,9 @@ const ReportDetails = () => {
   const canEdit = canEditDraft && !requiresOrganizationSwitch
   const canDuplicate = canCreateConsoleResource(access, 'report')
   const canDelete = canEdit
-  const canPublish = canEdit
-  const canPreviewPdf = canEdit
+  const canGenerateReportPdf = access.isSuperAdmin || access.isOrgAdmin
+  const canPublish = canEdit && canGenerateReportPdf
+  const canPreviewPdf = canPublish
   const isEditMode = searchParams.get('mode') === 'edit' && canEdit
   const selectedTab = isEditMode ? 'overview' : activeTab
   const isPdfBusy = activePdfAction !== null || publishReport.isPending

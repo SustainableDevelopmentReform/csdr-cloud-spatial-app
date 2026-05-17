@@ -223,6 +223,20 @@ const assertReportMutable = (record: { publishedAt: Date | null }) => {
   }
 }
 
+const assertCanGenerateReportPdf = (
+  actor: ReturnType<typeof requireOwnedInsertContext>['actor'],
+) => {
+  if (actor.isSuperAdmin || actor.organizationRole === 'org_admin') {
+    return
+  }
+
+  throw new ServerError({
+    statusCode: 403,
+    message: 'User is not authorized',
+    description: 'Only org admins or super admins can generate report PDFs.',
+  })
+}
+
 const fetchFullReportOrThrow = async (id: string, organizationId: string) => {
   const record = await fetchFullReport(id, organizationId)
 
@@ -774,6 +788,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('User is not authorized'),
         404: jsonErrorResponse('Report not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to preview report PDF'),
@@ -781,6 +796,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'report',
@@ -797,6 +813,7 @@ const app = createOpenAPIApp()
       }
 
       assertReportMutable(currentRecord)
+      assertCanGenerateReportPdf(actor)
 
       const pdfBytes = await renderReportPdf({
         reportId: id,
@@ -829,6 +846,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('User is not authorized'),
         404: jsonErrorResponse('Report not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to publish report'),
@@ -853,6 +871,7 @@ const app = createOpenAPIApp()
       }
 
       assertReportMutable(currentRecord)
+      assertCanGenerateReportPdf(actor)
 
       const pdfKey = buildPublishedReportPdfKey(id)
       const pdfBytes = await renderReportPdf({
