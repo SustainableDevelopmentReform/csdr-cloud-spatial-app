@@ -1,9 +1,11 @@
 process.env.ACCESS_CONTROL_ALLOW_ANONYMOUS_PUBLIC = 'true'
 
+import { hashPassword } from 'better-auth/crypto'
 import { eq, isNull } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
+  account,
   auditLog,
   dashboard,
   product,
@@ -106,6 +108,53 @@ type OpenApiOperation = {
   key: string
   method: string
   path: string
+}
+
+type AdminRouteSetupContext = {
+  label: string
+  targetUserId: string
+}
+
+type AdminRouteTargetSnapshot = {
+  accountId: string
+  accountPassword: string | null
+  banExpiresTime: number | null
+  banReason: string | null
+  banned: boolean | null
+  email: string
+  name: string
+  role: string | null
+  sessionTokens: string[]
+  userId: string
+}
+
+type AdminRouteScenarioState = {
+  adminUserId: string
+  createUserEmail: string
+  initialTargetSnapshot: AdminRouteTargetSnapshot
+  label: string
+  targetAccountId: string
+  targetEmail: string
+  targetSessionToken: string
+  targetUserId: string
+}
+
+type AdminRouteSecurityScenario = {
+  expectAllowedState: (
+    state: AdminRouteScenarioState,
+    response: Response,
+  ) => Promise<void>
+  key: string
+  prepare?: (context: AdminRouteSetupContext) => Promise<void>
+  request: (
+    state: AdminRouteScenarioState,
+    headers?: HeadersInit,
+  ) => Promise<Response>
+}
+
+type DeniedAdminActor = {
+  headers?: HeadersInit
+  label: string
 }
 
 const betterAuthAccessPolicyGroups: AccessPolicyGroup[] = [
@@ -264,6 +313,10 @@ const sortStrings = (values: string[]) => [...values].sort()
 const accessPolicyOperationKeys = (groups: AccessPolicyGroup[]) =>
   groups.flatMap((group) => group.operations)
 
+const isBetterAuthAdminOperationKey = (key: string): boolean =>
+  key.startsWith('GET /api/auth/admin/') ||
+  key.startsWith('POST /api/auth/admin/')
+
 const isCustomAdminOperation = (operation: OpenApiOperation): boolean =>
   operation.path.startsWith('/api/v0/organization') ||
   operation.key === 'GET /api/v0/logs/audit/super-admin'
@@ -407,6 +460,25 @@ const requestCustomAdminOperation = async (
   })
 }
 
+const requestAdminGet = async (
+  path: string,
+  headers?: HeadersInit,
+): Promise<Response> =>
+  await app.request(path, {
+    headers: createAuthGetHeaders(headers),
+  })
+
+const requestAdminPost = async (
+  path: string,
+  body: Record<string, unknown>,
+  headers?: HeadersInit,
+): Promise<Response> =>
+  await app.request(path, {
+    method: 'POST',
+    headers: createAuthPostHeaders(headers),
+    body: JSON.stringify(body),
+  })
+
 const loadSessionUserId = async (headers: Headers, label: string) => {
   const authClient = createTestAuthClient(headers)
   const sessionResult = await authClient.client.getSession()
@@ -429,6 +501,601 @@ const loadOrganizationMember = async (options: {
   })
 
   return requireValue(currentMember, options.label)
+}
+
+const loadSessionTokensForUser = async (userId: string): Promise<string[]> => {
+  const sessions = await db.query.session.findMany({
+    where: eq(session.userId, userId),
+  })
+
+  return sortStrings(sessions.map((currentSession) => currentSession.token))
+}
+
+const sanitizeAdminScenarioLabel = (value: string): string => {
+  const sanitized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return sanitized.length > 0 ? sanitized : 'admin-route'
+}
+
+const createTargetCredentialAccount = async (options: {
+  accountId: string
+  userId: string
+}) => {
+  const now = new Date('2025-01-01T00:00:00.000Z')
+
+  await db.insert(account).values({
+    id: options.accountId,
+    accountId: options.userId,
+    providerId: 'credential',
+    userId: options.userId,
+    accessToken: null,
+    refreshToken: null,
+    idToken: null,
+    accessTokenExpiresAt: null,
+    refreshTokenExpiresAt: null,
+    scope: null,
+    password: await hashPassword('password123'),
+    createdAt: now,
+    updatedAt: now,
+  })
+}
+
+const loadAdminRouteTargetSnapshot = async (options: {
+  accountId: string
+  userId: string
+}): Promise<AdminRouteTargetSnapshot> => {
+  const targetUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.id, options.userId),
+    }),
+    'admin route target user',
+  )
+  const targetAccount = requireValue(
+    await db.query.account.findFirst({
+      where: eq(account.id, options.accountId),
+    }),
+    'admin route target account',
+  )
+  const sessionTokens = await loadSessionTokensForUser(options.userId)
+
+  return {
+    accountId: options.accountId,
+    accountPassword: targetAccount.password,
+    banExpiresTime: targetUser.banExpires?.getTime() ?? null,
+    banReason: targetUser.banReason,
+    banned: targetUser.banned,
+    email: targetUser.email,
+    name: targetUser.name,
+    role: targetUser.role,
+    sessionTokens,
+    userId: targetUser.id,
+  }
+}
+
+const expectAdminRouteTargetSnapshot = async (
+  snapshot: AdminRouteTargetSnapshot,
+) => {
+  const targetUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.id, snapshot.userId),
+    }),
+    'admin route persisted target user',
+  )
+  const targetAccount = requireValue(
+    await db.query.account.findFirst({
+      where: eq(account.id, snapshot.accountId),
+    }),
+    'admin route persisted target account',
+  )
+
+  expect(targetUser.email).toBe(snapshot.email)
+  expect(targetUser.name).toBe(snapshot.name)
+  expect(targetUser.role).toBe(snapshot.role)
+  expect(targetUser.banned).toBe(snapshot.banned)
+  expect(targetUser.banReason).toBe(snapshot.banReason)
+  expect(targetUser.banExpires?.getTime() ?? null).toBe(snapshot.banExpiresTime)
+  expect(targetAccount.password).toBe(snapshot.accountPassword)
+  expect(await loadSessionTokensForUser(snapshot.userId)).toEqual(
+    snapshot.sessionTokens,
+  )
+}
+
+const createAdminRouteScenarioState = async (options: {
+  label: string
+  prepare?: (context: AdminRouteSetupContext) => Promise<void>
+}): Promise<AdminRouteScenarioState> => {
+  const label = sanitizeAdminScenarioLabel(options.label)
+  const targetEmail = `${label}-target@example.com`
+  const targetHeaders = await createSessionHeaders({
+    email: targetEmail,
+    organizationRole: 'org_viewer',
+  })
+  const targetUserId = await loadSessionUserId(
+    targetHeaders,
+    `${label} target user id`,
+  )
+  const targetAccountId = `${label}-target-account`
+  await createTargetCredentialAccount({
+    accountId: targetAccountId,
+    userId: targetUserId,
+  })
+
+  if (options.prepare) {
+    await options.prepare({
+      label,
+      targetUserId,
+    })
+  }
+
+  const initialTargetSnapshot = await loadAdminRouteTargetSnapshot({
+    accountId: targetAccountId,
+    userId: targetUserId,
+  })
+  const targetSessionToken = requireValue(
+    initialTargetSnapshot.sessionTokens[0],
+    `${label} target session token`,
+  )
+  const adminUserId = await loadSessionUserId(
+    superAdminHeaders,
+    `${label} super admin user id`,
+  )
+
+  return {
+    adminUserId,
+    createUserEmail: `${label}-created@example.com`,
+    initialTargetSnapshot,
+    label,
+    targetAccountId,
+    targetEmail,
+    targetSessionToken,
+    targetUserId,
+  }
+}
+
+const expectNoCreatedAdminRouteUser = async (
+  state: AdminRouteScenarioState,
+) => {
+  const createdUser = await db.query.user.findFirst({
+    where: eq(user.email, state.createUserEmail),
+  })
+
+  expect(createdUser).toBeUndefined()
+}
+
+const expectAdminRouteDeniedState = async (state: AdminRouteScenarioState) => {
+  await expectAdminRouteTargetSnapshot(state.initialTargetSnapshot)
+  await expectNoCreatedAdminRouteUser(state)
+}
+
+const expectAdminRouteTargetUnchanged = async (
+  state: AdminRouteScenarioState,
+) => {
+  await expectAdminRouteTargetSnapshot(state.initialTargetSnapshot)
+}
+
+const expectCreatedAdminRouteUser = async (state: AdminRouteScenarioState) => {
+  const createdUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.email, state.createUserEmail),
+    }),
+    'admin route created user',
+  )
+  const createdAccount = await db.query.account.findFirst({
+    where: eq(account.userId, createdUser.id),
+  })
+
+  expect(createdUser.role).toBe('super_admin')
+  expect(createdAccount?.password).toBeDefined()
+  await expectAdminRouteTargetUnchanged(state)
+}
+
+const expectAdminRouteSetRole = async (state: AdminRouteScenarioState) => {
+  const targetUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.id, state.targetUserId),
+    }),
+    'admin route set-role target user',
+  )
+
+  expect(targetUser.role).toBe('super_admin')
+}
+
+const expectAdminRouteUpdatedUser = async (state: AdminRouteScenarioState) => {
+  const targetUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.id, state.targetUserId),
+    }),
+    'admin route update-user target user',
+  )
+
+  expect(targetUser.name).toBe(`Updated ${state.label}`)
+}
+
+const expectAdminRouteSetPassword = async (state: AdminRouteScenarioState) => {
+  const targetAccount = requireValue(
+    await db.query.account.findFirst({
+      where: eq(account.id, state.targetAccountId),
+    }),
+    'admin route set-password target account',
+  )
+
+  expect(targetAccount.password).toBeDefined()
+  expect(targetAccount.password).not.toBe(
+    state.initialTargetSnapshot.accountPassword,
+  )
+}
+
+const expectAdminRouteBannedUser = async (state: AdminRouteScenarioState) => {
+  const targetUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.id, state.targetUserId),
+    }),
+    'admin route banned target user',
+  )
+
+  expect(targetUser.banned).toBe(true)
+  expect(targetUser.banReason).toBe('Admin route test ban')
+  expect(await loadSessionTokensForUser(state.targetUserId)).toEqual([])
+}
+
+const expectAdminRouteUnbannedUser = async (state: AdminRouteScenarioState) => {
+  const targetUser = requireValue(
+    await db.query.user.findFirst({
+      where: eq(user.id, state.targetUserId),
+    }),
+    'admin route unbanned target user',
+  )
+
+  expect(targetUser.banned).toBe(false)
+  expect(targetUser.banReason).toBeNull()
+  expect(targetUser.banExpires).toBeNull()
+}
+
+const expectAdminRouteImpersonatedUser = async (
+  state: AdminRouteScenarioState,
+) => {
+  const targetSessions = await db.query.session.findMany({
+    where: eq(session.userId, state.targetUserId),
+  })
+
+  expect(
+    targetSessions.some(
+      (targetSession) => targetSession.impersonatedBy === state.adminUserId,
+    ),
+  ).toBe(true)
+}
+
+const expectAdminRouteRevokedSession = async (
+  state: AdminRouteScenarioState,
+) => {
+  const revokedSession = await db.query.session.findFirst({
+    where: eq(session.token, state.targetSessionToken),
+  })
+
+  expect(revokedSession).toBeUndefined()
+}
+
+const expectAdminRouteRevokedSessions = async (
+  state: AdminRouteScenarioState,
+) => {
+  expect(await loadSessionTokensForUser(state.targetUserId)).toEqual([])
+}
+
+const expectAdminRouteRemovedUser = async (state: AdminRouteScenarioState) => {
+  const removedUser = await db.query.user.findFirst({
+    where: eq(user.id, state.targetUserId),
+  })
+  const removedAccount = await db.query.account.findFirst({
+    where: eq(account.id, state.targetAccountId),
+  })
+
+  expect(removedUser).toBeUndefined()
+  expect(removedAccount).toBeUndefined()
+  expect(await loadSessionTokensForUser(state.targetUserId)).toEqual([])
+}
+
+const adminPermissionCheckResponseSchema = z.object({
+  error: z.string().nullable().optional(),
+  success: z.boolean(),
+})
+
+const expectAdminRoutePermissionCheck = async (
+  state: AdminRouteScenarioState,
+  response: Response,
+) => {
+  const body = adminPermissionCheckResponseSchema.parse(await response.json())
+
+  expect(body.success).toBe(true)
+  await expectAdminRouteTargetUnchanged(state)
+}
+
+const betterAuthAdminStandardSecurityScenarios: AdminRouteSecurityScenario[] = [
+  {
+    key: 'GET /api/auth/admin/get-user',
+    request: (state, headers) =>
+      requestAdminGet(
+        `/api/auth/admin/get-user?${new URLSearchParams({
+          id: state.targetUserId,
+        }).toString()}`,
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteTargetUnchanged,
+  },
+  {
+    key: 'GET /api/auth/admin/list-users',
+    request: (state, headers) =>
+      requestAdminGet(
+        `/api/auth/admin/list-users?${new URLSearchParams({
+          searchField: 'email',
+          searchValue: state.targetEmail,
+        }).toString()}`,
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteTargetUnchanged,
+  },
+  {
+    key: 'POST /api/auth/admin/ban-user',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/ban-user',
+        {
+          banReason: 'Admin route test ban',
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteBannedUser,
+  },
+  {
+    key: 'POST /api/auth/admin/create-user',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/create-user',
+        {
+          email: state.createUserEmail,
+          name: 'Created By Admin Route Test',
+          password: 'password123',
+          role: 'super_admin',
+        },
+        headers,
+      ),
+    expectAllowedState: expectCreatedAdminRouteUser,
+  },
+  {
+    key: 'POST /api/auth/admin/has-permission',
+    request: (_state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/has-permission',
+        {
+          permissions: {
+            session: ['revoke'],
+            user: ['create', 'delete'],
+          },
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRoutePermissionCheck,
+  },
+  {
+    key: 'POST /api/auth/admin/impersonate-user',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/impersonate-user',
+        {
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteImpersonatedUser,
+  },
+  {
+    key: 'POST /api/auth/admin/list-user-sessions',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/list-user-sessions',
+        {
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteTargetUnchanged,
+  },
+  {
+    key: 'POST /api/auth/admin/remove-user',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/remove-user',
+        {
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteRemovedUser,
+  },
+  {
+    key: 'POST /api/auth/admin/revoke-user-session',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/revoke-user-session',
+        {
+          sessionToken: state.targetSessionToken,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteRevokedSession,
+  },
+  {
+    key: 'POST /api/auth/admin/revoke-user-sessions',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/revoke-user-sessions',
+        {
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteRevokedSessions,
+  },
+  {
+    key: 'POST /api/auth/admin/set-role',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/set-role',
+        {
+          role: 'super_admin',
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteSetRole,
+  },
+  {
+    key: 'POST /api/auth/admin/set-user-password',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/set-user-password',
+        {
+          newPassword: 'new-password123',
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteSetPassword,
+  },
+  {
+    key: 'POST /api/auth/admin/unban-user',
+    prepare: async ({ targetUserId }) => {
+      await db
+        .update(user)
+        .set({
+          banned: true,
+          banExpires: new Date('2026-01-01T00:00:00.000Z'),
+          banReason: 'Existing admin route test ban',
+        })
+        .where(eq(user.id, targetUserId))
+    },
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/unban-user',
+        {
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteUnbannedUser,
+  },
+  {
+    key: 'POST /api/auth/admin/update-user',
+    request: (state, headers) =>
+      requestAdminPost(
+        '/api/auth/admin/update-user',
+        {
+          data: {
+            name: `Updated ${state.label}`,
+          },
+          userId: state.targetUserId,
+        },
+        headers,
+      ),
+    expectAllowedState: expectAdminRouteUpdatedUser,
+  },
+]
+
+const stopImpersonatingAdminScenarioKey =
+  'POST /api/auth/admin/stop-impersonating'
+
+const betterAuthAdminSecurityScenarioKeys = [
+  ...betterAuthAdminStandardSecurityScenarios.map((scenario) => scenario.key),
+  stopImpersonatingAdminScenarioKey,
+]
+
+const createApiKeyDeniedActor = async (): Promise<DeniedAdminActor> => {
+  const apiKeyOwnerHeaders = await createSessionHeaders({
+    email: 'admin-route-api-key-owner@example.com',
+    organizationRole: 'org_viewer',
+  })
+  const apiKeyResult = await createTestAuthClient(
+    apiKeyOwnerHeaders,
+  ).client.apiKey.create({
+    name: 'admin-route-denied',
+  })
+  expect(apiKeyResult.error).toBeNull()
+
+  const apiKeyHeaders = new Headers()
+  apiKeyHeaders.set(
+    'x-api-key',
+    requireValue(apiKeyResult.data?.key, 'admin route denied api key'),
+  )
+
+  return {
+    headers: apiKeyHeaders,
+    label: 'api-key',
+  }
+}
+
+const createImpersonatedDeniedActor = async (): Promise<DeniedAdminActor> => {
+  const impersonatingAdminHeaders = await createSessionHeaders({
+    email: 'admin-route-impersonating-admin@example.com',
+    organizationRole: 'org_admin',
+    role: 'super_admin',
+  })
+  const impersonatedTargetHeaders = await createSessionHeaders({
+    email: 'admin-route-impersonated-target@example.com',
+    organizationRole: 'org_viewer',
+  })
+  const impersonatedTargetUserId = await loadSessionUserId(
+    impersonatedTargetHeaders,
+    'admin route impersonated target user id',
+  )
+  const impersonatingClient = createTestAuthClient(impersonatingAdminHeaders)
+  const impersonateResult =
+    await impersonatingClient.client.admin.impersonateUser({
+      userId: impersonatedTargetUserId,
+    })
+  expect(impersonateResult.error).toBeNull()
+
+  return {
+    headers: impersonatingClient.headers,
+    label: 'impersonated-user',
+  }
+}
+
+const createBetterAuthAdminDeniedActors = async (): Promise<
+  DeniedAdminActor[]
+> => {
+  const noMfaSuperAdminHeaders = await createSessionHeaders({
+    email: 'admin-route-no-mfa-super-admin@example.com',
+    organizationRole: 'org_admin',
+    role: 'super_admin',
+    twoFactorEnabled: false,
+  })
+
+  return [
+    {
+      label: 'unauthenticated',
+    },
+    {
+      headers: orgAdminHeaders,
+      label: 'org-admin',
+    },
+    {
+      headers: creatorHeaders,
+      label: 'org-creator',
+    },
+    {
+      headers: viewerHeaders,
+      label: 'org-viewer',
+    },
+    {
+      headers: noMfaSuperAdminHeaders,
+      label: 'no-mfa-super-admin',
+    },
+    await createApiKeyDeniedActor(),
+    await createImpersonatedDeniedActor(),
+  ]
 }
 
 beforeEach(async () => {
@@ -470,6 +1137,10 @@ describe('access control integration', () => {
     expect(
       sortStrings(betterAuthOperations.map((operation) => operation.key)),
     ).toEqual(sortStrings(betterAuthPolicyKeys))
+    expectNoDuplicateClassifications(betterAuthAdminSecurityScenarioKeys)
+    expect(sortStrings(betterAuthAdminSecurityScenarioKeys)).toEqual(
+      sortStrings(betterAuthPolicyKeys.filter(isBetterAuthAdminOperationKey)),
+    )
 
     const customAdminPolicyKeys = accessPolicyOperationKeys(
       customAdminAccessPolicyGroups,
@@ -530,6 +1201,215 @@ describe('access control integration', () => {
       )
       expect([401, 403]).not.toContain(superAdminResponse.status)
     }
+  })
+
+  it('denies Better Auth admin routes with valid payloads for unauthorized callers without side effects', async () => {
+    const deniedActors = await createBetterAuthAdminDeniedActors()
+
+    for (const scenario of betterAuthAdminStandardSecurityScenarios) {
+      for (const deniedActor of deniedActors) {
+        const state = await createAdminRouteScenarioState({
+          label: `${scenario.key}-${deniedActor.label}`,
+          prepare: scenario.prepare,
+        })
+        const response = await scenario.request(state, deniedActor.headers)
+
+        expect([401, 403]).toContain(response.status)
+        await expectAdminRouteDeniedState(state)
+      }
+    }
+  })
+
+  it('allows MFA-verified super admins to call Better Auth admin routes with valid payloads', async () => {
+    for (const scenario of betterAuthAdminStandardSecurityScenarios) {
+      const state = await createAdminRouteScenarioState({
+        label: `${scenario.key}-allowed`,
+        prepare: scenario.prepare,
+      })
+      const response = await scenario.request(state, superAdminHeaders)
+
+      expect(response.status).toBe(200)
+      await scenario.expectAllowedState(state, response)
+    }
+  })
+
+  it('rejects stop-impersonating unless the caller is in an active impersonation session', async () => {
+    const noMfaSuperAdminHeaders = await createSessionHeaders({
+      email: 'stop-impersonating-no-mfa-super-admin@example.com',
+      organizationRole: 'org_admin',
+      role: 'super_admin',
+      twoFactorEnabled: false,
+    })
+    const apiKeyDeniedActor = await createApiKeyDeniedActor()
+    const deniedActors: DeniedAdminActor[] = [
+      {
+        label: 'unauthenticated',
+      },
+      {
+        headers: orgAdminHeaders,
+        label: 'org-admin',
+      },
+      {
+        headers: creatorHeaders,
+        label: 'org-creator',
+      },
+      {
+        headers: viewerHeaders,
+        label: 'org-viewer',
+      },
+      {
+        headers: noMfaSuperAdminHeaders,
+        label: 'no-mfa-super-admin',
+      },
+      {
+        headers: superAdminHeaders,
+        label: 'non-impersonating-super-admin',
+      },
+      apiKeyDeniedActor,
+    ]
+
+    for (const deniedActor of deniedActors) {
+      const actorUserId = deniedActor.headers
+        ? await loadSessionUserId(
+            new Headers(deniedActor.headers),
+            `${deniedActor.label} user id`,
+          )
+        : null
+      const sessionTokensBefore = actorUserId
+        ? await loadSessionTokensForUser(actorUserId)
+        : []
+      const response = await requestAdminPost(
+        '/api/auth/admin/stop-impersonating',
+        {},
+        deniedActor.headers,
+      )
+
+      expect(response.status).not.toBe(200)
+
+      if (actorUserId) {
+        expect(await loadSessionTokensForUser(actorUserId)).toEqual(
+          sessionTokensBefore,
+        )
+      }
+    }
+  })
+
+  it('allows stop-impersonating from a real impersonation session and restores the admin session', async () => {
+    const impersonatingAdminHeaders = await createSessionHeaders({
+      email: 'stop-impersonating-admin@example.com',
+      organizationRole: 'org_admin',
+      role: 'super_admin',
+    })
+    const impersonatingAdminUserId = await loadSessionUserId(
+      impersonatingAdminHeaders,
+      'stop impersonating admin user id',
+    )
+    const targetHeaders = await createSessionHeaders({
+      email: 'stop-impersonating-target@example.com',
+      organizationRole: 'org_viewer',
+    })
+    const targetUserId = await loadSessionUserId(
+      targetHeaders,
+      'stop impersonating target user id',
+    )
+    const impersonatingClient = createTestAuthClient(impersonatingAdminHeaders)
+    const impersonateResult =
+      await impersonatingClient.client.admin.impersonateUser({
+        userId: targetUserId,
+      })
+    expect(impersonateResult.error).toBeNull()
+
+    const impersonatedSession = requireValue(
+      await db.query.session.findFirst({
+        where: (table, { and, eq }) =>
+          and(
+            eq(table.userId, targetUserId),
+            eq(table.impersonatedBy, impersonatingAdminUserId),
+          ),
+      }),
+      'active impersonation session',
+    )
+    const response = await requestAdminPost(
+      '/api/auth/admin/stop-impersonating',
+      {},
+      impersonatingClient.headers,
+    )
+
+    expect(response.status).toBe(200)
+
+    const removedImpersonatedSession = await db.query.session.findFirst({
+      where: eq(session.token, impersonatedSession.token),
+    })
+    expect(removedImpersonatedSession).toBeUndefined()
+    expect(
+      await loadSessionTokensForUser(impersonatingAdminUserId),
+    ).not.toEqual([])
+  })
+
+  it('allows super admins to impersonate normal users but not other super admins', async () => {
+    const impersonatingAdminHeaders = await createSessionHeaders({
+      email: 'impersonate-admin-edge-actor@example.com',
+      organizationRole: 'org_admin',
+      role: 'super_admin',
+    })
+    const impersonatingAdminUserId = await loadSessionUserId(
+      impersonatingAdminHeaders,
+      'impersonate admin edge actor user id',
+    )
+    const normalTargetHeaders = await createSessionHeaders({
+      email: 'impersonate-normal-target@example.com',
+      organizationRole: 'org_viewer',
+    })
+    const normalTargetUserId = await loadSessionUserId(
+      normalTargetHeaders,
+      'normal impersonation target user id',
+    )
+    const normalResponse = await requestAdminPost(
+      '/api/auth/admin/impersonate-user',
+      {
+        userId: normalTargetUserId,
+      },
+      impersonatingAdminHeaders,
+    )
+
+    expect(normalResponse.status).toBe(200)
+    const normalTargetSessions = await db.query.session.findMany({
+      where: eq(session.userId, normalTargetUserId),
+    })
+    expect(
+      normalTargetSessions.some(
+        (targetSession) =>
+          targetSession.impersonatedBy === impersonatingAdminUserId,
+      ),
+    ).toBe(true)
+
+    const superAdminTargetHeaders = await createSessionHeaders({
+      email: 'impersonate-super-admin-target@example.com',
+      organizationRole: 'org_admin',
+      role: 'super_admin',
+    })
+    const superAdminTargetUserId = await loadSessionUserId(
+      superAdminTargetHeaders,
+      'super admin impersonation target user id',
+    )
+    const superAdminResponse = await requestAdminPost(
+      '/api/auth/admin/impersonate-user',
+      {
+        userId: superAdminTargetUserId,
+      },
+      impersonatingAdminHeaders,
+    )
+
+    expect(superAdminResponse.status).toBe(403)
+    const superAdminTargetSessions = await db.query.session.findMany({
+      where: eq(session.userId, superAdminTargetUserId),
+    })
+    expect(
+      superAdminTargetSessions.some(
+        (targetSession) =>
+          targetSession.impersonatedBy === impersonatingAdminUserId,
+      ),
+    ).toBe(false)
   })
 
   it('denies custom super-admin API routes to non-super-admin callers and super admins without MFA', async () => {
