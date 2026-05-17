@@ -35,7 +35,7 @@
     "lucide-react": "catalog:",
     "maplibre-gl": "^5.23.0",
     "mathjs": "catalog:",
-    "next": "15.5.15",
+    "next": "15.5.18",
     "nuqs": "^2.4.0",
     "papaparse": "catalog:",
     "parquet-wasm": "^0.7.1",
@@ -51,7 +51,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@next/eslint-plugin-next": "15.5.15",
+    "@next/eslint-plugin-next": "15.5.18",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/d3-scale": "catalog:",

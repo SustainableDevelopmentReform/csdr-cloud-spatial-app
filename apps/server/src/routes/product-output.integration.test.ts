@@ -291,6 +291,27 @@ describe('product-output route', () => {
     )
     expect(importJson.data.insertedCount).toBe(2)
     expect(importJson.data.warnings).toEqual([])
+
+    await expectJsonResponse(
+      await adminClient.api.v0['product-output'].import.$post({
+        form: {
+          productRunId: seededIds.productRun,
+          geometryColumn: 'geometryId',
+          indicatorMappings: '{not-json',
+          csvFile: new File(
+            ['geometryId,forest_area\ntasmania,111'],
+            'bad.csv',
+            {
+              type: 'text/csv',
+            },
+          ),
+        },
+      }),
+      {
+        status: 422,
+        message: 'Validation Error',
+      },
+    )
   })
 
   it('rejects product output references outside the target product run graph', async () => {

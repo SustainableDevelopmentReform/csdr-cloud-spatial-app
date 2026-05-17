@@ -12,6 +12,7 @@ import {
   updateIndicatorSchema,
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
+import { validateDerivedExpressionForIndicators } from '@repo/schemas/derived-expression'
 import {
   and,
   count,
@@ -116,6 +117,21 @@ const derivedIndicatorNotFoundError = () =>
     message: 'Failed to get derived indicator',
     description: "derived indicator you're looking for is not found",
   })
+
+const assertValidDerivedExpression = (options: {
+  expression: string
+  indicatorIds: readonly string[]
+}): void => {
+  const validationError = validateDerivedExpressionForIndicators(options)
+
+  if (validationError) {
+    throw new ServerError({
+      statusCode: 422,
+      message: 'Invalid derived indicator expression',
+      description: validationError,
+    })
+  }
+}
 
 const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
@@ -740,6 +756,12 @@ const app = createOpenAPIApp()
           notFoundError: derivedIndicatorNotFoundError,
         })
       }
+
+      assertValidDerivedExpression({
+        expression: payload.expression,
+        indicatorIds,
+      })
+
       const data = {
         ...payload,
         categoryId: payload.categoryId ?? null,
@@ -1122,6 +1144,42 @@ const app = createOpenAPIApp()
         resourceId: id,
         notFoundError: derivedIndicatorNotFoundError,
       })
+
+      if (payload.expression !== undefined) {
+        const existingDerivedIndicator =
+          await db.query.derivedIndicator.findFirst({
+            where: (derivedIndicator, { and, eq }) =>
+              and(
+                eq(derivedIndicator.id, id),
+                eq(
+                  derivedIndicator.organizationId,
+                  accessRecord.organizationId,
+                ),
+              ),
+            columns: {
+              id: true,
+            },
+            with: {
+              indicators: {
+                columns: {
+                  indicatorId: true,
+                },
+              },
+            },
+          })
+
+        if (!existingDerivedIndicator) {
+          throw derivedIndicatorNotFoundError()
+        }
+
+        assertValidDerivedExpression({
+          expression: payload.expression,
+          indicatorIds: existingDerivedIndicator.indicators.map(
+            (entry) => entry.indicatorId,
+          ),
+        })
+      }
+
       const data = {
         ...payload,
         ...(payload.categoryId !== undefined && {

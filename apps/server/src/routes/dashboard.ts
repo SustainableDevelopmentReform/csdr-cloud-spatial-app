@@ -296,6 +296,7 @@ const app = createOpenAPIApp()
           tx,
           insertedDashboard.id,
           payload.content,
+          { activeOrganizationId },
         )
 
         return insertedDashboard
@@ -369,7 +370,14 @@ const app = createOpenAPIApp()
         }
 
         if (payload.content) {
-          await syncDashboardChartUsages(tx, updatedRecord.id, payload.content)
+          await syncDashboardChartUsages(
+            tx,
+            updatedRecord.id,
+            payload.content,
+            {
+              activeOrganizationId: accessRecord.organizationId,
+            },
+          )
         }
 
         if (updatedRecord.visibility !== 'private') {
@@ -568,11 +576,10 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
-      const sourceAccessRecord = await assertResourceReadable({
+      const sourceAccessRecord = await assertResourceWritable({
         c,
         resource: 'dashboard',
         resourceId: id,
-        allowPublicRead: true,
         notFoundError: dashboardNotFoundError,
       })
       const sourceRecord = await fetchFullDashboard(
@@ -610,7 +617,14 @@ const app = createOpenAPIApp()
           })
         }
 
-        await syncDashboardChartUsages(tx, insertedDashboard.id, parsedContent)
+        await syncDashboardChartUsages(
+          tx,
+          insertedDashboard.id,
+          parsedContent,
+          {
+            activeOrganizationId,
+          },
+        )
 
         return insertedDashboard
       })

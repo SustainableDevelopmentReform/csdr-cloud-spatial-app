@@ -76,7 +76,7 @@ const coreBaseResourceColumns = (mainRunRelation: ReferenceConfig['ref']) => ({
   ...baseColumns,
   ...topLevelAclColumns,
   mainRunId: text('main_run_id').references(mainRunRelation, {
-    onDelete: 'cascade',
+    onDelete: 'set null',
   }),
 })
 

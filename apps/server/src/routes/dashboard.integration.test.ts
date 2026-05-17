@@ -457,6 +457,16 @@ describe('dashboard route', () => {
   it('duplicates a dashboard into a new private editable copy with synced chart usage', async () => {
     const dashboardId = await createDashboardWithChartUsage(seededIds.indicator)
 
+    await expectJsonResponse(
+      await memberClient.api.v0.dashboard[':id'].duplicate.$post({
+        param: { id: dashboardId },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+
     const duplicatedJson = await expectJsonResponse<{
       id: string
       name: string

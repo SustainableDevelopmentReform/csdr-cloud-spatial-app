@@ -1,4 +1,5 @@
 import { APIError } from 'better-auth/api'
+import { sql } from 'drizzle-orm'
 import { db } from '../db'
 import { ServerError } from '../error'
 import { getHighestOrganizationRole } from './access-control'
@@ -10,6 +11,8 @@ import {
 } from './request-actor'
 
 export type AuthRequestBody = Record<string, unknown> | null
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type DbClient = typeof db | DbTransaction
 
 const orgAdminFloorMessage =
   'An organization must keep at least one org admin. Promote another org admin before removing or demoting this member.'
@@ -28,8 +31,11 @@ const getRequestStringValue = (options: {
   getStringValue(options.body, options.key) ??
   options.searchParams.get(options.key)
 
-const listOrganizationMembersForAdminFloor = async (organizationId: string) =>
-  db.query.member.findMany({
+const listOrganizationMembersForAdminFloor = async (
+  client: DbClient,
+  organizationId: string,
+) =>
+  client.query.member.findMany({
     columns: {
       id: true,
       role: true,
@@ -39,11 +45,13 @@ const listOrganizationMembersForAdminFloor = async (organizationId: string) =>
   })
 
 const checkOrgAdminFloor = async (options: {
+  client: DbClient
   memberId: string
   nextRole: string | null
   organizationId: string
 }): Promise<'member-not-found' | 'last-admin' | null> => {
   const organizationMembers = await listOrganizationMembersForAdminFloor(
+    options.client,
     options.organizationId,
   )
   const currentMember = organizationMembers.find(
@@ -74,7 +82,41 @@ export const ensureOrgAdminFloor = async (options: {
   nextRole: string | null
   organizationId: string
 }): Promise<void> => {
-  const violation = await checkOrgAdminFloor(options)
+  const violation = await checkOrgAdminFloor({ ...options, client: db })
+
+  if (violation === 'member-not-found') {
+    throw new ServerError({
+      statusCode: 404,
+      message: 'Member not found',
+    })
+  }
+
+  if (violation === 'last-admin') {
+    throw new ServerError({
+      statusCode: 400,
+      message: orgAdminFloorMessage,
+    })
+  }
+}
+
+export const lockOrganizationAdminFloor = async (
+  client: DbClient,
+  organizationId: string,
+): Promise<void> => {
+  await client.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${organizationId}))`,
+  )
+}
+
+export const ensureOrgAdminFloorInTransaction = async (
+  client: DbClient,
+  options: {
+    memberId: string
+    nextRole: string | null
+    organizationId: string
+  },
+): Promise<void> => {
+  const violation = await checkOrgAdminFloor({ ...options, client })
 
   if (violation === 'member-not-found') {
     throw new ServerError({
@@ -96,7 +138,7 @@ export const ensureBetterAuthOrgAdminFloor = async (options: {
   nextRole: string | null
   organizationId: string
 }): Promise<void> => {
-  const violation = await checkOrgAdminFloor(options)
+  const violation = await checkOrgAdminFloor({ ...options, client: db })
 
   if (violation === 'member-not-found') {
     throw APIError.fromStatus('BAD_REQUEST', {

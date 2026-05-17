@@ -16,9 +16,12 @@ import {
   dashboard,
   dashboardIndicatorUsage,
   datasetRun,
+  derivedIndicator,
   geometriesRun,
   geometryOutput,
+  indicator,
   productRun,
+  productRunAssignedDerivedIndicatorDependency,
   report,
   reportIndicatorUsage,
 } from '~/schemas/db'
@@ -63,8 +66,28 @@ type ChartUsageCountFilter =
   | { type: 'geometries'; id: string }
   | { type: 'geometries-run'; id: string }
 
+type ChartReferenceAuthorizationOptions = {
+  activeOrganizationId: string
+}
+
 const toUniqueStrings = (values: string[]): string[] =>
   Array.from(new Set(values))
+
+const chartReferenceNotFoundError = () =>
+  new ServerError({
+    statusCode: 404,
+    message: 'Chart reference not found',
+    description:
+      'One or more chart references could not be found or are not visible from the active organization.',
+  })
+
+const canUseChartReferencedResource = (options: {
+  activeOrganizationId: string
+  organizationId: string
+  visibility: string
+}): boolean =>
+  options.organizationId === options.activeOrganizationId ||
+  options.visibility !== 'private'
 
 const toIndicatorUsageKey = (usage: IndicatorUsageRow): string =>
   [
@@ -137,6 +160,221 @@ const getDashboardChartSpatialSelections = (
   content: DashboardContent,
 ): ChartSpatialSelection[] =>
   Object.values(content.charts).map((chart) => getChartSpatialSelection(chart))
+
+const assertChartReferencesAuthorized = async (
+  tx: DbTransaction,
+  charts: ChartConfiguration[],
+  options: ChartReferenceAuthorizationOptions,
+): Promise<void> => {
+  const productRunIds = toUniqueStrings(
+    charts.map((chart) => chart.productRunId),
+  )
+  const selectedIndicatorIds = toUniqueStrings(
+    charts.flatMap(
+      (chart) => extractChartIndicatorSelection(chart).indicatorIds,
+    ),
+  )
+  const productRuns =
+    productRunIds.length > 0
+      ? await tx.query.productRun.findMany({
+          where: inArray(productRun.id, productRunIds),
+          columns: {
+            geometriesRunId: true,
+            id: true,
+          },
+          with: {
+            product: {
+              columns: {
+                organizationId: true,
+                visibility: true,
+              },
+            },
+          },
+        })
+      : []
+  const measuredIndicators =
+    selectedIndicatorIds.length > 0
+      ? await tx.query.indicator.findMany({
+          where: inArray(indicator.id, selectedIndicatorIds),
+          columns: {
+            id: true,
+            organizationId: true,
+            visibility: true,
+          },
+        })
+      : []
+  const derivedIndicators =
+    selectedIndicatorIds.length > 0
+      ? await tx.query.derivedIndicator.findMany({
+          where: inArray(derivedIndicator.id, selectedIndicatorIds),
+          columns: {
+            id: true,
+            organizationId: true,
+            visibility: true,
+          },
+        })
+      : []
+  const productRunById = new Map(productRuns.map((run) => [run.id, run]))
+  const measuredIndicatorById = new Map(
+    measuredIndicators.map((currentIndicator) => [
+      currentIndicator.id,
+      currentIndicator,
+    ]),
+  )
+  const derivedIndicatorById = new Map(
+    derivedIndicators.map((currentIndicator) => [
+      currentIndicator.id,
+      currentIndicator,
+    ]),
+  )
+
+  for (const productRunId of productRunIds) {
+    const currentProductRun = productRunById.get(productRunId)
+
+    if (
+      !currentProductRun ||
+      !canUseChartReferencedResource({
+        activeOrganizationId: options.activeOrganizationId,
+        organizationId: currentProductRun.product.organizationId,
+        visibility: currentProductRun.product.visibility,
+      })
+    ) {
+      throw chartReferenceNotFoundError()
+    }
+  }
+
+  for (const indicatorId of selectedIndicatorIds) {
+    const measuredIndicator = measuredIndicatorById.get(indicatorId)
+    const currentDerivedIndicator = derivedIndicatorById.get(indicatorId)
+
+    if (
+      (measuredIndicator && currentDerivedIndicator) ||
+      (!measuredIndicator && !currentDerivedIndicator)
+    ) {
+      throw chartReferenceNotFoundError()
+    }
+
+    const referencedIndicator = measuredIndicator ?? currentDerivedIndicator
+
+    if (
+      !referencedIndicator ||
+      !canUseChartReferencedResource({
+        activeOrganizationId: options.activeOrganizationId,
+        organizationId: referencedIndicator.organizationId,
+        visibility: referencedIndicator.visibility,
+      })
+    ) {
+      throw chartReferenceNotFoundError()
+    }
+  }
+
+  for (const chart of charts) {
+    const currentProductRun = productRunById.get(chart.productRunId)
+
+    if (!currentProductRun) {
+      throw chartReferenceNotFoundError()
+    }
+
+    const geometryOutputIds =
+      'geometryOutputIds' in chart ? (chart.geometryOutputIds ?? []) : []
+
+    if (geometryOutputIds.length > 0) {
+      const geometriesRunId = currentProductRun.geometriesRunId
+
+      if (!geometriesRunId) {
+        throw chartReferenceNotFoundError()
+      }
+
+      const expectedGeometryOutputIds = toUniqueStrings(geometryOutputIds)
+      const matchedGeometryOutputs = await tx.query.geometryOutput.findMany({
+        where: (table, { and, eq, inArray }) =>
+          and(
+            inArray(table.id, expectedGeometryOutputIds),
+            eq(table.geometriesRunId, geometriesRunId),
+          ),
+        columns: {
+          id: true,
+        },
+      })
+
+      if (matchedGeometryOutputs.length !== expectedGeometryOutputIds.length) {
+        throw chartReferenceNotFoundError()
+      }
+    }
+
+    const selection = extractChartIndicatorSelection(chart)
+    const selectedDerivedIndicatorIds = selection.indicatorIds.filter(
+      (indicatorId) => derivedIndicatorById.has(indicatorId),
+    )
+
+    for (const derivedIndicatorId of selectedDerivedIndicatorIds) {
+      const assignedDerivedIndicator =
+        await tx.query.productRunAssignedDerivedIndicator.findFirst({
+          where: (table, { and, eq }) =>
+            and(
+              eq(table.productRunId, chart.productRunId),
+              eq(table.derivedIndicatorId, derivedIndicatorId),
+            ),
+          columns: {
+            id: true,
+          },
+        })
+
+      if (!assignedDerivedIndicator) {
+        continue
+      }
+
+      const dependencies = await tx
+        .select({
+          sourceProductRunId:
+            productRunAssignedDerivedIndicatorDependency.sourceProductRunId,
+        })
+        .from(productRunAssignedDerivedIndicatorDependency)
+        .where(
+          eq(
+            productRunAssignedDerivedIndicatorDependency.assignedDerivedIndicatorId,
+            assignedDerivedIndicator.id,
+          ),
+        )
+      const sourceProductRunIds = toUniqueStrings(
+        dependencies.map((dependency) => dependency.sourceProductRunId),
+      )
+      const sourceProductRuns =
+        sourceProductRunIds.length > 0
+          ? await tx.query.productRun.findMany({
+              where: inArray(productRun.id, sourceProductRunIds),
+              columns: {
+                id: true,
+              },
+              with: {
+                product: {
+                  columns: {
+                    organizationId: true,
+                    visibility: true,
+                  },
+                },
+              },
+            })
+          : []
+
+      if (sourceProductRuns.length !== sourceProductRunIds.length) {
+        throw chartReferenceNotFoundError()
+      }
+
+      for (const sourceProductRun of sourceProductRuns) {
+        if (
+          !canUseChartReferencedResource({
+            activeOrganizationId: options.activeOrganizationId,
+            organizationId: sourceProductRun.product.organizationId,
+            visibility: sourceProductRun.product.visibility,
+          })
+        ) {
+          throw chartReferenceNotFoundError()
+        }
+      }
+    }
+  }
+}
 
 const buildChartBoundsSql = (
   selection: ChartSpatialSelection,
@@ -795,13 +1033,18 @@ export const syncReportChartUsages = async (
   tx: DbTransaction,
   reportId: string,
   content: unknown,
+  options: ChartReferenceAuthorizationOptions,
 ): Promise<void> => {
+  const charts = extractReportChartReferences(content).map(
+    (reference) => reference.chart,
+  )
   const spatialSelections = getReportChartSpatialSelections(content)
   const indicatorUsages = await resolveIndicatorUsages(
     tx,
     getReportIndicatorSelections(content),
   )
 
+  await assertChartReferencesAuthorized(tx, charts, options)
   await replaceReportIndicatorUsages(tx, reportId, indicatorUsages)
   await tx
     .update(report)
@@ -815,13 +1058,16 @@ export const syncDashboardChartUsages = async (
   tx: DbTransaction,
   dashboardId: string,
   content: DashboardContent,
+  options: ChartReferenceAuthorizationOptions,
 ): Promise<void> => {
+  const charts = Object.values(content.charts)
   const spatialSelections = getDashboardChartSpatialSelections(content)
   const indicatorUsages = await resolveIndicatorUsages(
     tx,
     getDashboardIndicatorSelections(content),
   )
 
+  await assertChartReferencesAuthorized(tx, charts, options)
   await replaceDashboardIndicatorUsages(tx, dashboardId, indicatorUsages)
   await tx
     .update(dashboard)

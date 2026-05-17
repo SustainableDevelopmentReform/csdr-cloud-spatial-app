@@ -351,11 +351,12 @@ describe('indicator route', () => {
       },
     )
 
-    await expectJsonResponse(
+    const updatedDerivedJson = await expectJsonResponse<{ expression: string }>(
       await adminClient.api.v0.indicator.derived[':id'].$patch({
         param: { id: createdDerivedJson.data.id },
         json: {
           description: 'Updated derived indicator',
+          expression: '$1 + 4',
         },
       }),
       {
@@ -363,6 +364,7 @@ describe('indicator route', () => {
         message: 'Derived indicator updated',
       },
     )
+    expect(updatedDerivedJson.data.expression).toBe('$1 + 4')
 
     await expectJsonResponse(
       await adminClient.api.v0.indicator.derived[':id'].$delete({

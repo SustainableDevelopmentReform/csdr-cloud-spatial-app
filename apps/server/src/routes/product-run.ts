@@ -16,6 +16,10 @@ import {
   workflowDagSimpleSchema,
 } from '@repo/schemas/crud'
 import {
+  buildAllowedDerivedExpressionSymbols,
+  validateDerivedExpression,
+} from '@repo/schemas/derived-expression'
+import {
   and,
   avg,
   count,
@@ -1325,6 +1329,15 @@ const app = createOpenAPIApp()
       })
       const record = await fetchFullProductRunOrThrow(id)
 
+      if (record.product.mainRunId === id) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Cannot delete product run',
+          description:
+            'Unset or replace the product main run before deleting this run.',
+        })
+      }
+
       await ensureProductRunNotUsedByCharts(id)
 
       await db.delete(productRun).where(eq(productRun.id, id))
@@ -1699,6 +1712,18 @@ const app = createOpenAPIApp()
             `$${index + 1}`,
           ]),
         )
+        const expressionValidationError = validateDerivedExpression({
+          expression: derivedIndicator.expression,
+          allowedSymbols: buildAllowedDerivedExpressionSymbols(indicatorIds),
+        })
+
+        if (expressionValidationError) {
+          warnings.push({
+            message: `${derivedIndicator.name}: Unsafe expression skipped.`,
+            description: expressionValidationError,
+          })
+          continue
+        }
 
         const hasDerivedIndicatorBeenComputed = await db
           .select({ count: count() })

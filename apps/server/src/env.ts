@@ -5,6 +5,11 @@ const defaultAnonymousPublicAccess =
   process.env.NODE_ENV === 'production' ? 'false' : 'true'
 const defaultDatabaseSslMode =
   process.env.NODE_ENV === 'production' ? 'require' : 'disable'
+const parseCommaSeparatedList = (val: string): string[] =>
+  val
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
 
 export const env = createEnv({
   shared: {
@@ -24,6 +29,7 @@ export const env = createEnv({
     AUTH_EMAIL_MODE: z.enum(['log', 'smtp']).default('log'),
     INTERNAL_FRONTEND_URL: z.url().optional(),
     INTERNAL_BACKEND_URL: z.url().optional(),
+    MAP_STYLE_URL: z.url().optional(),
     DATABASE_URL: z.string().optional(),
     DATABASE_SCHEMA: z.string().optional(),
     DATABASE_HOST: z.string().default('localhost'),
@@ -38,7 +44,12 @@ export const env = createEnv({
     TRUSTED_ORIGINS: z
       .string()
       .default('http://localhost:3000')
-      .transform((val) => val.split(',')),
+      .transform(parseCommaSeparatedList),
+    PMTILES_ALLOWED_ORIGINS: z
+      .string()
+      .optional()
+      .default('')
+      .transform(parseCommaSeparatedList),
     DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND: z
       .string()
       .optional()
@@ -103,6 +114,7 @@ export const env = createEnv({
     AUTH_EMAIL_MODE: process.env.AUTH_EMAIL_MODE,
     INTERNAL_FRONTEND_URL: process.env.INTERNAL_FRONTEND_URL,
     INTERNAL_BACKEND_URL: process.env.INTERNAL_BACKEND_URL,
+    MAP_STYLE_URL: process.env.MAP_STYLE_URL,
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_SCHEMA: process.env.DATABASE_SCHEMA,
     DATABASE_HOST: process.env.DATABASE_HOST,
@@ -113,6 +125,7 @@ export const env = createEnv({
     DATABASE_SSL_MODE: process.env.DATABASE_SSL_MODE,
     DATABASE_SSL_CA_CERT: process.env.DATABASE_SSL_CA_CERT,
     TRUSTED_ORIGINS: process.env.TRUSTED_ORIGINS,
+    PMTILES_ALLOWED_ORIGINS: process.env.PMTILES_ALLOWED_ORIGINS,
     DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND:
       process.env.DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND,
     PORT: process.env.PORT,

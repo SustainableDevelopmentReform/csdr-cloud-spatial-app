@@ -19,6 +19,7 @@ INTERNAL_BACKEND_URL=http://localhost:4000
 MAP_STYLE_URL=
 
 TRUSTED_ORIGINS=https://sdf.localhost
+PMTILES_ALLOWED_ORIGINS=https://assets.example.org
 
 DATABASE_HOST=localhost
 DATABASE_PORT=5431

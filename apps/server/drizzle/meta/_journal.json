@@ -288,6 +288,13 @@
       "when": 1778759841816,
       "tag": "0040_big_sir_ram",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1779024099220,
+      "tag": "0041_sudden_trauma",
+      "breakpoints": true
     }
   ]
 }

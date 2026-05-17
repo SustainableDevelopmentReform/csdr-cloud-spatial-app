@@ -301,7 +301,9 @@ export const createDerivedIndicatorSchema = createIndicatorSchema.extend({
   indicatorIds: z.array(z.string()),
 })
 
-export const updateDerivedIndicatorSchema = updateIndicatorSchema
+export const updateDerivedIndicatorSchema = updateIndicatorSchema.extend({
+  expression: z.string().optional(),
+})
 
 /* INDICATOR CATEGORY RESOURCE SCHEMAS */
 export const indicatorCategorySchema = baseAclResourceSchema
@@ -820,17 +822,45 @@ export const importProductOutputColumnMappingSchema = z.array(
   }),
 )
 
+const importProductOutputColumnMappingStringSchema = z
+  .string()
+  .transform((data, ctx) => {
+    let parsed: unknown
+
+    try {
+      parsed = JSON.parse(data)
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'indicatorMappings must be valid JSON.',
+      })
+      return z.NEVER
+    }
+
+    const result = importProductOutputColumnMappingSchema.safeParse(parsed)
+
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: issue.path,
+          message: issue.message,
+        })
+      }
+
+      return z.NEVER
+    }
+
+    return result.data
+  })
+
 export const importProductOutputsSchema = z.object({
   productRunId: z.string(),
   geometryColumn: z.string(),
-  indicatorMappings: z
-    .union([importProductOutputColumnMappingSchema, z.string()])
-    .transform((data) => {
-      if (typeof data === 'string') {
-        return importProductOutputColumnMappingSchema.parse(JSON.parse(data))
-      }
-      return data
-    }),
+  indicatorMappings: z.union([
+    importProductOutputColumnMappingSchema,
+    importProductOutputColumnMappingStringSchema,
+  ]),
   csvFile: fileSchema,
 })
 

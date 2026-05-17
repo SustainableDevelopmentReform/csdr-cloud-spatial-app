@@ -37,6 +37,7 @@ import {
   validationErrorResponse,
 } from '~/lib/openapi'
 import { renderReportPdf } from '~/lib/report-pdf'
+import { assertReportPmtilesUrlsAllowed } from '~/lib/report-pdf-pmtiles'
 import {
   buildPublishedReportPdfKey,
   downloadReportPdf,
@@ -511,7 +512,9 @@ const app = createOpenAPIApp()
         }
 
         if ('content' in data) {
-          await syncReportChartUsages(tx, updatedRecord.id, data.content)
+          await syncReportChartUsages(tx, updatedRecord.id, data.content, {
+            activeOrganizationId: accessRecord.organizationId,
+          })
         }
 
         if (updatedRecord.visibility !== 'private') {
@@ -801,6 +804,7 @@ const app = createOpenAPIApp()
 
       assertReportMutable(currentRecord)
       assertCanGenerateReportPdf(actor)
+      await assertReportPmtilesUrlsAllowed(currentRecord.content)
 
       const pdfBytes = await renderReportPdf({
         reportId: id,
@@ -859,6 +863,7 @@ const app = createOpenAPIApp()
 
       assertReportMutable(currentRecord)
       assertCanGenerateReportPdf(actor)
+      await assertReportPmtilesUrlsAllowed(currentRecord.content)
 
       const pdfKey = buildPublishedReportPdfKey(id)
       const pdfBytes = await renderReportPdf({
@@ -928,11 +933,10 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
-      const sourceAccessRecord = await assertResourceReadable({
+      const sourceAccessRecord = await assertResourceWritable({
         c,
         resource: 'report',
         resourceId: id,
-        allowPublicRead: true,
         notFoundError: reportNotFoundError,
       })
       const sourceRecord = await fetchReportLifecycleRecord(
@@ -971,7 +975,14 @@ const app = createOpenAPIApp()
           })
         }
 
-        await syncReportChartUsages(tx, insertedReport.id, sourceRecord.content)
+        await syncReportChartUsages(
+          tx,
+          insertedReport.id,
+          sourceRecord.content,
+          {
+            activeOrganizationId,
+          },
+        )
 
         return insertedReport
       })

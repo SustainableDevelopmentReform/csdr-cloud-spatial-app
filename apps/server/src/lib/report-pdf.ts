@@ -7,6 +7,10 @@ import { ServerError } from './error'
 const reportReadySelector = '[data-report-print-ready="true"]'
 const reportReadyTimeoutMs = 60_000
 const testPdfBytes = Buffer.from('%PDF-1.4\n% Report PDF fixture\n')
+const defaultMapAssetOrigins = [
+  'https://api.protomaps.com',
+  'https://protomaps.github.io',
+]
 
 const browserExecutableCandidates = [
   env.PDF_BROWSER_EXECUTABLE_PATH,
@@ -68,6 +72,71 @@ const resolveBrowserExecutablePath = async (): Promise<string | undefined> => {
 
 const getReportPrintUrl = (reportId: string) =>
   new URL(`/report/${reportId}/print`, env.APP_URL).toString()
+
+const getOriginFromUrl = (rawUrl: string | undefined): string | null => {
+  if (!rawUrl) {
+    return null
+  }
+
+  try {
+    return new URL(rawUrl).origin
+  } catch {
+    return null
+  }
+}
+
+const getAllowedPdfRequestOrigins = (): Set<string> => {
+  const origins = new Set<string>()
+  const configuredUrls = [
+    env.APP_URL,
+    env.INTERNAL_FRONTEND_URL,
+    env.INTERNAL_BACKEND_URL,
+    env.MAP_STYLE_URL,
+  ]
+
+  for (const configuredUrl of configuredUrls) {
+    const origin = getOriginFromUrl(configuredUrl)
+
+    if (origin) {
+      origins.add(origin)
+    }
+  }
+
+  for (const origin of defaultMapAssetOrigins) {
+    origins.add(origin)
+  }
+
+  for (const origin of env.PMTILES_ALLOWED_ORIGINS) {
+    origins.add(origin)
+  }
+
+  return origins
+}
+
+const isAllowedPdfRequestUrl = (
+  rawUrl: string,
+  allowedOrigins: Set<string>,
+): boolean => {
+  try {
+    const url = new URL(rawUrl)
+
+    if (
+      url.protocol === 'about:' ||
+      url.protocol === 'blob:' ||
+      url.protocol === 'data:'
+    ) {
+      return true
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false
+    }
+
+    return allowedOrigins.has(url.origin)
+  } catch {
+    return false
+  }
+}
 
 const getBrowserLaunchArgs = (): string[] => {
   const args = ['--disable-dev-shm-usage']
@@ -133,6 +202,17 @@ export const renderReportPdf = async (options: {
     }
 
     const page = await context.newPage()
+    const allowedOrigins = getAllowedPdfRequestOrigins()
+
+    await page.route('**/*', async (route) => {
+      if (isAllowedPdfRequestUrl(route.request().url(), allowedOrigins)) {
+        await route.continue()
+        return
+      }
+
+      await route.abort()
+    })
+
     const response = await page.goto(getReportPrintUrl(options.reportId), {
       waitUntil: 'domcontentloaded',
     })

@@ -24,6 +24,7 @@ import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
 } from '~/lib/geographic-bounds'
+import { validatePmtilesUrl } from '~/lib/url-security'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -476,6 +477,8 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      validatePmtilesUrl(payload.dataPmtilesUrl)
+
       await assertResourceWritable({
         c,
         resource: 'geometries',
@@ -600,6 +603,15 @@ const app = createOpenAPIApp()
         notFoundError: geometriesRunNotFoundError,
       })
       const record = await fetchBaseGeometriesRunOrThrow(id)
+
+      if (record.geometries.mainRunId === id) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Cannot delete geometries run',
+          description:
+            'Unset or replace the geometries main run before deleting this run.',
+        })
+      }
 
       await db.delete(geometriesRun).where(eq(geometriesRun.id, id))
 

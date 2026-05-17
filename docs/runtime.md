@@ -11,6 +11,7 @@ Minimum runtime variables:
 APP_URL=https://example.org
 AUTH_BASE_URL=https://example.org
 TRUSTED_ORIGINS=https://example.org
+PMTILES_ALLOWED_ORIGINS=https://assets.example.org
 BETTER_AUTH_SECRET=
 
 DATABASE_HOST=
@@ -85,3 +86,4 @@ The app expects:
 - S3-compatible object storage for published report PDFs
 - SMTP for production auth email flows
 - external basemap/style assets when `MAP_STYLE_URL` points outside the app
+- HTTPS PMTiles asset origins listed in `PMTILES_ALLOWED_ORIGINS`

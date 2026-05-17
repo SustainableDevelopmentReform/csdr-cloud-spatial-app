@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import type { Context } from 'hono'
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { DrizzleQueryError, and, asc, desc, eq } from 'drizzle-orm'
+import { DatabaseError } from 'pg'
 import { auth, type AuthType } from '~/lib/auth'
 import {
   appOrganizationRoleValues,
@@ -22,7 +23,8 @@ import {
 } from '~/lib/openapi'
 import { generateJsonResponse } from '~/lib/response'
 import {
-  ensureOrgAdminFloor,
+  ensureOrgAdminFloorInTransaction,
+  lockOrganizationAdminFloor,
   requireSuperAdminActor,
   resolveSuperAdminOrganizationId,
 } from '~/lib/auth/policy'
@@ -137,6 +139,12 @@ type OrganizationRouteLogContext = {
   resourceId: string | null
   targetOrganizationId: string | null
 }
+
+const isPendingInvitationUniqueViolation = (error: unknown): boolean =>
+  error instanceof DrizzleQueryError &&
+  error.cause instanceof DatabaseError &&
+  error.cause.code === '23505' &&
+  error.cause.constraint === 'invitation_pending_org_email_uidx'
 
 const runLoggedSuperAdminAction = async <TResponse extends Response>(options: {
   action: string
@@ -1010,6 +1018,16 @@ const app = createOpenAPIApp()
               role: invitation.role,
               status: invitation.status,
             })
+            .catch((error: unknown) => {
+              if (isPendingInvitationUniqueViolation(error)) {
+                throw new ServerError({
+                  statusCode: 409,
+                  message: 'User is already invited to this organization',
+                })
+              }
+
+              throw error
+            })
 
           const insertedInvitation = createdInvitation[0]
 
@@ -1095,56 +1113,62 @@ const app = createOpenAPIApp()
 
           logContext.targetOrganizationId = managedOrganizationId
 
-          const existingMember = await db.query.member.findFirst({
-            columns: {
-              id: true,
-              organizationId: true,
-              role: true,
-              userId: true,
-            },
-            where: (table, { and, eq }) =>
-              and(
-                eq(table.id, payload.memberId),
-                eq(table.organizationId, managedOrganizationId),
-              ),
+          const updatedMember = await db.transaction(async (tx) => {
+            await lockOrganizationAdminFloor(tx, managedOrganizationId)
+
+            const existingMember = await tx.query.member.findFirst({
+              columns: {
+                id: true,
+                organizationId: true,
+                role: true,
+                userId: true,
+              },
+              where: (table, { and, eq }) =>
+                and(
+                  eq(table.id, payload.memberId),
+                  eq(table.organizationId, managedOrganizationId),
+                ),
+            })
+
+            if (!existingMember) {
+              throw new ServerError({
+                statusCode: 404,
+                message: 'Member not found',
+              })
+            }
+
+            logContext.resourceId = existingMember.id
+
+            await ensureOrgAdminFloorInTransaction(tx, {
+              memberId: existingMember.id,
+              nextRole: payload.role,
+              organizationId: managedOrganizationId,
+            })
+
+            const updatedMembers = await tx
+              .update(member)
+              .set({
+                role: payload.role,
+              })
+              .where(eq(member.id, existingMember.id))
+              .returning({
+                id: member.id,
+                organizationId: member.organizationId,
+                role: member.role,
+                userId: member.userId,
+              })
+
+            const updatedMember = updatedMembers[0]
+
+            if (!updatedMember) {
+              throw new ServerError({
+                statusCode: 404,
+                message: 'Member not found',
+              })
+            }
+
+            return updatedMember
           })
-
-          if (!existingMember) {
-            throw new ServerError({
-              statusCode: 404,
-              message: 'Member not found',
-            })
-          }
-
-          logContext.resourceId = existingMember.id
-
-          await ensureOrgAdminFloor({
-            memberId: existingMember.id,
-            nextRole: payload.role,
-            organizationId: managedOrganizationId,
-          })
-
-          const updatedMembers = await db
-            .update(member)
-            .set({
-              role: payload.role,
-            })
-            .where(eq(member.id, existingMember.id))
-            .returning({
-              id: member.id,
-              organizationId: member.organizationId,
-              role: member.role,
-              userId: member.userId,
-            })
-
-          const updatedMember = updatedMembers[0]
-
-          if (!updatedMember) {
-            throw new ServerError({
-              statusCode: 404,
-              message: 'Member not found',
-            })
-          }
 
           const relatedUser = await db.query.user.findFirst({
             columns: {
@@ -1224,57 +1248,59 @@ const app = createOpenAPIApp()
 
           logContext.targetOrganizationId = managedOrganizationId
 
-          const existingMember = payload.memberIdOrEmail.includes('@')
-            ? await db
-                .select({
-                  id: member.id,
-                  organizationId: member.organizationId,
-                  role: member.role,
-                  userId: member.userId,
-                })
-                .from(member)
-                .innerJoin(user, eq(member.userId, user.id))
-                .where(
-                  and(
-                    eq(member.organizationId, managedOrganizationId),
-                    eq(
-                      user.email,
-                      payload.memberIdOrEmail.trim().toLowerCase(),
+          const removedMemberId = await db.transaction(async (tx) => {
+            await lockOrganizationAdminFloor(tx, managedOrganizationId)
+
+            const existingMember = payload.memberIdOrEmail.includes('@')
+              ? await tx
+                  .select({
+                    id: member.id,
+                    organizationId: member.organizationId,
+                    role: member.role,
+                    userId: member.userId,
+                  })
+                  .from(member)
+                  .innerJoin(user, eq(member.userId, user.id))
+                  .where(
+                    and(
+                      eq(member.organizationId, managedOrganizationId),
+                      eq(
+                        user.email,
+                        payload.memberIdOrEmail.trim().toLowerCase(),
+                      ),
                     ),
-                  ),
-                )
-                .limit(1)
-                .then((members) => members[0] ?? null)
-            : await db.query.member.findFirst({
-                columns: {
-                  id: true,
-                  organizationId: true,
-                  role: true,
-                  userId: true,
-                },
-                where: (table, { and, eq }) =>
-                  and(
-                    eq(table.id, payload.memberIdOrEmail),
-                    eq(table.organizationId, managedOrganizationId),
-                  ),
+                  )
+                  .limit(1)
+                  .then((members) => members[0] ?? null)
+              : await tx.query.member.findFirst({
+                  columns: {
+                    id: true,
+                    organizationId: true,
+                    role: true,
+                    userId: true,
+                  },
+                  where: (table, { and, eq }) =>
+                    and(
+                      eq(table.id, payload.memberIdOrEmail),
+                      eq(table.organizationId, managedOrganizationId),
+                    ),
+                })
+
+            if (!existingMember) {
+              throw new ServerError({
+                statusCode: 404,
+                message: 'Member not found',
               })
+            }
 
-          if (!existingMember) {
-            throw new ServerError({
-              statusCode: 404,
-              message: 'Member not found',
+            logContext.resourceId = existingMember.id
+
+            await ensureOrgAdminFloorInTransaction(tx, {
+              memberId: existingMember.id,
+              nextRole: null,
+              organizationId: managedOrganizationId,
             })
-          }
 
-          logContext.resourceId = existingMember.id
-
-          await ensureOrgAdminFloor({
-            memberId: existingMember.id,
-            nextRole: null,
-            organizationId: managedOrganizationId,
-          })
-
-          await db.transaction(async (tx) => {
             await tx.delete(member).where(eq(member.id, existingMember.id))
 
             const nextMembership = await tx.query.member.findFirst({
@@ -1300,12 +1326,14 @@ const app = createOpenAPIApp()
                   eq(session.activeOrganizationId, managedOrganizationId),
                 ),
               )
+
+            return existingMember.id
           })
 
           return generateJsonResponse(
             c,
             {
-              id: existingMember.id,
+              id: removedMemberId,
             },
             200,
             'Member removed',

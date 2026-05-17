@@ -915,6 +915,16 @@ describe('report route', () => {
   it('duplicates a report into a new private unpublished draft with synced chart usage', async () => {
     const reportId = await createReportWithChartUsage(seededIds.indicator)
 
+    await expectJsonResponse(
+      await memberClient.api.v0.report[':id'].duplicate.$post({
+        param: { id: reportId },
+      }),
+      {
+        status: 403,
+        message: 'User is not authorized',
+      },
+    )
+
     const duplicatedJson = await expectJsonResponse<{
       id: string
       name: string

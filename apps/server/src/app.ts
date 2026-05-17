@@ -33,6 +33,10 @@ import {
 } from './lib/auth/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
+import {
+  csrfMiddleware,
+  requestBodyLimitMiddleware,
+} from './middlewares/request-security'
 import dataLibrary from './routes/data-library'
 import dataset from './routes/dataset'
 import datasetRun from './routes/dataset-run'
@@ -96,6 +100,8 @@ const toContentfulStatusCode = (statusCode: number): ContentfulStatusCode => {
       return 404
     case 409:
       return 409
+    case 413:
+      return 413
     case 422:
       return 422
     case 429:
@@ -138,6 +144,8 @@ app.use(
 )
 app.use('*', secureHeaders())
 app.use('*', rateLimiter())
+app.use('*', requestBodyLimitMiddleware)
+app.use('*', csrfMiddleware)
 
 app.use('*', async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers })

@@ -11,6 +11,7 @@ import {
   toResourceBounds,
   toResourceBoundsPolygon,
 } from '~/lib/geographic-bounds'
+import { validatePmtilesUrl } from '~/lib/url-security'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -193,6 +194,8 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const payload = c.req.valid('json')
+      validatePmtilesUrl(payload.dataPmtilesUrl)
+
       await assertResourceWritable({
         c,
         resource: 'dataset',
@@ -332,6 +335,15 @@ const app = createOpenAPIApp()
         notFoundError: datasetRunNotFoundError,
       })
       const record = await fetchFullDatasetRunOrThrow(id)
+
+      if (record.dataset.mainRunId === id) {
+        throw new ServerError({
+          statusCode: 400,
+          message: 'Cannot delete dataset run',
+          description:
+            'Unset or replace the dataset main run before deleting this run.',
+        })
+      }
 
       await db.delete(datasetRun).where(eq(datasetRun.id, id))
 

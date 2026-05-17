@@ -774,6 +774,7 @@ export const setupIsolatedTestFile = async (
 
       const scopedHeaders = new Headers(headers)
       scopedHeaders.set(ACTIVE_ORGANIZATION_HEADER, organizationId)
+      scopedHeaders.set('origin', FRONTEND_ORIGIN)
 
       return scopedHeaders
     },

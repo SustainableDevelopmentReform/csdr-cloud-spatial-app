@@ -202,6 +202,18 @@ describe('dataset-run route', () => {
       },
     )
 
+    await expectJsonResponse(
+      await adminClient.api.v0['dataset-run'][':id'].$delete({
+        param: { id: createdJson.data.id },
+      }),
+      {
+        status: 400,
+        message: 'Cannot delete dataset run',
+        description:
+          'Unset or replace the dataset main run before deleting this run.',
+      },
+    )
+
     const deleteTargetJson = await expectJsonResponse<{ id: string }>(
       await adminClient.api.v0['dataset-run'].$post({
         json: {
@@ -222,6 +234,36 @@ describe('dataset-run route', () => {
       {
         status: 200,
         message: 'Dataset run deleted',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Loopback PMTiles run',
+          dataPmtilesUrl: 'https://127.0.0.1/data.pmtiles',
+        },
+      }),
+      {
+        status: 422,
+        message: 'Invalid PMTiles URL',
+        description:
+          'PMTiles URLs cannot target local or private network hosts.',
+      },
+    )
+
+    await expectJsonResponse(
+      await adminClient.api.v0['dataset-run'].$post({
+        json: {
+          datasetId: seededIds.dataset,
+          name: 'Allowed PMTiles run',
+          dataPmtilesUrl: 'https://allowed.example.com/data.pmtiles',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Dataset run created',
       },
     )
   })
