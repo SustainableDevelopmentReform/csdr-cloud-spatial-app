@@ -50,9 +50,11 @@ const ConsoleSideDrawerActionsContext =
 const ConsoleSideDrawerStateContext = createContext<{
   activeDrawerId: string | null
   historyLength: number
+  historyDrawerIds: string[]
 }>({
   activeDrawerId: null,
   historyLength: 0,
+  historyDrawerIds: [],
 })
 
 export const getConsoleSideDrawerOpenSource = (
@@ -84,9 +86,11 @@ export const ConsoleSideDrawerProvider = ({
   const [drawerState, setDrawerState] = useState<{
     activeDrawerId: string | null
     historyLength: number
+    historyDrawerIds: string[]
   }>({
     activeDrawerId: null,
     historyLength: 0,
+    historyDrawerIds: [],
   })
   const activeDrawerIdRef = useRef<string | null>(null)
   const drawerHistoryRef = useRef<ConsoleSideDrawerSnapshot[]>([])
@@ -98,6 +102,7 @@ export const ConsoleSideDrawerProvider = ({
     setDrawerState({
       activeDrawerId: activeDrawerIdRef.current,
       historyLength: drawerHistoryRef.current.length,
+      historyDrawerIds: drawerHistoryRef.current.map((entry) => entry.drawerId),
     })
   }, [])
 
@@ -156,6 +161,15 @@ export const ConsoleSideDrawerProvider = ({
   const closeDrawer = useCallback(
     (drawerId: string) => {
       if (activeDrawerIdRef.current !== drawerId) {
+        const nextHistory = drawerHistoryRef.current.filter(
+          (entry) => entry.drawerId !== drawerId,
+        )
+
+        if (nextHistory.length !== drawerHistoryRef.current.length) {
+          drawerHistoryRef.current = nextHistory
+          syncDrawerState()
+        }
+
         return
       }
 
@@ -199,10 +213,26 @@ export const ConsoleSideDrawerProvider = ({
 
         if (registeredDrawer === registration) {
           drawerRegistryRef.current.delete(drawerId)
+
+          if (activeDrawerIdRef.current === drawerId) {
+            activeDrawerIdRef.current = null
+            drawerHistoryRef.current = []
+            syncDrawerState()
+            return
+          }
+
+          const nextHistory = drawerHistoryRef.current.filter(
+            (entry) => entry.drawerId !== drawerId,
+          )
+
+          if (nextHistory.length !== drawerHistoryRef.current.length) {
+            drawerHistoryRef.current = nextHistory
+            syncDrawerState()
+          }
         }
       }
     },
-    [],
+    [syncDrawerState],
   )
 
   const requestOpen = useCallback(
@@ -301,10 +331,20 @@ export const ConsoleSideDrawer = ({
   const drawerActions = useContext(ConsoleSideDrawerActionsContext)
   const drawerState = useContext(ConsoleSideDrawerStateContext)
   const openSourceRef = useRef(openSource)
+  const onBackRestoreRef = useRef(onBackRestore)
+  const onCloseRef = useRef(onClose)
 
   useEffect(() => {
     openSourceRef.current = openSource
   }, [openSource])
+
+  useEffect(() => {
+    onBackRestoreRef.current = onBackRestore
+  }, [onBackRestore])
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   const handleClose = useCallback(() => {
     if (drawerActions) {
@@ -340,15 +380,21 @@ export const ConsoleSideDrawer = ({
 
   useEffect(() => {
     return drawerActions?.registerDrawer(drawerId, {
-      close: onClose,
-      getSnapshot: onBackRestore
-        ? () => ({
-            drawerId,
-            restore: onBackRestore,
-          })
-        : undefined,
+      close: () => onCloseRef.current(),
+      getSnapshot: () => {
+        const restore = onBackRestoreRef.current
+
+        return restore
+          ? {
+              drawerId,
+              restore,
+            }
+          : null
+      },
     })
-  }, [drawerActions, drawerId, onBackRestore, onClose])
+  }, [drawerActions, drawerId])
+
+  const isDrawerInHistory = drawerState.historyDrawerIds.includes(drawerId)
 
   useEffect(() => {
     if (!drawerActions) {
@@ -356,12 +402,21 @@ export const ConsoleSideDrawer = ({
     }
 
     if (open) {
-      drawerActions.requestOpen(drawerId, { source: openSourceRef.current })
+      if (drawerState.activeDrawerId !== drawerId && !isDrawerInHistory) {
+        drawerActions.requestOpen(drawerId, { source: openSourceRef.current })
+      }
+
       return
     }
 
     drawerActions.closeDrawer(drawerId)
-  }, [drawerActions, drawerId, open])
+  }, [
+    drawerActions,
+    drawerId,
+    drawerState.activeDrawerId,
+    isDrawerInHistory,
+    open,
+  ])
 
   const isActiveDrawer = drawerActions
     ? drawerState.activeDrawerId === drawerId

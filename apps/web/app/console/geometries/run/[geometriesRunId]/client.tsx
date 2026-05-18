@@ -17,7 +17,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
-import { useConsoleSideDrawerStack } from '~/app/console/_components/console-side-drawer'
 import {
   getEditModeHref,
   OverviewSection,
@@ -74,7 +73,6 @@ const GeometriesRunDetails = () => {
   const geometriesRunQuery = useGeometriesRun()
   const geometriesRun = geometriesRunQuery.data
   const updateGeometriesRun = useUpdateGeometriesRun()
-  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const { access } = useAccessControl()
   const canEdit = canManageConsoleChildResource({
     access,
@@ -151,10 +149,9 @@ const GeometriesRunDetails = () => {
 
   const openGeometryOutputDetails = useCallback(
     (selection: GeometryOutputMapSelection) => {
-      closeActiveDrawer()
       setSelectedGeometryOutputId(selection.geometryOutputId)
     },
-    [closeActiveDrawer],
+    [],
   )
 
   const selectGeometryOutputDetails = useCallback(

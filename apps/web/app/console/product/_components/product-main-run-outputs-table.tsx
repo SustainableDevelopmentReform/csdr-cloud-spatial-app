@@ -45,7 +45,7 @@ import { ProductOutputsImportDialog } from './product-output-import'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { IndicatorsSelect } from '../../indicator/_components/indicators-select'
 import { Value } from '../../../../components/value'
-import { useConsoleSideDrawerStack } from '../../_components/console-side-drawer'
+import type { ConsoleSideDrawerOpenSource } from '../../_components/console-side-drawer'
 import { getEditModeHref } from '../../_components/resource-detail-mode'
 import { ProductOutputDetailsSidebar } from '../../report/_components/chart-selected-item'
 import { useIndicators } from '../../indicator/_hooks'
@@ -80,13 +80,14 @@ export function ProductMainRunOutputsTable({
   } = useProductOutputs(productRunId, undefined, true)
   const createProductOutput = useCreateProductRunOutput()
   const productLink = useProductOutputLink()
-  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const [selectedProductOutputId, setSelectedProductOutputId] = useState<
     string | null
   >(null)
   const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
     string | null
   >(null)
+  const [geometryOutputOpenSource, setGeometryOutputOpenSource] =
+    useState<ConsoleSideDrawerOpenSource>('root')
 
   const closeProductOutputDetails = useCallback(() => {
     setSelectedProductOutputId(null)
@@ -94,34 +95,33 @@ export function ProductMainRunOutputsTable({
 
   const closeGeometryOutputDetails = useCallback(() => {
     setSelectedGeometryOutputId(null)
+    setGeometryOutputOpenSource('root')
   }, [])
 
   const openProductOutputDetails = useCallback(
     (productOutput: ProductOutputListItem) => {
-      closeActiveDrawer()
+      setGeometryOutputOpenSource('root')
       setSelectedGeometryOutputId(null)
       setSelectedProductOutputId(productOutput.id)
     },
-    [closeActiveDrawer],
+    [],
   )
 
-  const openGeometryOutputDetails = useCallback(
-    (geometryOutputId: string) => {
-      closeActiveDrawer()
-      setSelectedProductOutputId(null)
-      setSelectedGeometryOutputId(geometryOutputId)
-    },
-    [closeActiveDrawer],
-  )
+  const openGeometryOutputDetails = useCallback((geometryOutputId: string) => {
+    setGeometryOutputOpenSource('root')
+    setSelectedProductOutputId(null)
+    setSelectedGeometryOutputId(geometryOutputId)
+  }, [])
 
   const selectProductOutputDetails = useCallback((productOutputId: string) => {
+    setGeometryOutputOpenSource('root')
     setSelectedGeometryOutputId(null)
     setSelectedProductOutputId(productOutputId)
   }, [])
 
   const selectGeometryOutputDetails = useCallback(
     (geometryOutputId: string) => {
-      setSelectedProductOutputId(null)
+      setGeometryOutputOpenSource('drawer')
       setSelectedGeometryOutputId(geometryOutputId)
     },
     [],
@@ -459,6 +459,7 @@ export function ProductMainRunOutputsTable({
       />
       <ProductOutputDetailsSidebar
         onClose={closeProductOutputDetails}
+        onGeometryOutputSelect={selectGeometryOutputDetails}
         onProductOutputSelect={selectProductOutputDetails}
         open={Boolean(selectedProductOutputId)}
         productOutputId={selectedProductOutputId}
@@ -468,6 +469,7 @@ export function ProductMainRunOutputsTable({
         onClose={closeGeometryOutputDetails}
         onGeometryOutputSelect={selectGeometryOutputDetails}
         open={Boolean(selectedGeometryOutputId)}
+        openSource={geometryOutputOpenSource}
       />
       <Pagination
         className="justify-end mt-4"

@@ -645,7 +645,6 @@ export const ChartSelectedItem = ({
 }: ChartSelectedItemProps) => {
   const popoverRef = useRef<HTMLDivElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
-  const { closeActiveDrawer } = useConsoleSideDrawerStack()
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [detailsProductOutputId, setDetailsProductOutputId] = useState<
     string | null
@@ -732,14 +731,11 @@ export const ChartSelectedItem = ({
         return
       }
 
-      if (!detailsOpen) {
-        closeActiveDrawer()
-      }
       setDetailsGeometryOutputId(null)
       setDetailsProductOutputId(resolvedProductOutputId)
       setDetailsOpen(true)
     },
-    [closeActiveDrawer, detailsOpen, selectedProductOutputId],
+    [selectedProductOutputId],
   )
 
   const selectDetailsProductOutput = useCallback(

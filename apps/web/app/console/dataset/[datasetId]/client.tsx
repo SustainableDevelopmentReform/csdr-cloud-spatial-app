@@ -22,8 +22,6 @@ import { ConsolePageHeader } from '~/app/console/_components/console-page-header
 import {
   getEditModeHref,
   getResourceVisibilityChangeSummary,
-  OverviewSection,
-  OverviewText,
   ResourceHeaderActions,
   ResourceTitleBlock,
   ResourceVisibilitySelect,
@@ -72,6 +70,12 @@ type DatasetVisibilityDialogState = VisibilityImpactDialogState & {
 }
 
 const formId = 'dataset-detail-form'
+const datasetViewTabs: readonly ResourceTab[] = [
+  'explore',
+  'lineage',
+  'versions',
+  'usage',
+]
 
 const DatasetRunMap = dynamic<DatasetRunMapProps>(
   () =>
@@ -110,7 +114,7 @@ const DatasetDetails = () => {
   const { access } = useAccessControl()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<ResourceTab>('overview')
+  const [activeTab, setActiveTab] = useState<ResourceTab>('explore')
   const [visibilityDialog, setVisibilityDialog] =
     useState<DatasetVisibilityDialogState | null>(null)
 
@@ -234,8 +238,8 @@ const DatasetDetails = () => {
     )
   }, [dataset, updateDatasetVisibility, visibilityDialog])
 
-  const overview = dataset ? (
-    isEditMode ? (
+  const overview =
+    dataset && isEditMode ? (
       <CrudForm
         form={form}
         formId={formId}
@@ -287,16 +291,7 @@ const DatasetDetails = () => {
           )}
         />
       </CrudForm>
-    ) : (
-      <div className="flex w-full max-w-[720px] flex-col gap-4">
-        <OverviewSection title="About">
-          <OverviewText>
-            {dataset.description ?? 'No description.'}
-          </OverviewText>
-        </OverviewSection>
-      </div>
-    )
-  ) : null
+    ) : null
 
   return (
     <div className="flex flex-col bg-neutral-100 text-foreground">
@@ -394,6 +389,7 @@ const DatasetDetails = () => {
                 </div>
 
                 <ResourcePageTabs
+                  enabledTabs={isEditMode ? undefined : datasetViewTabs}
                   value={isEditMode ? 'overview' : activeTab}
                   onValueChange={setActiveTab}
                   hideTabs={isEditMode}

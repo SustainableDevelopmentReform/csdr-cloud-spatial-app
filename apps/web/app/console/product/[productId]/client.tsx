@@ -21,7 +21,6 @@ import {
   getEditModeHref,
   getResourceVisibilityChangeSummary,
   OverviewSection,
-  OverviewText,
   ResourceHeaderActions,
   ResourceTitleBlock,
   ResourceVisibilitySelect,
@@ -236,11 +235,6 @@ const ProductDetails = () => {
       />
     ) : (
       <div className="flex w-full max-w-[720px] flex-col gap-4">
-        <OverviewSection title="About">
-          <OverviewText>
-            {product.description ?? 'No description.'}
-          </OverviewText>
-        </OverviewSection>
         <ProductOutputSummarySection canEdit={canEdit} run={product.mainRun} />
       </div>
     )
