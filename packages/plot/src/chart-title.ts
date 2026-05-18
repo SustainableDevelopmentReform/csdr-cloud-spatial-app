@@ -2,8 +2,8 @@ import type {
   AppearanceConfig,
   ChartDataDimension,
   DatePrecision,
-} from './chart-primitives'
-import type { ChartConfigurationDraft } from './chart-core'
+} from '@repo/plot/chart-primitives'
+import type { ChartConfigurationDraft } from '@repo/plot/chart-core'
 
 export type ChartTitleIndicator = {
   id: string | null | undefined

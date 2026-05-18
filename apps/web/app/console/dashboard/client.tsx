@@ -240,7 +240,6 @@ const DashboardFeature = () => {
     selectedGeometriesRun?.name,
     selectedGeometries?.data,
     selectedGeometriesIds,
-    selectedGeometriesIds.length,
     selectedIndicatorIds,
     selectedIndicators?.data,
     selectedProductRun?.name,

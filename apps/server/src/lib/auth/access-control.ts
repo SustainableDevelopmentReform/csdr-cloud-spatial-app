@@ -1,7 +1,6 @@
 import { createAccessControl } from 'better-auth/plugins/access'
 
-const appVisibilityValues = ['private', 'public', 'global'] as const
-export type AppVisibility = (typeof appVisibilityValues)[number]
+export type AppVisibility = 'private' | 'public' | 'global'
 
 const appAdminStatements = {
   user: [

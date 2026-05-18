@@ -9,7 +9,15 @@
     "sourceMap": true,
     "module": "CommonJS",
     "moduleResolution": "Node",
-    "target": "ES2020"
+    "target": "ES2020",
+    "paths": {
+      "@repo/plot/*": [
+        "../plot/dist/types/*"
+      ],
+      "@repo/schemas/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
     "src/**/*"

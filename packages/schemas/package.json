@@ -12,8 +12,8 @@
     }
   },
   "scripts": {
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
-    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "build": "pnpm --filter @repo/plot build && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test:unit": "vitest run"
   },

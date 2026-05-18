@@ -10,7 +10,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback } from 'react'
 import { z } from 'zod'
 import { Client, unwrapResponse } from '~/utils/api-client'
-import { getSearchParams } from '~/utils/browser'
 import { useApiClient } from '../../../hooks/use-api-client'
 import {
   getNextPaginatedPageParam,

@@ -222,10 +222,8 @@ export function ProductMainRunOutputsTable({
     geographicBounds,
     selectedGeometryOutputs?.data,
     selectedGeometryOutputIds,
-    selectedGeometryOutputIds.length,
     selectedIndicators?.data,
     selectedIndicatorIds,
-    selectedIndicatorIds.length,
     setSearchParams,
   ])
   const form = useForm({

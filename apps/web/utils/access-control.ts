@@ -77,17 +77,11 @@ const visibilityImpactCodeSchema = z.enum([
   'externally_visible_dependents',
 ])
 
-const visibilityImpactEntrySchema = z.object({
+export const visibilityImpactEntrySchema = z.object({
   code: visibilityImpactCodeSchema,
   message: z.string(),
   resources: z.array(visibilityImpactResourceSchema),
   externalCounts: z.array(visibilityImpactExternalCountSchema),
-})
-
-const visibilityImpactSchema = z.object({
-  canApply: z.boolean(),
-  blockingIssues: z.array(visibilityImpactEntrySchema),
-  warnings: z.array(visibilityImpactEntrySchema),
 })
 
 export type VisibilityImpactResource = z.infer<
@@ -97,7 +91,11 @@ export type VisibilityImpactExternalCount = z.infer<
   typeof visibilityImpactExternalCountSchema
 >
 export type VisibilityImpactEntry = z.infer<typeof visibilityImpactEntrySchema>
-export type VisibilityImpact = z.infer<typeof visibilityImpactSchema>
+export type VisibilityImpact = {
+  canApply: boolean
+  blockingIssues: VisibilityImpactEntry[]
+  warnings: VisibilityImpactEntry[]
+}
 
 export type ConsoleResource =
   | 'dashboard'

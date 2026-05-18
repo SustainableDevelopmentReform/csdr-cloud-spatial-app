@@ -74,6 +74,7 @@
     },
     "test:unit": {
       "inputs": [
+        "$TURBO_DEFAULT$",
         ".env*"
       ],
       "persistent": true

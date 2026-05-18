@@ -1,7 +1,7 @@
 import {
   createPlotConfigurationSchema,
   type PlotSchemaContract,
-} from './schema-helpers'
+} from '@repo/plot/chart-definitions/schema-helpers'
 
 export const donutSubType = 'donut'
 

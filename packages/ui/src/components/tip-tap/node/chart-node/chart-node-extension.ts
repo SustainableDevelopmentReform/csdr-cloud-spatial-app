@@ -23,13 +23,11 @@ export type ChartNodeOptions = ChartNodeCoreOptions & {
 }
 
 declare module '@tiptap/react' {
-  // eslint-disable-next-line no-unused-vars
   interface Commands<ReturnType> {
     chartNode: {
       /**
        * Inserts a new chart node at the current selection.
        */
-      // eslint-disable-next-line no-unused-vars
       setChartNode: (_attrs?: Partial<ChartNodeAttributes>) => ReturnType
     }
   }

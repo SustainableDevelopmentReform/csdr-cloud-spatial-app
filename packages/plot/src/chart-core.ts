@@ -4,12 +4,12 @@ import type {
   ChartType,
   PlotGroupBy,
   TableChartDimension,
-} from './chart-primitives'
+} from '@repo/plot/chart-primitives'
 import type {
   ChartConfiguration,
   PlotChartConfiguration,
   PlotSubType,
-} from './chart-schemas'
+} from '@repo/plot/chart-schemas'
 
 export {
   appearanceConfigSchema,
@@ -27,7 +27,7 @@ export {
   timeChangeBaselineValues,
   timeChangeModeValues,
   timeChangeTransformConfigSchema,
-} from './chart-primitives'
+} from '@repo/plot/chart-primitives'
 export type {
   AppearanceConfig,
   BaseChartConfiguration,
@@ -45,7 +45,7 @@ export type {
   TimeChangeBaseline,
   TimeChangeMode,
   TimeChangeTransformConfig,
-} from './chart-primitives'
+} from '@repo/plot/chart-primitives'
 export {
   chartConfigurationSchema,
   kpiChartConfigurationSchema,
@@ -53,7 +53,7 @@ export {
   plotChartConfigurationSchema,
   plotSubTypeValues,
   tableChartConfigurationSchema,
-} from './chart-schemas'
+} from '@repo/plot/chart-schemas'
 export type {
   ChartConfiguration,
   KpiChartConfiguration,
@@ -61,9 +61,12 @@ export type {
   PlotChartConfiguration,
   PlotSubType,
   TableChartConfiguration,
-} from './chart-schemas'
-export { getSuggestedChartTitle } from './chart-title'
-export type { ChartTitleGeometry, ChartTitleIndicator } from './chart-title'
+} from '@repo/plot/chart-schemas'
+export { getSuggestedChartTitle } from '@repo/plot/chart-title'
+export type {
+  ChartTitleGeometry,
+  ChartTitleIndicator,
+} from '@repo/plot/chart-title'
 export {
   applyTimeChangeTransform,
   filterRecordsForTimePoint,
@@ -72,14 +75,14 @@ export {
   isSameTimePoint,
   isTimeChangeMode,
   supportsTimeChangeTransform,
-} from './time-change-transform'
+} from '@repo/plot/time-change-transform'
 export type {
   TimeChangeCapability,
   TimeChangeRecord,
   TimeChangeSupportedMode,
   TimeChangeTransformedRecord,
   TimeChangeTransformOptions,
-} from './time-change-transform'
+} from '@repo/plot/time-change-transform'
 
 export type ChartIndicatorSelection = {
   productRunId: string

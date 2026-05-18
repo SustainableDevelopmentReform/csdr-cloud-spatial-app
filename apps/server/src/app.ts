@@ -262,7 +262,7 @@ v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
 
 // TODO: add better auth responses here (eg 429 rate limit)
 
-const v0ApiRoutes = v0ApiBase
+export const v0ApiRoutes = v0ApiBase
   .openapi(
     createRoute({
       method: 'get',

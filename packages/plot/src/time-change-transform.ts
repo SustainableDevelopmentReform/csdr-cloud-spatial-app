@@ -1,4 +1,7 @@
-import type { TimeChangeBaseline, TimeChangeMode } from './chart-primitives'
+import type {
+  TimeChangeBaseline,
+  TimeChangeMode,
+} from '@repo/plot/chart-primitives'
 
 export type TimeChangeSupportedMode = Exclude<TimeChangeMode, 'none'>
 

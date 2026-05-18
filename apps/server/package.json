@@ -27,7 +27,7 @@
     "build:distributable-app": "NODE_OPTIONS=--max_old_space_size=6144 ncc build src/index.ts -o dist/app -m -s",
     "build:distributable-scripts": "NODE_OPTIONS=--max_old_space_size=3072 ncc build scripts/migrate.ts -o dist/migrate -m && NODE_OPTIONS=--max_old_space_size=3072 ncc build scripts/seed.ts -o dist/seed -m",
     "build:types": "tsc -p tsconfig.build-types.json",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "create:migration": "drizzle-kit generate",

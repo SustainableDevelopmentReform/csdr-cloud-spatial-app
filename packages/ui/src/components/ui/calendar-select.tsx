@@ -78,7 +78,7 @@ export function CalendarSelect({
 
       onChange(utcDate)
       setMonth(utcDate)
-    } catch (error) {
+    } catch (_error) {
       onChange(undefined)
     }
   }

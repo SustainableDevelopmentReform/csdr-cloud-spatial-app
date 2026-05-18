@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "sh -c 'port=\"${WEB_PORT:-3000}\"; PORT=\"$port\" exec next dev --port \"$port\"'",
-    "build": "next build",
+    "build": "BROWSERSLIST_IGNORE_OLD_DATA=1 next build",
     "start": "next start",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
   },

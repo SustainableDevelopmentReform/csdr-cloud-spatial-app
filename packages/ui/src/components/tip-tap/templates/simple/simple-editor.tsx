@@ -181,11 +181,19 @@ const MobileToolbarContent = ({
 )
 
 type SimpleEditorProps = {
-  onUpdate: (json: any) => void
+  onUpdate: (json: EditorJsonValue) => void
   content: Content
   chartFormBuilder?: ChartFormBuilder
   editable?: boolean
 }
+
+type EditorJsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | EditorJsonValue[]
+  | { [key: string]: EditorJsonValue }
 
 export function SimpleEditor({
   onUpdate,

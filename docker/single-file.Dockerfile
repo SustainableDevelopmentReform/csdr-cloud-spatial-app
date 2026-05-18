@@ -4,6 +4,8 @@ FROM node:22-bookworm-slim AS base
 
 FROM base AS pruner
 
+ENV TURBO_TELEMETRY_DISABLED="1"
+
 # Set working directory
 WORKDIR /app
 
@@ -13,11 +15,27 @@ RUN turbo prune web @repo/server --docker
 
 # --- Build Image ---
 FROM base AS builder
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Set working directory
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
+ENV CXXFLAGS="-Wno-cast-function-type"
+ENV HUSKY="0"
 ENV NODE_OPTIONS="--max_old_space_size=4096"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT="0"
+ENV NEXT_TELEMETRY_DISABLED="1"
+ENV PNPM_CONFIG_UPDATE_NOTIFIER="false"
+ENV TURBO_TELEMETRY_DISABLED="1"
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    g++ \
+    make \
+    openssl \
+    python3 \
+  && rm -rf /var/lib/apt/lists/*
 
 # First install the dependencies (as they change less often)
 RUN corepack enable
@@ -25,10 +43,11 @@ RUN pnpm i --frozen-lockfile
 
 # Build the project
 COPY --from=pruner /app/out/full/ .
-RUN pnpm run build
+RUN pnpm turbo build
 
 # --- Final Image ---
 FROM node:22-bookworm-slim AS runner
+ARG DEBIAN_FRONTEND=noninteractive
 ARG APP_VERSION="0.0.0-dev"
 ARG APP_COMMIT=""
 ARG APP_BUILD_TIME=""
@@ -44,7 +63,8 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Install Chromium in a glibc-based environment so headless PDF rendering can
 # initialize WebGL for MapLibre maps.
-RUN apt-get update \
+RUN sed -i '\|^path-exclude /usr/share/man/\*|d' /etc/dpkg/dpkg.cfg.d/docker \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
     chromium \
     ca-certificates \
@@ -54,9 +74,8 @@ RUN apt-get update \
 WORKDIR /app
 
 # Don't run production as root
-RUN groupadd --system --gid 1001 nodejs \
+RUN groupadd --gid 1001 nodejs \
   && useradd \
-    --system \
     --uid 1001 \
     --gid nodejs \
     --create-home \
@@ -82,6 +101,7 @@ EXPOSE 4000
 ENV HOSTNAME="0.0.0.0"
 ENV HOME="/home/csdr-cloud-spatial-app"
 ENV IS_SINGLE_FILE_DOCKER="true"
+ENV NEXT_TELEMETRY_DISABLED="1"
 ENV NODE_ENV="production"
 ENV PDF_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium"
 ENV APP_VERSION="${APP_VERSION}"

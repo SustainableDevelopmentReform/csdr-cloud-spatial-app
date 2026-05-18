@@ -94,9 +94,9 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
       open={isOpen}
       onOpenChange={(open) => {
         if (open) {
-          onOpen && onOpen()
+          onOpen?.()
         } else {
-          onClose && onClose()
+          onClose?.()
         }
       }}
     >

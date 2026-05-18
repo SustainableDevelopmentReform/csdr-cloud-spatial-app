@@ -5,7 +5,10 @@
   "exports": {
     "./globals.css": "./src/globals.css",
     "./postcss.config": "./postcss.config.mjs",
-    "./tailwind.config": "./tailwind.config.ts",
+    "./tailwind.config": {
+      "types": "./tailwind.config.d.ts",
+      "default": "./tailwind.config.cjs"
+    },
     "./lib/*": {
       "types": "./src/lib/*.ts",
       "default": "./src/lib/*.ts"
@@ -21,7 +24,7 @@
   },
   "scripts": {
     "ui": "pnpm dlx shadcn@latest",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {

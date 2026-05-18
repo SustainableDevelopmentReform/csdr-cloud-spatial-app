@@ -33,9 +33,9 @@ const UserForm: React.FC<UserFormProps> = ({
       open={isOpen}
       onOpenChange={(open) => {
         if (open) {
-          onOpen && onOpen()
+          onOpen?.()
         } else {
-          onClose && onClose()
+          onClose?.()
         }
       }}
     >
@@ -60,7 +60,7 @@ const UserForm: React.FC<UserFormProps> = ({
                 queryClient.invalidateQueries({
                   queryKey: [QueryKey.Users],
                 })
-                onClose && onClose()
+                onClose?.()
               }
             }}
           />

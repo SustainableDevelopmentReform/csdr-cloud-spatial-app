@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi'
-import { multiSeriesSelectionSchema } from '../chart-primitives'
-import type { PlotSchemaContract } from './schema-helpers'
+import { multiSeriesSelectionSchema } from '@repo/plot/chart-primitives'
+import type { PlotSchemaContract } from '@repo/plot/chart-definitions/schema-helpers'
 
 export const sampleSubType = 'sample'
 

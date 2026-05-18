@@ -366,7 +366,7 @@ export const DatasetRunMap = ({
   // --- Year filtering and mosaic sources ---
 
   // TODO: Let user select year to visualise.
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const selectedYear: number | null = null
 
   const { availableYears, mosaicSources } = useMemo(() => {
     if (!parquetArrowTable || cogUrls.length === 0) {
@@ -398,7 +398,7 @@ export const DatasetRunMap = ({
       .map(({ url, bbox }) => ({ url, bbox }))
 
     return { availableYears, mosaicSources }
-  }, [parquetArrowTable, cogUrls, selectedYear])
+  }, [parquetArrowTable, cogUrls])
 
   // --- Map bounds ---
 

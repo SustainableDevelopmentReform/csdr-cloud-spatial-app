@@ -4,7 +4,7 @@ import {
   chartTimePointSchema,
   multiSeriesSelectionSchema,
   tableChartDimensionValues,
-} from '../chart-primitives'
+} from '@repo/plot/chart-primitives'
 
 type PlotValidationMode = 'cartesian' | 'singleDimension'
 

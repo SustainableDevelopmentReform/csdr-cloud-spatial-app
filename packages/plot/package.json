@@ -2,9 +2,15 @@
   "name": "@repo/plot",
   "version": "0.2.0",
   "private": true,
+  "type": "module",
   "exports": {
     "./chart-core": "./src/chart-core.ts",
     "./chart-definitions": "./src/chart-definitions.tsx",
+    "./chart-definitions/*.schema": "./src/chart-definitions/*.schema.ts",
+    "./chart-definitions/schema-helpers": "./src/chart-definitions/schema-helpers.ts",
+    "./chart-primitives": "./src/chart-primitives.ts",
+    "./chart-schemas": "./src/chart-schemas.ts",
+    "./chart-title": "./src/chart-title.ts",
     "./chart-template": "./src/chart-template.tsx",
     "./time-change-transform": "./src/time-change-transform.ts",
     "./*": "./src/*.tsx"
@@ -16,6 +22,21 @@
       ],
       "chart-definitions": [
         "src/chart-definitions.tsx"
+      ],
+      "chart-definitions/*.schema": [
+        "src/chart-definitions/*.schema.ts"
+      ],
+      "chart-definitions/schema-helpers": [
+        "src/chart-definitions/schema-helpers.ts"
+      ],
+      "chart-primitives": [
+        "src/chart-primitives.ts"
+      ],
+      "chart-schemas": [
+        "src/chart-schemas.ts"
+      ],
+      "chart-title": [
+        "src/chart-title.ts"
       ],
       "chart-template": [
         "src/chart-template.tsx"
@@ -29,7 +50,8 @@
     }
   },
   "scripts": {
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
     "test:unit": "vitest run"
   },
   "peerDependencies": {

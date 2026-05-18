@@ -1,54 +1,54 @@
 import { z } from '@hono/zod-openapi'
-import { values } from './chart-primitives'
+import { values } from '@repo/plot/chart-primitives'
 import {
   areaChartConfigurationSchema,
   areaPlotSchemaContract,
   areaSubType,
-} from './chart-definitions/area.schema'
+} from '@repo/plot/chart-definitions/area.schema'
 import {
   donutChartConfigurationSchema,
   donutPlotSchemaContract,
   donutSubType,
-} from './chart-definitions/donut.schema'
+} from '@repo/plot/chart-definitions/donut.schema'
 import {
   dotChartConfigurationSchema,
   dotPlotSchemaContract,
   dotSubType,
-} from './chart-definitions/dot.schema'
+} from '@repo/plot/chart-definitions/dot.schema'
 import {
   groupedBarChartConfigurationSchema,
   groupedBarPlotSchemaContract,
   groupedBarSubType,
-} from './chart-definitions/grouped-bar.schema'
-import { kpiChartConfigurationSchema } from './chart-definitions/kpi.schema'
+} from '@repo/plot/chart-definitions/grouped-bar.schema'
+import { kpiChartConfigurationSchema } from '@repo/plot/chart-definitions/kpi.schema'
 import {
   lineChartConfigurationSchema,
   linePlotSchemaContract,
   lineSubType,
-} from './chart-definitions/line.schema'
-import { mapChartConfigurationSchema } from './chart-definitions/map.schema'
+} from '@repo/plot/chart-definitions/line.schema'
+import { mapChartConfigurationSchema } from '@repo/plot/chart-definitions/map.schema'
 import {
   rankedBarChartConfigurationSchema,
   rankedBarPlotSchemaContract,
   rankedBarSubType,
-} from './chart-definitions/ranked-bar.schema'
+} from '@repo/plot/chart-definitions/ranked-bar.schema'
 import {
   sampleChartConfigurationSchema,
   samplePlotSchemaContract,
   sampleSubType,
-} from './chart-definitions/sample.schema'
+} from '@repo/plot/chart-definitions/sample.schema'
 import {
   stackedAreaChartConfigurationSchema,
   stackedAreaPlotSchemaContract,
   stackedAreaSubType,
-} from './chart-definitions/stacked-area.schema'
+} from '@repo/plot/chart-definitions/stacked-area.schema'
 import {
   stackedBarChartConfigurationSchema,
   stackedBarPlotSchemaContract,
   stackedBarSubType,
-} from './chart-definitions/stacked-bar.schema'
-import { tableChartConfigurationSchema } from './chart-definitions/table.schema'
-import { createUnifiedPlotConfigurationSchema } from './chart-definitions/schema-helpers'
+} from '@repo/plot/chart-definitions/stacked-bar.schema'
+import { tableChartConfigurationSchema } from '@repo/plot/chart-definitions/table.schema'
+import { createUnifiedPlotConfigurationSchema } from '@repo/plot/chart-definitions/schema-helpers'
 
 export {
   areaChartConfigurationSchema,
