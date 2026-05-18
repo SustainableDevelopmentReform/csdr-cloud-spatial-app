@@ -4,7 +4,6 @@ import {
   chartConfigurationSchema,
   getChartConfigKey,
   getChartSeriesGroupBy,
-  getSuggestedChartTitle,
   type AppearanceConfig,
   type ChartConfiguration,
   type ChartConfigurationDraft,
@@ -34,18 +33,37 @@ import { tableChartDefinition } from './chart-definitions/table'
 
 export {
   defineChart,
+  defineKpiChart,
+  defineMapChart,
+  definePlotChart,
+  defineTableChart,
   tuple,
   type ChartAppearanceControl,
+  type ChartDataRequirements,
   type ChartDefinition,
   type ChartDimensionMode,
   type ChartDimensionModes,
-  type ChartIconKey,
+  type ChartIcon,
   type ChartProductOutput,
   type ChartProductOutputQuery,
   type ChartRenderAdapters,
   type ChartRenderContext,
   type ChartRenderOptions,
+  type ChartTypeOptionContext,
+  type ChartTypeOptionState,
 } from './chart-definitions/core'
+export {
+  createCartesianPlotSelection,
+  createKpiSelection,
+  createMapSelection,
+  createPlotDataRequirements,
+  createPlotPreviewConfig,
+  createSingleDimensionPlotSelection,
+  createStandardPlotRenderer,
+  createTableSelection,
+  getPlotProductOutputQuery,
+  needsMultipleTimePoints,
+} from './chart-definitions/definition-helpers'
 
 export const chartDefinitions = tuple(
   lineChartDefinition,
@@ -362,15 +380,16 @@ export function suggestTitleForDefinition({
   geometries: readonly ChartTitleGeometry[]
   datePrecision?: AppearanceConfig['datePrecision']
 }) {
-  return getSuggestedChartTitle({
-    productName,
-    values,
-    seriesDimension,
-    indicators,
-    geometries,
-    titleStrategy: definition?.titleStrategy ?? 'plot',
-    datePrecision,
-  })
+  return (
+    definition?.getSuggestedTitle({
+      productName,
+      values,
+      seriesDimension,
+      indicators,
+      geometries,
+      datePrecision,
+    }) ?? ''
+  )
 }
 
 export { getChartConfigKey, getChartSeriesGroupBy }

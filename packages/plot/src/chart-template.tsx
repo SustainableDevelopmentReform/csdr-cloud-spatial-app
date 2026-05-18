@@ -1,83 +1,39 @@
 'use client'
 
 import { z } from '@hono/zod-openapi'
+import { TrendingUp } from 'lucide-react'
+import { suggestPlotChartTitle } from './chart-title'
 import {
-  baseChartConfigurationSchema,
-  type ChartConfiguration,
-  type ChartConfigurationDraft,
-} from './chart-core'
-import {
-  defineChart,
+  definePlotChart,
   tuple,
-  type ChartDimensionModes,
-  type ChartProductOutputQuery,
   type ChartRenderContext,
 } from './chart-definitions/core'
+import {
+  createCartesianPlotSelection,
+  createPlotDataRequirements,
+  createPlotPreviewConfig,
+} from './chart-definitions/definition-helpers'
+import {
+  sampleChartConfigurationSchema,
+  sampleSubType,
+} from './chart-definitions/sample.schema'
 
-// This file is intentionally not imported by chartDefinitions. Copy it when
-// developing a new production chart inside @repo/plot.
+// Canonical minimal chart example.
 //
-// For a real plot chart with a new persisted subtype, first add that subtype to
-// plotSubTypeValues in chart-core.ts. Then set the copied definition key and
-// subType to that same value so persisted chart configs resolve back to the
-// definition.
-const sampleSubType = 'sample'
-
-export const sampleChartConfigurationSchema =
-  baseChartConfigurationSchema.extend({
-    // Replace the discriminator values with the persisted shape for the real
-    // chart. The definition key must match the persisted subtype.
-    type: z.literal('plot'),
-    subType: z.literal(sampleSubType),
-    indicatorIds: z.array(z.string()).min(1),
-    geometryOutputIds: z.array(z.string()).optional(),
-    timePoints: z.array(z.string()).optional(),
-    // Add chart-specific options here. The inferred type flows through the
-    // definition, renderer, preview config, and persisted parser.
-    sampleOption: z.string().optional(),
-  })
-
+// This file is intentionally not imported by the production definition
+// manifest. For a real chart:
+// 1. Copy the schema pattern from chart-definitions/sample.schema.ts.
+// 2. Copy this definition into chart-definitions/<your-chart>.tsx.
+// 3. Add the schema contract to chart-schemas.ts.
+// 4. Add the definition to chart-definitions.tsx.
+//
+// Keep persisted JSON backward compatible: adding a chart can add a new
+// subtype, but existing subtype shapes must keep parsing the same way.
 export type SampleChartConfiguration = z.infer<
   typeof sampleChartConfigurationSchema
 >
 
 const sampleAppearanceControls = tuple('formatting')
-
-function sampleOutputsQuery(
-  chart: ChartConfiguration,
-): ChartProductOutputQuery | null {
-  if (chart.type !== 'plot') return null
-  return {
-    indicatorId: chart.indicatorIds,
-    geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoints,
-  }
-}
-
-function getSampleDimensionModes(): ChartDimensionModes {
-  return {
-    indicators: 'multi',
-    geometries: 'single',
-    time: 'multi',
-  }
-}
-
-function buildSamplePreviewConfig(
-  values: ChartConfigurationDraft,
-): ChartConfiguration | null {
-  if (!values.productRunId) return null
-  return {
-    type: 'plot',
-    subType: sampleSubType,
-    productRunId: values.productRunId,
-    indicatorIds: values.indicatorIds ?? [],
-    geometryOutputIds: values.geometryOutputIds,
-    timePoints: values.timePoints,
-    title: values.title,
-    description: values.description,
-    appearance: values.appearance,
-  }
-}
 
 function renderSampleChart(context: ChartRenderContext) {
   const rows = context.productOutputs.slice(0, 5)
@@ -125,38 +81,30 @@ function renderSampleChart(context: ChartRenderContext) {
   )
 }
 
-export const sampleChartDefinition = defineChart({
+export const sampleChartDefinition = definePlotChart({
   // Deliberately not added to the production manifest.
   key: sampleSubType,
   type: 'plot',
   subType: sampleSubType,
   label: 'Sample Chart',
   description: 'Template for developing a new chart definition',
-  icon: 'line',
+  // Icons are components, not strings, so host apps do not need icon maps.
+  icon: TrendingUp,
+  // The schema is the strict persisted JSON contract.
   schema: sampleChartConfigurationSchema,
-  titleStrategy: 'plot',
-  renderer: { render: renderSampleChart },
-  data: {
+  // Title generation is a function owned by the chart definition.
+  getSuggestedTitle: suggestPlotChartTitle,
+  // Data requirements describe what the host app must load before rendering.
+  getDataRequirements: createPlotDataRequirements({
     loadingMessage: 'Loading sample chart...',
     unavailableMessage: 'Sample chart data is unavailable.',
-    requiresProductRun: true,
-    requiresIndicator: false,
-    // Return the product-output filters required by the chart. The web app
-    // owns the hook execution and passes loaded rows into the renderer.
-    getProductOutputsQuery: sampleOutputsQuery,
-  },
-  selection: {
-    // Declare what the generic form should render. A production chart should
-    // keep this in sync with its schema validation.
-    indicatorField: 'indicatorIds',
-    timeField: 'timePoints',
-    geometryField: 'geometryOutputIds',
-    defaultSeriesDimension: 'indicators',
-    selectableDimensions: tuple('indicators'),
-    getDimensionModes: getSampleDimensionModes,
-  },
+  }),
+  // Renderers receive loaded data; they should not fetch.
+  renderer: { render: renderSampleChart },
+  // Selection helpers hide persisted field-name plumbing.
+  selection: createCartesianPlotSelection(tuple('indicators')),
   // Add or remove controls to expose only the appearance fields the renderer
   // understands.
   appearanceControls: sampleAppearanceControls,
-  buildPreviewConfig: buildSamplePreviewConfig,
+  buildPreviewConfig: createPlotPreviewConfig(sampleSubType),
 })

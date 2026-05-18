@@ -1,16 +1,18 @@
 'use client'
 
 import clsx from 'clsx'
+import { Hash } from 'lucide-react'
 import {
-  kpiChartConfigurationSchema,
   type ChartConfiguration,
   type ChartConfigurationDraft,
 } from '../chart-core'
+import { suggestProductChartTitle } from '../chart-title'
 import { makeDateFormatter, makeNumberFormatter } from '../types'
+import { createKpiSelection } from './definition-helpers'
+import { kpiChartConfigurationSchema } from './kpi.schema'
 import {
-  defineChart,
+  defineKpiChart,
   tuple,
-  type ChartDimensionModes,
   type ChartProductOutputQuery,
   type ChartRenderContext,
 } from './core'
@@ -51,14 +53,6 @@ function kpiOutputsQuery(
 }
 
 const kpiAppearanceControls = tuple('formatting')
-
-function getKpiDimensionModes(): ChartDimensionModes {
-  return {
-    indicators: 'single',
-    geometries: 'single',
-    time: 'single',
-  }
-}
 
 function renderKpiChart(context: ChartRenderContext) {
   const { chart, className } = context
@@ -127,30 +121,25 @@ function renderKpiChart(context: ChartRenderContext) {
   )
 }
 
-export const kpiChartDefinition = defineChart({
+export const kpiChartDefinition = defineKpiChart({
   key: 'kpi',
   type: 'kpi',
   label: 'KPI Card',
   description: 'Single highlighted value',
-  icon: 'kpi',
+  icon: Hash,
   schema: kpiChartConfigurationSchema,
-  titleStrategy: 'product',
+  getSuggestedTitle: suggestProductChartTitle,
+  getDataRequirements: (chart) => {
+    if (chart.type !== 'kpi') return null
+    return {
+      productRunId: chart.productRunId,
+      productOutputQuery: kpiOutputsQuery(chart),
+      loadingMessage: 'Loading KPI value...',
+      unavailableMessage: 'KPI data is unavailable.',
+    }
+  },
   renderer: { render: renderKpiChart },
-  data: {
-    loadingMessage: 'Loading KPI value...',
-    unavailableMessage: 'KPI data is unavailable.',
-    requiresProductRun: true,
-    requiresIndicator: false,
-    getProductOutputsQuery: kpiOutputsQuery,
-  },
-  selection: {
-    indicatorField: 'indicatorId',
-    timeField: 'timePoint',
-    geometryField: 'geometryOutputIds',
-    defaultSeriesDimension: 'indicators',
-    selectableDimensions: tuple('geometries'),
-    getDimensionModes: getKpiDimensionModes,
-  },
+  selection: createKpiSelection(),
   appearanceControls: kpiAppearanceControls,
   buildPreviewConfig: buildKpiPreviewConfig,
 })

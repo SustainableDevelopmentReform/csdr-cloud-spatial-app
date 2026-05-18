@@ -17,7 +17,6 @@ import {
 import {
   type ChartAppearanceControl,
   type ChartDefinition,
-  type ChartIconKey,
   type ChartSeriesColorEntry,
   buildChartPreviewConfiguration,
   getChartDefinitionForValues,
@@ -77,23 +76,11 @@ import {
 } from 'd3-scale-chromatic'
 import {
   AlertTriangle,
-  AreaChart as AreaChartIcon,
-  BarChart as BarChartIcon,
-  BarChart3,
-  ChartBarDecreasing,
   Check,
   ChevronLeft,
   ChevronRight,
-  CircleDot,
   Crosshair,
-  Hash,
-  Layers,
-  type LucideIcon,
-  Map as MapIcon,
-  PieChart as PieChartIcon,
   Plus,
-  Table2,
-  TrendingUp,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, type UseFormReturn } from 'react-hook-form'
@@ -184,20 +171,6 @@ const STEP_DESCRIPTIONS = [
   'Customise colours, axes and formatting',
 ] satisfies readonly string[]
 type ChartFormStep = 0 | 1 | 2 | 3
-
-const CHART_ICONS: Record<ChartIconKey, LucideIcon> = {
-  line: TrendingUp,
-  area: AreaChartIcon,
-  layers: Layers,
-  'stacked-bar': BarChart3,
-  'grouped-bar': BarChartIcon,
-  'ranked-bar': ChartBarDecreasing,
-  dot: CircleDot,
-  donut: PieChartIcon,
-  table: Table2,
-  map: MapIcon,
-  kpi: Hash,
-}
 
 const tableDimensionOptions = [...tableChartDimensionMetadata]
 
@@ -369,13 +342,15 @@ const TypeGrid = ({
   onSelect: (definition: ChartDefinition) => void
   timePointCount: number | null
 }) => {
-  const hasMultiTime = timePointCount !== null && timePointCount > 1
   return (
     <div className="grid grid-cols-3 gap-2">
       {getChartDefinitions().map((definition) => {
-        const Icon = CHART_ICONS[definition.icon]
+        const Icon = definition.icon
         const isSelected = selected === definition.key
-        const isLimited = definition.requiresMultiTime && !hasMultiTime
+        const typeOptionState = definition.getTypeOptionState?.({
+          timePointCount,
+        })
+        const isLimited = typeOptionState?.disabled === true
 
         const btn = (
           <button
@@ -418,9 +393,7 @@ const TypeGrid = ({
                 side="bottom"
                 className="max-w-[200px] text-center"
               >
-                {timePointCount === null
-                  ? 'Select a product first'
-                  : 'This product only has one time point — this chart type works best with multiple'}
+                {typeOptionState?.reason}
               </TooltipContent>
             </Tooltip>
           )
@@ -808,7 +781,8 @@ export const ChartFormDialog = ({
     [chartDraft],
   )
   const seriesPreviewQuery = seriesPreviewConfig
-    ? selectedChartDefinition?.data.getProductOutputsQuery(seriesPreviewConfig)
+    ? selectedChartDefinition?.getDataRequirements(seriesPreviewConfig)
+        ?.productOutputQuery
     : null
   const shouldFetchSeriesPreview =
     selectedChartDefinition?.appearanceControls.includes('colorOverrides') ===

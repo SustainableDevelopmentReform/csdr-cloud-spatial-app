@@ -5,7 +5,6 @@ import {
   getChartConfigKey,
   getChartSeriesGroupBy,
   getPlotChartGroupBy,
-  getSuggestedChartTitle,
 } from '../src/chart-core'
 
 const timePoint2024 = '2024-01-01T00:00:00.000Z'
@@ -114,45 +113,5 @@ describe('chart-core helpers', () => {
       productRunId: 'run-1',
       indicatorIds: ['indicator-3'],
     })
-  })
-
-  it('builds suggested titles from chart strategy inputs', () => {
-    const indicators = [
-      { id: 'indicator-1', name: 'Forest cover' },
-      { id: 'indicator-2', name: 'Population' },
-    ]
-    const geometries = [{ id: 'geometry-1', name: 'Tasmania' }]
-
-    expect(
-      getSuggestedChartTitle({
-        productName: 'Forest product',
-        values: {
-          indicatorIds: ['indicator-1'],
-          geometryOutputIds: ['geometry-1'],
-          timePoints: [timePoint2024],
-        },
-        seriesDimension: 'indicators',
-        indicators,
-        geometries,
-        titleStrategy: 'plot',
-        datePrecision: 'year',
-      }),
-    ).toBe('Forest product — Tasmania — 2024')
-
-    expect(
-      getSuggestedChartTitle({
-        productName: 'Forest product',
-        values: {
-          indicatorId: 'indicator-2',
-          geometryOutputIds: ['geometry-1'],
-          timePoint: timePoint2025,
-        },
-        seriesDimension: 'indicators',
-        indicators,
-        geometries,
-        titleStrategy: 'map',
-        datePrecision: 'year',
-      }),
-    ).toBe('Population — Tasmania — 2025')
   })
 })

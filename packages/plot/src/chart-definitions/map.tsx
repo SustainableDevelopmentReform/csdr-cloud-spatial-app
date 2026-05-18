@@ -1,14 +1,16 @@
 'use client'
 
+import { Map } from 'lucide-react'
 import {
-  mapChartConfigurationSchema,
   type ChartConfiguration,
   type ChartConfigurationDraft,
 } from '../chart-core'
+import { suggestMapChartTitle } from '../chart-title'
+import { createMapSelection } from './definition-helpers'
+import { mapChartConfigurationSchema } from './map.schema'
 import {
-  defineChart,
+  defineMapChart,
   tuple,
-  type ChartDimensionModes,
   type ChartProductOutputQuery,
   type ChartRenderContext,
 } from './core'
@@ -50,42 +52,30 @@ const mapAppearanceControls = tuple(
   'formatting',
 )
 
-function getMapDimensionModes(): ChartDimensionModes {
-  return {
-    indicators: 'single',
-    geometries: 'optionalMulti',
-    time: 'single',
-  }
-}
-
 function renderMapChart(context: ChartRenderContext) {
   return context.adapters?.renderMap?.(context) ?? null
 }
 
-export const mapChartDefinition = defineChart({
+export const mapChartDefinition = defineMapChart({
   key: 'map',
   type: 'map',
   label: 'Map',
   description: 'Spatial view',
-  icon: 'map',
+  icon: Map,
   schema: mapChartConfigurationSchema,
-  titleStrategy: 'map',
+  getSuggestedTitle: suggestMapChartTitle,
+  getDataRequirements: (chart) => {
+    if (chart.type !== 'map') return null
+    return {
+      productRunId: chart.productRunId,
+      productOutputQuery: mapOutputsQuery(chart),
+      indicatorId: chart.indicatorId,
+      loadingMessage: 'Loading map...',
+      unavailableMessage: 'Map data is unavailable for this chart.',
+    }
+  },
   renderer: { render: renderMapChart },
-  data: {
-    loadingMessage: 'Loading map...',
-    unavailableMessage: 'Map data is unavailable for this chart.',
-    requiresProductRun: true,
-    requiresIndicator: true,
-    getProductOutputsQuery: mapOutputsQuery,
-  },
-  selection: {
-    indicatorField: 'indicatorId',
-    timeField: 'timePoint',
-    geometryField: 'geometryOutputIds',
-    defaultSeriesDimension: 'indicators',
-    selectableDimensions: tuple('geometries'),
-    getDimensionModes: getMapDimensionModes,
-  },
+  selection: createMapSelection(),
   appearanceControls: mapAppearanceControls,
   buildPreviewConfig: buildMapPreviewConfig,
 })

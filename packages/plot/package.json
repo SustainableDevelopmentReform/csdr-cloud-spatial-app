@@ -52,6 +52,7 @@
     "d3-color": "catalog:",
     "d3-scale": "catalog:",
     "d3-scale-chromatic": "catalog:",
+    "lucide-react": "catalog:",
     "recharts": "2.15.4",
     "zod": "catalog:"
   }

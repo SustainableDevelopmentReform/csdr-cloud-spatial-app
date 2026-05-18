@@ -73,10 +73,6 @@ interface ChartConfig {
   mapScrollZoom?: boolean
 }
 
-function getIndicatorId(chart: ChartConfiguration) {
-  return 'indicatorId' in chart ? chart.indicatorId : undefined
-}
-
 const ChartDataRenderer = ({
   chart,
   config,
@@ -89,15 +85,18 @@ const ChartDataRenderer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   const definition = getChartDefinitionForConfiguration(chart)
+  const dataRequirements = definition?.getDataRequirements(chart)
+  const hasDataRequirements =
+    dataRequirements !== undefined && dataRequirements !== null
 
   const productRunQuery = useProductRun(
-    chart.productRunId,
-    definition?.data.requiresProductRun === true,
+    dataRequirements?.productRunId,
+    hasDataRequirements,
   )
   const productRun = productRunQuery.data
   const productOutputsQuery = useProductOutputsExport(
-    chart.productRunId,
-    definition?.data.getProductOutputsQuery(chart) ?? undefined,
+    dataRequirements?.productRunId,
+    dataRequirements?.productOutputQuery ?? undefined,
     false,
   )
   const productOutputs = productOutputsQuery.data?.data ?? []
@@ -111,9 +110,7 @@ const ChartDataRenderer = ({
       geometryOutputName: output.geometryOutputName,
     }),
   )
-  const indicatorQuery = useIndicator(
-    definition?.data.requiresIndicator ? getIndicatorId(chart) : undefined,
-  )
+  const indicatorQuery = useIndicator(dataRequirements?.indicatorId)
   const indicator = indicatorQuery.data
   const handleChartSelect: OnSelectCallback<ChartProductOutput> = ({
     dataPoint,
@@ -131,7 +128,7 @@ const ChartDataRenderer = ({
     productRunQuery.isFetching ||
     productOutputsQuery.isPending ||
     productOutputsQuery.isFetching ||
-    (definition?.data.requiresIndicator === true &&
+    (dataRequirements?.indicatorId !== undefined &&
       (indicatorQuery.isPending || indicatorQuery.isFetching))
 
   usePrintRenderReadiness({
@@ -145,16 +142,18 @@ const ChartDataRenderer = ({
   if (isLoading) {
     return (
       <LoadingChart
-        message={definition.data.loadingMessage}
+        message={dataRequirements?.loadingMessage ?? 'Loading chart...'}
         className={className}
       />
     )
   }
 
-  if (definition.data.requiresProductRun && !productRun) {
+  if (!productRun) {
     return (
       <UnavailableChart
-        message={definition.data.unavailableMessage}
+        message={
+          dataRequirements?.unavailableMessage ?? 'Chart data is unavailable.'
+        }
         className={className}
       />
     )
@@ -184,7 +183,10 @@ const ChartDataRenderer = ({
             if (chart.type !== 'map' || !productRun?.geometriesRun) {
               return (
                 <UnavailableChart
-                  message={definition.data.unavailableMessage}
+                  message={
+                    dataRequirements?.unavailableMessage ??
+                    'Chart data is unavailable.'
+                  }
                   className={className}
                 />
               )

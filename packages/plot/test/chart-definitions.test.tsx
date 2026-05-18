@@ -14,6 +14,7 @@ import {
   getSeriesDimensionLabel,
   inferChartSeriesDimension,
   resolveSeriesDimension,
+  suggestTitleForDefinition,
   supportsSeriesDimension,
   toPersistedChartConfiguration,
 } from '../src/chart-definitions'
@@ -147,18 +148,18 @@ describe('chartDefinitions', () => {
     })
 
     expect(
-      getChartDefinitionForConfiguration(mapChart)?.data.getProductOutputsQuery(
+      getChartDefinitionForConfiguration(mapChart)?.getDataRequirements(
         mapChart,
-      ),
+      )?.productOutputQuery,
     ).toEqual({
       indicatorId: 'indicator-1',
       geometryOutputId: ['geometry-1'],
       timePoint: '2024-01-01T00:00:00.000Z',
     })
     expect(
-      getChartDefinitionForConfiguration(
+      getChartDefinitionForConfiguration(tableChart)?.getDataRequirements(
         tableChart,
-      )?.data.getProductOutputsQuery(tableChart),
+      )?.productOutputQuery,
     ).toEqual({
       indicatorId: ['indicator-1'],
       geometryOutputId: ['geometry-1'],
@@ -175,7 +176,7 @@ describe('chartDefinitions', () => {
         throw new Error(`Missing definition for ${JSON.stringify(sample)}`)
       }
 
-      const query = definition.data.getProductOutputsQuery(chart)
+      const query = definition.getDataRequirements(chart)?.productOutputQuery
 
       if (!query) {
         throw new Error(`Missing query for ${definition.key}`)
@@ -256,6 +257,7 @@ describe('chartDefinitions', () => {
     const map = getChartDefinition('map')
 
     expect(getChartDefinitions()).toHaveLength(chartDefinitions.length)
+    expect(typeof line?.icon).not.toBe('string')
     expect(supportsSeriesDimension(line)).toBe(true)
     expect(supportsSeriesDimension(map)).toBe(false)
     expect(getSeriesDimensionLabel(line)).toBe('Compare by')
@@ -280,6 +282,11 @@ describe('chartDefinitions', () => {
         timePointCount: 4,
       }),
     ).toBe(4)
+    expect(line?.getTypeOptionState?.({ timePointCount: 1 })).toEqual({
+      disabled: true,
+      reason:
+        'This product only has one time point — this chart type works best with multiple',
+    })
     expect(
       getChartEstimatedSeriesCount({
         definition: map,
@@ -287,6 +294,46 @@ describe('chartDefinitions', () => {
         geometryOutputIds: ['geometry-1'],
       }),
     ).toBeNull()
+  })
+
+  it('gets suggested titles from chart definition functions', () => {
+    const indicators = [
+      { id: 'indicator-1', name: 'Forest cover' },
+      { id: 'indicator-2', name: 'Population' },
+    ]
+    const geometries = [{ id: 'geometry-1', name: 'Tasmania' }]
+
+    expect(
+      suggestTitleForDefinition({
+        definition: getChartDefinition('line'),
+        productName: 'Forest product',
+        values: {
+          indicatorIds: ['indicator-1'],
+          geometryOutputIds: ['geometry-1'],
+          timePoints: [timePoint2024],
+        },
+        seriesDimension: 'indicators',
+        indicators,
+        geometries,
+        datePrecision: 'year',
+      }),
+    ).toBe('Forest product — Tasmania — 2024')
+
+    expect(
+      suggestTitleForDefinition({
+        definition: getChartDefinition('map'),
+        productName: 'Forest product',
+        values: {
+          indicatorId: 'indicator-2',
+          geometryOutputIds: ['geometry-1'],
+          timePoint: timePoint2025,
+        },
+        seriesDimension: 'indicators',
+        indicators,
+        geometries,
+        datePrecision: 'year',
+      }),
+    ).toBe('Population — Tasmania — 2025')
   })
 
   it('infers series dimensions and colour entries from chart selections', () => {
@@ -375,7 +422,8 @@ describe('chartDefinitions', () => {
     })
     expect(getChartDefinitionForConfiguration(sampleChart)).toBeNull()
     expect(
-      sampleChartDefinition.data.getProductOutputsQuery(sampleChart),
+      sampleChartDefinition.getDataRequirements(sampleChart)
+        ?.productOutputQuery,
     ).toEqual({
       indicatorId: ['indicator-1'],
       geometryOutputId: ['geometry-1'],

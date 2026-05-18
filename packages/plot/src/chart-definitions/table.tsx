@@ -1,18 +1,18 @@
 'use client'
 
 import clsx from 'clsx'
+import { Table2 } from 'lucide-react'
 import {
-  tableChartConfigurationSchema,
-  tableChartDimensionMetadata,
   type ChartConfiguration,
   type ChartConfigurationDraft,
-  type TableChartDimension,
 } from '../chart-core'
+import { suggestTableChartTitle } from '../chart-title'
 import { getTablePlotCodeSnippet, TablePlot } from '../table-plot'
+import { createTableSelection } from './definition-helpers'
+import { tableChartConfigurationSchema } from './table.schema'
 import {
-  defineChart,
+  defineTableChart,
   tuple,
-  type ChartDimensionModes,
   type ChartProductOutputQuery,
   type ChartRenderContext,
 } from './core'
@@ -49,29 +49,6 @@ function tableOutputsQuery(
   }
 }
 
-function getTableDimensionModes({
-  xDimension,
-  yDimension,
-}: {
-  xDimension?: TableChartDimension
-  yDimension?: TableChartDimension
-}): ChartDimensionModes {
-  return {
-    indicators:
-      xDimension === 'indicatorName' || yDimension === 'indicatorName'
-        ? 'multi'
-        : 'single',
-    geometries:
-      xDimension === 'geometryOutputName' || yDimension === 'geometryOutputName'
-        ? 'multi'
-        : 'single',
-    time:
-      xDimension === 'timePoint' || yDimension === 'timePoint'
-        ? 'multi'
-        : 'single',
-  }
-}
-
 const tableAppearanceControls = tuple('continuousScale', 'formatting')
 
 function renderTableChart(context: ChartRenderContext) {
@@ -93,31 +70,25 @@ function renderTableChart(context: ChartRenderContext) {
   )
 }
 
-export const tableChartDefinition = defineChart({
+export const tableChartDefinition = defineTableChart({
   key: 'table',
   type: 'table',
   label: 'Table',
   description: 'Colour-coded grid',
-  icon: 'table',
+  icon: Table2,
   schema: tableChartConfigurationSchema,
-  titleStrategy: 'table',
+  getSuggestedTitle: suggestTableChartTitle,
+  getDataRequirements: (chart) => {
+    if (chart.type !== 'table') return null
+    return {
+      productRunId: chart.productRunId,
+      productOutputQuery: tableOutputsQuery(chart),
+      loadingMessage: 'Loading table...',
+      unavailableMessage: 'Table data is unavailable.',
+    }
+  },
   renderer: { render: renderTableChart },
-  data: {
-    loadingMessage: 'Loading table...',
-    unavailableMessage: 'Table data is unavailable.',
-    requiresProductRun: true,
-    requiresIndicator: false,
-    getProductOutputsQuery: tableOutputsQuery,
-  },
-  selection: {
-    indicatorField: 'indicatorIds',
-    timeField: 'timePoints',
-    geometryField: 'geometryOutputIds',
-    defaultSeriesDimension: 'indicators',
-    selectableDimensions: tuple('indicators', 'geometries', 'time'),
-    tableDimensions: tableChartDimensionMetadata,
-    getDimensionModes: getTableDimensionModes,
-  },
+  selection: createTableSelection(),
   appearanceControls: tableAppearanceControls,
   buildPreviewConfig: buildTablePreviewConfig,
 })

@@ -1,177 +1,197 @@
 # Chart Development
 
-This guide describes how to add a production chart without changing `apps/web`.
-Chart-specific behavior belongs in `@repo/plot`; the web app only resolves a
-definition, loads the data requested by that definition, and calls the renderer.
+This guide explains how to add charts to `@repo/plot` without changing the
+persisted chart JSON contract or adding chart-specific branches to `apps/web`.
 
-## Current Shape
+## Quick Start: Standard Plot
 
-Production chart definitions live in `packages/plot/src/chart-definitions/`.
-Each chart has its own file and is added to the static manifest in
-`packages/plot/src/chart-definitions.tsx`.
+Most new charts should start from `packages/plot/src/chart-template.tsx`, then
+move the copied files into `packages/plot/src/chart-definitions/`.
 
-The shared pieces are:
+A normal product-output plot has two files:
 
-- `core.ts`: `ChartDefinition`, `ChartRenderContext`, `defineChart`, and typed tuple helpers.
-- `chart-template.tsx`: a non-production sample chart exported from `@repo/plot/chart-template`.
+- `my-chart.schema.ts`: pure, server-safe persisted schema contract.
+- `my-chart.tsx`: client renderer and chart definition.
 
-Each production definition file owns its schema wiring, data query, selection
-rules, appearance controls, preview config, and renderer.
+Example schema:
 
-There is no mutable runtime registry. The manifest is a readonly tuple so chart
-keys and metadata stay visible to TypeScript across the monorepo.
-
-## Add A Chart
-
-1. Decide the persisted configuration shape.
-2. Add or extend the relevant Zod schema in `packages/plot/src/chart-core.ts`.
-3. Create a definition file under `packages/plot/src/chart-definitions/`.
-4. Declare data requirements, selection rules, appearance controls, preview behavior, and the renderer in that definition.
-5. Add the definition to the `chartDefinitions` tuple in `packages/plot/src/chart-definitions.tsx`.
-6. Add or update tests in `packages/plot/test/chart-definitions.test.tsx`.
-
-Do not add chart-specific branches to `apps/web`. If the form needs a new
-generic control, add a typed definition property first, then teach the web form
-to render that property generically.
-
-## Example
-
-Use `packages/plot/src/chart-template.tsx` as the starting point for a new
-chart. It is intentionally not part of the production manifest. A production
-definition file under `packages/plot/src/chart-definitions/` can look like this:
-
-```tsx
-import { z } from '@hono/zod-openapi'
+```ts
 import {
-  baseChartConfigurationSchema,
-  type ChartConfiguration,
-} from '../chart-core'
-import { defineChart, tuple, type ChartRenderContext } from './core'
+  createPlotConfigurationSchema,
+  type PlotSchemaContract,
+} from './schema-helpers'
 
-const customChartConfigurationSchema = baseChartConfigurationSchema.extend({
-  type: z.literal('plot'),
-  subType: z.literal('custom'),
-  indicatorIds: z.array(z.string()).min(1),
-  timePoints: z.array(z.string()).optional(),
-})
+export const myChartSubType = 'my-chart'
 
-function renderCustomChart(context: ChartRenderContext) {
-  return <div>{context.productOutputs.length} rows loaded</div>
-}
+export const myChartPlotSchemaContract = {
+  subType: myChartSubType,
+  chartLabel: 'My chart',
+  validationMode: 'cartesian',
+} satisfies PlotSchemaContract<typeof myChartSubType>
 
-export const customChartDefinition = defineChart({
-  key: 'custom',
-  type: 'plot',
-  subType: 'custom',
-  label: 'Custom',
-  description: 'Example custom chart',
-  icon: 'line',
-  schema: customChartConfigurationSchema,
-  titleStrategy: 'plot',
-  renderer: { render: renderCustomChart },
-  data: {
-    loadingMessage: 'Loading custom chart...',
-    unavailableMessage: 'Custom chart data is unavailable.',
-    requiresProductRun: true,
-    requiresIndicator: false,
-    getProductOutputsQuery: (chart: ChartConfiguration) => {
-      if (chart.type !== 'plot') return null
-      return {
-        indicatorId: chart.indicatorIds,
-        geometryOutputId: chart.geometryOutputIds,
-        timePoint: chart.timePoints,
-      }
-    },
-  },
-  selection: {
-    indicatorField: 'indicatorIds',
-    timeField: 'timePoints',
-    geometryField: 'geometryOutputIds',
-    defaultSeriesDimension: 'indicators',
-    selectableDimensions: tuple('indicators', 'geometries'),
-    getDimensionModes: ({ seriesDimension }) => ({
-      indicators: seriesDimension === 'indicators' ? 'multi' : 'single',
-      geometries: seriesDimension === 'geometries' ? 'multi' : 'single',
-      time: 'multi',
-    }),
-  },
-  appearanceControls: tuple('categoricalPalette', 'legend', 'formatting'),
-  buildPreviewConfig: (values) => {
-    if (!values.productRunId) return null
-    return {
-      type: 'plot',
-      subType: 'custom',
-      productRunId: values.productRunId,
-      indicatorIds: values.indicatorIds ?? [],
-      geometryOutputIds: values.geometryOutputIds,
-      timePoints: values.timePoints,
-      title: values.title,
-      description: values.description,
-      appearance: values.appearance,
-    }
-  },
-})
+export const myChartConfigurationSchema = createPlotConfigurationSchema(
+  myChartPlotSchemaContract,
+)
 ```
 
-For a production chart, put this in a dedicated file such as
-`packages/plot/src/chart-definitions/custom.ts`, export the definition, and add
-it to the manifest tuple. If the chart needs a new persisted discriminator,
-update the schema union in `chart-core.ts` before adding the definition.
-
-## Test The Sample In The Web App
-
-The sample chart is executable, but it is not user-facing by default. To smoke
-test the template in reports or dashboards, temporarily add it to
-`packages/plot/src/chart-definitions.tsx`:
+Example definition:
 
 ```tsx
-import { sampleChartDefinition } from './chart-template'
+'use client'
 
-export const chartDefinitions = tuple(
-  lineChartDefinition,
-  // Existing production definitions...
-  kpiChartDefinition,
-  sampleChartDefinition,
-) satisfies readonly ChartDefinition[]
+import { TrendingUp } from 'lucide-react'
+import { suggestPlotChartTitle } from '../chart-title'
+import {
+  createCartesianPlotSelection,
+  createPlotDataRequirements,
+  createPlotPreviewConfig,
+  createStandardPlotRenderer,
+} from './definition-helpers'
+import { definePlotChart, tuple } from './core'
+import { myChartConfigurationSchema, myChartSubType } from './my-chart.schema'
+
+export const myChartDefinition = definePlotChart({
+  key: myChartSubType,
+  type: 'plot',
+  subType: myChartSubType,
+  label: 'My Chart',
+  description: 'Short picker description',
+  icon: TrendingUp,
+  schema: myChartConfigurationSchema,
+  getSuggestedTitle: suggestPlotChartTitle,
+  getDataRequirements: createPlotDataRequirements(),
+  renderer: { render: createStandardPlotRenderer() },
+  selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
+  appearanceControls: tuple('categoricalPalette', 'legend', 'formatting'),
+  buildPreviewConfig: createPlotPreviewConfig(myChartSubType),
+})
 ```
 
-After testing, remove the import and tuple entry. The sample subtype is accepted
-by the plot schema so the generic web form can save it while it is temporarily
-enabled, and the sample renderer displays the product outputs fetched through
-its declared data query.
+Then add the schema contract to `packages/plot/src/chart-schemas.ts` and the
+definition to `packages/plot/src/chart-definitions.tsx`. Those central files are
+composition-only manifests: they can import and list chart-owned exports, but
+must not contain chart-specific rules.
 
-## Definition Contract
+## Definition Options
 
-`schema` is the strict persisted configuration parser. Keep it backward
-compatible unless a dashboard/report migration is part of the same change.
+`key`: Stable definition key. For plot charts, this must equal the persisted
+`subType`.
 
-`buildPreviewConfig` can be more lenient than `schema`; the dialog uses it while
-the user is still filling the form. Submit still parses with the strict schema.
+`type`: Persisted chart family: `plot`, `map`, `table`, or `kpi`.
 
-`selection` tells the generic form which controls to render and whether each
-dimension is single-select, multi-select, or optional multi-select.
+`subType`: Plot-only persisted discriminator. Do not set this for map, table,
+or KPI definitions.
 
-`appearanceControls` is the only place a chart should expose chart-specific
-appearance UI. If the renderer does not read a property, do not expose that
-control.
+`label` and `description`: Picker copy only. These do not affect saved JSON.
 
-`data.getProductOutputsQuery` describes which product outputs the web adapter
-should fetch. The renderer receives loaded `productOutputs`, `productRun`,
-`productSummary`, `geometryOutputs`, `indicator`, `appearance`, `className`,
-`onSelect`, and renderer options through `ChartRenderContext`.
+`icon`: A React icon component, usually from `lucide-react`. Do not use a string
+and do not add an app-side icon map.
+
+`schema`: Strict Zod parser for the saved JSON shape. This is the compatibility
+boundary. If changing it would reject existing saved charts or alter parsed
+output, do not make the change without a migration plan.
+
+`getSuggestedTitle(context)`: Function used by the generic form to auto-fill the
+chart title. Prefer existing helpers from `chart-title.ts`: `suggestPlotChartTitle`,
+`suggestMapChartTitle`, `suggestTableChartTitle`, and
+`suggestProductChartTitle`.
+
+`getTypeOptionState(context)`: Optional picker guidance. Return a disabled state
+with a reason for product-dependent warnings such as charts that work best with
+multiple time points. Use `needsMultipleTimePoints` for that common case.
+
+`getDataRequirements(chart)`: Declares everything the host app must load before
+rendering: `productRunId`, `productOutputQuery`, optional `indicatorId`, and
+loading/unavailable copy. Web owns the hooks; the chart owns the requirements.
+
+`renderer.render(context)`: React renderer. It receives parsed chart config,
+loaded product outputs, optional product run/indicator data, appearance, select
+callback, render options, and host adapters.
+
+`selection`: Generic form model. Prefer helpers:
+
+- `createCartesianPlotSelection(...)` for line/area/bar/scatter time-series
+  plots.
+- `createSingleDimensionPlotSelection(...)` for donut and ranked-bar charts.
+- `createTableSelection()` for tables.
+- `createMapSelection()` for maps.
+- `createKpiSelection()` for KPI cards.
+
+`appearanceControls`: List of appearance panels to show. Only expose controls
+the renderer actually reads. Supported values are:
+
+- `categoricalPalette`
+- `continuousScale`
+- `legend`
+- `mapOptions`
+- `cartesianOptions`
+- `lineOptions`
+- `areaOptions`
+- `groupedBarOptions`
+- `donutOptions`
+- `formatting`
+- `colorOverrides`
+
+`buildPreviewConfig(values)`: Lenient builder used while users are still filling
+the form. Submit still uses the strict `schema`.
+
+## Schema Options
+
+Use a pure `.schema.ts` file for persisted shape and validation. This keeps
+`@repo/schemas/chart` server-safe and avoids importing React renderers into the
+server.
+
+For standard plots, use `createPlotConfigurationSchema` with a
+`PlotSchemaContract`:
+
+- `subType`: The exact persisted plot subtype.
+- `chartLabel`: Human-readable label used in validation messages.
+- `validationMode: 'cartesian'`: At most two dimensions may vary. This matches
+  line, area, stacked area, stacked bar, grouped bar, scatter, and the sample.
+- `validationMode: 'singleDimension'`: Only one dimension may vary. This matches
+  donut and ranked bar.
+
+For existing non-plot families, use the chart-owned helpers already present:
+
+- `createMapConfigurationSchema()`
+- `createTableConfigurationSchema()`
+- `createKpiConfigurationSchema()`
+
+If a chart needs extra persisted fields, add them in that chart's `.schema.ts`
+file only. Existing JSON must remain valid unless a migration is part of the
+same change.
+
+## Data And Rendering
+
+The platform preserves a strict invariant: one rendered visual element maps to
+one product output. No chart should aggregate, summarise, overwrite, or silently
+drop product outputs.
+
+Use these helpers when possible:
+
+- `createPlotDataRequirements()` for standard product-output plots.
+- `getPlotProductOutputQuery(chart)` when a custom plot data function needs the
+  default query.
+- `createPlotPreviewConfig(subType)` for standard plot preview JSON.
+- `createStandardPlotRenderer()` for Recharts-backed plots that use
+  `PlotChart`.
+
+Custom charts can use `defineChart`, but they still need to own all behavior in
+their chart module and expose the same simple definition contract.
 
 ## Verification
 
-Run the focused checks after adding a chart:
+Run focused checks after changing chart definitions:
 
 ```bash
 pnpm --filter @repo/plot lint
 pnpm --filter @repo/plot test:unit
+pnpm --filter @repo/schemas test:unit
 pnpm --filter web typecheck
 ```
 
-For chart behavior that appears in reports and dashboards, also smoke-test both
-flows in the browser.
+For report or dashboard behavior, also smoke-test chart creation, editing,
+reload, publish/PDF, and dashboard rendering in the browser.
 
 ## Related Docs
 

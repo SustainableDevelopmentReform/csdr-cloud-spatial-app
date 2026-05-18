@@ -24,7 +24,7 @@ import type { Dispatch, MouseEvent as ReactMouseEvent } from 'react'
 // For maps:
 //   - A single indicator and single time point are selected.
 //
-// Validation (chart schemas in @repo/plot/chart-core) and the pivotData
+// Validation (chart-owned schemas composed by @repo/plot/chart-core) and the pivotData
 // function enforce this invariant. If pivotData detects a collision
 // (duplicate (x, groupBy) combination) it returns an error — no values are
 // ever summarised, aggregated, or silently dropped.
