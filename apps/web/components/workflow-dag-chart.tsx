@@ -175,21 +175,47 @@ function KeyValueList({
   data,
 }: {
   title: string
-  data: Record<string, string>
+  data: Record<string, unknown>
 }) {
   return (
     <div className="space-y-1">
       <p className="text-xs font-medium text-muted-foreground">{title}</p>
       <div className="space-y-0.5 text-xs">
-        {Object.entries(data).map(([key, value]) => (
-          <p key={key}>
-            <span className="text-muted-foreground">{key}:</span>{' '}
-            <code className="rounded bg-muted px-1 py-0.5 break-all">
-              {String(value)}
-            </code>
-          </p>
-        ))}
+        {Object.entries(data).map(([key, value]) => {
+          const formattedValue = formatWorkflowMetadataValue(value)
+
+          return (
+            <p key={key}>
+              <span className="text-muted-foreground">{key}:</span>{' '}
+              <code className="rounded bg-muted px-1 py-0.5 break-all">
+                {formattedValue}
+              </code>
+            </p>
+          )
+        })}
       </div>
     </div>
   )
+}
+
+const formatWorkflowMetadataValue = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return String(value)
+  }
+
+  try {
+    return JSON.stringify(value) ?? String(value)
+  } catch {
+    return String(value)
+  }
 }

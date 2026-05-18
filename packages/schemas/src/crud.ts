@@ -39,8 +39,8 @@ export const workflowStepSchema = z
   .object({
     label: z.string(),
     order: z.number(),
-    inputs: z.record(z.string(), z.string()).optional(),
-    outputs: z.record(z.string(), z.string()).optional(),
+    inputs: z.record(z.string(), z.unknown()).optional(),
+    outputs: z.record(z.string(), z.unknown()).optional(),
     source: z
       .object({
         file: z.string().optional(),

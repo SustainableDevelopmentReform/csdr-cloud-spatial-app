@@ -422,6 +422,21 @@ describe('crud schemas', () => {
     ).toHaveLength(1)
 
     expect(
+      workflowDagSchema.parse([
+        {
+          label: 'Summarise yearly outputs',
+          order: 2,
+          inputs: {
+            years: [2021, 2022],
+          },
+          outputs: {
+            geometries_processed: 12,
+          },
+        },
+      ]),
+    ).toHaveLength(1)
+
+    expect(
       workflowDagSimpleSchema.parse({
         description: 'Summarise mangrove area by boundary.',
         inputs: ['Mangrove raster', 'Tonga EEZ'],
