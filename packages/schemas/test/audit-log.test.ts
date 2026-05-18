@@ -36,6 +36,8 @@ describe('audit log schemas', () => {
         search: 'forest',
         decision: 'allow',
         requestKind: 'mutating',
+        sort: 'resourceType',
+        order: 'asc',
       }),
     ).toEqual({
       page: 2,
@@ -45,6 +47,8 @@ describe('audit log schemas', () => {
       search: 'forest',
       decision: 'allow',
       requestKind: 'mutating',
+      sort: 'resourceType',
+      order: 'asc',
     })
   })
 
@@ -57,6 +61,11 @@ describe('audit log schemas', () => {
     expect(
       auditLogQuerySchema.safeParse({
         requestKind: 'write',
+      }).success,
+    ).toBe(false)
+    expect(
+      auditLogQuerySchema.safeParse({
+        sort: 'actorUserId',
       }).success,
     ).toBe(false)
   })

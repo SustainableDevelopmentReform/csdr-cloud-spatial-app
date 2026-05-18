@@ -217,6 +217,26 @@ describe('data library route', () => {
     expect(secondPageJson.data.data.map((item) => item.id)).toEqual([
       seededIds.product,
     ])
+
+    const typeSortedJson = await expectJsonResponse<DataLibraryTestResponse>(
+      await memberClient.api.v0['data-library'].$get({
+        query: {
+          sort: 'resourceType',
+          order: 'asc',
+          size: 3,
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+
+    expect(typeSortedJson.data.data.map((item) => item.resourceType)).toEqual([
+      'boundary',
+      'dataset',
+      'product',
+    ])
   })
 
   it('rejects oversized page sizes', async () => {

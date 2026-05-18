@@ -52,8 +52,8 @@ const DatasetFeature = () => {
   const datasetLink = useDatasetLink()
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof DatasetListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
   const activeFilters = useMemo(() => {
     if (!geographicBounds) {

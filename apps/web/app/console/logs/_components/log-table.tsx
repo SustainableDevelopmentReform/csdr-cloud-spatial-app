@@ -6,8 +6,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
+import { SortButton } from '~/components/table/crud-table'
+import {
+  createManualSortingChangeHandler,
+  createSortResolver,
+  getManualSortingState,
+} from '~/components/table/sorting'
 import Table from '~/components/table/table'
-import type { LogEntry } from '../_hooks'
+import type { LogEntry, LogPageQuery } from '../_hooks'
 
 const userBasePath = '/console/super-admin/users'
 
@@ -69,6 +75,11 @@ const authUserResourceActions = new Set([
   'admin_unban_user',
   'admin_update_user',
 ])
+const logSortOptions: readonly NonNullable<LogPageQuery['sort']>[] = [
+  'createdAt',
+  'action',
+  'resourceType',
+]
 
 const isUserResourceId = (entry: LogEntry): boolean => {
   if (!entry.resourceId) {
@@ -183,32 +194,59 @@ export const LogTable = ({
   entries,
   showUserLinks = false,
   isLoading = false,
+  query,
+  onSortChange,
 }: {
   entries: LogEntry[]
   showUserLinks?: boolean
   isLoading?: boolean
+  query?: Pick<LogPageQuery, 'sort' | 'order'>
+  onSortChange?: (query: Pick<LogPageQuery, 'sort' | 'order'>) => void
 }) => {
+  const sortingState = getManualSortingState(query?.sort, query?.order)
+  const resolveSort = createSortResolver(logSortOptions)
   const columns = useMemo<ColumnDef<LogEntry>[]>(
     () => [
       {
         id: 'createdAt',
         accessorFn: (entry) => entry.createdAt,
-        header: () => <span>Date</span>,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Date
+          </SortButton>
+        ),
         cell: (info) => new Date(info.row.original.createdAt).toLocaleString(),
         size: 180,
       },
       {
         id: 'action',
         accessorFn: (entry) => entry.action,
-        header: () => <span>Action</span>,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Action
+          </SortButton>
+        ),
         cell: (info) =>
           `${formatToken(info.row.original.action)} (${info.row.original.requestMethod})`,
         size: 220,
       },
       {
-        id: 'resource',
+        id: 'resourceType',
         accessorFn: (entry) => entry.resourceType,
-        header: () => <span>Resource</span>,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Resource
+          </SortButton>
+        ),
         cell: (info) => {
           const entry = info.row.original
 
@@ -279,6 +317,16 @@ export const LogTable = ({
     data: entries,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
+    state: {
+      sorting: sortingState,
+    },
+    enableMultiSort: false,
+    onSortingChange: createManualSortingChangeHandler({
+      sortingState,
+      resolveSort,
+      onSortChange: (sort, order) => onSortChange?.({ sort, order }),
+    }),
   })
 
   return (

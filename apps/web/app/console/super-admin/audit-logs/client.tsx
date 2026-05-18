@@ -151,6 +151,8 @@ const SuperAdminAuditLogsPageClient = () => {
         <LogTable
           entries={activeData?.data ?? []}
           isLoading={auditLogs.isLoading}
+          query={{ sort: query?.sort, order: query?.order }}
+          onSortChange={(next) => setSearchParams({ ...next, page: 1 })}
           showUserLinks
         />
       </ConsoleCrudListFrame>

@@ -94,8 +94,8 @@ const DatasetRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
   })
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof DatasetRunListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
 
   const columns = useMemo(() => {

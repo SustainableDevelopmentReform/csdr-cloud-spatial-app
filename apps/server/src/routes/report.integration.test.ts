@@ -344,6 +344,54 @@ describe('report route', () => {
     }
   })
 
+  it('filters reports by publication status', async () => {
+    const draftReportId = await createReport('Draft status report')
+    const publishedReportId = await createReport('Published status report')
+
+    await db
+      .update(report)
+      .set({
+        publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+      })
+      .where(eq(report.id, publishedReportId))
+
+    const draftJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.report.$get({
+        query: {
+          published: 'draft',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    const draftIds = draftJson.data.data.map((item) => item.id)
+
+    expect(draftIds).toContain(draftReportId)
+    expect(draftIds).not.toContain(publishedReportId)
+
+    const publishedJson = await expectJsonResponse<{
+      data: { id: string }[]
+    }>(
+      await memberClient.api.v0.report.$get({
+        query: {
+          published: 'published',
+        },
+      }),
+      {
+        status: 200,
+        message: 'OK',
+      },
+    )
+    const publishedIds = publishedJson.data.data.map((item) => item.id)
+
+    expect(publishedIds).toContain(publishedReportId)
+    expect(publishedIds).not.toContain(draftReportId)
+  })
+
   it('publishes a report, stores PDF metadata, and locks future changes', async () => {
     const createdJson = await expectJsonResponse<{
       id: string

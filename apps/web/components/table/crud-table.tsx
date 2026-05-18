@@ -19,6 +19,11 @@ import { formatDateTime } from '@repo/ui/lib/date'
 import Link from '~/components/link'
 import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import type { ResourceVisibility } from '~/utils/access-control'
+import {
+  createManualSortingChangeHandler,
+  createSortResolver,
+  getManualSortingState,
+} from './sorting'
 
 interface BaseItem {
   name: string
@@ -191,11 +196,6 @@ export const SortButton = ({
   )
 }
 
-const resolveSort = <Sort extends string>(
-  sort: string | undefined,
-  sortOptions: readonly Sort[],
-): Sort | undefined => sortOptions.find((sortOption) => sortOption === sort)
-
 const getActionButtonWidth = ({
   hasIcon,
   label,
@@ -226,9 +226,8 @@ const BaseCrudTable = <
   isLoading = false,
   onSortChange,
 }: BaseCrudTableProps<T, Q>) => {
-  const sortingState = query?.sort
-    ? [{ id: query.sort, desc: query.order === 'desc' }]
-    : []
+  const sortingState = getManualSortingState(query?.sort, query?.order)
+  const resolveSort = createSortResolver(sortOptions)
   const canModifyAny =
     canModifyItem !== undefined
       ? data.length === 0 || data.some((item) => canModifyItem(item))
@@ -306,6 +305,27 @@ const BaseCrudTable = <
       nextColumns.push(...extraColumns)
     }
 
+    if (baseColumns.includes('createdAt')) {
+      nextColumns.push({
+        id: 'createdAt',
+        accessorFn: (row) => row.createdAt,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Created
+          </SortButton>
+        ),
+        cell: (info) => {
+          const value = info.row.original.createdAt
+          if (!value) return null
+          return formatDateTime(value)
+        },
+        size: 180,
+      })
+    }
+
     if (baseColumns.includes('updatedAt')) {
       nextColumns.push({
         id: 'updatedAt',
@@ -371,21 +391,11 @@ const BaseCrudTable = <
       sorting: sortingState,
     },
     enableMultiSort: false,
-    onSortingChange: (sorting) => {
-      const nextSortingState =
-        typeof sorting === 'function' ? sorting(sortingState) : sorting
-      const firstSorting = nextSortingState[0]
-      const sort = resolveSort(firstSorting?.id, sortOptions)
-      onSortChange?.({
-        sort,
-        order:
-          sort && firstSorting
-            ? firstSorting.desc
-              ? 'desc'
-              : 'asc'
-            : undefined,
-      })
-    },
+    onSortingChange: createManualSortingChangeHandler({
+      sortingState,
+      resolveSort,
+      onSortChange: (sort, order) => onSortChange?.({ sort, order }),
+    }),
   })
 
   return (

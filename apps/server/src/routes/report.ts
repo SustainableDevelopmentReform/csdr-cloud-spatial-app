@@ -9,7 +9,7 @@ import {
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { Polygon } from 'geojson'
 import {
   buildReportUsageFilters,
@@ -288,6 +288,12 @@ const app = createOpenAPIApp()
       const queryParams = c.req.valid('query')
       const usageFilters = buildReportUsageFilters(queryParams)
       const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
+      const publishedFilter =
+        queryParams.published === 'published'
+          ? isNotNull(report.publishedAt)
+          : queryParams.published === 'draft'
+            ? isNull(report.publishedAt)
+            : undefined
       const baseWhere =
         usageFilters.length > 0
           ? and(
@@ -297,6 +303,7 @@ const app = createOpenAPIApp()
                 report.visibility,
               ),
               ...usageFilters,
+              publishedFilter,
               buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
             )
           : and(
@@ -305,6 +312,7 @@ const app = createOpenAPIApp()
                 report.organizationId,
                 report.visibility,
               ),
+              publishedFilter,
               buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
             )
       const { meta, query } = await parseQuery(report, queryParams, {

@@ -56,8 +56,8 @@ const GeometriesFeature = () => {
   const geometriesLink = useGeometriesLink()
   const geographicBounds = getGeographicBoundsFromQuery(query)
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof GeometriesListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
   const activeFilters = useMemo(() => {
     if (!geographicBounds) {

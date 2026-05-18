@@ -138,8 +138,8 @@ const DashboardFeature = () => {
     selectedGeometriesIds.length > 0,
   )
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof DashboardListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     const filters: ActiveTableFilter[] = []

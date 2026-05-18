@@ -7,7 +7,6 @@ import { formatDateTime } from '@repo/ui/lib/date'
 import {
   ColumnDef,
   getCoreRowModel,
-  SortingState,
   useReactTable,
 } from '@tanstack/react-table'
 import {
@@ -27,6 +26,11 @@ import {
 } from '~/components/table/filter-popover'
 import { SearchInput } from '~/components/table/search-input'
 import { SortButton } from '~/components/table/crud-table'
+import {
+  createManualSortingChangeHandler,
+  createSortResolver,
+  getManualSortingState,
+} from '~/components/table/sorting'
 import {
   DATA_LIBRARY_BASE_PATH,
   DATASETS_BASE_PATH,
@@ -53,10 +57,11 @@ import {
 
 type DataLibrarySort = NonNullable<DataLibraryQuery['sort']>
 
-const dataLibrarySortOptions: DataLibrarySort[] = [
+const dataLibrarySortOptions: readonly DataLibrarySort[] = [
   'name',
   'createdAt',
   'updatedAt',
+  'resourceType',
 ]
 
 const resourceTypeConfig: Record<
@@ -92,9 +97,6 @@ const normalizeResourceTypes = (
 
   return Array.isArray(resourceType) ? resourceType : [resourceType]
 }
-
-const resolveSort = (sort: string | undefined): DataLibrarySort | undefined =>
-  dataLibrarySortOptions.find((sortOption) => sortOption === sort)
 
 const getResourceLink = (resource: DataLibraryListItem): string => {
   switch (resource.resourceType) {
@@ -138,9 +140,8 @@ const DataLibraryFeature = () => {
     [query?.resourceType],
   )
   const geographicBounds = getGeographicBoundsFromQuery(query)
-  const sortingState: SortingState = query?.sort
-    ? [{ id: query.sort, desc: query.order === 'desc' }]
-    : []
+  const sortingState = getManualSortingState(query?.sort, query?.order)
+  const resolveSort = createSortResolver(dataLibrarySortOptions)
 
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     const filters: ActiveTableFilter[] = []
@@ -206,7 +207,14 @@ const DataLibraryFeature = () => {
       {
         id: 'resourceType',
         accessorFn: (row) => row.resourceType,
-        header: () => <span>Type</span>,
+        header: ({ column }) => (
+          <SortButton
+            order={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Type
+          </SortButton>
+        ),
         cell: (info) => (
           <DataLibraryTypeBadge resourceType={info.row.original.resourceType} />
         ),
@@ -269,23 +277,17 @@ const DataLibraryFeature = () => {
       sorting: sortingState,
     },
     enableMultiSort: false,
-    onSortingChange: (sorting) => {
-      const nextSortingState =
-        typeof sorting === 'function' ? sorting(sortingState) : sorting
-      const firstSorting = nextSortingState[0]
-      const sort = resolveSort(firstSorting?.id)
-
-      setSearchParams({
-        sort,
-        order:
-          sort && firstSorting
-            ? firstSorting.desc
-              ? 'desc'
-              : 'asc'
-            : undefined,
-        page: undefined,
-      })
-    },
+    onSortingChange: createManualSortingChangeHandler({
+      sortingState,
+      resolveSort,
+      onSortChange: (sort, order) => {
+        setSearchParams({
+          sort,
+          order,
+          page: undefined,
+        })
+      },
+    }),
   })
 
   const toggleResourceType = (resourceType: DataLibraryResourceType) => {
