@@ -39,6 +39,11 @@ import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { Tabs } from '@repo/ui/components/ui/tabs'
 import { Textarea } from '@repo/ui/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@repo/ui/components/ui/tooltip'
 import { formatDateTime } from '@repo/ui/lib/date'
 import {
   Copy,
@@ -577,6 +582,20 @@ const ReportDetails = () => {
     ? 'min-w-0 overflow-hidden rounded-2xl bg-card [&_.simple-editor-content]:!max-w-none [&_.simple-editor-wrapper]:!overflow-visible [&_.simple-editor-wrapper]:!rounded-2xl [&_.tiptap-toolbar-group]:!flex-wrap [&_.tiptap-toolbar]:!bottom-auto [&_.tiptap-toolbar]:!h-auto [&_.tiptap-toolbar]:!min-h-11 [&_.tiptap-toolbar]:!rounded-t-2xl [&_.tiptap-toolbar]:!flex-wrap [&_.tiptap-toolbar]:!items-start [&_.tiptap-toolbar]:!overflow-visible [&_.tiptap-toolbar]:!px-2 [&_.tiptap-toolbar]:!py-1 [&_.tiptap-toolbar]:!sticky [&_.tiptap-toolbar]:!top-0'
     : 'min-w-0 overflow-hidden rounded-2xl bg-card [&_.simple-editor-content]:!max-w-none [&_.simple-editor-wrapper]:!overflow-hidden [&_.simple-editor-wrapper]:!rounded-2xl'
 
+  const showPublishedDownloadAction =
+    !isEditMode && isPublished && report?.publishedPdfAvailable
+  const showMenuDownloadAction =
+    !isPublished && (report?.publishedPdfAvailable ?? false)
+  const showMenuShareAction = !isEditMode && !isPublished
+  const showReportActionsMenu =
+    canPreviewPdf ||
+    showMenuDownloadAction ||
+    canDuplicate ||
+    showMenuShareAction
+  const showReportActionsSeparator =
+    showMenuShareAction &&
+    (canPreviewPdf || showMenuDownloadAction || canDuplicate)
+
   const reportActions = report ? (
     <div className="flex w-full max-w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
       {!isEditMode && canEdit ? (
@@ -624,6 +643,36 @@ const ReportDetails = () => {
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
+      {showPublishedDownloadAction ? (
+        <Button
+          disabled={isPdfBusy}
+          onClick={() => {
+            void downloadPublishedPdf()
+          }}
+          type="button"
+          variant="outline"
+        >
+          {activePdfAction === 'published' ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {activePdfAction === 'published' ? 'Downloading PDF' : 'Download PDF'}
+        </Button>
+      ) : null}
+      {isPublished && !isEditMode ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button onClick={copyShareLink} type="button">
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {shareCopied ? 'Copied' : 'Copy report link'}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
       {isEditMode ? (
         <>
           <Button onClick={discardEdits} type="button" variant="ghost">
@@ -640,78 +689,79 @@ const ReportDetails = () => {
           </Button>
         </>
       ) : null}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label="More report actions"
-            size="icon"
-            variant="outline"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-48">
-          {canPreviewPdf ? (
-            <DropdownMenuItem
-              disabled={isDirty || isPdfBusy}
-              onSelect={() => {
-                void previewReportPdf()
-              }}
+      {showReportActionsMenu ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label="More report actions"
+              size="icon"
+              variant="outline"
             >
-              {activePdfAction === 'preview' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="h-4 w-4" />
-              )}
-              {activePdfAction === 'preview' ? 'Preparing PDF' : 'Preview PDF'}
-            </DropdownMenuItem>
-          ) : null}
-          {report.publishedPdfAvailable ? (
-            <DropdownMenuItem
-              disabled={isPdfBusy}
-              onSelect={() => {
-                void downloadPublishedPdf()
-              }}
-            >
-              {activePdfAction === 'published' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              {activePdfAction === 'published'
-                ? 'Downloading PDF'
-                : 'Download PDF'}
-            </DropdownMenuItem>
-          ) : null}
-          {canDuplicate ? (
-            <DropdownMenuItem
-              disabled={duplicateReport.isPending}
-              onSelect={createCopy}
-            >
-              {duplicateReport.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-              {duplicateReport.isPending ? 'Creating copy' : 'Create Copy'}
-            </DropdownMenuItem>
-          ) : null}
-          {!isEditMode &&
-          (canPreviewPdf || report.publishedPdfAvailable || canDuplicate) ? (
-            <DropdownMenuSeparator />
-          ) : null}
-          {!isEditMode ? (
-            <DropdownMenuItem
-              onSelect={() => {
-                void copyShareLink()
-              }}
-            >
-              <Share2 className="h-4 w-4" />
-              {shareCopied ? 'Copied' : 'Share'}
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-48">
+            {canPreviewPdf ? (
+              <DropdownMenuItem
+                disabled={isDirty || isPdfBusy}
+                onSelect={() => {
+                  void previewReportPdf()
+                }}
+              >
+                {activePdfAction === 'preview' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                {activePdfAction === 'preview'
+                  ? 'Preparing PDF'
+                  : 'Preview PDF'}
+              </DropdownMenuItem>
+            ) : null}
+            {showMenuDownloadAction ? (
+              <DropdownMenuItem
+                disabled={isPdfBusy}
+                onSelect={() => {
+                  void downloadPublishedPdf()
+                }}
+              >
+                {activePdfAction === 'published' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {activePdfAction === 'published'
+                  ? 'Downloading PDF'
+                  : 'Download PDF'}
+              </DropdownMenuItem>
+            ) : null}
+            {canDuplicate ? (
+              <DropdownMenuItem
+                disabled={duplicateReport.isPending}
+                onSelect={createCopy}
+              >
+                {duplicateReport.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {duplicateReport.isPending ? 'Creating copy' : 'Create Copy'}
+              </DropdownMenuItem>
+            ) : null}
+            {showReportActionsSeparator ? <DropdownMenuSeparator /> : null}
+            {showMenuShareAction ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  void copyShareLink()
+                }}
+              >
+                <Share2 className="h-4 w-4" />
+                {shareCopied ? 'Copied' : 'Share'}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </div>
   ) : null
 
