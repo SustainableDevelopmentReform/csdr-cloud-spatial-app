@@ -17,12 +17,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
-import { useConsoleSideDrawerStack } from '~/app/console/_components/console-side-drawer'
 import {
   getEditModeHref,
   getResourceVisibilityChangeSummary,
-  OverviewSection,
-  OverviewText,
   ResourceHeaderActions,
   ResourceTitleBlock,
   ResourceVisibilitySelect,
@@ -74,6 +71,12 @@ type GeometriesVisibilityDialogState = VisibilityImpactDialogState & {
 }
 
 const formId = 'geometries-detail-form'
+const geometriesViewTabs: readonly ResourceTab[] = [
+  'explore',
+  'lineage',
+  'versions',
+  'usage',
+]
 
 const getGeometriesPath = (geometriesId: string) =>
   `${GEOMETRIES_BASE_PATH}/${geometriesId}`
@@ -95,8 +98,7 @@ const GeometriesDetails = () => {
   const { access } = useAccessControl()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { closeActiveDrawer } = useConsoleSideDrawerStack()
-  const [activeTab, setActiveTab] = useState<ResourceTab>('overview')
+  const [activeTab, setActiveTab] = useState<ResourceTab>('explore')
   const [visibilityDialog, setVisibilityDialog] =
     useState<GeometriesVisibilityDialogState | null>(null)
   const [selectedGeometryOutputId, setSelectedGeometryOutputId] = useState<
@@ -230,10 +232,9 @@ const GeometriesDetails = () => {
 
   const openGeometryOutputDetails = useCallback(
     (selection: GeometryOutputMapSelection) => {
-      closeActiveDrawer()
       setSelectedGeometryOutputId(selection.geometryOutputId)
     },
-    [closeActiveDrawer],
+    [],
   )
 
   const selectGeometryOutputDetails = useCallback(
@@ -261,8 +262,8 @@ const GeometriesDetails = () => {
     }
   }, [closeGeometryOutputDetails, selectedGeometryOutputId])
 
-  const overview = geometries ? (
-    isEditMode ? (
+  const overview =
+    geometries && isEditMode ? (
       <CrudForm
         form={form}
         formId={formId}
@@ -275,16 +276,7 @@ const GeometriesDetails = () => {
         onError={(error) => toastError(error, 'Failed to update boundaries')}
         onSuccess={() => router.replace(resourcePath)}
       />
-    ) : (
-      <div className="flex w-full max-w-[720px] flex-col gap-4">
-        <OverviewSection title="About">
-          <OverviewText>
-            {geometries.description ?? 'No description.'}
-          </OverviewText>
-        </OverviewSection>
-      </div>
-    )
-  ) : null
+    ) : null
 
   return (
     <div className="flex flex-col bg-neutral-100 text-foreground">
@@ -382,6 +374,7 @@ const GeometriesDetails = () => {
                 </div>
 
                 <ResourcePageTabs
+                  enabledTabs={isEditMode ? undefined : geometriesViewTabs}
                   value={isEditMode ? 'overview' : activeTab}
                   onValueChange={setActiveTab}
                   hideTabs={isEditMode}

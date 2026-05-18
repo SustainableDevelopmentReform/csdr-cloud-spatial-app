@@ -612,8 +612,7 @@ export const RunVersionSidebarProvider = ({
 }: {
   children: ReactNode
 }) => {
-  const { closeActiveDrawer, pushActiveDrawerSnapshot } =
-    useConsoleSideDrawerStack()
+  const { pushActiveDrawerSnapshot } = useConsoleSideDrawerStack()
   const [selectedRun, setSelectedRun] = useState<RunVersionSelection | null>(
     null,
   )
@@ -640,14 +639,10 @@ export const RunVersionSidebarProvider = ({
         pushActiveDrawerSnapshot()
       }
 
-      if (source === 'root') {
-        closeActiveDrawer()
-      }
-
       setOpenSource(source)
       setSelectedRun(run)
     },
-    [closeActiveDrawer, pushActiveDrawerSnapshot, selectedRun],
+    [pushActiveDrawerSnapshot, selectedRun],
   )
 
   useEffect(() => {
