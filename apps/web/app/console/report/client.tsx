@@ -8,6 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
+import { cn } from '@repo/ui/lib/utils'
+import { ColumnDef } from '@tanstack/react-table'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import {
@@ -48,6 +50,35 @@ import {
   useReports,
 } from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
+
+type ReportPublicationStatus = 'draft' | 'published'
+
+const reportStatusClassName: Record<ReportPublicationStatus, string> = {
+  draft: 'outline-stone-300 text-stone-300',
+  published: 'outline-black text-black',
+}
+
+const reportStatusLabel: Record<ReportPublicationStatus, string> = {
+  draft: 'Draft',
+  published: 'Published',
+}
+
+const ReportStatusBadge = ({ publishedAt }: { publishedAt: string | null }) => {
+  const status: ReportPublicationStatus = publishedAt ? 'published' : 'draft'
+
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full items-center justify-center gap-1 overflow-hidden rounded-lg px-2 py-0.5 outline outline-1 outline-offset-[-1px]',
+        reportStatusClassName[status],
+      )}
+    >
+      <span className="truncate text-xs font-semibold leading-4">
+        {reportStatusLabel[status]}
+      </span>
+    </span>
+  )
+}
 
 const ReportDeleteAction = ({ report }: { report: ReportListItem }) => {
   const deleteReport = useDeleteReport(report.id)
@@ -144,6 +175,18 @@ const ReportFeature = () => {
 
   const baseColumns = useMemo<ReadonlyArray<keyof ReportListItem>>(() => {
     return ['description', 'createdAt', 'updatedAt']
+  }, [])
+  const columns = useMemo(() => {
+    return [
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <ReportStatusBadge publishedAt={row.original.publishedAt} />
+        ),
+        size: 124,
+      },
+    ] satisfies ColumnDef<ReportListItem>[]
   }, [])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     const filters: ActiveTableFilter[] = []
@@ -429,6 +472,7 @@ const ReportFeature = () => {
           data={data?.data || []}
           isLoading={isLoading}
           baseColumns={baseColumns}
+          extraColumns={columns}
           sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Report"
           itemLink={reportLink}
