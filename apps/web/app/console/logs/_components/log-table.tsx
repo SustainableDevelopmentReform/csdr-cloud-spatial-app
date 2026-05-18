@@ -14,16 +14,9 @@ import {
 } from '~/components/table/sorting'
 import Table from '~/components/table/table'
 import type { LogEntry, LogPageQuery } from '../_hooks'
+import { formatAuditLogToken } from '../_resource-types'
 
 const userBasePath = '/console/super-admin/users'
-
-const formatToken = (value: string | null | undefined): string => {
-  if (!value) {
-    return 'Unknown'
-  }
-
-  return value.replaceAll('_', ' ')
-}
 
 const renderDetails = (details: unknown): string => {
   if (details === null || details === undefined) {
@@ -75,11 +68,34 @@ const authUserResourceActions = new Set([
   'admin_unban_user',
   'admin_update_user',
 ])
-const logSortOptions: readonly NonNullable<LogPageQuery['sort']>[] = [
+type LogSort = NonNullable<LogPageQuery['sort']>
+type LogTableSort = LogSort | 'logAction'
+
+const logSortOptions: readonly LogTableSort[] = [
   'createdAt',
-  'action',
+  'logAction',
   'resourceType',
 ]
+
+const getLogTableSort = (
+  sort: LogPageQuery['sort'] | undefined,
+): LogTableSort | undefined => {
+  if (sort === 'action') {
+    return 'logAction'
+  }
+
+  return sort
+}
+
+const getLogQuerySort = (
+  sort: LogTableSort | undefined,
+): LogPageQuery['sort'] | undefined => {
+  if (sort === 'logAction') {
+    return 'action'
+  }
+
+  return sort
+}
 
 const isUserResourceId = (entry: LogEntry): boolean => {
   if (!entry.resourceId) {
@@ -184,7 +200,7 @@ const ActorCell = ({
         </div>
       ) : null}
       <div className="text-xs text-gray-500">
-        {formatToken(entry.actorRole)}
+        {formatAuditLogToken(entry.actorRole)}
       </div>
     </div>
   )
@@ -203,7 +219,10 @@ export const LogTable = ({
   query?: Pick<LogPageQuery, 'sort' | 'order'>
   onSortChange?: (query: Pick<LogPageQuery, 'sort' | 'order'>) => void
 }) => {
-  const sortingState = getManualSortingState(query?.sort, query?.order)
+  const sortingState = getManualSortingState(
+    getLogTableSort(query?.sort),
+    query?.order,
+  )
   const resolveSort = createSortResolver(logSortOptions)
   const columns = useMemo<ColumnDef<LogEntry>[]>(
     () => [
@@ -222,7 +241,7 @@ export const LogTable = ({
         size: 180,
       },
       {
-        id: 'action',
+        id: 'logAction',
         accessorFn: (entry) => entry.action,
         header: ({ column }) => (
           <SortButton
@@ -233,7 +252,7 @@ export const LogTable = ({
           </SortButton>
         ),
         cell: (info) =>
-          `${formatToken(info.row.original.action)} (${info.row.original.requestMethod})`,
+          `${formatAuditLogToken(info.row.original.action)} (${info.row.original.requestMethod})`,
         size: 220,
       },
       {
@@ -252,7 +271,7 @@ export const LogTable = ({
 
           return (
             <div>
-              <div>{formatToken(entry.resourceType)}</div>
+              <div>{formatAuditLogToken(entry.resourceType)}</div>
               <div className="text-xs text-muted-foreground">
                 {showUserLinks &&
                 isUserResourceId(entry) &&
@@ -325,7 +344,8 @@ export const LogTable = ({
     onSortingChange: createManualSortingChangeHandler({
       sortingState,
       resolveSort,
-      onSortChange: (sort, order) => onSortChange?.({ sort, order }),
+      onSortChange: (sort, order) =>
+        onSortChange?.({ sort: getLogQuerySort(sort), order }),
     }),
   })
 

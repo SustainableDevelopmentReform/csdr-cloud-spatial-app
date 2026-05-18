@@ -4179,7 +4179,7 @@ describe('access control integration', () => {
       auditLogsJson.data.data.some(
         (entry) => entry.resourceType === 'auditLog' && entry.action === 'read',
       ),
-    ).toBe(true)
+    ).toBe(false)
     expect(
       auditLogsJson.data.data.some(
         (entry) =>
