@@ -406,6 +406,7 @@ const GeometriesDetails = () => {
                       <GeometriesMainRunOutputsTable
                         canEdit={canEdit}
                         geometriesRunId={geometries.mainRunId}
+                        showManagementActions
                       />
                     ) : undefined
                   }
