@@ -26,6 +26,7 @@ import { requireSuperAdminActor } from '~/lib/auth/policy'
 const buildAuditLogFilters = (organizationId: string, query: AuditLogQuery) =>
   and(
     excludeGetSessionAuditLogs(),
+    excludeOrganizationAuditLogListReads(),
     eq(auditLog.targetOrganizationId, organizationId),
     query.resourceType
       ? eq(auditLog.resourceType, query.resourceType)
@@ -118,6 +119,13 @@ const excludeGetSessionAuditLogs = () =>
   and(
     ne(auditLog.action, 'get_session'),
     ne(auditLog.requestPath, '/api/auth/get-session'),
+  )
+
+const excludeOrganizationAuditLogListReads = () =>
+  or(
+    ne(auditLog.resourceType, 'auditLog'),
+    ne(auditLog.action, 'read'),
+    ne(auditLog.requestPath, '/api/v0/logs/audit'),
   )
 
 const app = createOpenAPIApp()

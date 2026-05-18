@@ -18,15 +18,20 @@ import {
 } from '~/components/table/filter-popover'
 import { useQueryWithSearchParams } from '~/hooks/use-search-params'
 import { LogTable } from '../../logs/_components/log-table'
-import { logPageQuerySchema, useSuperAdminAuditLogs } from '../../logs/_hooks'
+import {
+  defaultLogPageQuery,
+  logPageQuerySchema,
+  useSuperAdminAuditLogs,
+} from '../../logs/_hooks'
+import {
+  auditLogResourceTypeOptions,
+  getAuditLogResourceTypeLabel,
+} from '../../logs/_resource-types'
 
 const SuperAdminAuditLogsPageClient = () => {
   const { query, setSearchParams } = useQueryWithSearchParams(
     logPageQuerySchema,
-    {
-      page: 1,
-      size: 25,
-    },
+    defaultLogPageQuery,
     true,
   )
   const auditLogs = useSuperAdminAuditLogs(query)
@@ -48,6 +53,15 @@ const SuperAdminAuditLogsPageClient = () => {
       label: 'Request type',
       value: query.requestKind === 'mutating' ? 'Mutating' : 'Read-only',
       onClear: () => setSearchParams({ requestKind: undefined, page: 1 }),
+    })
+  }
+
+  if (query?.resourceType) {
+    activeFilters.push({
+      id: 'resource-type',
+      label: 'Resource',
+      value: getAuditLogResourceTypeLabel(query.resourceType),
+      onClear: () => setSearchParams({ resourceType: undefined, page: 1 }),
     })
   }
 
@@ -124,6 +138,30 @@ const SuperAdminAuditLogsPageClient = () => {
                   <SelectItem value="all">All requests</SelectItem>
                   <SelectItem value="mutating">Mutating</SelectItem>
                   <SelectItem value="read">Read-only</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={query?.resourceType ?? 'all'}
+                onValueChange={(value) =>
+                  setSearchParams({
+                    page: 1,
+                    resourceType: value === 'all' ? undefined : value,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Resource" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All resources</SelectItem>
+                  {auditLogResourceTypeOptions.map((resourceType) => (
+                    <SelectItem
+                      key={resourceType.value}
+                      value={resourceType.value}
+                    >
+                      {resourceType.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select

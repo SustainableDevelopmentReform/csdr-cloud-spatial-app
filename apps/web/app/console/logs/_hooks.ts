@@ -28,6 +28,13 @@ export type LogPageQuery = AuditLogQuery
 export type LogListResponse = AuditLogListResponse
 export type LogEntry = AuditLogEntry
 
+export const defaultLogPageQuery: Partial<LogPageQuery> = {
+  page: 1,
+  size: 25,
+  sort: 'createdAt',
+  order: 'desc',
+}
+
 const logQueryKeys = {
   audit: (organizationId: string | null, query: LogPageQuery | undefined) =>
     ['logs', 'audit', organizationId, query] as const,
@@ -43,7 +50,9 @@ const toLogListQuery = (
   }
 
   return {
+    action: query.action,
     decision: query.decision,
+    resourceType: query.resourceType,
     requestKind: query.requestKind,
     search: query.search,
     size: query.size,
@@ -56,8 +65,10 @@ const toLogRouteQuery = (
   query: LogPageQuery | undefined,
   page: number | undefined = query?.page,
 ) => ({
+  action: query?.action,
   decision: query?.decision,
   page,
+  resourceType: query?.resourceType,
   requestKind: query?.requestKind,
   search: query?.search,
   size: query?.size,
@@ -69,6 +80,10 @@ const toLogSearchParams = (query: LogPageQuery | undefined): string => {
   const routeQuery = toLogRouteQuery(query)
   const searchParams = new URLSearchParams()
 
+  if (routeQuery.action) {
+    searchParams.set('action', routeQuery.action)
+  }
+
   if (routeQuery.decision) {
     searchParams.set('decision', routeQuery.decision)
   }
@@ -79,6 +94,10 @@ const toLogSearchParams = (query: LogPageQuery | undefined): string => {
 
   if (routeQuery.requestKind) {
     searchParams.set('requestKind', routeQuery.requestKind)
+  }
+
+  if (routeQuery.resourceType) {
+    searchParams.set('resourceType', routeQuery.resourceType)
   }
 
   if (routeQuery.search) {
