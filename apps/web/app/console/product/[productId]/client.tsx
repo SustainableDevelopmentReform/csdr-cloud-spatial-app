@@ -388,6 +388,7 @@ const ProductDetails = () => {
                       <ProductMainRunOutputsTable
                         canEdit={canEdit}
                         productRunId={product.mainRunId}
+                        showManagementActions
                       />
                     ) : undefined
                   }

@@ -3,6 +3,7 @@
 import clsx from 'clsx'
 import {
   getPlotChartGroupBy,
+  applyTimeChangeTransform,
   tableChartDimensionMetadata,
   type ChartConfiguration,
   type ChartConfigurationDraft,
@@ -15,10 +16,13 @@ import { PlotChart } from '../plot-chart'
 import {
   type ChartDefinition,
   type ChartDimensionModes,
+  type ChartProductOutput,
   type ChartProductOutputQuery,
   type ChartRenderContext,
   type ChartTypeOptionState,
 } from './core'
+
+export { supportsTimeChangeTransform } from '../chart-core'
 
 /**
  * Build the standard preview configuration for product-output plot charts.
@@ -42,6 +46,7 @@ export function createPlotPreviewConfig(subType: PlotSubType) {
       title: values.title,
       description: values.description,
       appearance: values.appearance,
+      transform: values.transform,
     }
   }
 }
@@ -90,7 +95,14 @@ export function createStandardPlotRenderer() {
     if (chart.type !== 'plot') return null
 
     const groupBy = getPlotChartGroupBy(chart)
-    const outputs = context.productOutputs
+    const timeChangeMode = chart.transform?.timeChange?.mode ?? 'none'
+    const outputs: ChartProductOutput[] = applyTimeChangeTransform(
+      context.productOutputs,
+      {
+        mode: timeChangeMode,
+        baseline: chart.transform?.timeChange?.baseline ?? 'firstTimePoint',
+      },
+    )
 
     return (
       <div className={clsx('flex flex-1 min-h-0 flex-col gap-2', className)}>
@@ -108,6 +120,9 @@ export function createStandardPlotRenderer() {
             groupBy={groupBy}
             type={chart.subType}
             appearance={chart.appearance}
+            valueFormat={
+              timeChangeMode === 'percentDelta' ? 'percent' : 'number'
+            }
             onSelect={context.onSelect}
           />
         </div>

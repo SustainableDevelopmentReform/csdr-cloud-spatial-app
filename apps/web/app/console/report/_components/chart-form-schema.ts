@@ -15,4 +15,11 @@ export type ChartFormValues = z.infer<typeof chartFormSchema>
 
 export const toPersistedChartConfiguration = (
   values: ChartFormValues,
-): ChartConfiguration => chartConfigurationSchema.parse(values)
+): ChartConfiguration => {
+  const normalizedValues =
+    values.transform?.timeChange?.mode === 'none'
+      ? { ...values, transform: undefined }
+      : values
+
+  return chartConfigurationSchema.parse(normalizedValues)
+}

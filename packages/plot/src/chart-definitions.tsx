@@ -53,6 +53,20 @@ export {
   type ChartTypeOptionState,
 } from './chart-definitions/core'
 export {
+  applyTimeChangeTransform,
+  getTimeChangeBaseline,
+  groupRecordsForTimeChange,
+  supportsTimeChangeTransform,
+} from './chart-core'
+export type {
+  TimeChangeCapability,
+  TimeChangeMode,
+  TimeChangeRecord,
+  TimeChangeSupportedMode,
+  TimeChangeTransformedRecord,
+  TimeChangeTransformOptions,
+} from './chart-core'
+export {
   createCartesianPlotSelection,
   createKpiSelection,
   createMapSelection,

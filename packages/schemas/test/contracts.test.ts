@@ -166,6 +166,17 @@ describe('chartConfigurationSchema', () => {
     })
   })
 
+  it('keeps existing valid chart JSON unchanged when transform is omitted', () => {
+    const input = {
+      type: 'plot',
+      subType: 'line',
+      ...basePlotSelections,
+      timePoints: [timePoint2024, timePoint2025],
+    }
+
+    expect(chartConfigurationSchema.parse(input)).toEqual(input)
+  })
+
   it('normalizes ISO chart time values to UTC ISO datetimes', () => {
     const parsedPlot = chartConfigurationSchema.parse({
       type: 'plot',

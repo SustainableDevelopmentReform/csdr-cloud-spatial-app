@@ -99,6 +99,8 @@ export const sampleChartDefinition = definePlotChart({
     loadingMessage: 'Loading sample chart...',
     unavailableMessage: 'Sample chart data is unavailable.',
   }),
+  // Add timeChange: supportsTimeChangeTransform(...) only when the chart can
+  // render multiple time points as delta or percent change.
   // Renderers receive loaded data; they should not fetch.
   renderer: { render: renderSampleChart },
   // Selection helpers hide persisted field-name plumbing.

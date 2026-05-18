@@ -5,7 +5,7 @@ import { deriveRunStatus, workflowDagSimpleSchema } from '@repo/schemas/crud'
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
 import { formatDateTime } from '@repo/ui/lib/date'
-import { ExternalLinkIcon, InfoIcon, XIcon } from 'lucide-react'
+import { ExternalLinkIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
 import {
   type RefObject,
@@ -57,6 +57,63 @@ const formatOutputValue = (
     value?.toLocaleString(undefined, { maximumFractionDigits: 100 }) ?? 'null'
 
   return unit ? `${formattedValue} ${unit}` : formattedValue
+}
+
+type TimeChangeSelectionMode = 'delta' | 'percentDelta'
+
+function getSelectedPointMetadata(
+  dataPoint: ProductOutputExportListItem | null | undefined,
+  key: string,
+): unknown {
+  return dataPoint ? Reflect.get(dataPoint, key) : undefined
+}
+
+function getSelectedPointNumber(
+  dataPoint: ProductOutputExportListItem | null | undefined,
+  key: string,
+): number | undefined {
+  const value = getSelectedPointMetadata(dataPoint, key)
+  return typeof value === 'number' ? value : undefined
+}
+
+function getSelectedPointString(
+  dataPoint: ProductOutputExportListItem | null | undefined,
+  key: string,
+): string | undefined {
+  const value = getSelectedPointMetadata(dataPoint, key)
+  return typeof value === 'string' ? value : undefined
+}
+
+function getSelectedPointTime(
+  dataPoint: ProductOutputExportListItem | null | undefined,
+  key: string,
+): Date | string | undefined {
+  const value = getSelectedPointMetadata(dataPoint, key)
+  return value instanceof Date || typeof value === 'string' ? value : undefined
+}
+
+function getTimeChangeMode(
+  dataPoint: ProductOutputExportListItem | null | undefined,
+): TimeChangeSelectionMode | null {
+  const value = getSelectedPointMetadata(dataPoint, 'timeChangeMode')
+  return value === 'delta' || value === 'percentDelta' ? value : null
+}
+
+function formatSelectedValue({
+  mode,
+  unit,
+  value,
+}: {
+  mode: TimeChangeSelectionMode | null
+  unit: string | undefined | null
+  value: number | undefined | null
+}) {
+  if (mode === 'percentDelta') {
+    const formattedValue =
+      value?.toLocaleString(undefined, { maximumFractionDigits: 100 }) ?? 'null'
+    return `${formattedValue}%`
+  }
+  return formatOutputValue(value, unit)
 }
 
 function DerivedCalculationDetails({
@@ -226,21 +283,60 @@ function SelectedPointCard({
   selectedDataPoint,
 }: {
   onClose: () => void
-  onOpenDetails: () => void
+  onOpenDetails: (_productOutputId: string | null | undefined) => void
   selectedDataPoint: SelectedDataPoint<ProductOutputExportListItem>
 }) {
   const selectedProductOutputId = selectedDataPoint.dataPoint?.id
+  const mode = getTimeChangeMode(selectedDataPoint.dataPoint)
+  const baselineProductOutputId = getSelectedPointString(
+    selectedDataPoint.dataPoint,
+    'baselineProductOutputId',
+  )
   const { data: productOutput } = useProductOutput(selectedProductOutputId)
-  const value = productOutput?.value ?? selectedDataPoint.dataPoint?.value
+  const { data: baselineProductOutput } = useProductOutput(
+    baselineProductOutputId,
+  )
+  const transformedValue =
+    getSelectedPointNumber(selectedDataPoint.dataPoint, 'transformedValue') ??
+    selectedDataPoint.dataPoint?.value
+  const rawValue =
+    getSelectedPointNumber(selectedDataPoint.dataPoint, 'rawValue') ??
+    productOutput?.value ??
+    selectedDataPoint.dataPoint?.value
+  const baselineValue =
+    baselineProductOutput?.value ??
+    getSelectedPointNumber(selectedDataPoint.dataPoint, 'baselineValue')
+  const value = mode ? transformedValue : rawValue
   const location = getSelectedLocation(selectedDataPoint, productOutput)
   const indicatorName = getSelectedIndicatorName(
     selectedDataPoint,
     productOutput,
   )
   const unit = productOutput?.indicator?.unit
+  const baselineTimePoint =
+    baselineProductOutput?.timePoint ??
+    getSelectedPointTime(selectedDataPoint.dataPoint, 'baselineTimePoint')
+  const currentTimePoint =
+    productOutput?.timePoint ?? selectedDataPoint.dataPoint?.timePoint
+  const sourceRows = mode
+    ? [
+        {
+          id: baselineProductOutputId,
+          label: 'Previous',
+          timePoint: baselineTimePoint,
+          value: baselineValue,
+        },
+        {
+          id: selectedProductOutputId,
+          label: 'Current',
+          timePoint: currentTimePoint,
+          value: rawValue,
+        },
+      ]
+    : []
 
   return (
-    <div className="relative w-56 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md">
+    <div className="relative w-72 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md">
       <Button
         aria-label="Close selected data point"
         className="absolute right-2 top-2 size-6 opacity-60 hover:opacity-100"
@@ -256,20 +352,46 @@ function SelectedPointCard({
           {location}
         </p>
         <p className="text-base font-semibold leading-6">
-          {formatOutputValue(value, unit)}
+          {formatSelectedValue({ mode, value, unit })}
         </p>
         <p className="line-clamp-2 text-sm leading-5">{indicatorName}</p>
-        <div className="pt-1">
-          <Button
-            onClick={onOpenDetails}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <InfoIcon className="size-4" />
-            Data Details
-          </Button>
-        </div>
+        {mode ? (
+          <div className="space-y-2 pt-2">
+            {sourceRows.map((row) => (
+              <div
+                key={row.label}
+                className="rounded-md border border-border bg-background p-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">
+                      {row.label}
+                    </p>
+                    <p className="text-sm font-medium">
+                      {formatOutputValue(row.value, unit)}
+                    </p>
+                    {row.timePoint ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {formatDateTime(row.timePoint)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {row.id ? (
+                    <Button
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onOpenDetails(row.id)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      Details
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -498,7 +620,7 @@ export const ChartSelectedItem = ({
 
   const selectedProductOutputId = selectedDataPoint?.dataPoint?.id ?? null
   const activeDetailsProductOutputId = detailsOpen
-    ? (selectedProductOutputId ?? detailsProductOutputId)
+    ? (detailsProductOutputId ?? selectedProductOutputId)
     : detailsProductOutputId
 
   const closeDetails = useCallback(() => {
@@ -562,15 +684,19 @@ export const ChartSelectedItem = ({
     }
   }, [closeDetails, detailsOpen, onSelect, selectedDataPoint])
 
-  const openDetails = useCallback(() => {
-    if (!selectedProductOutputId) {
-      return
-    }
+  const openDetails = useCallback(
+    (productOutputId: string | null | undefined) => {
+      const resolvedProductOutputId = productOutputId ?? selectedProductOutputId
+      if (!resolvedProductOutputId) {
+        return
+      }
 
-    closeActiveDrawer()
-    setDetailsProductOutputId(selectedProductOutputId)
-    setDetailsOpen(true)
-  }, [closeActiveDrawer, selectedProductOutputId])
+      closeActiveDrawer()
+      setDetailsProductOutputId(resolvedProductOutputId)
+      setDetailsOpen(true)
+    },
+    [closeActiveDrawer, selectedProductOutputId],
+  )
 
   const selectDetailsProductOutput = useCallback(
     (productOutputId: string) => {
@@ -612,7 +738,7 @@ export const ChartSelectedItem = ({
 
   return (
     <>
-      {selectedDataPoint?.dataPoint && !detailsOpen ? (
+      {selectedDataPoint?.dataPoint ? (
         <div ref={popoverRef} className="fixed z-50" style={popoverPosition}>
           <SelectedPointCard
             onClose={() => onSelect(null)}

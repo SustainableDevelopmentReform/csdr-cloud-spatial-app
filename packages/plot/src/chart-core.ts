@@ -1,5 +1,6 @@
 import type {
   AppearanceConfig,
+  ChartTransformConfig,
   ChartType,
   PlotGroupBy,
   TableChartDimension,
@@ -15,6 +16,7 @@ export {
   baseChartConfigurationSchema,
   categoricalColorSchemeValues,
   chartDataDimensionValues,
+  chartTransformConfigSchema,
   curveTypeValues,
   datePrecisionValues,
   divergingColorSchemeValues,
@@ -22,12 +24,16 @@ export {
   sequentialColorSchemeValues,
   tableChartDimensionMetadata,
   tableChartDimensionValues,
+  timeChangeBaselineValues,
+  timeChangeModeValues,
+  timeChangeTransformConfigSchema,
 } from './chart-primitives'
 export type {
   AppearanceConfig,
   BaseChartConfiguration,
   CategoricalColorScheme,
   ChartDataDimension,
+  ChartTransformConfig,
   ChartType,
   CurveType,
   DatePrecision,
@@ -36,6 +42,9 @@ export type {
   PlotGroupBy,
   SequentialColorScheme,
   TableChartDimension,
+  TimeChangeBaseline,
+  TimeChangeMode,
+  TimeChangeTransformConfig,
 } from './chart-primitives'
 export {
   chartConfigurationSchema,
@@ -55,6 +64,19 @@ export type {
 } from './chart-schemas'
 export { getSuggestedChartTitle } from './chart-title'
 export type { ChartTitleGeometry, ChartTitleIndicator } from './chart-title'
+export {
+  applyTimeChangeTransform,
+  getTimeChangeBaseline,
+  groupRecordsForTimeChange,
+  supportsTimeChangeTransform,
+} from './time-change-transform'
+export type {
+  TimeChangeCapability,
+  TimeChangeRecord,
+  TimeChangeSupportedMode,
+  TimeChangeTransformedRecord,
+  TimeChangeTransformOptions,
+} from './time-change-transform'
 
 export type ChartIndicatorSelection = {
   productRunId: string
@@ -76,6 +98,7 @@ export type ChartConfigurationDraft = Partial<{
   title: string
   description: string
   appearance: AppearanceConfig
+  transform: ChartTransformConfig
 }>
 
 export function getChartConfigKey(

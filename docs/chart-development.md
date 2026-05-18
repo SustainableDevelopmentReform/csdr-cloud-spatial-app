@@ -46,6 +46,7 @@ import {
   createPlotDataRequirements,
   createPlotPreviewConfig,
   createStandardPlotRenderer,
+  supportsTimeChangeTransform,
 } from './definition-helpers'
 import { definePlotChart, tuple } from './core'
 import { myChartConfigurationSchema, myChartSubType } from './my-chart.schema'
@@ -60,6 +61,10 @@ export const myChartDefinition = definePlotChart({
   schema: myChartConfigurationSchema,
   getSuggestedTitle: suggestPlotChartTitle,
   getDataRequirements: createPlotDataRequirements(),
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: createStandardPlotRenderer() },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: tuple('categoricalPalette', 'legend', 'formatting'),
@@ -103,6 +108,12 @@ multiple time points. Use `needsMultipleTimePoints` for that common case.
 `getDataRequirements(chart)`: Declares everything the host app must load before
 rendering: `productRunId`, `productOutputQuery`, optional `indicatorId`, and
 loading/unavailable copy. Web owns the hooks; the chart owns the requirements.
+
+`timeChange`: Optional capability for charts that can render multiple time
+points as change over time. Use `supportsTimeChangeTransform({ modes:
+tuple('delta', 'percentDelta'), defaultMode: 'none' })` for standard line,
+area, stacked area, stacked bar, grouped bar, or scatter-like charts. Do not
+enable it for charts that do not naturally compare a series across time.
 
 `renderer.render(context)`: React renderer. It receives parsed chart config,
 loaded product outputs, optional product run/indicator data, appearance, select
@@ -161,6 +172,23 @@ If a chart needs extra persisted fields, add them in that chart's `.schema.ts`
 file only. Existing JSON must remain valid unless a migration is part of the
 same change.
 
+The shared base chart schema also accepts this optional transform field:
+
+```ts
+transform?: {
+  timeChange?: {
+    mode: 'none' | 'delta' | 'percentDelta'
+    baseline: 'firstTimePoint'
+  }
+}
+```
+
+Omit `transform` for raw values. `none` is the behavioral default. The
+`baseline` field is kept in the persisted JSON contract for compatibility; the
+current transform compares each time point with the previous chronological time
+point in the same series. Do not add additional baseline modes without a
+persisted JSON compatibility plan.
+
 ## Data And Rendering
 
 The platform preserves a strict invariant: one rendered visual element maps to
@@ -174,7 +202,25 @@ Use these helpers when possible:
   default query.
 - `createPlotPreviewConfig(subType)` for standard plot preview JSON.
 - `createStandardPlotRenderer()` for Recharts-backed plots that use
-  `PlotChart`.
+  `PlotChart`. It applies `transform.timeChange` automatically when the chart
+  definition exposes `timeChange`.
+- `applyTimeChangeTransform(records, options)` for reusable value transforms.
+- `getTimeChangeBaseline(records, options)` to resolve the first chronological
+  baseline record.
+- `groupRecordsForTimeChange(records, groupKeys)` to split data into
+  independent indicator/boundary series.
+- `supportsTimeChangeTransform(options)` to declare chart-owned support for the
+  generic Values control.
+
+Time-change transforms group records by non-time dimensions, normally indicator
+and boundary, then sort each group by `timePoint`. The first point in each
+series is omitted because there is no previous value to compare. `delta`
+renders `value - previousValue`. `percentDelta` renders
+`((value - previousValue) / previousValue) * 100`. Percent change with a zero
+previous value skips that transformed point instead of rendering infinity.
+Transformed records keep the current product-output `id`, plus metadata such as
+`rawValue`, `baselineValue`, `baselineTimePoint`, `baselineProductOutputId`,
+and `timeChangeMode`.
 
 Custom charts can use `defineChart`, but they still need to own all behavior in
 their chart module and expose the same simple definition contract.

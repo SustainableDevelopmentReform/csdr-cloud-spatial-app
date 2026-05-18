@@ -89,11 +89,16 @@ function makeFormatXAxis(dateFmt: Intl.DateTimeFormat) {
   }
 }
 
-function makeFormatValue(numFmt: Intl.NumberFormat) {
+type ValueFormat = 'number' | 'percent'
+
+function makeFormatValue(
+  numFmt: Intl.NumberFormat,
+  valueFormat: ValueFormat = 'number',
+) {
   return function formatValue(value: unknown): string {
-    return typeof value === 'number'
-      ? numFmt.format(value)
-      : String(value ?? '')
+    if (typeof value !== 'number') return String(value ?? '')
+    const formatted = numFmt.format(value)
+    return valueFormat === 'percent' ? `${formatted}%` : formatted
   }
 }
 
@@ -292,6 +297,7 @@ export interface PlotChartProps<T extends BasePlotRecord> {
   groupBy: string
   type: PlotSubType
   appearance?: AppearanceConfig
+  valueFormat?: ValueFormat
   onSelect?: OnSelectCallback<T>
   className?: string
 }
@@ -303,6 +309,7 @@ export function PlotChart<T extends BasePlotRecord>({
   groupBy,
   type,
   appearance,
+  valueFormat,
   onSelect,
   className,
 }: PlotChartProps<T>) {
@@ -323,16 +330,16 @@ export function PlotChart<T extends BasePlotRecord>({
     () => makeFormatXAxis(makeDateFormatter(appearance?.datePrecision)),
     [appearance?.datePrecision],
   )
-  const formatValue = useMemo(
-    () =>
-      makeFormatValue(
-        makeNumberFormatter(
-          appearance?.decimalPlaces,
-          appearance?.compactNumbers,
-        ),
-      ),
-    [appearance?.decimalPlaces, appearance?.compactNumbers],
-  )
+  const formatValue = useMemo(() => {
+    const decimalPlaces =
+      valueFormat === 'percent' && appearance?.decimalPlaces === undefined
+        ? 1
+        : appearance?.decimalPlaces
+    return makeFormatValue(
+      makeNumberFormatter(decimalPlaces, appearance?.compactNumbers),
+      valueFormat,
+    )
+  }, [appearance?.decimalPlaces, appearance?.compactNumbers, valueFormat])
   const formatSeriesKey = useCallback(
     (seriesKey: string) =>
       groupBy === 'timePoint' ? formatXAxis(seriesKey) : seriesKey,

@@ -8,6 +8,7 @@ import {
   createPlotPreviewConfig,
   createStandardPlotRenderer,
   needsMultipleTimePoints,
+  supportsTimeChangeTransform,
 } from './definition-helpers'
 import { areaChartConfigurationSchema, areaSubType } from './area.schema'
 import { definePlotChart, tuple } from './core'
@@ -33,6 +34,10 @@ export const areaChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: createStandardPlotRenderer() },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: areaAppearanceControls,

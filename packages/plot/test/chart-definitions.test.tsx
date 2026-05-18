@@ -296,6 +296,69 @@ describe('chartDefinitions', () => {
     ).toBeNull()
   })
 
+  it('exposes time-change support only from chart-owned definitions', () => {
+    const supported = [
+      'line',
+      'area',
+      'stacked-area',
+      'stacked-bar',
+      'grouped-bar',
+      'dot',
+    ]
+    const unsupported = ['ranked-bar', 'donut', 'map', 'table', 'kpi']
+
+    for (const key of supported) {
+      expect(getChartDefinition(key)?.timeChange).toMatchObject({
+        modes: ['delta', 'percentDelta'],
+        defaultMode: 'none',
+        baseline: 'firstTimePoint',
+      })
+    }
+
+    for (const key of unsupported) {
+      expect(getChartDefinition(key)?.timeChange).toBeUndefined()
+    }
+  })
+
+  it('keeps existing valid chart JSON unchanged when transform is omitted', () => {
+    const input = {
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: [timePoint2024, timePoint2025],
+    }
+
+    expect(chartConfigurationSchema.parse(input)).toEqual(input)
+  })
+
+  it('parses optional time-change transform config without changing selection rules', () => {
+    const parsed = chartConfigurationSchema.parse({
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: [timePoint2024, timePoint2025],
+      transform: {
+        timeChange: {
+          mode: 'percentDelta',
+          baseline: 'firstTimePoint',
+        },
+      },
+    })
+
+    expect(parsed).toMatchObject({
+      transform: {
+        timeChange: {
+          mode: 'percentDelta',
+          baseline: 'firstTimePoint',
+        },
+      },
+    })
+  })
+
   it('gets suggested titles from chart definition functions', () => {
     const indicators = [
       { id: 'indicator-1', name: 'Forest cover' },

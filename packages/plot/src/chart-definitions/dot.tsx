@@ -8,6 +8,7 @@ import {
   createPlotPreviewConfig,
   createStandardPlotRenderer,
   needsMultipleTimePoints,
+  supportsTimeChangeTransform,
 } from './definition-helpers'
 import { dotChartConfigurationSchema, dotSubType } from './dot.schema'
 import { definePlotChart, tuple } from './core'
@@ -31,6 +32,10 @@ export const dotChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: createStandardPlotRenderer() },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: dotAppearanceControls,

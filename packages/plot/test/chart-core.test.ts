@@ -88,6 +88,24 @@ describe('chart-core helpers', () => {
     ])
   })
 
+  it('rejects partial time-change transform configurations', () => {
+    const result = chartConfigurationSchema.safeParse({
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: [timePoint2024, timePoint2025],
+      transform: {
+        timeChange: {
+          mode: 'delta',
+        },
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('extracts deduplicated indicator selections across chart families', () => {
     const plotChart = chartConfigurationSchema.parse({
       type: 'plot',

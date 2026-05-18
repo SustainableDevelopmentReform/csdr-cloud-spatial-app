@@ -7,6 +7,7 @@ import {
   createPlotDataRequirements,
   createPlotPreviewConfig,
   createStandardPlotRenderer,
+  supportsTimeChangeTransform,
 } from './definition-helpers'
 import {
   groupedBarChartConfigurationSchema,
@@ -33,6 +34,10 @@ export const groupedBarChartDefinition = definePlotChart({
   schema: groupedBarChartConfigurationSchema,
   getSuggestedTitle: suggestPlotChartTitle,
   getDataRequirements: createPlotDataRequirements(),
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: createStandardPlotRenderer() },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: groupedBarAppearanceControls,

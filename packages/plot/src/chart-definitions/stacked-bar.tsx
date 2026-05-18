@@ -8,6 +8,7 @@ import {
   createPlotPreviewConfig,
   createStandardPlotRenderer,
   needsMultipleTimePoints,
+  supportsTimeChangeTransform,
 } from './definition-helpers'
 import {
   stackedBarChartConfigurationSchema,
@@ -34,6 +35,10 @@ export const stackedBarChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: createStandardPlotRenderer() },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: stackedBarAppearanceControls,

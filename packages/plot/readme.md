@@ -19,3 +19,8 @@ Use `defineChart` only for unusual charts that do not fit an existing family.
 Persisted chart JSON must remain backward compatible. See
 [docs/chart-development.md](../../docs/chart-development.md) for the full
 authoring guide and option reference.
+
+Standard plot charts can opt into generic change-over-time rendering with
+`timeChange: supportsTimeChangeTransform(...)`. The standard renderer applies
+step-over-step `delta` and `percentDelta` transforms before charting, while
+omitted `transform` config continues to render raw saved values.

@@ -8,6 +8,7 @@ import {
   createPlotPreviewConfig,
   createStandardPlotRenderer,
   needsMultipleTimePoints,
+  supportsTimeChangeTransform,
 } from './definition-helpers'
 import { lineChartConfigurationSchema, lineSubType } from './line.schema'
 import { definePlotChart, tuple } from './core'
@@ -32,6 +33,10 @@ export const lineChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: createStandardPlotRenderer() },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: lineAppearanceControls,

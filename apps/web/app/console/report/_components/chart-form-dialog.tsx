@@ -12,6 +12,7 @@ import {
   type MapChartConfiguration,
   type SequentialColorScheme,
   type TableChartDimension,
+  type TimeChangeMode,
   tableChartDimensionMetadata,
 } from '@repo/plot/types'
 import {
@@ -249,6 +250,15 @@ const DATE_PRECISION_OPTIONS: {
   { value: 'year-month', label: 'Year + Month' },
   { value: 'year-month-day', label: 'Year + Month + Day' },
   { value: 'full', label: 'Full (with time)' },
+]
+
+const TIME_CHANGE_MODE_OPTIONS: {
+  value: TimeChangeMode
+  label: string
+}[] = [
+  { value: 'none', label: 'Raw values' },
+  { value: 'delta', label: 'Change since previous time point' },
+  { value: 'percentDelta', label: 'Percent change since previous time point' },
 ]
 
 function findOptionValue<TValue extends string>(
@@ -586,6 +596,8 @@ export const ChartFormDialog = ({
   const yDimension = form.watch('yDimension')
   const mapBbox = form.watch('appearance.mapBbox')
   const appearanceDatePrecision = form.watch('appearance.datePrecision')
+  const timeChangeMode = form.watch('transform.timeChange.mode')
+  const timeChangeBaseline = form.watch('transform.timeChange.baseline')
 
   const [seriesDimension, setSeriesDimension] = useState<ChartDataDimension>(
     () => inferChartSeriesDimension(chart),
@@ -722,6 +734,42 @@ export const ChartFormDialog = ({
       selectedChartDefinition?.appearanceControls.includes(control) === true,
     [selectedChartDefinition],
   )
+  const timeChangePointCount =
+    productSummary?.timePointCount ?? timePoints?.length ?? 0
+  const timeChangeSupported = selectedChartDefinition?.timeChange !== undefined
+  const activeTimeChangeMode =
+    timeChangeMode === 'delta' || timeChangeMode === 'percentDelta'
+      ? timeChangeMode
+      : null
+  const timeChangeActive = activeTimeChangeMode !== null
+  const showTimeChangeControl = timeChangeSupported && timeChangePointCount > 1
+  const timeChangeOptions = useMemo(
+    () =>
+      TIME_CHANGE_MODE_OPTIONS.filter(
+        (option) =>
+          option.value === 'none' ||
+          selectedChartDefinition?.timeChange?.modes.some(
+            (mode) => mode === option.value,
+          ) === true,
+      ),
+    [selectedChartDefinition],
+  )
+
+  useEffect(() => {
+    const shouldClearUnsupported = !timeChangeSupported
+    const shouldClearSinglePoint =
+      timeChangePointCount > 0 && timeChangePointCount <= 1
+
+    if (shouldClearUnsupported || shouldClearSinglePoint) {
+      form.unregister('transform.timeChange')
+    }
+  }, [form, timeChangePointCount, timeChangeSupported])
+
+  useEffect(() => {
+    if (timeChangeActive && timePoints !== undefined) {
+      form.setValue('timePoints', undefined, { shouldValidate: false })
+    }
+  }, [form, timeChangeActive, timePoints])
 
   // Estimate series count for warnings
   const estimatedSeriesCount = useMemo(
@@ -761,6 +809,14 @@ export const ChartFormDialog = ({
       timePoints,
       xDimension,
       yDimension,
+      transform: timeChangeActive
+        ? {
+            timeChange: {
+              mode: activeTimeChangeMode,
+              baseline: timeChangeBaseline ?? 'firstTimePoint',
+            },
+          }
+        : undefined,
     }),
     [
       chartType,
@@ -773,6 +829,10 @@ export const ChartFormDialog = ({
       timePoints,
       xDimension,
       yDimension,
+      timeChangeMode,
+      timeChangeBaseline,
+      timeChangeActive,
+      activeTimeChangeMode,
     ],
   )
 
@@ -1333,6 +1393,7 @@ export const ChartFormDialog = ({
                                 )
                                 form.resetField('timePoint')
                                 form.setValue('timePoints', undefined, sv)
+                                form.unregister('transform.timeChange')
                                 setProductSummary(null)
                                 form.trigger()
                               }}
@@ -1366,6 +1427,57 @@ export const ChartFormDialog = ({
                           geometryCount={geometryOutputsData?.data?.length ?? 0}
                           timePointCount={productSummary?.timePointCount ?? 0}
                         />
+                      )}
+
+                      {showTimeChangeControl && (
+                        <FieldGroup title="Change">
+                          <FormField
+                            control={form.control}
+                            name="transform.timeChange.mode"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Mode</FormLabel>
+                                <Select
+                                  value={field.value ?? 'none'}
+                                  onValueChange={(value) => {
+                                    const next = findOptionValue(
+                                      timeChangeOptions,
+                                      value,
+                                    )
+                                    if (!next) return
+
+                                    field.onChange(next)
+                                    form.setValue(
+                                      'transform.timeChange.baseline',
+                                      'firstTimePoint',
+                                      { shouldValidate: false },
+                                    )
+                                    if (next !== 'none') {
+                                      form.setValue('timePoints', undefined, {
+                                        shouldValidate: false,
+                                      })
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Choose value mode" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {timeChangeOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </FieldGroup>
                       )}
 
                       {/* Table axis selectors */}
@@ -1555,75 +1667,77 @@ export const ChartFormDialog = ({
                         />
 
                         {/* Time */}
-                        {selectedChartDefinition?.selection.timeField ===
-                        'timePoint' ? (
-                          <FormField
-                            control={form.control}
-                            name="timePoint"
-                            render={({ field }) => (
-                              <FormItem>
-                                <ProductOutputTimeSelect
-                                  productRunId={productRunId}
-                                  value={field.value ?? null}
-                                  isClearable={false}
-                                  onChange={(value) => field.onChange(value)}
-                                />
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        ) : (
-                          <FormField
-                            control={form.control}
-                            name="timePoints"
-                            rules={{
-                              deps: [
-                                'geometryOutputIds',
-                                'indicatorIds',
-                                'xDimension',
-                                'yDimension',
-                              ],
-                            }}
-                            render={({ field }) =>
-                              isTimeMulti ? (
-                                <FormItem key="time-multi">
+                        {!timeChangeActive ? (
+                          selectedChartDefinition?.selection.timeField ===
+                          'timePoint' ? (
+                            <FormField
+                              control={form.control}
+                              name="timePoint"
+                              render={({ field }) => (
+                                <FormItem>
                                   <ProductOutputTimeSelect
                                     productRunId={productRunId}
-                                    value={field.value ?? []}
-                                    placeholder="All Time Points"
-                                    isMulti
-                                    onChange={(value) => {
-                                      // Prevent clearing to empty when time is the
-                                      // series dimension — keeps at least one value.
-                                      if (
-                                        Array.isArray(value) &&
-                                        value.length === 0 &&
-                                        seriesDimension === 'time'
-                                      )
-                                        return
-                                      field.onChange(value)
-                                    }}
-                                  />
-                                  <FormMessage />
-                                </FormItem>
-                              ) : (
-                                <FormItem key="time-single">
-                                  <ProductOutputTimeSelect
-                                    productRunId={productRunId}
-                                    value={field.value?.[0] ?? null}
+                                    value={field.value ?? null}
                                     isClearable={false}
-                                    onChange={(value) =>
-                                      field.onChange(
-                                        value ? [value] : undefined,
-                                      )
-                                    }
+                                    onChange={(value) => field.onChange(value)}
                                   />
                                   <FormMessage />
                                 </FormItem>
-                              )
-                            }
-                          />
-                        )}
+                              )}
+                            />
+                          ) : (
+                            <FormField
+                              control={form.control}
+                              name="timePoints"
+                              rules={{
+                                deps: [
+                                  'geometryOutputIds',
+                                  'indicatorIds',
+                                  'xDimension',
+                                  'yDimension',
+                                ],
+                              }}
+                              render={({ field }) =>
+                                isTimeMulti ? (
+                                  <FormItem key="time-multi">
+                                    <ProductOutputTimeSelect
+                                      productRunId={productRunId}
+                                      value={field.value ?? []}
+                                      placeholder="All Time Points"
+                                      isMulti
+                                      onChange={(value) => {
+                                        // Prevent clearing to empty when time is the
+                                        // series dimension — keeps at least one value.
+                                        if (
+                                          Array.isArray(value) &&
+                                          value.length === 0 &&
+                                          seriesDimension === 'time'
+                                        )
+                                          return
+                                        field.onChange(value)
+                                      }}
+                                    />
+                                    <FormMessage />
+                                  </FormItem>
+                                ) : (
+                                  <FormItem key="time-single">
+                                    <ProductOutputTimeSelect
+                                      productRunId={productRunId}
+                                      value={field.value?.[0] ?? null}
+                                      isClearable={false}
+                                      onChange={(value) =>
+                                        field.onChange(
+                                          value ? [value] : undefined,
+                                        )
+                                      }
+                                    />
+                                    <FormMessage />
+                                  </FormItem>
+                                )
+                              }
+                            />
+                          )
+                        ) : null}
 
                         <SeriesWarning count={estimatedSeriesCount} />
                       </FieldGroup>

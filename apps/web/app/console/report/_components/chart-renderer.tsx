@@ -73,6 +73,69 @@ interface ChartConfig {
   mapScrollZoom?: boolean
 }
 
+type TimeChangeSelectionMode = 'delta' | 'percentDelta'
+
+type TimeChangeSelectionMetadata = {
+  transformedValue?: number
+  rawValue?: number
+  baselineValue?: number
+  baselineTimePoint?: Date | string
+  baselineProductOutputId?: string
+  timeChangeMode?: TimeChangeSelectionMode
+}
+
+type SelectableProductOutput = ProductOutputExportListItem &
+  TimeChangeSelectionMetadata
+
+function readNumberMetadata(
+  dataPoint: ChartProductOutput,
+  key: string,
+): number | undefined {
+  const value = dataPoint[key]
+  return typeof value === 'number' ? value : undefined
+}
+
+function readStringMetadata(
+  dataPoint: ChartProductOutput,
+  key: string,
+): string | undefined {
+  const value = dataPoint[key]
+  return typeof value === 'string' ? value : undefined
+}
+
+function readTimePointMetadata(
+  dataPoint: ChartProductOutput,
+  key: string,
+): Date | string | undefined {
+  const value = dataPoint[key]
+  return value instanceof Date || typeof value === 'string' ? value : undefined
+}
+
+function readTimeChangeMode(
+  dataPoint: ChartProductOutput,
+): TimeChangeSelectionMode | undefined {
+  const value = dataPoint.timeChangeMode
+  return value === 'delta' || value === 'percentDelta' ? value : undefined
+}
+
+function withTimeChangeMetadata(
+  output: ProductOutputExportListItem,
+  dataPoint: ChartProductOutput,
+): SelectableProductOutput {
+  return {
+    ...output,
+    transformedValue: readNumberMetadata(dataPoint, 'value'),
+    rawValue: readNumberMetadata(dataPoint, 'rawValue'),
+    baselineValue: readNumberMetadata(dataPoint, 'baselineValue'),
+    baselineTimePoint: readTimePointMetadata(dataPoint, 'baselineTimePoint'),
+    baselineProductOutputId: readStringMetadata(
+      dataPoint,
+      'baselineProductOutputId',
+    ),
+    timeChangeMode: readTimeChangeMode(dataPoint),
+  }
+}
+
 const ChartDataRenderer = ({
   chart,
   config,
@@ -117,9 +180,13 @@ const ChartDataRenderer = ({
     event,
   }) => {
     if (!onSelect) return
-    const selectedOutput = dataPoint
+    const matchingOutput = dataPoint
       ? (productOutputs.find((output) => output.id === dataPoint.id) ?? null)
       : null
+    const selectedOutput =
+      matchingOutput && dataPoint
+        ? withTimeChangeMetadata(matchingOutput, dataPoint)
+        : null
     onSelect({ dataPoint: selectedOutput, event })
   }
 

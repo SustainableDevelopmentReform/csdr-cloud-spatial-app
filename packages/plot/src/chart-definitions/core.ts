@@ -9,6 +9,7 @@ import type {
   ChartType,
   PlotSubType,
   TableChartDimension,
+  TimeChangeCapability,
 } from '../chart-core'
 import type { SuggestedChartTitleContext } from '../chart-title'
 import type { OnSelectCallback } from '../types'
@@ -140,6 +141,13 @@ export type ChartDefinition<
    * loading/error copy needed by the host app before rendering.
    */
   getDataRequirements(_chart: ChartConfiguration): ChartDataRequirements | null
+  /**
+   * Optional change-over-time capability owned by this chart definition.
+   *
+   * The generic form and standard renderer use this to expose and apply
+   * supported transform modes without hard-coding subtype names in host apps.
+   */
+  timeChange?: TimeChangeCapability
   /** React renderer. It receives loaded data from the host adapter. */
   renderer: {
     render(_context: ChartRenderContext): ReactNode

@@ -62,6 +62,8 @@ export const chartDataDimensionValues = values(
   'geometries',
   'time',
 )
+export const timeChangeModeValues = values('none', 'delta', 'percentDelta')
+export const timeChangeBaselineValues = values('firstTimePoint')
 
 export type CategoricalColorScheme =
   (typeof categoricalColorSchemeValues)[number]
@@ -72,6 +74,8 @@ export type LegendPosition = (typeof legendPositionValues)[number]
 export type DatePrecision = (typeof datePrecisionValues)[number]
 export type TableChartDimension = (typeof tableChartDimensionValues)[number]
 export type ChartDataDimension = (typeof chartDataDimensionValues)[number]
+export type TimeChangeMode = (typeof timeChangeModeValues)[number]
+export type TimeChangeBaseline = (typeof timeChangeBaselineValues)[number]
 export type ChartType = 'plot' | 'map' | 'table' | 'kpi'
 export type PlotGroupBy = 'geometryOutputName' | 'indicatorName' | 'timePoint'
 
@@ -130,6 +134,39 @@ export const appearanceConfigSchema = z
 
 export type AppearanceConfig = z.infer<typeof appearanceConfigSchema>
 
+export const timeChangeTransformConfigSchema = z
+  .object({
+    mode: z.enum(timeChangeModeValues).openapi({
+      description:
+        'Value transform applied before rendering multi-time charts. `none` keeps raw values, `delta` renders step-over-step change, and `percentDelta` renders step-over-step percent change.',
+    }),
+    baseline: z.enum(timeChangeBaselineValues).openapi({
+      description:
+        'Compatibility field for time-change transforms. Only `firstTimePoint` is currently accepted in persisted chart JSON.',
+    }),
+  })
+  .openapi('TimeChangeTransformConfigSchema', {
+    description:
+      'Optional value transform for charts that support change over time.',
+  })
+
+export const chartTransformConfigSchema = z
+  .object({
+    timeChange: timeChangeTransformConfigSchema.optional().openapi({
+      description:
+        'Optional change-over-time transform applied to raw product-output values before rendering.',
+    }),
+  })
+  .openapi('ChartTransformConfigSchema', {
+    description:
+      'Data transforms applied before chart rendering. Omitted transforms leave persisted chart behaviour unchanged.',
+  })
+
+export type TimeChangeTransformConfig = z.infer<
+  typeof timeChangeTransformConfigSchema
+>
+export type ChartTransformConfig = z.infer<typeof chartTransformConfigSchema>
+
 export const baseChartConfigurationSchema = z
   .object({
     productRunId: z.string().openapi({
@@ -142,6 +179,10 @@ export const baseChartConfigurationSchema = z
       description: 'Optional chart description shown under the title.',
     }),
     appearance: appearanceConfigSchema.optional(),
+    transform: chartTransformConfigSchema.optional().openapi({
+      description:
+        'Optional data transforms. Omit this field to render the saved raw chart exactly as before.',
+    }),
   })
   .openapi('BaseChartConfigurationSchema')
 

@@ -6,6 +6,7 @@
     "./chart-core": "./src/chart-core.ts",
     "./chart-definitions": "./src/chart-definitions.tsx",
     "./chart-template": "./src/chart-template.tsx",
+    "./time-change-transform": "./src/time-change-transform.ts",
     "./*": "./src/*.tsx"
   },
   "typesVersions": {
@@ -18,6 +19,9 @@
       ],
       "chart-template": [
         "src/chart-template.tsx"
+      ],
+      "time-change-transform": [
+        "src/time-change-transform.ts"
       ],
       "*": [
         "src/*.tsx"
