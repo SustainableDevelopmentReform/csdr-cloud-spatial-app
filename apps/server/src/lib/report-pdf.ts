@@ -21,7 +21,7 @@ const browserExecutableCandidates = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
 ]
 
-const parseCookieHeader = (
+export const parseCookieHeader = (
   cookieHeader: string | null | undefined,
 ): { name: string; value: string }[] => {
   if (!cookieHeader) {
@@ -73,7 +73,7 @@ const resolveBrowserExecutablePath = async (): Promise<string | undefined> => {
 const getReportPrintUrl = (reportId: string) =>
   new URL(`/report/${reportId}/print`, env.APP_URL).toString()
 
-const getOriginFromUrl = (rawUrl: string | undefined): string | null => {
+export const getOriginFromUrl = (rawUrl: string | undefined): string | null => {
   if (!rawUrl) {
     return null
   }
@@ -85,7 +85,7 @@ const getOriginFromUrl = (rawUrl: string | undefined): string | null => {
   }
 }
 
-const getAllowedPdfRequestOrigins = (): Set<string> => {
+export const getAllowedPdfRequestOrigins = (): Set<string> => {
   const origins = new Set<string>()
   const configuredUrls = [
     env.APP_URL,
@@ -113,7 +113,7 @@ const getAllowedPdfRequestOrigins = (): Set<string> => {
   return origins
 }
 
-const isAllowedPdfRequestUrl = (
+export const isAllowedPdfRequestUrl = (
   rawUrl: string,
   allowedOrigins: Set<string>,
 ): boolean => {

@@ -122,4 +122,101 @@ describe('indicator-category route', () => {
       },
     )
   })
+
+  it('validates parent categories on create and update', async () => {
+    await expectJsonResponse(
+      await adminClient.api.v0['indicator-category'].$post({
+        json: {
+          name: 'Missing parent category',
+          parentId: 'missing-indicator-category',
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get indicatorCategory',
+        description: "indicatorCategory you're looking for is not found",
+      },
+    )
+
+    const parentJson = await expectJsonResponse<{ id: string }>(
+      await adminClient.api.v0['indicator-category'].$post({
+        json: {
+          name: 'Parent category',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Indicator category created',
+      },
+    )
+
+    const childJson = await expectJsonResponse<{
+      id: string
+      parent: { id: string } | null
+    }>(
+      await adminClient.api.v0['indicator-category'].$post({
+        json: {
+          name: 'Child category',
+          parentId: parentJson.data.id,
+        },
+      }),
+      {
+        status: 201,
+        message: 'Indicator category created',
+      },
+    )
+
+    expect(childJson.data.parent?.id).toBe(parentJson.data.id)
+
+    await expectJsonResponse(
+      await adminClient.api.v0['indicator-category'][':id'].$patch({
+        param: { id: childJson.data.id },
+        json: {
+          parentId: 'missing-indicator-category',
+        },
+      }),
+      {
+        status: 404,
+        message: 'Failed to get indicatorCategory',
+        description: "indicatorCategory you're looking for is not found",
+      },
+    )
+  })
+
+  it('updates indicator category visibility through the visibility endpoint', async () => {
+    const createdJson = await expectJsonResponse<{
+      id: string
+      visibility: string
+    }>(
+      await adminClient.api.v0['indicator-category'].$post({
+        json: {
+          name: 'Visibility category',
+        },
+      }),
+      {
+        status: 201,
+        message: 'Indicator category created',
+      },
+    )
+    expect(createdJson.data.visibility).toBe('private')
+
+    const visibilityJson = await expectJsonResponse<{
+      id: string
+      visibility: string
+    }>(
+      await adminClient.api.v0['indicator-category'][':id'].visibility.$patch({
+        param: { id: createdJson.data.id },
+        json: {
+          visibility: 'public',
+        },
+      }),
+      {
+        status: 200,
+        message: 'Indicator category visibility updated',
+      },
+    )
+
+    expect(visibilityJson.data.id).toBe(createdJson.data.id)
+    expect(visibilityJson.data.visibility).toBe('public')
+  })
 })

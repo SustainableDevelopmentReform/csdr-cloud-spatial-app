@@ -4,9 +4,17 @@ import { chartConfigurationSchema } from '../src/chart-core'
 import {
   buildChartPreviewConfiguration,
   chartDefinitions,
+  getChartDefinition,
   getChartDefinitionForConfiguration,
   getChartDefinitionForValues,
+  getChartDefinitions,
   getChartDimensionModes,
+  getChartEstimatedSeriesCount,
+  getChartSeriesEntries,
+  getSeriesDimensionLabel,
+  inferChartSeriesDimension,
+  resolveSeriesDimension,
+  supportsSeriesDimension,
   toPersistedChartConfiguration,
 } from '../src/chart-definitions'
 import { sampleChartDefinition } from '../src/chart-template'
@@ -158,6 +166,43 @@ describe('chartDefinitions', () => {
     })
   })
 
+  it('emits product-output queries for every production chart definition', () => {
+    for (const sample of persistedChartSamples) {
+      const chart = chartConfigurationSchema.parse(sample)
+      const definition = getChartDefinitionForConfiguration(chart)
+
+      if (!definition) {
+        throw new Error(`Missing definition for ${JSON.stringify(sample)}`)
+      }
+
+      const query = definition.data.getProductOutputsQuery(chart)
+
+      if (!query) {
+        throw new Error(`Missing query for ${definition.key}`)
+      }
+
+      if (chart.type === 'plot' || chart.type === 'table') {
+        expect(query).toEqual({
+          indicatorId: chart.indicatorIds,
+          geometryOutputId: chart.geometryOutputIds,
+          timePoint: chart.timePoints,
+        })
+      } else if (chart.type === 'map') {
+        expect(query).toEqual({
+          indicatorId: chart.indicatorId,
+          geometryOutputId: chart.geometryOutputIds,
+          timePoint: chart.timePoint,
+        })
+      } else {
+        expect(query).toEqual({
+          indicatorId: chart.indicatorId,
+          geometryOutputId: chart.geometryOutputIds[0],
+          timePoint: chart.timePoint,
+        })
+      }
+    }
+  })
+
   it('keeps selection rules aligned with existing chart behavior', () => {
     const line = getChartDefinitionForValues({ type: 'plot', subType: 'line' })
     const donut = getChartDefinitionForValues({
@@ -204,6 +249,85 @@ describe('chartDefinitions', () => {
         seriesDimension: 'indicators',
       }),
     ).toEqual({ indicators: 'single', geometries: 'single', time: 'single' })
+  })
+
+  it('resolves production definition helpers for series controls', () => {
+    const line = getChartDefinition('line')
+    const map = getChartDefinition('map')
+
+    expect(getChartDefinitions()).toHaveLength(chartDefinitions.length)
+    expect(supportsSeriesDimension(line)).toBe(true)
+    expect(supportsSeriesDimension(map)).toBe(false)
+    expect(getSeriesDimensionLabel(line)).toBe('Compare by')
+    expect(getSeriesDimensionLabel(getChartDefinition('donut'))).toBe(
+      'Slice by',
+    )
+    expect(
+      resolveSeriesDimension({
+        definition: line,
+        current: 'indicators',
+        counts: {
+          indicators: 1,
+          geometries: 3,
+          time: 2,
+        },
+      }),
+    ).toBe('geometries')
+    expect(
+      getChartEstimatedSeriesCount({
+        definition: line,
+        seriesDimension: 'time',
+        timePointCount: 4,
+      }),
+    ).toBe(4)
+    expect(
+      getChartEstimatedSeriesCount({
+        definition: map,
+        seriesDimension: 'geometries',
+        geometryOutputIds: ['geometry-1'],
+      }),
+    ).toBeNull()
+  })
+
+  it('infers series dimensions and colour entries from chart selections', () => {
+    const line = getChartDefinition('line')
+    const chart = chartConfigurationSchema.parse({
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1', 'geometry-2'],
+      timePoints: [timePoint2024],
+    })
+
+    expect(inferChartSeriesDimension(chart)).toBe('geometries')
+    expect(
+      getChartSeriesEntries({
+        definition: line,
+        values: chart,
+        seriesDimension: 'geometries',
+        indicators: [{ id: 'indicator-1', name: 'Forest cover' }],
+        geometries: [
+          { id: 'geometry-1', name: 'Tasmania' },
+          { id: 'geometry-2', name: null },
+        ],
+        productOutputs: [
+          {
+            geometryOutputName: 'Tasmania',
+          },
+          {
+            geometryOutputName: 'Mainland',
+          },
+          {
+            geometryOutputName: 'Tasmania',
+          },
+        ],
+        datePrecision: 'year',
+      }),
+    ).toEqual([
+      { label: 'Tasmania', overrideKeys: ['Tasmania'] },
+      { label: 'Mainland', overrideKeys: ['Mainland'] },
+    ])
   })
 
   it('keeps preview parsing lenient while submit parsing stays strict', () => {
