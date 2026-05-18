@@ -230,6 +230,9 @@ export function ProductMainRunOutputsTable({
   ])
   const form = useForm({
     resolver: zodResolver(createProductOutputSchema),
+    defaultValues: {
+      productRunId,
+    },
   })
 
   useEffect(() => {
@@ -366,6 +369,7 @@ export function ProductMainRunOutputsTable({
                 entityName="Product Output"
                 entityNamePlural="product outputs"
                 hiddenFields={['visibility']}
+                onOpen={() => form.setValue('productRunId', productRunId)}
               >
                 <FormField
                   control={form.control}
@@ -416,10 +420,12 @@ export function ProductMainRunOutputsTable({
                       <FormLabel>Time Point</FormLabel>
                       <CalendarSelect
                         label="Time Point"
-                        value={new Date(field.value)}
+                        value={field.value ? new Date(field.value) : undefined}
                         onChange={(event) => {
                           field.onChange(
-                            event?.toISOString().replace('+00:00', 'Z'),
+                            event
+                              ? new Date(event.getTime()).toISOString()
+                              : undefined,
                           )
                         }}
                       />
