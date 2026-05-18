@@ -4,9 +4,16 @@ import { Map } from 'lucide-react'
 import {
   type ChartConfiguration,
   type ChartConfigurationDraft,
+  filterRecordsForTimePoint,
 } from '../chart-core'
 import { suggestMapChartTitle } from '../chart-title'
-import { createMapSelection } from './definition-helpers'
+import {
+  applyChartTimeChangeTransform,
+  createMapSelection,
+  getChartTimeChangeMode,
+  getTimePointQueryForTimeChange,
+  supportsTimeChangeTransform,
+} from './definition-helpers'
 import { mapChartConfigurationSchema } from './map.schema'
 import {
   defineMapChart,
@@ -31,6 +38,7 @@ function buildMapPreviewConfig(
     title: values.title,
     description: values.description,
     appearance: values.appearance,
+    transform: values.transform,
   }
 }
 
@@ -38,11 +46,12 @@ function mapOutputsQuery(
   chart: ChartConfiguration,
 ): ChartProductOutputQuery | null {
   if (chart.type !== 'map') return null
-  return {
+  const query = {
     indicatorId: chart.indicatorId,
     geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoint,
   }
+  const timePoint = getTimePointQueryForTimeChange(chart, chart.timePoint)
+  return timePoint === undefined ? query : { ...query, timePoint }
 }
 
 const mapAppearanceControls = tuple(
@@ -53,7 +62,27 @@ const mapAppearanceControls = tuple(
 )
 
 function renderMapChart(context: ChartRenderContext) {
-  return context.adapters?.renderMap?.(context) ?? null
+  const { chart } = context
+  if (chart.type !== 'map') return null
+
+  const timeChangeMode = getChartTimeChangeMode(chart)
+  const transformedOutputs = applyChartTimeChangeTransform(
+    context.productOutputs,
+    chart,
+    {
+      groupKeys: ['indicatorId', 'geometryOutputId'],
+    },
+  )
+  const productOutputs = timeChangeMode
+    ? filterRecordsForTimePoint(transformedOutputs, chart.timePoint)
+    : context.productOutputs
+
+  return (
+    context.adapters?.renderMap?.({
+      ...context,
+      productOutputs,
+    }) ?? null
+  )
 }
 
 export const mapChartDefinition = defineMapChart({
@@ -74,6 +103,10 @@ export const mapChartDefinition = defineMapChart({
       unavailableMessage: 'Map data is unavailable for this chart.',
     }
   },
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: renderMapChart },
   selection: createMapSelection(),
   appearanceControls: mapAppearanceControls,

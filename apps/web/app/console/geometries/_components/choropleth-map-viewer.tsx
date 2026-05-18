@@ -26,10 +26,7 @@ import {
   useGeometriesRun,
   useGeometryOutputsExport,
 } from '../../geometries/_hooks'
-import {
-  type ProductOutputExportListItem,
-  type ProductRunDetail,
-} from '../../product/_hooks'
+import { type ProductRunDetail } from '../../product/_hooks'
 import { type IndicatorListItem } from '../../indicator/_hooks'
 import { MapViewer } from './map-viewer'
 import {
@@ -43,6 +40,13 @@ type MapBounds = [number, number, number, number]
 type ChoroplethIndicator = Pick<IndicatorListItem, 'id' | 'name' | 'unit'>
 export type GeometryOutputMapSelection = {
   geometryOutputId: string | null
+}
+export type ChoroplethProductOutput = {
+  id: string
+  value: number
+  timePoint: Date | string
+  geometryOutputId?: string | null
+  timeChangeMode?: 'delta' | 'percentDelta'
 }
 type MatchExpressionPart =
   | string
@@ -104,6 +108,10 @@ function resolvePmtilesUrl(url: string | null | undefined) {
   return url.startsWith('s3://') ? getS3HttpUrl(url) : url
 }
 
+function getTimePointRenderToken(timePoint: Date | string) {
+  return timePoint instanceof Date ? timePoint.toISOString() : timePoint
+}
+
 function getFeatureIdExpression(): ExpressionSpecification {
   return ['to-string', ['coalesce', ['get', ID_PROPERTY], ['get', 'id']]]
 }
@@ -153,7 +161,21 @@ function getMatchNumberExpression(
   ]
 }
 
-const ChoroplethMapViewer = ({
+type ChoroplethMapViewerProps<TProductOutput extends ChoroplethProductOutput> =
+  {
+    geometriesRun?: GeometriesRunListItem | null
+    indicator?: ChoroplethIndicator | null
+    productRun?: ProductRunDetail | null
+    productOutputs?: TProductOutput[] | null
+    zoomToGeometryOutputIds?: string[] | null
+    appearance?: AppearanceConfig
+    onSelect?: OnSelectCallback<TProductOutput>
+    onGeometryOutputSelect?: (selection: GeometryOutputMapSelection) => void
+    scrollZoom?: boolean
+    className?: string
+  }
+
+const ChoroplethMapViewer = <TProductOutput extends ChoroplethProductOutput>({
   geometriesRun: geometriesRunProp,
   indicator,
   productRun,
@@ -164,18 +186,7 @@ const ChoroplethMapViewer = ({
   onGeometryOutputSelect,
   scrollZoom = true,
   className,
-}: {
-  geometriesRun?: GeometriesRunListItem | null
-  indicator?: ChoroplethIndicator | null
-  productRun?: ProductRunDetail | null
-  productOutputs?: ProductOutputExportListItem[] | null
-  zoomToGeometryOutputIds?: string[] | null
-  appearance?: AppearanceConfig
-  onSelect?: OnSelectCallback<ProductOutputExportListItem>
-  onGeometryOutputSelect?: (selection: GeometryOutputMapSelection) => void
-  scrollZoom?: boolean
-  className?: string
-}) => {
+}: ChoroplethMapViewerProps<TProductOutput>) => {
   const config = useConfig()
 
   const {
@@ -305,8 +316,18 @@ const ChoroplethMapViewer = ({
         .filter((value) => Number.isFinite(value)) ?? []
     const fallbackMin = outputValues.length > 0 ? Math.min(...outputValues) : 0
     const fallbackMax = outputValues.length > 0 ? Math.max(...outputValues) : 1
-    const autoMin = indicatorSummary?.minValue ?? fallbackMin
-    const autoMax = indicatorSummary?.maxValue ?? fallbackMax
+    const hasTimeChangeValues =
+      productOutputs?.some(
+        (output) =>
+          output.timeChangeMode === 'delta' ||
+          output.timeChangeMode === 'percentDelta',
+      ) ?? false
+    const autoMin = hasTimeChangeValues
+      ? fallbackMin
+      : (indicatorSummary?.minValue ?? fallbackMin)
+    const autoMax = hasTimeChangeValues
+      ? fallbackMax
+      : (indicatorSummary?.maxValue ?? fallbackMax)
     const minVal = appearance?.colorScaleMin ?? autoMin
     const maxVal = appearance?.colorScaleMax ?? autoMax
     const scale = buildColorScale(autoMin, autoMax, appearance)
@@ -393,7 +414,7 @@ const ChoroplethMapViewer = ({
         productOutputs
           ?.map(
             (output) =>
-              `${output.geometryOutputId ?? ''}:${output.value}:${output.timePoint.toISOString()}`,
+              `${output.geometryOutputId ?? ''}:${output.value}:${getTimePointRenderToken(output.timePoint)}`,
           )
           .join('|') ?? '',
         geometryOutputsToZoomTo?.data?.map((output) => output.id).join('|') ??
@@ -574,7 +595,13 @@ const ChoroplethMapViewer = ({
           max={colorScaleInfo.max}
           scale={colorScaleInfo.scale}
           label={indicator?.name}
-          unit={indicator?.unit}
+          unit={
+            productOutputs?.some(
+              (output) => output.timeChangeMode === 'percentDelta',
+            )
+              ? undefined
+              : indicator?.unit
+          }
           position={appearance?.legendPosition ?? 'bottom'}
           compactNumbers={appearance?.compactNumbers}
           decimalPlaces={appearance?.decimalPlaces}

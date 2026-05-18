@@ -20,7 +20,11 @@ Persisted chart JSON must remain backward compatible. See
 [docs/chart-development.md](../../docs/chart-development.md) for the full
 authoring guide and option reference.
 
-Standard plot charts can opt into generic change-over-time rendering with
-`timeChange: supportsTimeChangeTransform(...)`. The standard renderer applies
-step-over-step `delta` and `percentDelta` transforms before charting, while
-omitted `transform` config continues to render raw saved values.
+Charts can opt into generic change-over-time rendering with
+`timeChange: supportsTimeChangeTransform(...)` when a delta from the previous
+time point makes sense for that visual. The shared helpers apply step-over-step
+`delta` and `percentDelta` transforms before rendering, while omitted
+`transform` config continues to render raw saved values. Single-time views such
+as maps and KPIs should load all time points for the selected series, filter
+back to the selected target time point after transforming, and disable the first
+time point in the form because it has no previous value.

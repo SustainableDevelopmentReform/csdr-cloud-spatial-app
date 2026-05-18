@@ -22,6 +22,11 @@ const lineAppearanceControls = tuple(
   'colorOverrides',
 )
 
+const lineTimeChange = supportsTimeChangeTransform({
+  modes: tuple('delta', 'percentDelta'),
+  defaultMode: 'none',
+})
+
 export const lineChartDefinition = definePlotChart({
   key: lineSubType,
   type: 'plot',
@@ -33,11 +38,10 @@ export const lineChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
-  timeChange: supportsTimeChangeTransform({
-    modes: tuple('delta', 'percentDelta'),
-    defaultMode: 'none',
-  }),
-  renderer: { render: createStandardPlotRenderer() },
+  timeChange: lineTimeChange,
+  renderer: {
+    render: createStandardPlotRenderer({ timeChange: lineTimeChange }),
+  },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: lineAppearanceControls,
   buildPreviewConfig: createPlotPreviewConfig(lineSubType),

@@ -8,7 +8,13 @@ import {
 } from '../chart-core'
 import { suggestTableChartTitle } from '../chart-title'
 import { getTablePlotCodeSnippet, TablePlot } from '../table-plot'
-import { createTableSelection } from './definition-helpers'
+import {
+  applyChartTimeChangeTransform,
+  createTableSelection,
+  getChartTimeChangeMode,
+  getTimePointQueryForTimeChange,
+  supportsTimeChangeTransform,
+} from './definition-helpers'
 import { tableChartConfigurationSchema } from './table.schema'
 import {
   defineTableChart,
@@ -35,6 +41,7 @@ function buildTablePreviewConfig(
     title: values.title,
     description: values.description,
     appearance: values.appearance,
+    transform: values.transform,
   }
 }
 
@@ -42,11 +49,12 @@ function tableOutputsQuery(
   chart: ChartConfiguration,
 ): ChartProductOutputQuery | null {
   if (chart.type !== 'table') return null
-  return {
+  const query = {
     indicatorId: chart.indicatorIds,
     geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoints,
   }
+  const timePoint = getTimePointQueryForTimeChange(chart, chart.timePoints)
+  return timePoint === undefined ? query : { ...query, timePoint }
 }
 
 const tableAppearanceControls = tuple('continuousScale', 'formatting')
@@ -55,13 +63,19 @@ function renderTableChart(context: ChartRenderContext) {
   const { chart, className, options, adapters } = context
   if (chart.type !== 'table') return null
 
+  const timeChangeMode = getChartTimeChangeMode(chart)
+  const outputs = applyChartTimeChangeTransform(context.productOutputs, chart, {
+    groupKeys: ['indicatorId', 'geometryOutputId'],
+  })
+
   return (
     <div className={clsx('flex flex-1 min-h-0 flex-col gap-2', className)}>
       <TablePlot
-        data={context.productOutputs}
+        data={outputs}
         xDimension={chart.xDimension}
         yDimension={chart.yDimension}
         appearance={chart.appearance}
+        valueFormat={timeChangeMode === 'percentDelta' ? 'percent' : 'number'}
         onSelect={context.onSelect}
       />
       {options?.showCodeSnippet &&
@@ -87,6 +101,10 @@ export const tableChartDefinition = defineTableChart({
       unavailableMessage: 'Table data is unavailable.',
     }
   },
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: renderTableChart },
   selection: createTableSelection(),
   appearanceControls: tableAppearanceControls,

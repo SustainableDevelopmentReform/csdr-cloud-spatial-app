@@ -246,8 +246,11 @@ const ChartDataRenderer = ({
           renderObservableCellsCopy: (cells) => (
             <ObservableCellsCopy cells={cells} />
           ),
-          renderMap: () => {
-            if (chart.type !== 'map' || !productRun?.geometriesRun) {
+          renderMap: (renderContext) => {
+            if (
+              renderContext.chart.type !== 'map' ||
+              !productRun?.geometriesRun
+            ) {
               return (
                 <UnavailableChart
                   message={
@@ -264,10 +267,10 @@ const ChartDataRenderer = ({
                 geometriesRun={productRun.geometriesRun}
                 indicator={indicator}
                 productRun={productRun}
-                productOutputs={productOutputs}
-                zoomToGeometryOutputIds={chart.geometryOutputIds}
-                appearance={chart.appearance}
-                onSelect={onSelect}
+                productOutputs={renderContext.productOutputs}
+                zoomToGeometryOutputIds={renderContext.chart.geometryOutputIds}
+                appearance={renderContext.chart.appearance}
+                onSelect={renderContext.onSelect}
                 scrollZoom={config?.mapScrollZoom}
                 className={className}
               />

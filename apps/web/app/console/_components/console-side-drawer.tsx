@@ -321,6 +321,10 @@ export const ConsoleSideDrawer = ({
 
   const handleClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
+      if (event.defaultPrevented) {
+        return
+      }
+
       const target = event.target
 
       if (!(target instanceof Element)) {

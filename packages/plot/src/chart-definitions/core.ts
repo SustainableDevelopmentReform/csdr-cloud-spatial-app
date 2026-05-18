@@ -39,8 +39,8 @@ export type ChartProductOutput = {
   id: string
   value: number
   timePoint: Date | string
-  indicatorName: string | null | undefined
-  geometryOutputName: string | null | undefined
+  indicatorName?: string | null
+  geometryOutputName?: string | null
   [key: string]: unknown
 }
 

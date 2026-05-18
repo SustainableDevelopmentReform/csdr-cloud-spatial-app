@@ -24,6 +24,11 @@ const stackedBarAppearanceControls = tuple(
   'colorOverrides',
 )
 
+const stackedBarTimeChange = supportsTimeChangeTransform({
+  modes: tuple('delta', 'percentDelta'),
+  defaultMode: 'none',
+})
+
 export const stackedBarChartDefinition = definePlotChart({
   key: stackedBarSubType,
   type: 'plot',
@@ -35,11 +40,10 @@ export const stackedBarChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
-  timeChange: supportsTimeChangeTransform({
-    modes: tuple('delta', 'percentDelta'),
-    defaultMode: 'none',
-  }),
-  renderer: { render: createStandardPlotRenderer() },
+  timeChange: stackedBarTimeChange,
+  renderer: {
+    render: createStandardPlotRenderer({ timeChange: stackedBarTimeChange }),
+  },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: stackedBarAppearanceControls,
   buildPreviewConfig: createPlotPreviewConfig(stackedBarSubType),

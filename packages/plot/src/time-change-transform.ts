@@ -78,6 +78,11 @@ function toGroupPart(value: unknown): string {
   return String(value ?? '')
 }
 
+function toTimePointValue(value: unknown): Date | string | null {
+  if (value instanceof Date || typeof value === 'string') return value
+  return null
+}
+
 function toGroupKey(record: TimeChangeRecord, groupKeys: readonly string[]) {
   return groupKeys.map((key) => toGroupPart(field(record, key))).join('\u001F')
 }
@@ -89,6 +94,45 @@ function sortByTime<TRecord extends TimeChangeRecord>(
   return [...records].sort(
     (a, b) =>
       toTimeSortKey(field(a, timeKey)) - toTimeSortKey(field(b, timeKey)),
+  )
+}
+
+/**
+ * Return true when a persisted transform mode represents an actual time-change
+ * calculation rather than raw values.
+ */
+export function isTimeChangeMode(
+  mode: TimeChangeMode | null | undefined,
+): mode is TimeChangeSupportedMode {
+  return mode === 'delta' || mode === 'percentDelta'
+}
+
+/**
+ * Compare two time point values by their chronological instant.
+ */
+export function isSameTimePoint(
+  first: Date | string | null | undefined,
+  second: Date | string | null | undefined,
+): boolean {
+  if (!first || !second) return false
+  return toTimeSortKey(first) === toTimeSortKey(second)
+}
+
+/**
+ * Keep only records for a selected time point.
+ *
+ * This is useful for single-time visualisations such as maps and KPIs that
+ * calculate change from all time points, then render only the selected target
+ * time point.
+ */
+export function filterRecordsForTimePoint<TRecord extends TimeChangeRecord>(
+  records: readonly TRecord[],
+  timePoint: Date | string | null | undefined,
+  timeKey = DEFAULT_TIME_KEY,
+): TRecord[] {
+  if (!timePoint) return [...records]
+  return records.filter((record) =>
+    isSameTimePoint(toTimePointValue(field(record, timeKey)), timePoint),
   )
 }
 

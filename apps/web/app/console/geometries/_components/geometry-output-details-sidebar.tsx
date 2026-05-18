@@ -9,6 +9,7 @@ import { withDataLibrarySource } from '~/lib/paths'
 import {
   ConsoleSideDrawer,
   ConsoleSideDrawerSection,
+  type ConsoleSideDrawerOpenSource,
 } from '../../_components/console-side-drawer'
 import { VersionStatusBadge } from '../../_components/version-status-badge'
 import { GeometriesButton } from './geometries-button'
@@ -87,11 +88,13 @@ export function GeometryOutputDetailsSidebar({
   onGeometryOutputSelect,
   onClose,
   open,
+  openSource,
 }: {
   geometryOutputId: string | null
   onGeometryOutputSelect?: (geometryOutputId: string) => void
   onClose: () => void
   open: boolean
+  openSource?: ConsoleSideDrawerOpenSource
 }) {
   const { data: geometryOutput, isLoading } = useGeometryOutput(
     geometryOutputId ?? undefined,
@@ -154,6 +157,7 @@ export function GeometryOutputDetailsSidebar({
         ) : null
       }
       onClose={onClose}
+      openSource={openSource}
       onBackRestore={
         geometryOutputId && onGeometryOutputSelect
           ? () => onGeometryOutputSelect(geometryOutputId)

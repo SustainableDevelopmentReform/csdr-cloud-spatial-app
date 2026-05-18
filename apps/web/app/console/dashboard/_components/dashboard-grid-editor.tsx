@@ -27,6 +27,43 @@ const DEFAULT_WIDTH = 4
 const COLS = 12
 type DashboardChart = DashboardContent['charts'][string]
 
+const createDuplicatedLayoutItem = (
+  id: string,
+  source: Layout | undefined,
+): Layout => {
+  const w = source?.w ?? DEFAULT_WIDTH
+  const h = source?.h ?? DEFAULT_HEIGHT
+
+  if (!source) {
+    return {
+      i: id,
+      x: 0,
+      y: Infinity,
+      w,
+      h,
+    }
+  }
+
+  const nextX = source.x + source.w
+  if (nextX + w <= COLS) {
+    return {
+      i: id,
+      x: nextX,
+      y: source.y,
+      w,
+      h,
+    }
+  }
+
+  return {
+    i: id,
+    x: 0,
+    y: source.y + source.h,
+    w,
+    h,
+  }
+}
+
 export const createEmptyDashboardContent = (): DashboardContent => ({
   charts: {},
   layout: [],
@@ -164,16 +201,7 @@ const DashboardGridEditor = ({
             ...prev.charts,
             [newId]: structuredClone(chart),
           },
-          layout: [
-            ...prev.layout,
-            {
-              i: newId,
-              x: 0,
-              y: Infinity,
-              w: source?.w ?? DEFAULT_WIDTH,
-              h: source?.h ?? DEFAULT_HEIGHT,
-            },
-          ],
+          layout: [...prev.layout, createDuplicatedLayoutItem(newId, source)],
         }
       })
     },

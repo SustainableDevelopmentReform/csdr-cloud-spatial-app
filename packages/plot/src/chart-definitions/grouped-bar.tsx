@@ -24,6 +24,11 @@ const groupedBarAppearanceControls = tuple(
   'colorOverrides',
 )
 
+const groupedBarTimeChange = supportsTimeChangeTransform({
+  modes: tuple('delta', 'percentDelta'),
+  defaultMode: 'none',
+})
+
 export const groupedBarChartDefinition = definePlotChart({
   key: groupedBarSubType,
   type: 'plot',
@@ -34,11 +39,10 @@ export const groupedBarChartDefinition = definePlotChart({
   schema: groupedBarChartConfigurationSchema,
   getSuggestedTitle: suggestPlotChartTitle,
   getDataRequirements: createPlotDataRequirements(),
-  timeChange: supportsTimeChangeTransform({
-    modes: tuple('delta', 'percentDelta'),
-    defaultMode: 'none',
-  }),
-  renderer: { render: createStandardPlotRenderer() },
+  timeChange: groupedBarTimeChange,
+  renderer: {
+    render: createStandardPlotRenderer({ timeChange: groupedBarTimeChange }),
+  },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: groupedBarAppearanceControls,
   buildPreviewConfig: createPlotPreviewConfig(groupedBarSubType),

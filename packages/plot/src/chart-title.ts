@@ -21,6 +21,7 @@ export type SuggestedChartTitleContext = {
   seriesDimension: ChartDataDimension
   indicators: readonly ChartTitleIndicator[]
   geometries: readonly ChartTitleGeometry[]
+  availableTimePoints?: readonly (Date | string)[]
   datePrecision?: AppearanceConfig['datePrecision']
 }
 
@@ -43,11 +44,11 @@ function resolveSingleGeometryName(
 }
 
 function resolveTimeLabel(
-  timePoint: string | null | undefined,
+  timePoint: Date | string | null | undefined,
   datePrecision?: DatePrecision,
 ): string | null {
   if (!timePoint) return null
-  const date = new Date(timePoint)
+  const date = timePoint instanceof Date ? timePoint : new Date(timePoint)
   if (Number.isNaN(date.getTime())) return null
 
   if (datePrecision === 'year') {
@@ -66,8 +67,92 @@ function resolveTimeLabel(
   }).format(date)
 }
 
+type TimePointEntry = {
+  value: Date | string
+  time: number
+}
+
+function toTimePointEntry(value: Date | string): TimePointEntry | null {
+  const date = value instanceof Date ? value : new Date(value)
+  const time = date.getTime()
+  if (Number.isNaN(time)) return null
+  return { value, time }
+}
+
+function resolvePreviousTimePoint(
+  timePoint: Date | string | null | undefined,
+  availableTimePoints: readonly (Date | string)[] | undefined,
+): Date | string | null {
+  if (!timePoint || !availableTimePoints) return null
+  const current = toTimePointEntry(timePoint)
+  if (!current) return null
+
+  const previous = availableTimePoints
+    .map(toTimePointEntry)
+    .filter((entry): entry is TimePointEntry => entry !== null)
+    .filter((entry) => entry.time < current.time)
+    .sort((first, second) => second.time - first.time)[0]
+
+  return previous?.value ?? null
+}
+
+function resolveTimeChangeRangeLabel({
+  timePoint,
+  availableTimePoints,
+  datePrecision,
+}: {
+  timePoint: Date | string | null | undefined
+  availableTimePoints: readonly (Date | string)[] | undefined
+  datePrecision?: DatePrecision
+}): string | null {
+  const currentLabel = resolveTimeLabel(timePoint, datePrecision)
+  const previousLabel = resolveTimeLabel(
+    resolvePreviousTimePoint(timePoint, availableTimePoints),
+    datePrecision,
+  )
+  if (!currentLabel || !previousLabel) return null
+  return `from ${previousLabel} to ${currentLabel}`
+}
+
 function joinTitleParts(parts: readonly (string | null | undefined)[]) {
   return parts.filter((part): part is string => Boolean(part)).join(' — ')
+}
+
+function getTimeChangeTitlePrefix(
+  {
+    values,
+    availableTimePoints,
+    datePrecision = 'year-month',
+  }: SuggestedChartTitleContext,
+  options: {
+    timePoint?: Date | string | null
+  } = {},
+): string | null {
+  const mode = values.transform?.timeChange?.mode
+  const comparisonLabel = options.timePoint
+    ? resolveTimeChangeRangeLabel({
+        timePoint: options.timePoint,
+        availableTimePoints,
+        datePrecision,
+      })
+    : null
+  const suffix = comparisonLabel ?? 'from previous time point'
+
+  if (mode === 'delta') return `Change ${suffix}`
+  if (mode === 'percentDelta') return `Percent change ${suffix}`
+  return null
+}
+
+function withTimeChangeTitle(
+  title: string,
+  context: SuggestedChartTitleContext,
+  options: {
+    timePoint?: Date | string | null
+  } = {},
+) {
+  const prefix = getTimeChangeTitlePrefix(context, options)
+  if (!prefix) return title
+  return title ? `${prefix}: ${title}` : prefix
 }
 
 /**
@@ -76,14 +161,17 @@ function joinTitleParts(parts: readonly (string | null | undefined)[]) {
  * Chart definitions should reference this directly through `getSuggestedTitle`
  * instead of selecting a string title strategy.
  */
-export function suggestPlotChartTitle({
-  productName,
-  values: chart,
-  seriesDimension,
-  indicators,
-  geometries,
-  datePrecision = 'year-month',
-}: SuggestedChartTitleContext): string {
+export function suggestPlotChartTitle(
+  context: SuggestedChartTitleContext,
+): string {
+  const {
+    productName,
+    values: chart,
+    seriesDimension,
+    indicators,
+    geometries,
+    datePrecision = 'year-month',
+  } = context
   if (!productName) return ''
 
   const indicatorName = resolveSingleIndicatorName(
@@ -100,27 +188,36 @@ export function suggestPlotChartTitle({
       : null
 
   if (seriesDimension === 'geometries') {
-    return joinTitleParts([indicatorName, productName, timeName]) || productName
-  }
-  if (seriesDimension === 'time') {
-    return (
-      joinTitleParts([indicatorName, productName, geometryName]) || productName
+    return withTimeChangeTitle(
+      joinTitleParts([indicatorName, productName, timeName]) || productName,
+      context,
     )
   }
-  return joinTitleParts([productName, geometryName, timeName]) || productName
+  if (seriesDimension === 'time') {
+    return withTimeChangeTitle(
+      joinTitleParts([indicatorName, productName, geometryName]) || productName,
+      context,
+    )
+  }
+  return withTimeChangeTitle(
+    joinTitleParts([productName, geometryName, timeName]) || productName,
+    context,
+  )
 }
 
 /**
  * Suggested title function for map charts.
  */
-export function suggestMapChartTitle({
-  productName,
-  values: chart,
-  indicators,
-  geometries,
-  datePrecision = 'year-month',
-}: SuggestedChartTitleContext): string {
-  if (!productName) return ''
+export function suggestMapChartTitle(
+  context: SuggestedChartTitleContext,
+): string {
+  const {
+    productName,
+    values: chart,
+    indicators,
+    geometries,
+    datePrecision = 'year-month',
+  } = context
 
   const mapIndicatorName =
     indicators.find((indicator) => indicator.id === chart.indicatorId)?.name ??
@@ -129,23 +226,52 @@ export function suggestMapChartTitle({
     geometries,
     chart.geometryOutputIds,
   )
-  const mapTimeName = resolveTimeLabel(chart.timePoint, datePrecision)
+  const isTimeChangeTitle = getTimeChangeTitlePrefix(context) !== null
+  const mapTimeName = isTimeChangeTitle
+    ? null
+    : resolveTimeLabel(chart.timePoint, datePrecision)
 
-  return (
-    joinTitleParts([mapIndicatorName, geometryName, mapTimeName]) || productName
+  return withTimeChangeTitle(
+    joinTitleParts([mapIndicatorName, geometryName, mapTimeName]) ||
+      productName ||
+      '',
+    context,
+    { timePoint: chart.timePoint },
   )
+}
+
+/**
+ * Suggested title function for KPI charts.
+ */
+export function suggestKpiChartTitle(
+  context: SuggestedChartTitleContext,
+): string {
+  const { productName, values: chart, indicators, geometries } = context
+
+  const kpiIndicatorName =
+    indicators.find((indicator) => indicator.id === chart.indicatorId)?.name ??
+    null
+  const geometryName = resolveSingleGeometryName(
+    geometries,
+    chart.geometryOutputIds,
+  )
+
+  return joinTitleParts([kpiIndicatorName, geometryName]) || productName || ''
 }
 
 /**
  * Suggested title function for table charts.
  */
-export function suggestTableChartTitle({
-  productName,
-  values: chart,
-  indicators,
-  geometries,
-  datePrecision = 'year-month',
-}: SuggestedChartTitleContext): string {
+export function suggestTableChartTitle(
+  context: SuggestedChartTitleContext,
+): string {
+  const {
+    productName,
+    values: chart,
+    indicators,
+    geometries,
+    datePrecision = 'year-month',
+  } = context
   if (!productName) return ''
 
   const indicatorName = resolveSingleIndicatorName(
@@ -161,9 +287,10 @@ export function suggestTableChartTitle({
       ? resolveTimeLabel(chart.timePoints[0], datePrecision)
       : null
 
-  return (
+  return withTimeChangeTitle(
     joinTitleParts([productName, indicatorName, geometryName, timeName]) ||
-    productName
+      productName,
+    context,
   )
 }
 
@@ -172,8 +299,12 @@ export function suggestTableChartTitle({
  */
 export function suggestProductChartTitle({
   productName,
+  ...context
 }: SuggestedChartTitleContext): string {
-  return productName ?? ''
+  return withTimeChangeTitle(productName ?? '', {
+    productName,
+    ...context,
+  })
 }
 
 /**
@@ -186,9 +317,10 @@ export function getSuggestedChartTitle({
   strategy,
   ...context
 }: SuggestedChartTitleContext & {
-  strategy: 'plot' | 'map' | 'product' | 'table'
+  strategy: 'plot' | 'map' | 'product' | 'table' | 'kpi'
 }): string {
   if (strategy === 'map') return suggestMapChartTitle(context)
+  if (strategy === 'kpi') return suggestKpiChartTitle(context)
   if (strategy === 'product') return suggestProductChartTitle(context)
   if (strategy === 'table') return suggestTableChartTitle(context)
   return suggestPlotChartTitle(context)

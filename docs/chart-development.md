@@ -99,7 +99,9 @@ output, do not make the change without a migration plan.
 `getSuggestedTitle(context)`: Function used by the generic form to auto-fill the
 chart title. Prefer existing helpers from `chart-title.ts`: `suggestPlotChartTitle`,
 `suggestMapChartTitle`, `suggestTableChartTitle`, and
-`suggestProductChartTitle`.
+`suggestKpiChartTitle`. Use `suggestProductChartTitle` only for custom
+product-only views where the selected indicator, boundary, and time point do
+not belong in the title.
 
 `getTypeOptionState(context)`: Optional picker guidance. Return a disabled state
 with a reason for product-dependent warnings such as charts that work best with
@@ -111,9 +113,11 @@ loading/unavailable copy. Web owns the hooks; the chart owns the requirements.
 
 `timeChange`: Optional capability for charts that can render multiple time
 points as change over time. Use `supportsTimeChangeTransform({ modes:
-tuple('delta', 'percentDelta'), defaultMode: 'none' })` for standard line,
-area, stacked area, stacked bar, grouped bar, or scatter-like charts. Do not
-enable it for charts that do not naturally compare a series across time.
+tuple('delta', 'percentDelta'), defaultMode: 'none' })` for charts that can
+compare each time point with the previous time point. Current production support
+is line, stacked bar, grouped bar, scatter, table, map, and KPI. Do not enable
+it for chart types whose visual encoding makes deltas misleading, such as area,
+stacked area, ranked bar, or donut.
 
 `renderer.render(context)`: React renderer. It receives parsed chart config,
 loaded product outputs, optional product run/indicator data, appearance, select
@@ -205,12 +209,16 @@ Use these helpers when possible:
   `PlotChart`. It applies `transform.timeChange` automatically when the chart
   definition exposes `timeChange`.
 - `applyTimeChangeTransform(records, options)` for reusable value transforms.
+- `filterRecordsForTimePoint(records, timePoint)` for single-time views that
+  calculate a full time series and then render one target time point.
 - `getTimeChangeBaseline(records, options)` to resolve the first chronological
   baseline record.
 - `groupRecordsForTimeChange(records, groupKeys)` to split data into
   independent indicator/boundary series.
+- `isTimeChangeMode(mode)` and `isSameTimePoint(a, b)` for generic form and
+  renderer logic.
 - `supportsTimeChangeTransform(options)` to declare chart-owned support for the
-  generic Values control.
+  generic Change control.
 
 Time-change transforms group records by non-time dimensions, normally indicator
 and boundary, then sort each group by `timePoint`. The first point in each
@@ -221,6 +229,20 @@ previous value skips that transformed point instead of rendering infinity.
 Transformed records keep the current product-output `id`, plus metadata such as
 `rawValue`, `baselineValue`, `baselineTimePoint`, `baselineProductOutputId`,
 and `timeChangeMode`.
+
+Single-time views such as maps and KPIs still persist a normal `timePoint`.
+When a time-change mode is active, their data requirements should omit the
+`timePoint` query filter, calculate the transform across all available time
+points, and then use `filterRecordsForTimePoint` to render only the selected
+target time point. The first chronological time point must remain visible in
+the form but disabled, because it has no previous value to compare against.
+Suggested titles must make the comparison explicit. Single-time views such as
+maps and KPIs should include the two compared dates, for example
+`Change from Jan 2021 to Jan 2022` or
+`Percent change from Jan 2021 to Jan 2022`. Multi-time views should use wording
+such as `Change from previous time point`. Tables that use time as an axis
+should label transformed time headers as ranges, for example
+`Jan 2021 to Jan 2022`, not just the current time point.
 
 Custom charts can use `defineChart`, but they still need to own all behavior in
 their chart module and expose the same simple definition contract.

@@ -66,8 +66,11 @@ export { getSuggestedChartTitle } from './chart-title'
 export type { ChartTitleGeometry, ChartTitleIndicator } from './chart-title'
 export {
   applyTimeChangeTransform,
+  filterRecordsForTimePoint,
   getTimeChangeBaseline,
   groupRecordsForTimeChange,
+  isSameTimePoint,
+  isTimeChangeMode,
   supportsTimeChangeTransform,
 } from './time-change-transform'
 export type {

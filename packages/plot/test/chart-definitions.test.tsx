@@ -1,3 +1,4 @@
+import { Children, isValidElement, type ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import type { ChartConfigurationDraft } from '../src/chart-core'
 import { chartConfigurationSchema } from '../src/chart-core'
@@ -22,6 +23,22 @@ import { sampleChartDefinition } from '../src/chart-template'
 
 const timePoint2024 = '2024-01-01T00:00:00.000Z'
 const timePoint2025 = '2025-01-01T00:00:00.000Z'
+
+function extractReactText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return ''
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+  if (Array.isArray(node)) {
+    return node.map(extractReactText).join('')
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return extractReactText(node.props.children)
+  }
+  return Children.toArray(node).map(extractReactText).join('')
+}
 
 const basePlotSelections = {
   productRunId: 'run-1',
@@ -146,6 +163,13 @@ describe('chartDefinitions', () => {
       xDimension: 'indicatorName',
       yDimension: 'timePoint',
     })
+    const kpiChart = chartConfigurationSchema.parse({
+      type: 'kpi',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024-01-01T00:00:00Z',
+      geometryOutputIds: ['geometry-1'],
+    })
 
     expect(
       getChartDefinitionForConfiguration(mapChart)?.getDataRequirements(
@@ -165,6 +189,11 @@ describe('chartDefinitions', () => {
       geometryOutputId: ['geometry-1'],
       timePoint: ['2024-01-01T00:00:00.000Z'],
     })
+    expect(
+      getChartDefinitionForConfiguration(kpiChart)?.getDataRequirements(
+        kpiChart,
+      )?.indicatorId,
+    ).toBe('indicator-1')
   })
 
   it('emits product-output queries for every production chart definition', () => {
@@ -299,13 +328,14 @@ describe('chartDefinitions', () => {
   it('exposes time-change support only from chart-owned definitions', () => {
     const supported = [
       'line',
-      'area',
-      'stacked-area',
       'stacked-bar',
       'grouped-bar',
       'dot',
+      'table',
+      'map',
+      'kpi',
     ]
-    const unsupported = ['ranked-bar', 'donut', 'map', 'table', 'kpi']
+    const unsupported = ['area', 'stacked-area', 'ranked-bar', 'donut']
 
     for (const key of supported) {
       expect(getChartDefinition(key)?.timeChange).toMatchObject({
@@ -359,6 +389,151 @@ describe('chartDefinitions', () => {
     })
   })
 
+  it('loads all time points for single-time delta charts', () => {
+    const transform = {
+      timeChange: {
+        mode: 'delta',
+        baseline: 'firstTimePoint',
+      },
+    }
+    const mapChart = chartConfigurationSchema.parse({
+      type: 'map',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: timePoint2025,
+      geometryOutputIds: ['geometry-1'],
+      transform,
+    })
+    const kpiChart = chartConfigurationSchema.parse({
+      type: 'kpi',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: timePoint2025,
+      geometryOutputIds: ['geometry-1'],
+      transform,
+    })
+    const tableChart = chartConfigurationSchema.parse({
+      type: 'table',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: [timePoint2024, timePoint2025],
+      xDimension: 'indicatorName',
+      yDimension: 'timePoint',
+      transform,
+    })
+
+    expect(
+      getChartDefinitionForConfiguration(mapChart)?.getDataRequirements(
+        mapChart,
+      )?.productOutputQuery,
+    ).toEqual({
+      indicatorId: 'indicator-1',
+      geometryOutputId: ['geometry-1'],
+    })
+    expect(
+      getChartDefinitionForConfiguration(kpiChart)?.getDataRequirements(
+        kpiChart,
+      )?.productOutputQuery,
+    ).toEqual({
+      indicatorId: 'indicator-1',
+      geometryOutputId: 'geometry-1',
+    })
+    expect(
+      getChartDefinitionForConfiguration(tableChart)?.getDataRequirements(
+        tableChart,
+      )?.productOutputQuery,
+    ).toEqual({
+      indicatorId: ['indicator-1'],
+      geometryOutputId: ['geometry-1'],
+    })
+  })
+
+  it('applies plot time-change transforms only when the chart definition supports them', () => {
+    const transform = {
+      timeChange: {
+        mode: 'delta',
+        baseline: 'firstTimePoint',
+      },
+    }
+    const productOutputs = [
+      {
+        id: 'output-1',
+        value: 10,
+        timePoint: timePoint2024,
+        indicatorName: 'Forest cover',
+        geometryOutputName: 'Tasmania',
+      },
+      {
+        id: 'output-2',
+        value: 15,
+        timePoint: timePoint2025,
+        indicatorName: 'Forest cover',
+        geometryOutputName: 'Tasmania',
+      },
+    ]
+    const areaChart = chartConfigurationSchema.parse({
+      type: 'plot',
+      subType: 'area',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: [timePoint2024, timePoint2025],
+      transform,
+    })
+    const lineChart = chartConfigurationSchema.parse({
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: [timePoint2024, timePoint2025],
+      transform,
+    })
+    const areaDefinition = getChartDefinitionForConfiguration(areaChart)
+    const lineDefinition = getChartDefinitionForConfiguration(lineChart)
+
+    if (!areaDefinition || !lineDefinition) {
+      throw new Error('Missing chart definition')
+    }
+
+    const areaCodeCells: string[][] = []
+    areaDefinition.renderer.render({
+      chart: areaChart,
+      productRun: {},
+      productOutputs,
+      options: { showCodeSnippet: true },
+      adapters: {
+        renderObservableCellsCopy: (cells) => {
+          areaCodeCells.push(cells)
+          return null
+        },
+      },
+    })
+
+    const lineCodeCells: string[][] = []
+    lineDefinition.renderer.render({
+      chart: lineChart,
+      productRun: {},
+      productOutputs,
+      options: { showCodeSnippet: true },
+      adapters: {
+        renderObservableCellsCopy: (cells) => {
+          lineCodeCells.push(cells)
+          return null
+        },
+      },
+    })
+
+    const areaCode = areaCodeCells[0]?.[0] ?? ''
+    const lineCode = lineCodeCells[0]?.[0] ?? ''
+
+    expect(areaCode).toContain('"value":10')
+    expect(areaCode).toContain('"value":15')
+    expect(lineCode).not.toContain('"value":10')
+    expect(lineCode).toContain('"value":5')
+  })
+
   it('gets suggested titles from chart definition functions', () => {
     const indicators = [
       { id: 'indicator-1', name: 'Forest cover' },
@@ -397,6 +572,164 @@ describe('chartDefinitions', () => {
         datePrecision: 'year',
       }),
     ).toBe('Population — Tasmania — 2025')
+
+    expect(
+      suggestTitleForDefinition({
+        definition: getChartDefinition('table'),
+        productName: 'Forest product',
+        values: {
+          indicatorIds: ['indicator-1'],
+          geometryOutputIds: ['geometry-1'],
+          timePoints: [timePoint2024, timePoint2025],
+          transform: {
+            timeChange: {
+              mode: 'delta',
+              baseline: 'firstTimePoint',
+            },
+          },
+        },
+        seriesDimension: 'time',
+        indicators,
+        geometries,
+        datePrecision: 'year',
+      }),
+    ).toBe(
+      'Change from previous time point: Forest product — Forest cover — Tasmania',
+    )
+
+    expect(
+      suggestTitleForDefinition({
+        definition: getChartDefinition('map'),
+        productName: 'Forest product',
+        values: {
+          indicatorId: 'indicator-2',
+          geometryOutputIds: ['geometry-1'],
+          timePoint: timePoint2025,
+          transform: {
+            timeChange: {
+              mode: 'percentDelta',
+              baseline: 'firstTimePoint',
+            },
+          },
+        },
+        seriesDimension: 'indicators',
+        indicators,
+        geometries,
+        availableTimePoints: [timePoint2025, timePoint2024],
+        datePrecision: 'year',
+      }),
+    ).toBe('Percent change from 2024 to 2025: Population — Tasmania')
+
+    expect(
+      suggestTitleForDefinition({
+        definition: getChartDefinition('kpi'),
+        productName: 'Forest product',
+        values: {
+          indicatorId: 'indicator-1',
+          geometryOutputIds: ['geometry-1'],
+          timePoint: timePoint2025,
+          transform: {
+            timeChange: {
+              mode: 'delta',
+              baseline: 'firstTimePoint',
+            },
+          },
+        },
+        seriesDimension: 'indicators',
+        indicators,
+        geometries,
+        availableTimePoints: [timePoint2025, timePoint2024],
+        datePrecision: 'year',
+      }),
+    ).toBe('Forest cover — Tasmania')
+  })
+
+  it('renders KPI values with indicator units', () => {
+    const chart = chartConfigurationSchema.parse({
+      type: 'kpi',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: timePoint2024,
+      geometryOutputIds: ['geometry-1'],
+      appearance: { datePrecision: 'year' },
+    })
+    const definition = getChartDefinitionForConfiguration(chart)
+
+    if (!definition) {
+      throw new Error('Missing KPI definition')
+    }
+
+    const rendered = definition.renderer.render({
+      chart,
+      productRun: {},
+      productOutputs: [
+        {
+          id: 'output-1',
+          value: 1234,
+          timePoint: timePoint2024,
+          indicatorName: 'Forest cover',
+          geometryOutputName: 'Tasmania',
+        },
+      ],
+      indicator: { unit: 'm^2' },
+    })
+
+    const text = extractReactText(rendered)
+
+    expect(text).toContain('1,234 m^2')
+    expect(text).toContain('2024')
+    expect(text).not.toContain('Forest cover')
+    expect(text).not.toContain('Tasmania')
+  })
+
+  it('renders KPI time-change values with the compared dates', () => {
+    const chart = chartConfigurationSchema.parse({
+      type: 'kpi',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: timePoint2025,
+      geometryOutputIds: ['geometry-1'],
+      appearance: { datePrecision: 'year' },
+      transform: {
+        timeChange: {
+          mode: 'delta',
+          baseline: 'firstTimePoint',
+        },
+      },
+    })
+    const definition = getChartDefinitionForConfiguration(chart)
+
+    if (!definition) {
+      throw new Error('Missing KPI definition')
+    }
+
+    const rendered = definition.renderer.render({
+      chart,
+      productRun: {},
+      productOutputs: [
+        {
+          id: 'output-1',
+          value: 10,
+          timePoint: timePoint2024,
+          indicatorName: 'Forest cover',
+          geometryOutputName: 'Tasmania',
+        },
+        {
+          id: 'output-2',
+          value: 15,
+          timePoint: timePoint2025,
+          indicatorName: 'Forest cover',
+          geometryOutputName: 'Tasmania',
+        },
+      ],
+      indicator: { unit: 'm^2' },
+    })
+    const text = extractReactText(rendered)
+
+    expect(text).toContain('5 m^2')
+    expect(text).toContain('Change from 2024 to 2025')
+    expect(text).not.toContain('Forest cover')
+    expect(text).not.toContain('Tasmania')
   })
 
   it('infers series dimensions and colour entries from chart selections', () => {

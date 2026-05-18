@@ -5,10 +5,17 @@ import { Hash } from 'lucide-react'
 import {
   type ChartConfiguration,
   type ChartConfigurationDraft,
+  filterRecordsForTimePoint,
 } from '../chart-core'
-import { suggestProductChartTitle } from '../chart-title'
+import { suggestKpiChartTitle } from '../chart-title'
 import { makeDateFormatter, makeNumberFormatter } from '../types'
-import { createKpiSelection } from './definition-helpers'
+import {
+  applyChartTimeChangeTransform,
+  createKpiSelection,
+  getChartTimeChangeMode,
+  getTimePointQueryForTimeChange,
+  supportsTimeChangeTransform,
+} from './definition-helpers'
 import { kpiChartConfigurationSchema } from './kpi.schema'
 import {
   defineKpiChart,
@@ -38,6 +45,7 @@ function buildKpiPreviewConfig(
     title: values.title,
     description: values.description,
     appearance: values.appearance,
+    transform: values.transform,
   }
 }
 
@@ -45,25 +53,78 @@ function kpiOutputsQuery(
   chart: ChartConfiguration,
 ): ChartProductOutputQuery | null {
   if (chart.type !== 'kpi') return null
-  return {
+  const query = {
     indicatorId: chart.indicatorId,
     geometryOutputId: chart.geometryOutputIds[0],
-    timePoint: chart.timePoint,
   }
+  const timePoint = getTimePointQueryForTimeChange(chart, chart.timePoint)
+  return timePoint === undefined ? query : { ...query, timePoint }
 }
 
 const kpiAppearanceControls = tuple('formatting')
+
+function readObjectProperty(value: unknown, key: string): unknown {
+  if (value === null || typeof value !== 'object') return undefined
+  return Reflect.get(value, key)
+}
+
+function readUnit(value: unknown): string | null {
+  const unit = readObjectProperty(value, 'unit')
+  return typeof unit === 'string' && unit.trim() ? unit.trim() : null
+}
+
+function readTimePoint(value: unknown): Date | string | null {
+  if (value instanceof Date || typeof value === 'string') return value
+  return null
+}
+
+function resolveKpiUnit({
+  indicator,
+  dataPoint,
+}: {
+  indicator: unknown | null | undefined
+  dataPoint: ChartRenderContext['productOutputs'][number]
+}): string | null {
+  return (
+    readUnit(indicator) ?? readUnit(readObjectProperty(dataPoint, 'indicator'))
+  )
+}
+
+function formatTimeLabel(
+  formatter: Intl.DateTimeFormat,
+  timePoint: Date | string | null | undefined,
+): string | null {
+  if (!timePoint) return null
+  const date = timePoint instanceof Date ? timePoint : new Date(timePoint)
+  if (Number.isNaN(date.getTime())) return null
+  return formatter.format(date)
+}
 
 function renderKpiChart(context: ChartRenderContext) {
   const { chart, className } = context
   if (chart.type !== 'kpi') return null
 
+  const timeChangeMode = getChartTimeChangeMode(chart)
   const numberFormatter = makeNumberFormatter(
     chart.appearance?.decimalPlaces,
     chart.appearance?.compactNumbers,
   )
   const dateFormatter = makeDateFormatter(chart.appearance?.datePrecision)
-  const outputs = context.productOutputs
+  const transformedOutputs = applyChartTimeChangeTransform(
+    context.productOutputs,
+    chart,
+    {
+      groupKeys: ['indicatorId', 'geometryOutputId'],
+    },
+  )
+  const outputs = timeChangeMode
+    ? filterRecordsForTimePoint(transformedOutputs, chart.timePoint)
+    : context.productOutputs
+  const formatValue = (value: number, unit: string | null) => {
+    const formattedValue = numberFormatter.format(value)
+    if (timeChangeMode === 'percentDelta') return `${formattedValue}%`
+    return unit ? `${formattedValue} ${unit}` : formattedValue
+  }
 
   if (outputs.length === 0) {
     return (
@@ -95,12 +156,21 @@ function renderKpiChart(context: ChartRenderContext) {
   const dataPoint = outputs[0]
   if (!dataPoint) return null
 
-  const contextParts = [
-    dataPoint.indicatorName ?? 'Indicator',
-    dataPoint.geometryOutputName ?? 'Boundary',
-    dateFormatter.format(new Date(dataPoint.timePoint)),
-  ]
-
+  const unit = resolveKpiUnit({
+    indicator: context.indicator,
+    dataPoint,
+  })
+  const currentTimeLabel = formatTimeLabel(dateFormatter, dataPoint.timePoint)
+  const baselineTimeLabel = formatTimeLabel(
+    dateFormatter,
+    readTimePoint(readObjectProperty(dataPoint, 'baselineTimePoint')),
+  )
+  const comparisonLabel =
+    timeChangeMode && baselineTimeLabel && currentTimeLabel
+      ? `${
+          timeChangeMode === 'percentDelta' ? 'Percent change' : 'Change'
+        } from ${baselineTimeLabel} to ${currentTimeLabel}`
+      : currentTimeLabel
   return (
     <button
       type="button"
@@ -112,11 +182,19 @@ function renderKpiChart(context: ChartRenderContext) {
       onClick={(event) => context.onSelect?.({ dataPoint, event })}
     >
       <div className="text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
-        {numberFormatter.format(dataPoint.value)}
+        {formatValue(dataPoint.value, unit)}
       </div>
-      <div className="max-w-full truncate text-xs text-muted-foreground sm:text-sm">
-        {contextParts.join(' · ')}
-      </div>
+      {timeChangeMode ? (
+        <div className="flex max-w-full flex-col items-center gap-1 text-xs text-muted-foreground sm:text-sm">
+          <div className="max-w-full truncate font-medium">
+            {comparisonLabel}
+          </div>
+        </div>
+      ) : currentTimeLabel ? (
+        <div className="max-w-full truncate text-xs text-muted-foreground sm:text-sm">
+          {currentTimeLabel}
+        </div>
+      ) : null}
     </button>
   )
 }
@@ -128,16 +206,21 @@ export const kpiChartDefinition = defineKpiChart({
   description: 'Single highlighted value',
   icon: Hash,
   schema: kpiChartConfigurationSchema,
-  getSuggestedTitle: suggestProductChartTitle,
+  getSuggestedTitle: suggestKpiChartTitle,
   getDataRequirements: (chart) => {
     if (chart.type !== 'kpi') return null
     return {
       productRunId: chart.productRunId,
       productOutputQuery: kpiOutputsQuery(chart),
+      indicatorId: chart.indicatorId,
       loadingMessage: 'Loading KPI value...',
       unavailableMessage: 'KPI data is unavailable.',
     }
   },
+  timeChange: supportsTimeChangeTransform({
+    modes: tuple('delta', 'percentDelta'),
+    defaultMode: 'none',
+  }),
   renderer: { render: renderKpiChart },
   selection: createKpiSelection(),
   appearanceControls: kpiAppearanceControls,

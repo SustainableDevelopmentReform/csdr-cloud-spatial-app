@@ -54,8 +54,11 @@ export {
 } from './chart-definitions/core'
 export {
   applyTimeChangeTransform,
+  filterRecordsForTimePoint,
   getTimeChangeBaseline,
   groupRecordsForTimeChange,
+  isSameTimePoint,
+  isTimeChangeMode,
   supportsTimeChangeTransform,
 } from './chart-core'
 export type {
@@ -67,6 +70,7 @@ export type {
   TimeChangeTransformOptions,
 } from './chart-core'
 export {
+  applyChartTimeChangeTransform,
   createCartesianPlotSelection,
   createKpiSelection,
   createMapSelection,
@@ -75,7 +79,9 @@ export {
   createSingleDimensionPlotSelection,
   createStandardPlotRenderer,
   createTableSelection,
+  getChartTimeChangeMode,
   getPlotProductOutputQuery,
+  getTimePointQueryForTimeChange,
   needsMultipleTimePoints,
 } from './chart-definitions/definition-helpers'
 
@@ -384,6 +390,7 @@ export function suggestTitleForDefinition({
   seriesDimension,
   indicators,
   geometries,
+  availableTimePoints,
   datePrecision,
 }: {
   definition: ChartDefinition | null
@@ -392,6 +399,7 @@ export function suggestTitleForDefinition({
   seriesDimension: ChartDataDimension
   indicators: readonly ChartTitleIndicator[]
   geometries: readonly ChartTitleGeometry[]
+  availableTimePoints?: readonly (Date | string)[]
   datePrecision?: AppearanceConfig['datePrecision']
 }) {
   return (
@@ -401,6 +409,7 @@ export function suggestTitleForDefinition({
       seriesDimension,
       indicators,
       geometries,
+      availableTimePoints,
       datePrecision,
     }) ?? ''
   )

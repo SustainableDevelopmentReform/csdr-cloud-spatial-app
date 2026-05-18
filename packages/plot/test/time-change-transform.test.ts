@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyTimeChangeTransform,
+  filterRecordsForTimePoint,
   getTimeChangeBaseline,
   groupRecordsForTimeChange,
+  isSameTimePoint,
+  isTimeChangeMode,
 } from '../src/chart-core'
 
 const timePoint2024 = '2024-01-01T00:00:00.000Z'
@@ -178,5 +181,25 @@ describe('time-change transforms', () => {
     })
 
     expect(transformed).toEqual(records)
+  })
+
+  it('filters transformed records to a selected target time point', () => {
+    const transformed = applyTimeChangeTransform(records, {
+      mode: 'delta',
+      baseline: 'firstTimePoint',
+    })
+
+    expect(
+      filterRecordsForTimePoint(transformed, new Date(timePoint2025)).map(
+        (record) => record.id,
+      ),
+    ).toEqual(['a-2025', 'b-2025'])
+  })
+
+  it('identifies real time-change modes', () => {
+    expect(isTimeChangeMode('delta')).toBe(true)
+    expect(isTimeChangeMode('percentDelta')).toBe(true)
+    expect(isTimeChangeMode('none')).toBe(false)
+    expect(isSameTimePoint(timePoint2024, new Date(timePoint2024))).toBe(true)
   })
 })

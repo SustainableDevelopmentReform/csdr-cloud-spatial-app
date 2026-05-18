@@ -4,7 +4,7 @@ import {
   type AppearanceConfig,
   type MapChartConfiguration,
   type SelectedDataPoint,
-  makeDateFormatter,
+  getSuggestedChartTitle,
 } from '@repo/plot/types'
 import { Button } from '@repo/ui/components/ui/button'
 import { toast } from '@repo/ui/components/ui/sonner'
@@ -32,9 +32,6 @@ const DEFAULT_MAP_APPEARANCE: AppearanceConfig = {
   compactNumbers: true,
   datePrecision: 'year-month',
 }
-const titleDateFormatter = makeDateFormatter(
-  DEFAULT_MAP_APPEARANCE.datePrecision,
-)
 
 function toIsoTimePoint(timePoint: Date | string): string | null {
   const date = timePoint instanceof Date ? timePoint : new Date(timePoint)
@@ -74,20 +71,18 @@ function getDefaultMapChart(
     return null
   }
 
-  return {
+  const chart: MapChartConfiguration = {
     type: 'map',
     productRunId: run.id,
     indicatorId: firstIndicator.id,
     timePoint: latestTimePoint,
-    title: getMapGeneratedTitleFromParts(firstIndicator.name, latestTimePoint),
     appearance: DEFAULT_MAP_APPEARANCE,
   }
-}
 
-function compactTitleParts(parts: (string | null | undefined)[]) {
-  return parts
-    .map((part) => part?.trim())
-    .filter((part): part is string => !!part)
+  return {
+    ...chart,
+    title: getMapGeneratedTitle(run, chart),
+  }
 }
 
 function getMapGeneratedTitle(
@@ -97,19 +92,34 @@ function getMapGeneratedTitle(
   const indicatorName = run?.outputSummary?.indicators.find(
     (summary) => summary.indicator?.id === chart.indicatorId,
   )?.indicator?.name
-  return getMapGeneratedTitleFromParts(indicatorName, chart.timePoint)
+  return getSuggestedChartTitle({
+    strategy: 'map',
+    productName: null,
+    values: chart,
+    seriesDimension: 'indicators',
+    indicators: [{ id: chart.indicatorId, name: indicatorName }],
+    geometries: [],
+    availableTimePoints: run?.outputSummary?.timePoints ?? undefined,
+    datePrecision:
+      chart.appearance?.datePrecision ?? DEFAULT_MAP_APPEARANCE.datePrecision,
+  })
 }
 
-function getMapGeneratedTitleFromParts(
-  indicatorName: string | null | undefined,
-  timePoint: string,
-) {
-  const date = new Date(timePoint)
-  const timePointLabel = Number.isNaN(date.getTime())
-    ? null
-    : titleDateFormatter.format(date)
+function normalizeGeneratedTitle(title: string | null | undefined) {
+  return title?.trim().replace(/\s+[—-]\s+/g, ' - ') ?? ''
+}
 
-  return compactTitleParts([indicatorName, timePointLabel]).join(' - ')
+function isGeneratedMapTitle(
+  run: ProductRunForMap | null | undefined,
+  chart: MapChartConfiguration,
+  title: string | null | undefined,
+) {
+  const normalizedTitle = normalizeGeneratedTitle(title)
+  return (
+    normalizedTitle !== '' &&
+    normalizedTitle ===
+      normalizeGeneratedTitle(getMapGeneratedTitle(run, chart))
+  )
 }
 
 function getMapDisplayTitle(
@@ -197,18 +207,19 @@ const ProductRunMapPreviewContent = ({
           <ChartFormDialog
             buttonText="Configure map"
             chart={chart}
+            enableTimeChange={false}
             firstVisibleStep={2}
             onSubmit={(nextChart) => {
               if (nextChart.type === 'map') {
-                const currentGeneratedTitle = getMapGeneratedTitle(run, chart)
                 const nextGeneratedTitle = getMapGeneratedTitle(run, nextChart)
                 const submittedTitle = nextChart.title?.trim()
-                const title =
+                const shouldUseGeneratedTitle =
                   !submittedTitle ||
-                  (chart.title === currentGeneratedTitle &&
-                    submittedTitle === chart.title)
-                    ? nextGeneratedTitle
-                    : submittedTitle
+                  (isGeneratedMapTitle(run, chart, chart.title) &&
+                    isGeneratedMapTitle(run, chart, submittedTitle))
+                const title = shouldUseGeneratedTitle
+                  ? nextGeneratedTitle
+                  : submittedTitle
 
                 setChart({
                   ...nextChart,

@@ -15,8 +15,8 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Value } from '../../../../components/value'
 import { withDataLibrarySource, withResourceSection } from '~/lib/paths'
+import { Value } from '../../../../components/value'
 import {
   ConsoleSideDrawer,
   ConsoleSideDrawerSection,
@@ -24,8 +24,9 @@ import {
 } from '../../_components/console-side-drawer'
 import { VersionStatusBadge } from '../../_components/version-status-badge'
 import { DatasetButton } from '../../dataset/_components/dataset-button'
-import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
 import { GeometriesButton } from '../../geometries/_components/geometries-button'
+import { GeometryOutputButton } from '../../geometries/_components/geometry-output-button'
+import { GeometryOutputDetailsSidebar } from '../../geometries/_components/geometry-output-details-sidebar'
 import { IndicatorButton } from '../../indicator/_components/indicator-button'
 import { useDerivedIndicator } from '../../indicator/_hooks'
 import { ProductButton } from '../../product/_components/product-button'
@@ -119,11 +120,13 @@ function formatSelectedValue({
 function DerivedCalculationDetails({
   derivedIndicator,
   isLoading,
+  onGeometryOutputSelect,
   onProductOutputSelect,
   productOutput,
 }: {
   derivedIndicator: DerivedIndicatorData
   isLoading: boolean
+  onGeometryOutputSelect?: (geometryOutputId: string) => void
   onProductOutputSelect?: (productOutputId: string) => void
   productOutput: ProductOutputData
 }) {
@@ -178,6 +181,8 @@ function DerivedCalculationDetails({
             const dependencyProductOutput = dependencyProductOutputs.find(
               (dependency) => dependency.indicator?.id === indicator.id,
             )
+            const dependencyGeometryOutput =
+              dependencyProductOutput?.geometryOutput
 
             return (
               <div
@@ -217,14 +222,20 @@ function DerivedCalculationDetails({
                         indicator={dependencyProductOutput.indicator}
                       />
                     </div>
-                    {dependencyProductOutput.geometryOutput ? (
+                    {dependencyGeometryOutput ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-medium uppercase text-muted-foreground">
                           Location
                         </span>
                         <GeometryOutputButton
-                          geometryOutput={
-                            dependencyProductOutput.geometryOutput
+                          geometryOutput={dependencyGeometryOutput}
+                          onClick={
+                            onGeometryOutputSelect
+                              ? () =>
+                                  onGeometryOutputSelect(
+                                    dependencyGeometryOutput.id,
+                                  )
+                              : undefined
                           }
                         />
                       </div>
@@ -355,6 +366,19 @@ function SelectedPointCard({
           {formatSelectedValue({ mode, value, unit })}
         </p>
         <p className="line-clamp-2 text-sm leading-5">{indicatorName}</p>
+        {!mode && selectedProductOutputId ? (
+          <div className="pt-1">
+            <Button
+              onClick={() => onOpenDetails(selectedProductOutputId)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <ExternalLinkIcon className="size-4" />
+              Data Details
+            </Button>
+          </div>
+        ) : null}
         {mode ? (
           <div className="space-y-2 pt-2">
             {sourceRows.map((row) => (
@@ -477,12 +501,14 @@ function SourceDataDetails({
 
 export function ProductOutputDetailsSidebar({
   onClose,
+  onGeometryOutputSelect,
   onProductOutputSelect,
   open,
   productOutputId,
   refElement,
 }: {
   onClose: () => void
+  onGeometryOutputSelect?: (geometryOutputId: string) => void
   onProductOutputSelect?: (productOutputId: string) => void
   open: boolean
   productOutputId: string | null
@@ -534,6 +560,7 @@ export function ProductOutputDetailsSidebar({
   const fullLineageHref = productHref
     ? withResourceSection(productHref, 'lineage', 'technical')
     : null
+  const geometryOutput = productOutput?.geometryOutput
 
   return (
     <ConsoleSideDrawer
@@ -543,9 +570,14 @@ export function ProductOutputDetailsSidebar({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span>Location:</span>
-            {productOutput?.geometryOutput ? (
+            {geometryOutput ? (
               <GeometryOutputButton
-                geometryOutput={productOutput.geometryOutput}
+                geometryOutput={geometryOutput}
+                onClick={
+                  onGeometryOutputSelect
+                    ? () => onGeometryOutputSelect(geometryOutput.id)
+                    : undefined
+                }
               />
             ) : (
               <span>{location}</span>
@@ -586,6 +618,7 @@ export function ProductOutputDetailsSidebar({
             <DerivedCalculationDetails
               derivedIndicator={derivedIndicator}
               isLoading={isDerivedIndicatorLoading}
+              onGeometryOutputSelect={onGeometryOutputSelect}
               onProductOutputSelect={onProductOutputSelect}
               productOutput={productOutput}
             />
@@ -617,6 +650,9 @@ export const ChartSelectedItem = ({
   const [detailsProductOutputId, setDetailsProductOutputId] = useState<
     string | null
   >(null)
+  const [detailsGeometryOutputId, setDetailsGeometryOutputId] = useState<
+    string | null
+  >(null)
 
   const selectedProductOutputId = selectedDataPoint?.dataPoint?.id ?? null
   const activeDetailsProductOutputId = detailsOpen
@@ -626,8 +662,13 @@ export const ChartSelectedItem = ({
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)
     setDetailsProductOutputId(null)
+    setDetailsGeometryOutputId(null)
     onSelect(null)
   }, [onSelect])
+
+  const closeGeometryDetails = useCallback(() => {
+    setDetailsGeometryOutputId(null)
+  }, [])
 
   useEffect(() => {
     if (!selectedDataPoint?.dataPoint || detailsOpen) {
@@ -691,17 +732,29 @@ export const ChartSelectedItem = ({
         return
       }
 
-      closeActiveDrawer()
+      if (!detailsOpen) {
+        closeActiveDrawer()
+      }
+      setDetailsGeometryOutputId(null)
       setDetailsProductOutputId(resolvedProductOutputId)
       setDetailsOpen(true)
     },
-    [closeActiveDrawer, selectedProductOutputId],
+    [closeActiveDrawer, detailsOpen, selectedProductOutputId],
   )
 
   const selectDetailsProductOutput = useCallback(
     (productOutputId: string) => {
+      setDetailsGeometryOutputId(null)
       setDetailsProductOutputId(productOutputId)
       setDetailsOpen(true)
+      onSelect(null)
+    },
+    [onSelect],
+  )
+
+  const selectDetailsGeometryOutput = useCallback(
+    (geometryOutputId: string) => {
+      setDetailsGeometryOutputId(geometryOutputId)
       onSelect(null)
     },
     [onSelect],
@@ -749,10 +802,18 @@ export const ChartSelectedItem = ({
       ) : null}
       <ProductOutputDetailsSidebar
         onClose={closeDetails}
+        onGeometryOutputSelect={selectDetailsGeometryOutput}
         onProductOutputSelect={selectDetailsProductOutput}
         open={detailsOpen && Boolean(activeDetailsProductOutputId)}
         productOutputId={activeDetailsProductOutputId}
         refElement={sidebarRef}
+      />
+      <GeometryOutputDetailsSidebar
+        geometryOutputId={detailsGeometryOutputId}
+        onClose={closeGeometryDetails}
+        onGeometryOutputSelect={selectDetailsGeometryOutput}
+        open={Boolean(detailsGeometryOutputId)}
+        openSource="drawer"
       />
     </>
   )

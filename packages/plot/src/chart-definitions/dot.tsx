@@ -21,6 +21,11 @@ const dotAppearanceControls = tuple(
   'colorOverrides',
 )
 
+const dotTimeChange = supportsTimeChangeTransform({
+  modes: tuple('delta', 'percentDelta'),
+  defaultMode: 'none',
+})
+
 export const dotChartDefinition = definePlotChart({
   key: dotSubType,
   type: 'plot',
@@ -32,11 +37,10 @@ export const dotChartDefinition = definePlotChart({
   getSuggestedTitle: suggestPlotChartTitle,
   getTypeOptionState: needsMultipleTimePoints,
   getDataRequirements: createPlotDataRequirements(),
-  timeChange: supportsTimeChangeTransform({
-    modes: tuple('delta', 'percentDelta'),
-    defaultMode: 'none',
-  }),
-  renderer: { render: createStandardPlotRenderer() },
+  timeChange: dotTimeChange,
+  renderer: {
+    render: createStandardPlotRenderer({ timeChange: dotTimeChange }),
+  },
   selection: createCartesianPlotSelection(tuple('indicators', 'geometries')),
   appearanceControls: dotAppearanceControls,
   buildPreviewConfig: createPlotPreviewConfig(dotSubType),

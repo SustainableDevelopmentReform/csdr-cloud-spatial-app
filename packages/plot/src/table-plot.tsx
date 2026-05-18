@@ -31,7 +31,8 @@ export type BaseTableRecord = {
   id: string
   value: number | null | undefined
   timePoint: Date | string
-  indicatorName: string | null | undefined
+  baselineTimePoint?: Date | string
+  indicatorName?: string | null
   geometryOutputName?: string | null | undefined
 }
 
@@ -113,6 +114,14 @@ const dimensionLabels = {
   geometryOutputName: 'Boundary',
 }
 
+function getDimensionLabel(
+  dimension: TablePlotDimension,
+  hasTimeChangeData: boolean,
+) {
+  if (dimension === 'timePoint' && hasTimeChangeData) return 'Time range'
+  return dimensionLabels[dimension]
+}
+
 export type TablePlotDimension =
   | 'timePoint'
   | 'indicatorName'
@@ -130,7 +139,13 @@ export type TablePlotRow<TRecord extends BaseTableRecord = BaseTableRecord> = {
 }
 
 type NormalizedTableRecord<TRecord extends BaseTableRecord = BaseTableRecord> =
-  TRecord & { timePoint: Date }
+  TRecord & { timePoint: Date; baselineTimePoint?: Date | string }
+
+function normalizeDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
 
 function getDimensionMeta(
   record: NormalizedTableRecord,
@@ -140,6 +155,14 @@ function getDimensionMeta(
   switch (dimension) {
     case 'timePoint': {
       const time = record.timePoint
+      const baselineTime = normalizeDate(record.baselineTimePoint)
+      if (baselineTime) {
+        return {
+          key: `${baselineTime.toISOString()}->${time.toISOString()}`,
+          label: `${dateFmt.format(baselineTime)} to ${dateFmt.format(time)}`,
+          sortValue: time.getTime(),
+        }
+      }
       const key = time.toISOString()
       return {
         key,
@@ -217,6 +240,9 @@ export function buildTablePlotModel<TRecord extends BaseTableRecord>({
   })
   const columnMap = new Map<string, DimensionMeta>()
   const rowMap = new Map<string, TablePlotRow<TRecord>>()
+  const hasTimeChangeData = normalizedData.some((record) =>
+    Boolean(record.baselineTimePoint),
+  )
 
   for (const record of normalizedData) {
     const columnMeta = getDimensionMeta(record, xDimension, dateFmt)
@@ -241,8 +267,8 @@ export function buildTablePlotModel<TRecord extends BaseTableRecord>({
     if (row.cells[columnMeta.key]) {
       return {
         error:
-          `Data has multiple values for (${dimensionLabels[yDimension]}=${rowMeta.label}, ` +
-          `${dimensionLabels[xDimension]}=${columnMeta.label}). ` +
+          `Data has multiple values for (${getDimensionLabel(yDimension, hasTimeChangeData)}=${rowMeta.label}, ` +
+          `${getDimensionLabel(xDimension, hasTimeChangeData)}=${columnMeta.label}). ` +
           'Each table cell must map to exactly one product output.',
       }
     }
@@ -268,12 +294,14 @@ export function TablePlot<TRecord extends BaseTableRecord>({
   xDimension,
   yDimension,
   appearance,
+  valueFormat = 'number',
   onSelect,
 }: {
   data: TRecord[]
   xDimension: TablePlotDimension
   yDimension: TablePlotDimension
   appearance?: AppearanceConfig
+  valueFormat?: 'number' | 'percent'
   onSelect?: OnSelectCallback<TRecord>
 }) {
   const numFmt = useMemo(
@@ -368,6 +396,13 @@ export function TablePlot<TRecord extends BaseTableRecord>({
   }
 
   const { columns, rows } = tableModel
+  const hasTimeChangeData = data.some((record) =>
+    Boolean(record.baselineTimePoint),
+  )
+  const formatValue = (value: number) =>
+    valueFormat === 'percent'
+      ? `${numFmt.format(value)}%`
+      : numFmt.format(value)
 
   return (
     <div className="flex w-full max-w-full min-w-0 flex-1 min-h-0 flex-col overflow-x-auto overflow-y-auto rounded-md border border-border shadow-sm">
@@ -375,7 +410,7 @@ export function TablePlot<TRecord extends BaseTableRecord>({
         <thead className="bg-muted/40">
           <tr>
             <th className="sticky left-0 z-1 border-b border-border bg-muted/40 px-2 py-2 text-left font-semibold">
-              {dimensionLabels[yDimension]}
+              {getDimensionLabel(yDimension, hasTimeChangeData)}
             </th>
             {columns.map((column) => (
               <th
@@ -427,7 +462,7 @@ export function TablePlot<TRecord extends BaseTableRecord>({
                       onSelect?.({ dataPoint: cell ?? null, event })
                     }}
                   >
-                    {hasValue ? numFmt.format(value) : '—'}
+                    {hasValue ? formatValue(value) : '—'}
                   </td>
                 )
               })}

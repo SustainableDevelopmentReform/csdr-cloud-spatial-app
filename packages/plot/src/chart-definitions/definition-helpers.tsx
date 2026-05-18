@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import {
   getPlotChartGroupBy,
   applyTimeChangeTransform,
+  isTimeChangeMode,
   tableChartDimensionMetadata,
   type ChartConfiguration,
   type ChartConfigurationDraft,
@@ -21,8 +22,60 @@ import {
   type ChartRenderContext,
   type ChartTypeOptionState,
 } from './core'
+import type {
+  TimeChangeCapability,
+  TimeChangeSupportedMode,
+} from '../chart-core'
 
 export { supportsTimeChangeTransform } from '../chart-core'
+
+/**
+ * Resolve the active persisted time-change mode for a chart.
+ *
+ * Returns `null` for omitted transforms and explicit raw-value mode.
+ */
+export function getChartTimeChangeMode(
+  chart: ChartConfiguration,
+): TimeChangeSupportedMode | null {
+  const mode = chart.transform?.timeChange?.mode
+  return isTimeChangeMode(mode) ? mode : null
+}
+
+/**
+ * Apply the persisted time-change transform for a chart.
+ *
+ * Use this in chart-owned renderers so host apps do not need subtype-specific
+ * transform branches. Raw charts return a shallow copy of the input records.
+ */
+export function applyChartTimeChangeTransform<
+  TRecord extends ChartProductOutput,
+>(
+  records: readonly TRecord[],
+  chart: ChartConfiguration,
+  options: {
+    groupKeys?: readonly string[]
+  } = {},
+) {
+  return applyTimeChangeTransform(records, {
+    mode: chart.transform?.timeChange?.mode ?? 'none',
+    baseline: chart.transform?.timeChange?.baseline ?? 'firstTimePoint',
+    groupKeys: options.groupKeys,
+  })
+}
+
+/**
+ * Return the time-point query filter a chart should use.
+ *
+ * Single-time charts that render a delta need all time points loaded so they
+ * can calculate the previous-step value before filtering back to the selected
+ * target time point.
+ */
+export function getTimePointQueryForTimeChange(
+  chart: ChartConfiguration,
+  timePoint: string | string[] | undefined,
+) {
+  return getChartTimeChangeMode(chart) ? undefined : timePoint
+}
 
 /**
  * Build the standard preview configuration for product-output plot charts.
@@ -88,21 +141,29 @@ export function createPlotDataRequirements({
 
 /**
  * Build the standard renderer for Recharts-backed product-output plot charts.
+ *
+ * Pass a chart-owned `timeChange` capability only for definitions that support
+ * rendering change values. Unsupported charts ignore persisted transform data.
  */
-export function createStandardPlotRenderer() {
+export function createStandardPlotRenderer({
+  timeChange,
+}: {
+  timeChange?: TimeChangeCapability
+} = {}) {
   return function renderStandardPlotChart(context: ChartRenderContext) {
     const { chart, className, options, adapters } = context
     if (chart.type !== 'plot') return null
 
     const groupBy = getPlotChartGroupBy(chart)
-    const timeChangeMode = chart.transform?.timeChange?.mode ?? 'none'
-    const outputs: ChartProductOutput[] = applyTimeChangeTransform(
-      context.productOutputs,
-      {
-        mode: timeChangeMode,
-        baseline: chart.transform?.timeChange?.baseline ?? 'firstTimePoint',
-      },
-    )
+    const requestedTimeChangeMode = getChartTimeChangeMode(chart)
+    const timeChangeMode =
+      requestedTimeChangeMode &&
+      timeChange?.modes.some((mode) => mode === requestedTimeChangeMode)
+        ? requestedTimeChangeMode
+        : null
+    const outputs: ChartProductOutput[] = timeChangeMode
+      ? applyChartTimeChangeTransform(context.productOutputs, chart)
+      : [...context.productOutputs]
 
     return (
       <div className={clsx('flex flex-1 min-h-0 flex-col gap-2', className)}>

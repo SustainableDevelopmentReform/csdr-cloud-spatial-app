@@ -4,6 +4,12 @@ import {
   type MapChartConfiguration,
   type OnSelectCallback,
 } from '@repo/plot/types'
+import {
+  applyChartTimeChangeTransform,
+  filterRecordsForTimePoint,
+  getChartDefinitionForConfiguration,
+  getChartTimeChangeMode,
+} from '@repo/plot/chart-definitions'
 import { cn } from '@repo/ui/lib/utils'
 import { usePrintRenderReadiness } from '~/components/print-readiness'
 import ChoroplethMapViewer from '../../geometries/_components/choropleth-map-viewer'
@@ -29,12 +35,26 @@ export const ChartMapRenderer = ({
   const productRun = productRunQuery.data
   const indicatorQuery = useIndicator(chart.indicatorId)
   const indicator = indicatorQuery.data
+  const definition = getChartDefinitionForConfiguration(chart)
+  const dataRequirements = definition?.getDataRequirements(chart)
   const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
-    indicatorId: chart.indicatorId,
-    geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoint,
+    indicatorId: dataRequirements?.productOutputQuery?.indicatorId,
+    geometryOutputId: dataRequirements?.productOutputQuery?.geometryOutputId,
+    timePoint: dataRequirements?.productOutputQuery?.timePoint,
   })
   const productOutputs = productOutputsQuery.data
+  const chartProductOutputs = productOutputs?.data ?? []
+  const timeChangeMode = getChartTimeChangeMode(chart)
+  const transformedProductOutputs = applyChartTimeChangeTransform(
+    chartProductOutputs,
+    chart,
+    {
+      groupKeys: ['indicatorId', 'geometryOutputId'],
+    },
+  )
+  const renderedProductOutputs = timeChangeMode
+    ? filterRecordsForTimePoint(transformedProductOutputs, chart.timePoint)
+    : chartProductOutputs
 
   const isLoading =
     productRunQuery.isPending ||
@@ -86,7 +106,7 @@ export const ChartMapRenderer = ({
       geometriesRun={productRun.geometriesRun}
       indicator={indicator}
       productRun={productRun}
-      productOutputs={productOutputs?.data}
+      productOutputs={renderedProductOutputs}
       zoomToGeometryOutputIds={chart.geometryOutputIds}
       appearance={chart.appearance}
       onSelect={onSelect}

@@ -92,6 +92,43 @@ describe('buildTablePlotModel', () => {
     expect(model.rows[0]?.cells['Population']?.id).toBe('output-2')
   })
 
+  it('labels time-change columns as time ranges', () => {
+    const model = expectValidModel(
+      buildTablePlotModel({
+        data: [
+          {
+            id: 'output-2',
+            indicatorName: 'Forest cover',
+            geometryOutputName: 'Tasmania',
+            baselineTimePoint: '2024-01-01T00:00:00.000Z',
+            timePoint: '2025-01-01T00:00:00.000Z',
+            value: 5,
+          },
+          {
+            id: 'output-3',
+            indicatorName: 'Forest cover',
+            geometryOutputName: 'Tasmania',
+            baselineTimePoint: '2025-01-01T00:00:00.000Z',
+            timePoint: '2026-01-01T00:00:00.000Z',
+            value: 6,
+          },
+        ],
+        dateFmt,
+        xDimension: 'timePoint',
+        yDimension: 'indicatorName',
+      }),
+    )
+
+    expect(model.columns.map((column) => column.label)).toEqual([
+      '1 Jan 2024 to 1 Jan 2025',
+      '1 Jan 2025 to 1 Jan 2026',
+    ])
+    expect(
+      model.rows[0]?.cells['2024-01-01T00:00:00.000Z->2025-01-01T00:00:00.000Z']
+        ?.id,
+    ).toBe('output-2')
+  })
+
   it('returns an error when multiple records map to the same table cell', () => {
     const model = buildTablePlotModel({
       data: [
