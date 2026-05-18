@@ -1,20 +1,28 @@
 'use client'
 
-import { ChartConfiguration, OnSelectCallback } from '@repo/plot/types'
+import type { ChartConfiguration, OnSelectCallback } from '@repo/plot/types'
 import type { ChartFormBuilder } from '@repo/ui/components/tip-tap/node/chart-node/chart-node-shared'
 import { ChartFormDialog } from './chart-form-dialog'
 import { ChartRenderer } from './chart-renderer'
-import { ProductOutputExportListItem } from '../../product/_hooks'
+import type { ProductOutputExportListItem } from '../../product/_hooks'
+
+type ReportChartFormBuilderOptions = {
+  onChartDialogClose?: () => void
+  onChartDialogOpen?: () => void
+  readOnly?: boolean
+}
 
 const renderChart = (
   chart: ChartConfiguration | null,
   onSelect: OnSelectCallback<ProductOutputExportListItem>,
+  readOnly: boolean,
 ) => {
   return (
     <div>
       <ChartRenderer
         chart={chart}
         className={chart?.type === 'map' ? 'h-96 relative' : undefined}
+        config={{ readOnly }}
         onSelect={onSelect}
       />
     </div>
@@ -23,15 +31,21 @@ const renderChart = (
 
 const useReportChartEditor = ({
   chart,
+  onChartDialogClose,
+  onChartDialogOpen,
   onChartChange,
 }: {
   chart: ChartConfiguration | null
+  onChartDialogClose?: () => void
+  onChartDialogOpen?: () => void
   onChartChange: (chart: ChartConfiguration | null) => void
 }) => {
   const controls = (
     <ChartFormDialog
       buttonText="Edit chart"
       chart={chart}
+      onClose={onChartDialogClose}
+      onOpen={onChartDialogOpen}
       onSubmit={onChartChange}
     />
   )
@@ -41,9 +55,15 @@ const useReportChartEditor = ({
 
 export const reportChartFormBuilder: (
   onSelect: OnSelectCallback<ProductOutputExportListItem>,
-) => ChartFormBuilder = (onSelect) => ({
+  options?: ReportChartFormBuilderOptions,
+) => ChartFormBuilder = (onSelect, options) => ({
   renderChart: (chartConfiguration) =>
-    renderChart(chartConfiguration, onSelect),
+    renderChart(chartConfiguration, onSelect, options?.readOnly === true),
   useChartEditor: ({ chart, onChartChange }) =>
-    useReportChartEditor({ chart, onChartChange }),
+    useReportChartEditor({
+      chart,
+      onChartChange,
+      onChartDialogClose: options?.onChartDialogClose,
+      onChartDialogOpen: options?.onChartDialogOpen,
+    }),
 })

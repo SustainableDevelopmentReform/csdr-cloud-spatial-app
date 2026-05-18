@@ -17,14 +17,14 @@ import { UseMutationResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { Path, UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
-import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning'
+import { useUnsavedChangesWarning } from '../../hooks/use-unsaved-changes-warning'
 import { CrudFormAction, FormAction } from './crud-form-action'
 
-export interface CrudFormConfig<
+interface CrudFormConfig<
   Data extends z.infer<typeof baseCreateResourceSchema>,
 > {
-  entityName: string // e.g., "Dataset", "Product", "Geometry"
-  entityNamePlural: string // e.g., "datasets", "products", "geometries"
+  entityName: string // e.g., "Dataset", "Product", "Boundary"
+  entityNamePlural: string // e.g., "datasets", "products", "boundaries"
   readOnlyFields?: (keyof Data | string)[] // Fields that should be displayed but not editable
   hiddenFields?: (keyof Data | string)[] // Fields that should not be displayed at all
   fieldLabels?: Partial<Record<keyof Data, string>> // Custom labels for fields
@@ -41,6 +41,9 @@ export interface CrudFormProps<
   onError?: (error: unknown) => void
   onSuccess?: () => void
   readOnly?: boolean
+  secondaryAction?: React.ReactNode
+  formId?: string
+  showSubmitAction?: boolean
   successMessage: string
 }
 
@@ -53,6 +56,8 @@ export const CrudForm = <
   actions: actionsProp,
   children,
   readOnly = false,
+  formId,
+  showSubmitAction = true,
   entityName,
   readOnlyFields = ['id', 'metadata'],
   hiddenFields,
@@ -60,17 +65,20 @@ export const CrudForm = <
   onError,
   onSuccess,
   successMessage,
+  secondaryAction,
 }: CrudFormProps<Data>) => {
   // Warn on navigation when the form has unsaved changes
   useUnsavedChangesWarning(form.formState.isDirty)
 
-  type CrudField = keyof Data
+  type CrudField = keyof Data | string
 
   // Helper function to get field label
   const getFieldLabel = (field: CrudField): string => {
     if (fieldLabels) {
-      const label = fieldLabels[field as keyof typeof fieldLabels]
-      if (label) return label
+      const labelEntry = Object.entries(fieldLabels).find(
+        ([fieldName]) => fieldName === field,
+      )
+      if (typeof labelEntry?.[1] === 'string') return labelEntry[1]
     }
     // Convert field name to title case
     return String(field)
@@ -116,6 +124,7 @@ export const CrudForm = <
       <Form {...form}>
         <form
           className="grid gap-3 border-b border-gray-200 pb-8"
+          id={formId}
           onSubmit={form.handleSubmit((formData) => {
             if (!readOnly) {
               mutation.mutate(formData, {
@@ -244,9 +253,10 @@ export const CrudForm = <
 
           {children}
 
-          {!readOnly ? (
-            <div>
-              <Button className="mt-4" disabled={mutation.isPending}>
+          {!readOnly && showSubmitAction ? (
+            <div className="mt-4 flex justify-end gap-2">
+              {secondaryAction}
+              <Button disabled={mutation.isPending}>
                 {mutation.isPending ? 'Loading...' : 'Save'}
               </Button>
             </div>

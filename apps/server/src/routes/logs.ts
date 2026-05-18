@@ -1,5 +1,10 @@
-import { createRoute, z } from '@hono/zod-openapi'
-import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { createRoute } from '@hono/zod-openapi'
+import {
+  auditLogListResponseSchema,
+  auditLogQuerySchema,
+  type AuditLogQuery,
+} from '@repo/schemas/audit-log'
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
 import { authMiddleware } from '~/middlewares/auth'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -10,69 +15,29 @@ import {
   validationErrorResponse,
 } from '~/lib/openapi'
 import { generateJsonResponse } from '~/lib/response'
-import { auditLog } from '~/schemas/db'
-import { requireOwnedInsertContext } from '~/lib/authorization'
+import { auditLog, user } from '~/schemas/db'
+import { requireOwnedInsertContext } from '~/lib/auth/authorization'
 import {
   persistAccessLog,
   shouldPersistDeniedDecisionLog,
-} from '~/lib/access-log'
-import {
-  requireAuthenticatedActor,
-  requireMfaIfNeeded,
-} from '~/lib/request-actor'
+} from '~/lib/auth/access-log'
+import { requireSuperAdminActor } from '~/lib/auth/policy'
 
-const logQuerySchema = z.object({
-  page: z.coerce.number().positive().optional(),
-  size: z.coerce.number().positive().optional(),
-  resourceType: z.string().optional(),
-  action: z.string().optional(),
-  decision: z.enum(['allow', 'deny']).optional(),
-  requestKind: z.enum(['mutating', 'read']).optional(),
-})
-
-const logEntrySchema = z.object({
-  id: z.string(),
-  createdAt: z.iso.datetime(),
-  actorUserId: z.string().nullable(),
-  actorUser: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      email: z.string(),
-    })
-    .nullable(),
-  actorRole: z.string().nullable(),
-  activeOrganizationId: z.string().nullable(),
-  targetOrganizationId: z.string().nullable(),
-  resourceType: z.string(),
-  resourceId: z.string().nullable(),
-  action: z.string(),
-  decision: z.string(),
-  requestPath: z.string(),
-  requestMethod: z.string(),
-  ipAddress: z.string().nullable(),
-  userAgent: z.string().nullable(),
-  details: z.any().nullable(),
-})
-
-const buildAuditLogFilters = (
-  organizationId: string,
-  query: z.infer<typeof logQuerySchema>,
-) =>
+const buildAuditLogFilters = (organizationId: string, query: AuditLogQuery) =>
   and(
     excludeGetSessionAuditLogs(),
+    excludeOrganizationAuditLogListReads(),
     eq(auditLog.targetOrganizationId, organizationId),
     query.resourceType
       ? eq(auditLog.resourceType, query.resourceType)
       : undefined,
     query.action ? eq(auditLog.action, query.action) : undefined,
+    buildAuditLogSearchFilter(query.search),
     query.decision ? eq(auditLog.decision, query.decision) : undefined,
     buildRequestKindFilter(query.requestKind),
   )
 
-const buildSuperAdminAuditLogFilters = (
-  query: z.infer<typeof logQuerySchema>,
-) =>
+const buildSuperAdminAuditLogFilters = (query: AuditLogQuery) =>
   and(
     excludeGetSessionAuditLogs(),
     isNull(auditLog.targetOrganizationId),
@@ -80,13 +45,51 @@ const buildSuperAdminAuditLogFilters = (
       ? eq(auditLog.resourceType, query.resourceType)
       : undefined,
     query.action ? eq(auditLog.action, query.action) : undefined,
+    buildAuditLogSearchFilter(query.search),
     query.decision ? eq(auditLog.decision, query.decision) : undefined,
     buildRequestKindFilter(query.requestKind),
   )
 
-const buildRequestKindFilter = (
-  requestKind: z.infer<typeof logQuerySchema>['requestKind'],
-) => {
+const buildAuditLogSearchFilter = (search: string | undefined) => {
+  const searchValue = search?.trim()
+
+  if (!searchValue) {
+    return undefined
+  }
+
+  const searchTerms = Array.from(
+    new Set([searchValue, searchValue.replace(/\s+/g, '_')]),
+  )
+
+  const logClauses = searchTerms.flatMap((term) => {
+    const pattern = `%${term}%`
+
+    return [
+      ilike(auditLog.action, pattern),
+      ilike(auditLog.resourceType, pattern),
+      ilike(auditLog.resourceId, pattern),
+      ilike(auditLog.requestPath, pattern),
+    ]
+  })
+  const actorUserClauses = searchTerms.flatMap((term) => {
+    const pattern = `%${term}%`
+
+    return [ilike(user.name, pattern), ilike(user.email, pattern)]
+  })
+
+  return or(
+    ...logClauses,
+    inArray(
+      auditLog.actorUserId,
+      db
+        .select({ id: user.id })
+        .from(user)
+        .where(or(...actorUserClauses)),
+    ),
+  )
+}
+
+const buildRequestKindFilter = (requestKind: AuditLogQuery['requestKind']) => {
   if (requestKind === 'mutating') {
     return inArray(auditLog.requestMethod, ['POST', 'PUT', 'PATCH', 'DELETE'])
   }
@@ -98,24 +101,32 @@ const buildRequestKindFilter = (
   return undefined
 }
 
+const buildAuditLogOrderBy = (query: AuditLogQuery) => {
+  const direction = query.order === 'asc' ? asc : desc
+
+  switch (query.sort) {
+    case 'action':
+      return direction(auditLog.action)
+    case 'resourceType':
+      return direction(auditLog.resourceType)
+    case 'createdAt':
+    default:
+      return direction(auditLog.createdAt)
+  }
+}
+
 const excludeGetSessionAuditLogs = () =>
   and(
     ne(auditLog.action, 'get_session'),
     ne(auditLog.requestPath, '/api/auth/get-session'),
   )
 
-const requireSuperAdmin = (
-  actor: ReturnType<typeof requireAuthenticatedActor>,
-) => {
-  if (!actor.isSuperAdmin) {
-    throw new ServerError({
-      statusCode: 403,
-      message: 'User is not authorized',
-    })
-  }
-
-  requireMfaIfNeeded(actor)
-}
+const excludeOrganizationAuditLogListReads = () =>
+  or(
+    ne(auditLog.resourceType, 'auditLog'),
+    ne(auditLog.action, 'read'),
+    ne(auditLog.requestPath, '/api/v0/logs/audit'),
+  )
 
 const app = createOpenAPIApp()
   .openapi(
@@ -124,7 +135,7 @@ const app = createOpenAPIApp()
       path: '/audit/super-admin',
       description: 'List super-admin audit logs without a target organization.',
       request: {
-        query: logQuerySchema,
+        query: auditLogQuerySchema,
       },
       responses: {
         200: {
@@ -132,13 +143,7 @@ const app = createOpenAPIApp()
             'List super-admin audit logs without a target organization.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  pageCount: z.number().int(),
-                  totalCount: z.number().int(),
-                  data: z.array(logEntrySchema),
-                }),
-              ),
+              schema: createResponseSchema(auditLogListResponseSchema),
             },
           },
         },
@@ -151,8 +156,7 @@ const app = createOpenAPIApp()
       const requestActor = c.get('requestActor')
 
       try {
-        const actor = requireAuthenticatedActor(requestActor)
-        requireSuperAdmin(actor)
+        const actor = requireSuperAdminActor(requestActor)
 
         const query = c.req.valid('query')
         const page = query.page ?? 1
@@ -162,7 +166,7 @@ const app = createOpenAPIApp()
         const totalCount = await db.$count(auditLog, filters)
         const data = await db.query.auditLog.findMany({
           where: filters,
-          orderBy: desc(auditLog.createdAt),
+          orderBy: buildAuditLogOrderBy(query),
           limit: size,
           offset,
           with: {
@@ -230,20 +234,14 @@ const app = createOpenAPIApp()
       description: 'List organization-scoped audit logs.',
       middleware: [authMiddleware({ permission: 'read:auditLog' })],
       request: {
-        query: logQuerySchema,
+        query: auditLogQuerySchema,
       },
       responses: {
         200: {
           description: 'List organization-scoped audit logs.',
           content: {
             'application/json': {
-              schema: createResponseSchema(
-                z.object({
-                  pageCount: z.number().int(),
-                  totalCount: z.number().int(),
-                  data: z.array(logEntrySchema),
-                }),
-              ),
+              schema: createResponseSchema(auditLogListResponseSchema),
             },
           },
         },
@@ -262,7 +260,7 @@ const app = createOpenAPIApp()
       const totalCount = await db.$count(auditLog, filters)
       const data = await db.query.auditLog.findMany({
         where: filters,
-        orderBy: desc(auditLog.createdAt),
+        orderBy: buildAuditLogOrderBy(query),
         limit: size,
         offset,
         with: {

@@ -1,30 +1,99 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/ui/components/ui/select'
+import { cn } from '@repo/ui/lib/utils'
+import { ColumnDef } from '@tanstack/react-table'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  formatActiveFilterValue,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../components/table/table-row-delete-action'
+import { useAccessControl } from '../../../hooks/use-access-control'
+import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
+import { getEditModeHref } from '../_components/resource-detail-mode'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../_components/geographic-bounds-picker-dialog'
 import { DatasetRunSelect } from '../dataset/_components/dataset-run-select'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
+import { useDatasetRun, useDatasets } from '../dataset/_hooks'
 import { GeometriesRunSelect } from '../geometries/_components/geometries-run-select'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
+import { useAllGeometries, useGeometriesRun } from '../geometries/_hooks'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
+import { useIndicators } from '../indicator/_hooks'
 import { ProductRunSelect } from '../product/_components/product-run-select'
 import { ProductSelect } from '../product/_components/product-select'
+import { useProductRun, useProducts } from '../product/_hooks'
 import { ReportBreadcrumbs } from './_components/breadcrumbs'
-import { ReportButton } from './_components/report-button'
 import { ReportCreateAction } from './_components/report-create-action'
-import { useReportLink, useReports } from './_hooks'
+import {
+  ReportListItem,
+  useDeleteReport,
+  useReportLink,
+  useReports,
+} from './_hooks'
 import { SearchInput } from '../../../components/table/search-input'
 
+type ReportPublicationStatus = 'draft' | 'published'
+
+const reportStatusClassName: Record<ReportPublicationStatus, string> = {
+  draft: 'outline-stone-300 text-stone-300',
+  published: 'outline-black text-black',
+}
+
+const reportStatusLabel: Record<ReportPublicationStatus, string> = {
+  draft: 'Draft',
+  published: 'Published',
+}
+
+const ReportStatusBadge = ({ publishedAt }: { publishedAt: string | null }) => {
+  const status: ReportPublicationStatus = publishedAt ? 'published' : 'draft'
+
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full items-center justify-center gap-1 overflow-hidden rounded-lg px-2 py-0.5 outline outline-1 outline-offset-[-1px]',
+        reportStatusClassName[status],
+      )}
+    >
+      <span className="truncate text-xs font-semibold leading-4">
+        {reportStatusLabel[status]}
+      </span>
+    </span>
+  )
+}
+
+const ReportDeleteAction = ({ report }: { report: ReportListItem }) => {
+  const deleteReport = useDeleteReport(report.id)
+
+  return (
+    <TableRowDeleteAction
+      entityName="report"
+      itemName={report.name}
+      mutation={deleteReport}
+    />
+  )
+}
+
 const ReportFeature = () => {
+  const { access } = useAccessControl()
   const {
     data,
     query,
@@ -35,6 +104,10 @@ const ReportFeature = () => {
     isFetchingNextPage,
   } = useReports(undefined, true)
   const reportLink = useReportLink()
+  const reportEditLink = useCallback(
+    (report: ReportListItem) => getEditModeHref(reportLink(report)),
+    [reportLink],
+  )
   const selectedIndicatorIds = useMemo(
     () => normalizeFilterValues(query?.indicatorId),
     [query?.indicatorId],
@@ -58,10 +131,179 @@ const ReportFeature = () => {
   const showGeometriesFilter = selectedGeometriesIds.length > 0
   const showGeometriesRunFilter = Boolean(query?.geometriesRunId)
   const geographicBounds = getGeographicBoundsFromQuery(query)
+  const { data: selectedProductRun } = useProductRun(
+    query?.productRunId,
+    Boolean(query?.productRunId),
+  )
+  const { data: selectedDatasetRun } = useDatasetRun(
+    query?.datasetRunId,
+    Boolean(query?.datasetRunId),
+  )
+  const { data: selectedGeometriesRun } = useGeometriesRun(
+    query?.geometriesRunId,
+    Boolean(query?.geometriesRunId),
+  )
+  const { data: selectedIndicators } = useIndicators(
+    { indicatorIds: selectedIndicatorIds },
+    false,
+    selectedIndicatorIds.length > 0,
+  )
+  const { data: selectedProducts } = useProducts(
+    {
+      productIds: selectedProductIds,
+      size: selectedProductIds.length || undefined,
+    },
+    false,
+    selectedProductIds.length > 0,
+  )
+  const { data: selectedDatasets } = useDatasets(
+    {
+      datasetIds: selectedDatasetIds,
+      size: selectedDatasetIds.length || undefined,
+    },
+    false,
+    selectedDatasetIds.length > 0,
+  )
+  const { data: selectedGeometries } = useAllGeometries(
+    {
+      geometriesIds: selectedGeometriesIds,
+      size: selectedGeometriesIds.length || undefined,
+    },
+    false,
+    selectedGeometriesIds.length > 0,
+  )
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'createdAt', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof ReportListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
+  const columns = useMemo(() => {
+    return [
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <ReportStatusBadge publishedAt={row.original.publishedAt} />
+        ),
+        size: 124,
+      },
+    ] satisfies ColumnDef<ReportListItem>[]
+  }, [])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (selectedIndicatorIds.length > 0) {
+      filters.push({
+        id: 'indicators',
+        label: 'Indicators',
+        value: formatActiveFilterValue(
+          selectedIndicatorIds,
+          selectedIndicators?.data,
+        ),
+        onClear: () => setSearchParams({ indicatorId: undefined }),
+      })
+    }
+
+    if (selectedProductIds.length > 0) {
+      filters.push({
+        id: 'products',
+        label: 'Products',
+        value: formatActiveFilterValue(
+          selectedProductIds,
+          selectedProducts?.data,
+        ),
+        onClear: () => setSearchParams({ productId: undefined }),
+      })
+    }
+
+    if (query?.productRunId) {
+      filters.push({
+        id: 'product-run',
+        label: 'Product run',
+        value: selectedProductRun?.name ?? query.productRunId,
+        onClear: () => setSearchParams({ productRunId: undefined }),
+      })
+    }
+
+    if (selectedDatasetIds.length > 0) {
+      filters.push({
+        id: 'datasets',
+        label: 'Datasets',
+        value: formatActiveFilterValue(
+          selectedDatasetIds,
+          selectedDatasets?.data,
+        ),
+        onClear: () => setSearchParams({ datasetId: undefined }),
+      })
+    }
+
+    if (query?.datasetRunId) {
+      filters.push({
+        id: 'dataset-run',
+        label: 'Dataset run',
+        value: selectedDatasetRun?.name ?? query.datasetRunId,
+        onClear: () => setSearchParams({ datasetRunId: undefined }),
+      })
+    }
+
+    if (selectedGeometriesIds.length > 0) {
+      filters.push({
+        id: 'geometries',
+        label: 'Boundaries',
+        value: formatActiveFilterValue(
+          selectedGeometriesIds,
+          selectedGeometries?.data,
+        ),
+        onClear: () => setSearchParams({ geometriesId: undefined }),
+      })
+    }
+
+    if (query?.geometriesRunId) {
+      filters.push({
+        id: 'geometries-run',
+        label: 'Boundary run',
+        value: selectedGeometriesRun?.name ?? query.geometriesRunId,
+        onClear: () => setSearchParams({ geometriesRunId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    if (query?.published) {
+      filters.push({
+        id: 'published',
+        label: 'Status',
+        value: query.published === 'published' ? 'Published' : 'Draft',
+        onClear: () => setSearchParams({ published: undefined }),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    query?.published,
+    query?.datasetRunId,
+    query?.geometriesRunId,
+    query?.productRunId,
+    selectedDatasetRun?.name,
+    selectedDatasets?.data,
+    selectedDatasetIds,
+    selectedGeometriesRun?.name,
+    selectedGeometries?.data,
+    selectedGeometriesIds,
+    selectedIndicatorIds,
+    selectedIndicators?.data,
+    selectedProductRun?.name,
+    selectedProductIds,
+    selectedProducts?.data,
+    setSearchParams,
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,16 +312,25 @@ const ReportFeature = () => {
         title="Reports"
         description="Create and manage reports in the system."
         actions={<ReportCreateAction />}
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
         toolbar={
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
-              className="w-full md:max-w-md"
+              className="w-full md:w-72"
               placeholder="Search reports"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <div className="flex flex-wrap items-end justify-end gap-3">
-              <div className="min-w-[220px] md:min-w-[260px]">
+            <TableFilterPopover activeFilters={activeFilters}>
+              <div>
                 <IndicatorsSelect
                   title="Filter Indicators"
                   value={selectedIndicatorIds}
@@ -93,7 +344,7 @@ const ReportFeature = () => {
                 />
               </div>
               {showProductFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <ProductSelect
                     title="Filter Products"
                     value={selectedProductIds}
@@ -108,7 +359,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showProductRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <ProductRunSelect
                     title="Filter Product Run"
                     value={query?.productRunId}
@@ -123,7 +374,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showDatasetFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <DatasetSelect
                     title="Filter Datasets"
                     value={selectedDatasetIds}
@@ -138,7 +389,7 @@ const ReportFeature = () => {
                 </div>
               )}
               {showDatasetRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <DatasetRunSelect
                     title="Filter Dataset Run"
                     value={query?.datasetRunId}
@@ -153,9 +404,9 @@ const ReportFeature = () => {
                 </div>
               )}
               {showGeometriesFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <GeometriesSelect
-                    title="Filter Geometries"
+                    title="Filter Boundaries"
                     value={selectedGeometriesIds}
                     onChange={(selected) =>
                       setSearchParams({
@@ -170,9 +421,9 @@ const ReportFeature = () => {
                 </div>
               )}
               {showGeometriesRunFilter && (
-                <div className="min-w-[220px] md:min-w-[260px]">
+                <div>
                   <GeometriesRunSelect
-                    title="Filter Geometries Run"
+                    title="Filter Boundary Run"
                     value={query?.geometriesRunId}
                     geometriesId="*"
                     onChange={(selected) =>
@@ -186,14 +437,33 @@ const ReportFeature = () => {
               )}
               <GeographicBoundsPickerDialog
                 title="Area of Interest"
-                className="min-w-[220px] md:min-w-[260px]"
                 value={geographicBounds}
                 onChange={(bounds) =>
                   setSearchParams(toGeographicBoundsQuery(bounds))
                 }
                 onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
-            </div>
+              <Select
+                value={query?.published ?? 'all'}
+                onValueChange={(value) =>
+                  setSearchParams({
+                    published:
+                      value === 'draft' || value === 'published'
+                        ? value
+                        : undefined,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All reports</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
+            </TableFilterPopover>
           </div>
         }
       >
@@ -201,17 +471,21 @@ const ReportFeature = () => {
           data={data?.data || []}
           isLoading={isLoading}
           baseColumns={baseColumns}
+          extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Report"
           itemLink={reportLink}
-          itemButton={(report) => <ReportButton report={report} />}
+          editLink={reportEditLink}
+          canModifyItem={(report) =>
+            canEditConsoleResource({
+              access,
+              resource: 'report',
+              resourceData: report,
+            })
+          }
+          deleteAction={(report) => <ReportDeleteAction report={report} />}
           query={query}
           onSortChange={setSearchParams}
-        />
-        <Pagination
-          className="justify-end"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
         />
       </ConsoleCrudListFrame>
     </div>

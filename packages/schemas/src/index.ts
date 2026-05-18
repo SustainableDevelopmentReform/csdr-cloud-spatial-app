@@ -1,3 +1,5 @@
+export * from './audit-log'
 export * from './chart'
 export * from './crud'
+export * from './derived-expression'
 export * from './geojson'

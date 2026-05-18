@@ -2,6 +2,9 @@
 
 This document describes the charting system used in reports and dashboards.
 
+Implementation guidance for adding new chart definitions lives in
+[docs/chart-development.md](../chart-development.md).
+
 ---
 
 ## Core Principle: One-to-One Data Mapping

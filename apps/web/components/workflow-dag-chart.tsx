@@ -7,6 +7,8 @@ import {
   CardTitle,
 } from '@repo/ui/components/ui/card'
 import { cn } from '@repo/ui/lib/utils'
+import { workflowDagSchema, type WorkflowStep } from '@repo/schemas/crud'
+import { EmptyPlaceholder } from '~/components/empty-placeholder'
 import {
   CheckCircle2Icon,
   ChevronDownIcon,
@@ -16,47 +18,34 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-interface WorkflowStep {
-  label: string
-  order: number
-  inputs?: Record<string, string>
-  outputs?: Record<string, string>
-  source?: {
-    file?: string
-    line?: number
-    github?: string
-    function?: string
-  }
-  command?: string
-  completed_at?: string
-}
-
 interface WorkflowDagChartProps {
+  emptyMessage?: string
   workflowDag: unknown
   runType: 'dataset' | 'geometries' | 'product'
   isMainRoute?: boolean
 }
 
+export const DEFAULT_LINEAGE_EMPTY_MESSAGE = 'No lineage information available.'
+
+export function LineageEmptyState({
+  message = DEFAULT_LINEAGE_EMPTY_MESSAGE,
+}: {
+  message?: string
+}) {
+  return <EmptyPlaceholder>{message}</EmptyPlaceholder>
+}
+
 export function WorkflowDagChart({
+  emptyMessage = DEFAULT_LINEAGE_EMPTY_MESSAGE,
   workflowDag,
-  runType,
-  isMainRoute,
 }: WorkflowDagChartProps) {
-  if (!workflowDag || !Array.isArray(workflowDag) || workflowDag.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          {isMainRoute
-            ? `No workflow graph JSON available for the main run for this ${runType}.`
-            : `No workflow graph JSON available for this ${runType} run.`}
-        </CardContent>
-      </Card>
-    )
+  const parsedWorkflowDag = workflowDagSchema.safeParse(workflowDag)
+
+  if (!parsedWorkflowDag.success || parsedWorkflowDag.data.length === 0) {
+    return <LineageEmptyState message={emptyMessage} />
   }
 
-  const steps = [...(workflowDag as WorkflowStep[])].sort(
-    (a, b) => a.order - b.order,
-  )
+  const steps = [...parsedWorkflowDag.data].sort((a, b) => a.order - b.order)
 
   return (
     <Card>

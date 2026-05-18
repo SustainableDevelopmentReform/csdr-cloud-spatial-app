@@ -1,7 +1,7 @@
 'use client'
 
-import { GlobeIcon } from 'lucide-react'
 import { ResourceVisibility } from '~/utils/access-control'
+import { ResourceVisibilityIcon } from './resource-visibility-icon'
 
 export const GlobalVisibilityIndicator = ({
   visibility,
@@ -18,7 +18,7 @@ export const GlobalVisibilityIndicator = ({
       className="inline-flex items-center justify-center rounded-full p-0.5"
       title="Global resource"
     >
-      <GlobeIcon aria-hidden className="size-3.5" />
+      <ResourceVisibilityIcon visibility="global" className="size-3.5" />
     </span>
   )
 }

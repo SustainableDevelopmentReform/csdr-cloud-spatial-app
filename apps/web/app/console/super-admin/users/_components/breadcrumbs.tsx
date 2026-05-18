@@ -20,12 +20,6 @@ export const UserBreadcrumbs = () => {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console">Home</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
             <Link href={USERS_BASE_PATH}>Users</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>

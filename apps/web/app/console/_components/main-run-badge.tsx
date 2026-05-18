@@ -1,28 +1,14 @@
-import { Badge, BadgeProps } from '@repo/ui/components/ui/badge'
-
-export const MainRunBadge = ({
-  size = 'md',
-  variant,
-}: {
-  size?: 'xs' | 'md'
-  variant: BadgeProps['variant']
-}) => {
+export const MainRunBadge = ({ size = 'md' }: { size?: 'xs' | 'md' }) => {
   if (size === 'xs') {
     return (
-      <Badge
-        className="text-[10px] h-4 py-1 px-1  rounded-sm font-mono"
-        variant={variant}
-      >
-        Main Run
-      </Badge>
+      <span className="inline-flex h-3 shrink-0 items-center rounded-[3px] border border-neutral-300 bg-neutral-100 px-1 text-[9px] font-medium leading-none text-neutral-700">
+        latest
+      </span>
     )
   }
   return (
-    <Badge
-      className="text-[12px] h-5 py-1.5 px-2 rounded-md font-mono"
-      variant={variant}
-    >
-      Main Run
-    </Badge>
+    <span className="inline-flex h-4 shrink-0 items-center rounded-[4px] border border-neutral-300 bg-neutral-100 px-1.5 text-[10px] font-medium leading-none text-neutral-700">
+      latest
+    </span>
   )
 }

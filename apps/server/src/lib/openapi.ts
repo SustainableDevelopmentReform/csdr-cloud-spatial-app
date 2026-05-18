@@ -26,7 +26,7 @@ function createDefaultValidationHook<E extends Env>(): NonNullable<
   }
 }
 
-export const ValidationIssueSchema = z
+const ValidationIssueSchema = z
   .object({
     path: z
       .array(z.union([z.string(), z.number(), z.null()]))
@@ -36,7 +36,7 @@ export const ValidationIssueSchema = z
   })
   .openapi('ValidationIssue')
 
-export const ValidationErrorResponseSchema = z
+const ValidationErrorResponseSchema = z
   .object({
     statusCode: z.number().int().openapi({ example: 422 }),
     message: z.string().openapi({ example: 'Validation Error' }),
@@ -48,7 +48,7 @@ export const ValidationErrorResponseSchema = z
   })
   .openapi('ValidationErrorResponse')
 
-export const BaseResponseSchema = z
+const BaseResponseSchema = z
   .object({
     statusCode: z.number().int().openapi({ example: 200 }),
     message: z.string().openapi({ example: 'OK' }),
@@ -60,49 +60,6 @@ export const createResponseSchema = <T extends z.ZodTypeAny>(schema: T) =>
   BaseResponseSchema.extend({
     data: schema,
   })
-
-export const createPaginatedResponseSchema = <T extends z.ZodTypeAny>(
-  schema: T,
-  name?: string,
-) =>
-  createResponseSchema(
-    z
-      .object({
-        pageCount: z.number().int().openapi({ example: 5 }),
-        totalCount: z.number().int().openapi({ example: 25 }),
-        data: z.array(schema),
-      })
-      .openapi(name ?? 'PaginatedPayload'),
-  )
-
-export const PaginationQuerySchema = z
-  .object({
-    page: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .openapi({
-        param: {
-          name: 'page',
-          in: 'query',
-        },
-        example: 1,
-      }),
-    size: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .openapi({
-        param: {
-          name: 'size',
-          in: 'query',
-        },
-        example: 10,
-      }),
-  })
-  .openapi('PaginationQuery')
 
 export const validationErrorResponse = {
   description: 'Validation error',

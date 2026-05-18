@@ -1,89 +1,56 @@
 'use client'
 
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
+import {
+  ActiveTableFilter,
+  formatActiveFilterValue,
+  TableFilterPopover,
+} from '~/components/table/filter-popover'
 import BaseCrudTable from '../../../components/table/crud-table'
+import { TableRowDeleteAction } from '../../../components/table/table-row-delete-action'
+import { useAccessControl } from '../../../hooks/use-access-control'
 import { SearchInput } from '../../../components/table/search-input'
+import { canEditConsoleResource } from '../../../utils/access-control'
 import { ConsoleCrudListFrame } from '../_components/console-crud-list-frame'
 import { ConsolePageHeader } from '../_components/console-page-header'
+import { getEditModeHref } from '../_components/resource-detail-mode'
 import {
+  formatBoundsLabel,
   GeographicBoundsPickerDialog,
   getGeographicBoundsFromQuery,
   toGeographicBoundsQuery,
 } from '../_components/geographic-bounds-picker-dialog'
-import { DatasetButton } from '../dataset/_components/dataset-button'
 import { DatasetSelect } from '../dataset/_components/dataset-select'
-import { GeometriesButton } from '../geometries/_components/geometries-button'
+import { useDatasets } from '../dataset/_hooks'
 import { GeometriesSelect } from '../geometries/_components/geometries-select'
-import { IndicatorButtons } from '../indicator/_components/indicator-button'
+import { useAllGeometries } from '../geometries/_hooks'
 import { IndicatorsSelect } from '../indicator/_components/indicators-select'
+import { useIndicators } from '../indicator/_hooks'
 import { ProductsBreadcrumbs } from './_components/breadcrumbs'
 import { ProductCreateAction } from './_components/product-create-action'
-import { ProductButton } from './_components/product-button'
-import { ProductListItem, useProductLink, useProducts } from './_hooks'
+import {
+  ProductListItem,
+  useDeleteProduct,
+  useProductLink,
+  useProducts,
+} from './_hooks'
 
-const columnHelper = createColumnHelper<ProductListItem>()
+const ProductDeleteAction = ({ product }: { product: ProductListItem }) => {
+  const deleteProduct = useDeleteProduct(product.id)
 
-const columns = [
-  columnHelper.accessor((row) => row.mainRun?.outputSummary?.startTime, {
-    id: 'startTime',
-    header: () => <span>Start Time</span>,
-    cell: (info) => {
-      const value = info.getValue()
-      if (!value) return null
-      return new Date(value).toLocaleDateString()
-    },
-    size: 120,
-  }),
-  columnHelper.accessor((row) => row.mainRun?.outputSummary?.endTime, {
-    id: 'endTime',
-    header: () => <span>End Time</span>,
-    cell: (info) => {
-      const value = info.getValue()
-      if (!value) return null
-      return new Date(value).toLocaleDateString()
-    },
-    size: 120,
-  }),
-  columnHelper.display({
-    id: 'indicators',
-    header: () => <span>Indicators</span>,
-    cell: ({ row }) => {
-      return (
-        <IndicatorButtons
-          indicators={row.original.mainRun?.outputSummary?.indicators}
-        />
-      )
-    },
-    size: 120,
-  }),
-  columnHelper.display({
-    id: 'dataset',
-    header: () => <span>Dataset</span>,
-    cell: ({ row }) => {
-      return (
-        row.original.dataset && <DatasetButton dataset={row.original.dataset} />
-      )
-    },
-    size: 120,
-  }),
-  columnHelper.display({
-    id: 'geometries',
-    header: () => <span>Geometries</span>,
-    cell: ({ row }) => {
-      return (
-        row.original.geometries && (
-          <GeometriesButton geometries={row.original.geometries} />
-        )
-      )
-    },
-    size: 120,
-  }),
-] as ColumnDef<ProductListItem>[]
+  return (
+    <TableRowDeleteAction
+      entityName="product"
+      itemName={product.name}
+      mutation={deleteProduct}
+    />
+  )
+}
 
 const ProductFeature = () => {
+  const { access } = useAccessControl()
   const {
     data,
     query,
@@ -107,9 +74,89 @@ const ProductFeature = () => {
     [query?.indicatorId],
   )
   const geographicBounds = getGeographicBoundsFromQuery(query)
-  const baseColumns = useMemo(() => {
-    return ['createdAt'] as const
+  const { data: selectedDatasets } = useDatasets(
+    {
+      datasetIds: selectedDatasetIds,
+      size: selectedDatasetIds.length || undefined,
+    },
+    false,
+    selectedDatasetIds.length > 0,
+  )
+  const { data: selectedGeometries } = useAllGeometries(
+    {
+      geometriesIds: selectedGeometriesIds,
+      size: selectedGeometriesIds.length || undefined,
+    },
+    false,
+    selectedGeometriesIds.length > 0,
+  )
+  const { data: selectedIndicators } = useIndicators(
+    { indicatorIds: selectedIndicatorIds },
+    false,
+    selectedIndicatorIds.length > 0,
+  )
+  const baseColumns = useMemo<ReadonlyArray<keyof ProductListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
+  const activeFilters = useMemo<ActiveTableFilter[]>(() => {
+    const filters: ActiveTableFilter[] = []
+
+    if (selectedDatasetIds.length > 0) {
+      filters.push({
+        id: 'datasets',
+        label: 'Datasets',
+        value: formatActiveFilterValue(
+          selectedDatasetIds,
+          selectedDatasets?.data,
+        ),
+        onClear: () => setSearchParams({ datasetId: undefined }),
+      })
+    }
+
+    if (selectedGeometriesIds.length > 0) {
+      filters.push({
+        id: 'geometries',
+        label: 'Boundaries',
+        value: formatActiveFilterValue(
+          selectedGeometriesIds,
+          selectedGeometries?.data,
+        ),
+        onClear: () => setSearchParams({ geometriesId: undefined }),
+      })
+    }
+
+    if (selectedIndicatorIds.length > 0) {
+      filters.push({
+        id: 'indicators',
+        label: 'Indicators',
+        value: formatActiveFilterValue(
+          selectedIndicatorIds,
+          selectedIndicators?.data,
+        ),
+        onClear: () => setSearchParams({ indicatorId: undefined }),
+      })
+    }
+
+    if (geographicBounds) {
+      filters.push({
+        id: 'geography',
+        label: 'Area',
+        value: formatBoundsLabel(geographicBounds),
+        onClear: () => setSearchParams(toGeographicBoundsQuery(null)),
+      })
+    }
+
+    return filters
+  }, [
+    geographicBounds,
+    selectedDatasets?.data,
+    selectedDatasetIds,
+    selectedGeometries?.data,
+    selectedGeometriesIds,
+    selectedIndicators?.data,
+    selectedIndicatorIds,
+    setSearchParams,
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,16 +165,25 @@ const ProductFeature = () => {
         title="Products"
         description="Create and manage products in the system."
         actions={<ProductCreateAction />}
+        footer={
+          <Pagination
+            hasNextPage={!!hasNextPage}
+            isLoading={isFetchingNextPage}
+            loadedCount={data?.data.length}
+            totalCount={data?.totalCount}
+            onLoadMore={() => fetchNextPage()}
+          />
+        }
         toolbar={
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchInput
-              className="w-full md:max-w-md"
+              className="w-full md:w-72"
               placeholder="Search products"
               value={query?.search ?? ''}
               onChange={(e) => setSearchParams({ search: e.target.value })}
             />
-            <div className="flex flex-wrap items-end justify-end gap-3">
-              <div className="min-w-[220px] md:min-w-[260px]">
+            <TableFilterPopover activeFilters={activeFilters}>
+              <div>
                 <DatasetSelect
                   title="Filter Datasets"
                   value={selectedDatasetIds}
@@ -140,9 +196,9 @@ const ProductFeature = () => {
                   isClearable
                 />
               </div>
-              <div className="min-w-[220px] md:min-w-[260px]">
+              <div>
                 <GeometriesSelect
-                  title="Filter Geometries"
+                  title="Filter Boundaries"
                   value={selectedGeometriesIds}
                   onChange={(selected) =>
                     setSearchParams({
@@ -153,7 +209,7 @@ const ProductFeature = () => {
                   isClearable
                 />
               </div>
-              <div className="min-w-[220px] md:min-w-[260px]">
+              <div>
                 <IndicatorsSelect
                   title="Filter Indicators"
                   value={selectedIndicatorIds}
@@ -168,14 +224,13 @@ const ProductFeature = () => {
               </div>
               <GeographicBoundsPickerDialog
                 title="Area of Interest"
-                className="min-w-[220px] md:min-w-[260px]"
                 value={geographicBounds}
                 onChange={(bounds) =>
                   setSearchParams(toGeographicBoundsQuery(bounds))
                 }
                 onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
-            </div>
+            </TableFilterPopover>
           </div>
         }
       >
@@ -183,18 +238,21 @@ const ProductFeature = () => {
           data={data?.data || []}
           isLoading={isLoading}
           baseColumns={baseColumns}
-          extraColumns={columns}
+          sortOptions={['name', 'createdAt', 'updatedAt']}
           title="Product"
           itemLink={productLink}
-          itemButton={(product) => <ProductButton product={product} />}
+          editLink={(product) => getEditModeHref(productLink(product))}
+          itemActionLabel="View"
+          canModifyItem={(product) =>
+            canEditConsoleResource({
+              access,
+              resource: 'product',
+              resourceData: product,
+            })
+          }
+          deleteAction={(product) => <ProductDeleteAction product={product} />}
           query={query}
           onSortChange={setSearchParams}
-        />
-        <Pagination
-          className="justify-end"
-          hasNextPage={!!hasNextPage}
-          isLoading={isFetchingNextPage}
-          onLoadMore={() => fetchNextPage()}
         />
       </ConsoleCrudListFrame>
     </div>

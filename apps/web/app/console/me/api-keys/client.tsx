@@ -7,7 +7,15 @@ import ApiKeysForm from './_components/form'
 import ApiKeysTable from './_components/table'
 
 const UserFeature = () => {
-  const { data: apiKeys, isOpen, setOpen } = useApiKeys()
+  const {
+    data: apiKeys,
+    isOpen,
+    setOpen,
+    sort,
+    setSort,
+    order,
+    setOrder,
+  } = useApiKeys()
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,7 +33,15 @@ const UserFeature = () => {
           </ApiKeysForm>
         }
       >
-        <ApiKeysTable data={apiKeys?.apiKeys ?? []} />
+        <ApiKeysTable
+          data={apiKeys?.apiKeys ?? []}
+          sort={sort}
+          order={order}
+          onSortChange={(nextSort, nextOrder) => {
+            setSort(nextSort)
+            setOrder(nextOrder)
+          }}
+        />
       </ConsoleCrudListFrame>
     </div>
   )

@@ -6,13 +6,14 @@ import {
   QueryCache,
   QueryClient,
   QueryClientProvider,
+  useQueryClient,
 } from '@tanstack/react-query'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
-import { createContext, useContext, useMemo } from 'react'
-import { createAuthClient, type AuthClient } from '~/utils/authClient'
+import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
+import { createAuthClient, type AuthClient } from '~/utils/auth-client'
 import { toastError } from '~/utils/error-handling'
 
-export const queryClient = new QueryClient({
+const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 24 * 60 * 60 * 1000, // stale time 24 hours
@@ -50,6 +51,36 @@ export const useConfig = () => {
   return useContext(ConfigContext)
 }
 
+const AuthQueryInvalidator = ({ authClient }: { authClient: AuthClient }) => {
+  const session = authClient.useSession()
+  const queryClient = useQueryClient()
+  const previousAuthKey = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (session.data === undefined) {
+      return
+    }
+
+    const currentAuthKey = session.data
+      ? `${session.data.user.id}:${session.data.session.id}`
+      : 'signed-out'
+
+    if (previousAuthKey.current === null) {
+      previousAuthKey.current = currentAuthKey
+      return
+    }
+
+    if (previousAuthKey.current === currentAuthKey) {
+      return
+    }
+
+    previousAuthKey.current = currentAuthKey
+    void queryClient.invalidateQueries()
+  }, [queryClient, session.data])
+
+  return null
+}
+
 interface Props {
   children?: React.ReactNode
   appUrl: string
@@ -70,6 +101,7 @@ const Providers: React.FC<Props> = ({
       <AuthClientContext.Provider value={authClient}>
         <NuqsAdapter>
           <QueryClientProvider client={queryClient}>
+            <AuthQueryInvalidator authClient={authClient} />
             {children}
             <Toaster />
           </QueryClientProvider>

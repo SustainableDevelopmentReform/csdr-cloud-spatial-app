@@ -1,15 +1,5 @@
-import React from 'react'
-import DetailLayout from '../../../components/detail-layout'
-import { ReportBreadcrumbs } from './_components/breadcrumbs'
+import type React from 'react'
 
-const ReportLayout: React.FC<{
-  children?: React.ReactNode
-}> = async ({ children }) => {
-  return (
-    <DetailLayout breadcrumbs={<ReportBreadcrumbs />} showHeaderOnIndex={false}>
-      {children}
-    </DetailLayout>
-  )
-}
+const ReportLayout = ({ children }: { children?: React.ReactNode }) => children
 
 export default ReportLayout

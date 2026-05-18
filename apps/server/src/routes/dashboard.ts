@@ -13,26 +13,27 @@ import type { Polygon } from 'geojson'
 import {
   buildDashboardUsageFilters,
   syncDashboardChartUsages,
-} from '~/lib/chartUsage'
+} from '~/lib/chart-usage'
 import {
   assertDashboardDependenciesExternallyVisible,
   getDashboardVisibilityImpact,
   visibilityImpactSchema,
 } from '~/lib/public-visibility'
+import { deriveDashboardSources } from '~/lib/report-sources'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
+} from '~/lib/auth/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
   toResourceBounds,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -50,14 +51,14 @@ import {
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 
-export const baseDashboardQuery = {
+const baseDashboardQuery = {
   columns: {
     ...baseAclColumns,
     bounds: true,
   },
 } satisfies QueryForTable<'dashboard'>
 
-export const fullDashboardQuery = {
+const fullDashboardQuery = {
   columns: {
     ...baseDashboardQuery.columns,
     content: true,
@@ -104,7 +105,11 @@ const fetchFullDashboardOrThrow = async (
 
   const parsedContent = dashboardContentSchema.parse(record.content)
 
-  return { ...parseBaseDashboard(record), content: parsedContent }
+  return {
+    ...parseBaseDashboard(record),
+    content: parsedContent,
+    sources: await deriveDashboardSources(db, record.id),
+  }
 }
 
 const app = createOpenAPIApp()
@@ -114,7 +119,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:dashboard', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:dashboard', allowPublicRead: true }),
       ],
       request: {
         query: dashboardQuerySchema,
@@ -146,7 +151,7 @@ const app = createOpenAPIApp()
       const baseWhere =
         usageFilters.length > 0
           ? and(
-              buildExplorerReadScope(
+              buildResourceListReadScope(
                 c,
                 dashboard.organizationId,
                 dashboard.visibility,
@@ -154,7 +159,7 @@ const app = createOpenAPIApp()
               ...usageFilters,
               buildGeometryIntersectsFilter(dashboard.bounds, boundsEnvelope),
             )
-          : buildExplorerReadScope(
+          : buildResourceListReadScope(
               c,
               dashboard.organizationId,
               dashboard.visibility,
@@ -196,7 +201,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:dashboard', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:dashboard', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -222,7 +227,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'dashboard',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: dashboardNotFoundError,
       })
       const record = await fetchFullDashboardOrThrow(
@@ -291,6 +296,7 @@ const app = createOpenAPIApp()
           tx,
           insertedDashboard.id,
           payload.content,
+          { activeOrganizationId },
         )
 
         return insertedDashboard
@@ -364,7 +370,14 @@ const app = createOpenAPIApp()
         }
 
         if (payload.content) {
-          await syncDashboardChartUsages(tx, updatedRecord.id, payload.content)
+          await syncDashboardChartUsages(
+            tx,
+            updatedRecord.id,
+            payload.content,
+            {
+              activeOrganizationId: accessRecord.organizationId,
+            },
+          )
         }
 
         if (updatedRecord.visibility !== 'private') {
@@ -540,7 +553,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:dashboard',
-          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -564,11 +576,10 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
-      const sourceAccessRecord = await assertResourceReadable({
+      const sourceAccessRecord = await assertResourceWritable({
         c,
         resource: 'dashboard',
         resourceId: id,
-        scope: 'explorer',
         notFoundError: dashboardNotFoundError,
       })
       const sourceRecord = await fetchFullDashboard(
@@ -606,7 +617,14 @@ const app = createOpenAPIApp()
           })
         }
 
-        await syncDashboardChartUsages(tx, insertedDashboard.id, parsedContent)
+        await syncDashboardChartUsages(
+          tx,
+          insertedDashboard.id,
+          parsedContent,
+          {
+            activeOrganizationId,
+          },
+        )
 
         return insertedDashboard
       })

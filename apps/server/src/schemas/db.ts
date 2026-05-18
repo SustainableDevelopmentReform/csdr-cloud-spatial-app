@@ -16,7 +16,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { organization, user } from './auth'
-import { multiPolygon, polygon } from './customTypes'
+import { multiPolygon, polygon } from './custom-types'
 
 export * from './auth'
 
@@ -76,7 +76,7 @@ const coreBaseResourceColumns = (mainRunRelation: ReferenceConfig['ref']) => ({
   ...baseColumns,
   ...topLevelAclColumns,
   mainRunId: text('main_run_id').references(mainRunRelation, {
-    onDelete: 'cascade',
+    onDelete: 'set null',
   }),
 })
 
@@ -225,6 +225,7 @@ export const productRun = pgTable(
   {
     ...runBaseColumns,
     dataType: productRunDataType('data_type'),
+    mapConfig: jsonb('map_config'),
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),
@@ -332,8 +333,6 @@ export const productOutput = pgTable(
       mode: 'date',
       withTimezone: false,
     }).notNull(),
-    // Will stick to timePoint for now
-    // timeInterval: tstzrange('time_interval'),
   },
   (table) => [
     index('product_output_run_created_at_idx').on(

@@ -1,23 +1,60 @@
 'use client'
 
 import React from 'react'
-import { useSelectedLayoutSegment } from 'next/navigation'
+import {
+  useSelectedLayoutSegment,
+  useSelectedLayoutSegments,
+} from 'next/navigation'
 import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
+import { cn } from '@repo/ui/lib/utils'
+
+const focusedTableSegments = new Set(['api-keys', 'outputs', 'runs'])
 
 const DetailLayout: React.FC<{
   children?: React.ReactNode
   breadcrumbs?: React.ReactNode
+  constrainContent?: boolean
+  showHeaderOnDetail?: boolean
   showHeaderOnIndex?: boolean
-}> = ({ children, breadcrumbs, showHeaderOnIndex = true }) => {
+  showHeaderOnNestedDetail?: boolean
+}> = ({
+  children,
+  breadcrumbs,
+  constrainContent = true,
+  showHeaderOnDetail = true,
+  showHeaderOnIndex = true,
+  showHeaderOnNestedDetail = true,
+}) => {
   const selectedLayoutSegment = useSelectedLayoutSegment()
-  const shouldShowHeader = showHeaderOnIndex || selectedLayoutSegment !== null
+  const selectedLayoutSegments = useSelectedLayoutSegments()
+  const isDetailIndexRoute = selectedLayoutSegments.length === 1
+  const shouldShowHeader =
+    (showHeaderOnIndex || selectedLayoutSegment !== null) &&
+    (showHeaderOnDetail || !isDetailIndexRoute)
+  const isFocusedTableRoute = selectedLayoutSegments.some((segment) =>
+    focusedTableSegments.has(segment),
+  )
+  const isNestedDetailRoute =
+    selectedLayoutSegments.length > 1 && !isFocusedTableRoute
+  const shouldConstrainContent =
+    constrainContent &&
+    selectedLayoutSegments.length > 0 &&
+    !isFocusedTableRoute
+  const shouldShowNestedDetailHeader =
+    showHeaderOnNestedDetail || !isNestedDetailRoute
 
   return (
-    <main>
-      {shouldShowHeader && breadcrumbs ? (
+    <main className={cn('w-full', shouldConstrainContent && 'max-w-[800px]')}>
+      {shouldShowHeader && shouldShowNestedDetailHeader && breadcrumbs ? (
         <ConsolePageHeader breadcrumbs={breadcrumbs} />
       ) : null}
-      <div className={shouldShowHeader ? 'pt-4' : undefined}>{children}</div>
+      <div
+        className={
+          shouldShowHeader && shouldShowNestedDetailHeader ? 'pt-4' : undefined
+        }
+      >
+        {children}
+      </div>
     </main>
   )
 }

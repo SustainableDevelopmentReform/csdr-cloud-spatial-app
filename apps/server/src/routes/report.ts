@@ -9,26 +9,27 @@ import {
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
 import { reportTiptapDocumentSchema } from '@repo/schemas/report-content'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import type { Polygon } from 'geojson'
 import {
   buildReportUsageFilters,
   syncReportChartUsages,
-} from '~/lib/chartUsage'
+} from '~/lib/chart-usage'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
+} from '~/lib/auth/authorization'
+import { assertCanGenerateReportPdf } from '~/lib/auth/policy'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
   toResourceBounds,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -36,6 +37,7 @@ import {
   validationErrorResponse,
 } from '~/lib/openapi'
 import { renderReportPdf } from '~/lib/report-pdf'
+import { assertReportPmtilesUrlsAllowed } from '~/lib/report-pdf-pmtiles'
 import {
   buildPublishedReportPdfKey,
   downloadReportPdf,
@@ -58,7 +60,7 @@ import {
 } from '../schemas/util'
 import { parseQuery } from '../utils/query'
 
-export const baseReportQuery = {
+const baseReportQuery = {
   columns: {
     ...baseAclColumns,
     bounds: true,
@@ -68,7 +70,7 @@ export const baseReportQuery = {
   },
 } satisfies QueryForTable<'report'>
 
-export const fullReportQuery = {
+const fullReportQuery = {
   columns: {
     ...baseReportQuery.columns,
     content: true,
@@ -257,7 +259,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:report', allowPublicRead: true }),
       ],
       request: {
         query: reportQuerySchema,
@@ -286,23 +288,31 @@ const app = createOpenAPIApp()
       const queryParams = c.req.valid('query')
       const usageFilters = buildReportUsageFilters(queryParams)
       const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
+      const publishedFilter =
+        queryParams.published === 'published'
+          ? isNotNull(report.publishedAt)
+          : queryParams.published === 'draft'
+            ? isNull(report.publishedAt)
+            : undefined
       const baseWhere =
         usageFilters.length > 0
           ? and(
-              buildExplorerReadScope(
+              buildResourceListReadScope(
                 c,
                 report.organizationId,
                 report.visibility,
               ),
               ...usageFilters,
+              publishedFilter,
               buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
             )
           : and(
-              buildExplorerReadScope(
+              buildResourceListReadScope(
                 c,
                 report.organizationId,
                 report.visibility,
               ),
+              publishedFilter,
               buildGeometryIntersectsFilter(report.bounds, boundsEnvelope),
             )
       const { meta, query } = await parseQuery(report, queryParams, {
@@ -334,7 +344,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:report', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -360,7 +370,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'report',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: reportNotFoundError,
       })
       const record = await fetchFullReportOrThrow(
@@ -510,7 +520,9 @@ const app = createOpenAPIApp()
         }
 
         if ('content' in data) {
-          await syncReportChartUsages(tx, updatedRecord.id, data.content)
+          await syncReportChartUsages(tx, updatedRecord.id, data.content, {
+            activeOrganizationId: accessRecord.organizationId,
+          })
         }
 
         if (updatedRecord.visibility !== 'private') {
@@ -704,7 +716,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id/pdf',
       middleware: [
-        authMiddleware({ permission: 'read:report', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:report', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -730,7 +742,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'report',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: reportNotFoundError,
       })
       const currentRecord = await fetchReportLifecycleRecord(
@@ -774,6 +786,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('User is not authorized'),
         404: jsonErrorResponse('Report not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to preview report PDF'),
@@ -781,6 +794,7 @@ const app = createOpenAPIApp()
     }),
     async (c) => {
       const { id } = c.req.valid('param')
+      const { actor } = requireOwnedInsertContext(c)
       const accessRecord = await assertResourceWritable({
         c,
         resource: 'report',
@@ -797,6 +811,8 @@ const app = createOpenAPIApp()
       }
 
       assertReportMutable(currentRecord)
+      assertCanGenerateReportPdf(actor)
+      await assertReportPmtilesUrlsAllowed(currentRecord.content)
 
       const pdfBytes = await renderReportPdf({
         reportId: id,
@@ -829,6 +845,7 @@ const app = createOpenAPIApp()
           },
         },
         401: jsonErrorResponse('Unauthorized'),
+        403: jsonErrorResponse('User is not authorized'),
         404: jsonErrorResponse('Report not found'),
         422: validationErrorResponse,
         500: jsonErrorResponse('Failed to publish report'),
@@ -853,6 +870,8 @@ const app = createOpenAPIApp()
       }
 
       assertReportMutable(currentRecord)
+      assertCanGenerateReportPdf(actor)
+      await assertReportPmtilesUrlsAllowed(currentRecord.content)
 
       const pdfKey = buildPublishedReportPdfKey(id)
       const pdfBytes = await renderReportPdf({
@@ -899,7 +918,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:report',
-          skipResourceCheck: true,
         }),
       ],
       request: {
@@ -923,11 +941,10 @@ const app = createOpenAPIApp()
     async (c) => {
       const { id } = c.req.valid('param')
       const { actor, activeOrganizationId } = requireOwnedInsertContext(c)
-      const sourceAccessRecord = await assertResourceReadable({
+      const sourceAccessRecord = await assertResourceWritable({
         c,
         resource: 'report',
         resourceId: id,
-        scope: 'explorer',
         notFoundError: reportNotFoundError,
       })
       const sourceRecord = await fetchReportLifecycleRecord(
@@ -966,7 +983,14 @@ const app = createOpenAPIApp()
           })
         }
 
-        await syncReportChartUsages(tx, insertedReport.id, sourceRecord.content)
+        await syncReportChartUsages(
+          tx,
+          insertedReport.id,
+          sourceRecord.content,
+          {
+            activeOrganizationId,
+          },
+        )
 
         return insertedReport
       })

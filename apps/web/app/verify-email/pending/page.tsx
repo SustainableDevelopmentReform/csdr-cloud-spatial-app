@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import Link from '~/components/link'
 import { useConfig } from '~/components/providers'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 
 const formSchema = z.object({
   email: z.string({ message: 'Email is required' }).email('Email is invalid'),

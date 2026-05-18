@@ -3,39 +3,107 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SelectedDataPoint } from '@repo/plot/types'
 import { updateReportSchema } from '@repo/schemas/crud'
+import {
+  reportTiptapDocumentSchema,
+  type ReportTiptapDocument,
+} from '@repo/schemas/report-content'
 import { SimpleEditor } from '@repo/ui/components/tip-tap/templates/simple/simple-editor'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@repo/ui/components/ui/alert-dialog'
 import { Button } from '@repo/ui/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/ui/components/ui/dropdown-menu'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
 import { LoadingIcon } from '@repo/ui/components/ui/loading-icon'
+import { toast } from '@repo/ui/components/ui/sonner'
+import { Tabs } from '@repo/ui/components/ui/tabs'
+import { Textarea } from '@repo/ui/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@repo/ui/components/ui/tooltip'
 import { formatDateTime } from '@repo/ui/lib/date'
-import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import {
+  Copy,
+  Download,
+  FileText,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Save,
+  Share2,
+  Trash2,
+  Undo2,
+  Upload,
+} from 'lucide-react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
 import {
-  createResourceVisibilityAction,
+  ConsolePrimaryTabsList,
+  ConsolePrimaryTabsTrigger,
+} from '~/app/console/_components/console-tabs'
+import { ConsolePageHeader } from '~/app/console/_components/console-page-header'
+import {
   handleVisibilityImpactError,
   type VisibilityImpactDialogState,
   VisibilityImpactDialog,
 } from '~/app/console/_components/resource-visibility-action'
+import {
+  getResourceVisibilityChangeSummary,
+  ResourceVisibilitySelect,
+} from '~/app/console/_components/resource-detail-mode'
+import { ResourceVisibilityIcon } from '~/app/console/_components/resource-visibility-icon'
 import { ResourcePageState } from '../../_components/resource-page-state'
-import { CrudForm } from '../../../../components/form/crud-form'
+import { DeleteAlertDialog } from '../../../../components/form/delete-alert-dialog'
 import { useConfig } from '../../../../components/providers'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../hooks/useAccessControl'
+} from '../../../../hooks/use-access-control'
+import { useUnsavedChangesWarning } from '../../../../hooks/use-unsaved-changes-warning'
 import { REPORTS_BASE_PATH } from '../../../../lib/paths'
 import {
+  canChangeConsoleResourceVisibility,
   canCreateConsoleResource,
   canEditConsoleResource,
+  formatVisibility,
+  getConsoleResourceVisibilityOptions,
   getCreatedByUserId,
+  type ResourceVisibility,
 } from '../../../../utils/access-control'
+import { toastError } from '../../../../utils/error-handling'
 import { ProductOutputExportListItem } from '../../product/_hooks'
 import { ChartSelectedItem } from '../_components/chart-selected-item'
+import { ReportBreadcrumbs } from '../_components/breadcrumbs'
 import { reportChartFormBuilder } from '../_components/report-chart-editor'
 import { ReportSources } from '../_components/report-sources'
-import { toastError } from '../../../../utils/error-handling'
 import {
+  type ReportDetail,
+  type UpdateReportPayload,
   useDeleteReport,
   useDuplicateReport,
   usePreviewReportVisibility,
@@ -44,6 +112,80 @@ import {
   useUpdateReport,
   useUpdateReportVisibility,
 } from '../_hooks'
+
+type ReportTab = 'overview' | 'sources'
+
+type ReportVisibilityDialogState = VisibilityImpactDialogState & {
+  nextVisibility: ResourceVisibility
+}
+
+const formId = 'report-detail-form'
+
+const emptyReportContent: ReportTiptapDocument = {
+  type: 'doc',
+  content: [],
+}
+
+const getReportPath = (reportId: string) => `${REPORTS_BASE_PATH}/${reportId}`
+
+const getReportFormValues = (report: ReportDetail): UpdateReportPayload => ({
+  name: report.name,
+  description: report.description,
+  content: report.content ?? emptyReportContent,
+})
+
+const toReportTab = (value: string): ReportTab =>
+  value === 'sources' ? 'sources' : 'overview'
+
+const getReportEditorContent = (
+  content: UpdateReportPayload['content'],
+): ReportTiptapDocument => {
+  const parsedContent = reportTiptapDocumentSchema.safeParse(content)
+
+  if (parsedContent.success) {
+    return parsedContent.data
+  }
+
+  return emptyReportContent
+}
+
+const areReportContentsEqual = (
+  first: ReportTiptapDocument,
+  second: ReportTiptapDocument,
+) => JSON.stringify(first) === JSON.stringify(second)
+
+const isReportEditorInteraction = () => {
+  const activeElement = document.activeElement
+
+  return (
+    activeElement instanceof HTMLElement &&
+    activeElement.closest(
+      '.simple-editor-wrapper, [data-report-editor-interaction="true"]',
+    ) !== null
+  )
+}
+
+const ReportTabs = ({
+  onValueChange,
+  value,
+}: {
+  onValueChange: (value: ReportTab) => void
+  value: ReportTab
+}) => (
+  <Tabs
+    value={value}
+    onValueChange={(next) => onValueChange(toReportTab(next))}
+  >
+    <ConsolePrimaryTabsList>
+      <ConsolePrimaryTabsTrigger value="overview">
+        Overview
+      </ConsolePrimaryTabsTrigger>
+      <ConsolePrimaryTabsTrigger value="sources">
+        Sources &amp; Methods
+      </ConsolePrimaryTabsTrigger>
+    </ConsolePrimaryTabsList>
+  </Tabs>
+)
 
 const ReportDetails = () => {
   const { reportId } = useParams<{ reportId: string }>()
@@ -58,9 +200,14 @@ const ReportDetails = () => {
   const { access, activeOrganization, session } = useAccessControl()
   const { apiBaseUrl } = useConfig()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
+  const [activeTab, setActiveTab] = useState<ReportTab>('overview')
+  const [shareCopied, setShareCopied] = useState(false)
   const [selectedDataPoint, setSelectedDataPoint] =
     useState<SelectedDataPoint<ProductOutputExportListItem> | null>(null)
+  const [visibilityDialog, setVisibilityDialog] =
+    useState<ReportVisibilityDialogState | null>(null)
   const [updateErrorDialog, setUpdateErrorDialog] =
     useState<VisibilityImpactDialogState | null>(null)
   const [activePdfAction, setActivePdfAction] = useState<
@@ -69,42 +216,57 @@ const ReportDetails = () => {
   const [hydratedReportVersion, setHydratedReportVersion] = useState<
     string | null
   >(null)
+  const chartDialogInteractionRef = useRef(false)
 
-  const form = useForm({
+  const form = useForm<UpdateReportPayload>({
     resolver: zodResolver(updateReportSchema),
+    defaultValues: {
+      name: '',
+      description: null,
+      content: emptyReportContent,
+    },
   })
   const isDirty = form.formState.isDirty
   const reportVersion = report ? `${report.id}:${report.updatedAt}` : null
 
+  useUnsavedChangesWarning(isDirty)
+
   useEffect(() => {
     if (!report) {
-      setHydratedReportVersion(null)
-      return
+      const timeoutId = window.setTimeout(() => {
+        setHydratedReportVersion(null)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
     }
 
     if (isDirty) {
       return
     }
 
-    form.reset(report)
-    setHydratedReportVersion(reportVersion)
+    form.reset(getReportFormValues(report))
+
+    const timeoutId = window.setTimeout(() => {
+      setHydratedReportVersion(reportVersion)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [form, isDirty, report, reportVersion])
 
-  const reportContent = form.watch('content') ?? { type: 'doc', content: [] }
+  useEffect(() => {
+    if (!shareCopied) {
+      return
+    }
 
-  const formBuilder = useMemo(
-    () => reportChartFormBuilder(setSelectedDataPoint),
-    [setSelectedDataPoint],
-  )
+    const timeoutId = window.setTimeout(() => {
+      setShareCopied(false)
+    }, 2000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [shareCopied])
+
   const isPublished =
     report?.publishedAt !== null && report?.publishedAt !== undefined
-  const canEditDraft =
-    canEditConsoleResource({
-      access,
-      resource: 'report',
-      createdByUserId: getCreatedByUserId(report),
-      resourceData: report,
-    }) && !isPublished
   const requiresOrganizationSwitch =
     useRequiresActiveOrganizationSwitchForWrite({
       access,
@@ -112,15 +274,50 @@ const ReportDetails = () => {
       resource: 'report',
       resourceData: report,
     })
+  const canEditDraft =
+    !!report &&
+    canEditConsoleResource({
+      access,
+      resource: 'report',
+      createdByUserId: getCreatedByUserId(report),
+      resourceData: report,
+    }) &&
+    !isPublished
+  const canEdit = canEditDraft && !requiresOrganizationSwitch
   const canDuplicate = canCreateConsoleResource(access, 'report')
-  const canPublish = Boolean(
-    report &&
-      canEditDraft &&
-      !requiresOrganizationSwitch &&
-      !publishReport.isPending,
+  const canDelete = canEdit
+  const canGenerateReportPdf = access.isSuperAdmin || access.isOrgAdmin
+  const canPublish = canEdit && canGenerateReportPdf
+  const canPreviewPdf = canPublish
+  const isEditMode = searchParams.get('mode') === 'edit' && canEdit
+  const selectedTab = isEditMode ? 'overview' : activeTab
+  const isPdfBusy = activePdfAction !== null || publishReport.isPending
+  const watchedContent = useWatch({ control: form.control, name: 'content' })
+  const reportContent = useMemo(
+    () => getReportEditorContent(watchedContent),
+    [watchedContent],
   )
-  const canPreviewPdf = Boolean(
-    report && canEditDraft && !requiresOrganizationSwitch,
+  const handleChartDialogOpen = useCallback(() => {
+    chartDialogInteractionRef.current = true
+  }, [])
+  const handleChartDialogClose = useCallback(() => {
+    window.setTimeout(() => {
+      chartDialogInteractionRef.current = false
+    }, 0)
+  }, [])
+  const formBuilder = useMemo(
+    () =>
+      reportChartFormBuilder(setSelectedDataPoint, {
+        onChartDialogClose: handleChartDialogClose,
+        onChartDialogOpen: handleChartDialogOpen,
+        readOnly: !isEditMode,
+      }),
+    [
+      handleChartDialogClose,
+      handleChartDialogOpen,
+      isEditMode,
+      setSelectedDataPoint,
+    ],
   )
   const isEditorHydrating = Boolean(
     report && !isDirty && hydratedReportVersion !== reportVersion,
@@ -146,6 +343,22 @@ const ReportDetails = () => {
               'Generating the published PDF and locking the report. This can take a little while.',
           }
         : null
+  const visibilityOptions =
+    report && canEdit
+      ? getConsoleResourceVisibilityOptions({
+          access,
+          currentVisibility: report.visibility,
+          resourceData: report,
+        })
+      : []
+  const canChangeVisibility =
+    report && canEdit
+      ? canChangeConsoleResourceVisibility({
+          access,
+          currentVisibility: report.visibility,
+          resourceData: report,
+        })
+      : false
 
   const downloadPdf = useCallback(
     async (options: {
@@ -196,7 +409,7 @@ const ReportDetails = () => {
   )
 
   const previewReportPdf = useCallback(async () => {
-    if (!report) {
+    if (!report || isDirty || isPdfBusy) {
       return
     }
 
@@ -207,10 +420,10 @@ const ReportDetails = () => {
       action: 'preview',
       fallbackMessage: 'Failed to preview report PDF',
     })
-  }, [downloadPdf, report])
+  }, [downloadPdf, isDirty, isPdfBusy, report])
 
   const downloadPublishedPdf = useCallback(async () => {
-    if (!report) {
+    if (!report || isPdfBusy) {
       return
     }
 
@@ -220,224 +433,598 @@ const ReportDetails = () => {
       action: 'published',
       fallbackMessage: 'Failed to download report PDF',
     })
-  }, [downloadPdf, report])
+  }, [downloadPdf, isPdfBusy, report])
 
-  const formActions = useMemo(() => {
+  const publishCurrentReport = useCallback(() => {
+    if (!canPublish || isDirty || isPdfBusy) {
+      return
+    }
+
+    publishReport.mutate(undefined, {
+      onError: (error) => {
+        toastError(error, 'Failed to publish report')
+      },
+      onSuccess: () => {
+        toast.success('Report published')
+      },
+    })
+  }, [canPublish, isDirty, isPdfBusy, publishReport])
+
+  const copyShareLink = useCallback(async () => {
     if (!report) {
-      return []
+      return
     }
 
-    const actions = []
+    const canonicalUrl = `${window.location.origin}${getReportPath(report.id)}`
 
-    if (!isPublished) {
-      if (canPreviewPdf) {
-        actions.push({
-          title: 'Preview PDF',
-          description:
-            'Generate a temporary PDF preview from the last saved report content. It is not stored. Save any pending changes first.',
-          component: (
-            <Button
-              variant="outline"
-              onClick={() => {
-                void previewReportPdf()
-              }}
-              disabled={isDirty || activePdfAction !== null}
-              className="w-fit"
-            >
-              {activePdfAction === 'preview'
-                ? 'Preparing preview...'
-                : 'Preview PDF'}
+    try {
+      await navigator.clipboard.writeText(canonicalUrl)
+      setShareCopied(true)
+      toast.success('Report link copied')
+    } catch (error) {
+      toastError(error, 'Failed to copy report link')
+    }
+  }, [report])
+
+  const createCopy = useCallback(() => {
+    void duplicateReport
+      .mutateAsync()
+      .then((duplicatedReport) => {
+        if (duplicatedReport?.id) {
+          router.push(`${getReportPath(duplicatedReport.id)}?mode=edit`)
+        }
+      })
+      .catch((error) => {
+        toastError(error, 'Failed to create report copy')
+      })
+  }, [duplicateReport, router])
+
+  const discardEdits = useCallback(() => {
+    if (!report) {
+      return
+    }
+
+    if (
+      isDirty &&
+      !window.confirm(
+        'You have unsaved changes. Are you sure you want to discard your edits?',
+      )
+    ) {
+      return
+    }
+
+    form.reset(getReportFormValues(report))
+    router.replace(getReportPath(report.id))
+  }, [form, isDirty, report, router])
+
+  const openEditMode = useCallback(() => {
+    if (!report) {
+      return
+    }
+
+    router.push(`${getReportPath(report.id)}?mode=edit`)
+  }, [report, router])
+
+  const previewVisibilityChange = useCallback(
+    async (nextVisibility: ResourceVisibility) => {
+      if (!report || nextVisibility === report.visibility) {
+        return
+      }
+
+      const preview = await previewReportVisibility
+        .mutateAsync({ visibility: nextVisibility })
+        .catch((error) => {
+          toastError(error, 'Failed to preview visibility change')
+          return null
+        })
+
+      if (!preview) {
+        return
+      }
+
+      setVisibilityDialog({
+        title: `Change visibility to ${formatVisibility(nextVisibility)}`,
+        description: getResourceVisibilityChangeSummary(
+          'report',
+          nextVisibility,
+        ),
+        impact: preview,
+        nextVisibility,
+      })
+    },
+    [previewReportVisibility, report],
+  )
+
+  const confirmVisibilityChange = useCallback(() => {
+    if (!visibilityDialog || !report) {
+      return
+    }
+
+    updateReportVisibility.mutate(
+      { visibility: visibilityDialog.nextVisibility },
+      {
+        onError: (error) => {
+          toastError(error, 'Failed to update report visibility')
+        },
+        onSuccess: () => {
+          setVisibilityDialog(null)
+          toast.success('Report visibility updated')
+        },
+      },
+    )
+  }, [report, updateReportVisibility, visibilityDialog])
+
+  const submitReport = useCallback(
+    (formData: UpdateReportPayload) => {
+      if (!canEdit) {
+        return
+      }
+
+      updateReport.mutate(formData, {
+        onError: (error) => {
+          handleVisibilityImpactError({
+            error,
+            fallbackMessage: 'Failed to update report',
+            setDialogState: setUpdateErrorDialog,
+          })
+        },
+        onSuccess: () => {
+          form.reset(formData)
+          toast.success('Report saved')
+        },
+      })
+    },
+    [canEdit, form, updateReport],
+  )
+
+  const reportSurfaceClassName = 'w-[864px] max-w-full'
+  const reportEditorClassName = isEditMode
+    ? 'min-w-0 overflow-hidden rounded-2xl bg-card [&_.simple-editor-content]:!max-w-none [&_.simple-editor-wrapper]:!overflow-visible [&_.simple-editor-wrapper]:!rounded-2xl [&_.tiptap-toolbar-group]:!flex-wrap [&_.tiptap-toolbar]:!bottom-auto [&_.tiptap-toolbar]:!h-auto [&_.tiptap-toolbar]:!min-h-11 [&_.tiptap-toolbar]:!rounded-t-2xl [&_.tiptap-toolbar]:!flex-wrap [&_.tiptap-toolbar]:!items-start [&_.tiptap-toolbar]:!overflow-visible [&_.tiptap-toolbar]:!px-2 [&_.tiptap-toolbar]:!py-1 [&_.tiptap-toolbar]:!sticky [&_.tiptap-toolbar]:!top-0'
+    : 'min-w-0 overflow-hidden rounded-2xl bg-card [&_.simple-editor-content]:!max-w-none [&_.simple-editor-wrapper]:!overflow-hidden [&_.simple-editor-wrapper]:!rounded-2xl'
+
+  const showPublishedDownloadAction =
+    !isEditMode && isPublished && report?.publishedPdfAvailable
+  const showMenuDownloadAction =
+    !isPublished && (report?.publishedPdfAvailable ?? false)
+  const showMenuShareAction = !isEditMode && !isPublished
+  const showReportActionsMenu =
+    canPreviewPdf ||
+    showMenuDownloadAction ||
+    canDuplicate ||
+    showMenuShareAction
+  const showReportActionsSeparator =
+    showMenuShareAction &&
+    (canPreviewPdf || showMenuDownloadAction || canDuplicate)
+
+  const reportActions = report ? (
+    <div className="flex w-full max-w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+      {!isEditMode && canEdit ? (
+        <Button onClick={openEditMode} type="button" variant="outline">
+          <Pencil className="h-4 w-4" />
+          Edit
+        </Button>
+      ) : null}
+      {canPublish && !isEditMode ? (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button disabled={isDirty || isPdfBusy} type="button">
+              {publishReport.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {publishReport.isPending ? 'Publishing' : 'Publish Report'}
             </Button>
-          ),
-        })
-      }
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Publish this report?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Publishing is irreversible. This will lock the report and
+                generate the published PDF from the saved report content.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDirty || isPdfBusy}
+                onClick={(event) => {
+                  if (isDirty || isPdfBusy) {
+                    event.preventDefault()
+                    return
+                  }
 
-      const visibilityAction = createResourceVisibilityAction({
-        access,
-        mutation: updateReportVisibility,
-        previewMutation: previewReportVisibility,
-        resourceData: report,
-        successMessage: 'Report visibility updated',
-        visibility: report.visibility,
-      })
-
-      if (visibilityAction) {
-        actions.push(visibilityAction)
-      }
-
-      if (canPublish) {
-        actions.push({
-          title: 'Publish report',
-          description:
-            'Generate the published PDF and lock this report permanently. Save any pending changes first.',
-          buttonVariant: 'default' as const,
-          buttonTitle: 'Publish report',
-          mutation: publishReport,
-          disabled: isDirty,
-          confirmDialog: {
-            title: 'Publish this report?',
-            description:
-              'Publishing is irreversible. This will lock the report and generate the published PDF from the saved report content.',
-            buttonCancelTitle: 'Cancel',
-            buttonConfirmTitle: 'Publish report',
-          },
-        })
-      }
-    }
-
-    if (report.publishedPdfAvailable) {
-      actions.push({
-        title: 'Published PDF',
-        description: 'Download the canonical published PDF for this report.',
-        component: (
-          <Button
-            variant="outline"
-            onClick={() => {
-              void downloadPublishedPdf()
-            }}
-            disabled={activePdfAction !== null}
-            className="w-fit"
-          >
-            {activePdfAction === 'published'
-              ? 'Downloading...'
-              : 'Download PDF'}
+                  publishCurrentReport()
+                }}
+              >
+                Publish report
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+      {showPublishedDownloadAction ? (
+        <Button
+          disabled={isPdfBusy}
+          onClick={() => {
+            void downloadPublishedPdf()
+          }}
+          type="button"
+          variant="outline"
+        >
+          {activePdfAction === 'published' ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {activePdfAction === 'published' ? 'Downloading PDF' : 'Download PDF'}
+        </Button>
+      ) : null}
+      {isPublished && !isEditMode ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button onClick={copyShareLink} type="button">
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {shareCopied ? 'Copied' : 'Copy report link'}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+      {isEditMode ? (
+        <>
+          <Button onClick={discardEdits} type="button" variant="ghost">
+            <Undo2 className="h-4 w-4" />
+            Discard Edits
           </Button>
-        ),
-      })
-    }
-
-    if (canDuplicate) {
-      actions.push({
-        title: 'Duplicate report',
-        description:
-          'Create a new private editable copy in your active organization.',
-        component: (
-          <Button
-            variant="outline"
-            onClick={() => {
-              void duplicateReport.mutateAsync().then((duplicatedReport) => {
-                if (duplicatedReport?.id) {
-                  router.push(`${REPORTS_BASE_PATH}/${duplicatedReport.id}`)
-                }
-              })
-            }}
-            disabled={duplicateReport.isPending}
-            className="w-fit"
-          >
-            {duplicateReport.isPending ? 'Duplicating...' : 'Duplicate'}
+          <Button disabled={updateReport.isPending} form={formId} type="submit">
+            {updateReport.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save
           </Button>
-        ),
-      })
-    }
-
-    return actions
-  }, [
-    access,
-    canDuplicate,
-    canPublish,
-    canPreviewPdf,
-    downloadPublishedPdf,
-    duplicateReport,
-    activePdfAction,
-    isDirty,
-    isPublished,
-    previewReportVisibility,
-    previewReportPdf,
-    publishReport,
-    report,
-    router,
-    updateReportVisibility,
-  ])
+        </>
+      ) : null}
+      {showReportActionsMenu ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label="More report actions"
+              size="icon"
+              variant="outline"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-48">
+            {canPreviewPdf ? (
+              <DropdownMenuItem
+                disabled={isDirty || isPdfBusy}
+                onSelect={() => {
+                  void previewReportPdf()
+                }}
+              >
+                {activePdfAction === 'preview' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                {activePdfAction === 'preview'
+                  ? 'Preparing PDF'
+                  : 'Preview PDF'}
+              </DropdownMenuItem>
+            ) : null}
+            {showMenuDownloadAction ? (
+              <DropdownMenuItem
+                disabled={isPdfBusy}
+                onSelect={() => {
+                  void downloadPublishedPdf()
+                }}
+              >
+                {activePdfAction === 'published' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {activePdfAction === 'published'
+                  ? 'Downloading PDF'
+                  : 'Download PDF'}
+              </DropdownMenuItem>
+            ) : null}
+            {canDuplicate ? (
+              <DropdownMenuItem
+                disabled={duplicateReport.isPending}
+                onSelect={createCopy}
+              >
+                {duplicateReport.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {duplicateReport.isPending ? 'Creating copy' : 'Create Copy'}
+              </DropdownMenuItem>
+            ) : null}
+            {showReportActionsSeparator ? <DropdownMenuSeparator /> : null}
+            {showMenuShareAction ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  void copyShareLink()
+                }}
+              >
+                <Share2 className="h-4 w-4" />
+                {shareCopied ? 'Copied' : 'Share'}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  ) : null
 
   return (
-    <ResourcePageState
-      error={reportQuery.error}
-      errorMessage="Failed to load report"
-      isLoading={isPageLoading}
-      loadingMessage="Loading report"
-      notFoundMessage="Report not found"
-    >
-      <div className="relative flex w-[800px] max-w-full flex-col gap-8">
-        {activePdfStatus ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
-            <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 p-6 text-center text-sm text-blue-950 shadow-lg">
-              <div className="shrink-0 scale-150">
-                <LoadingIcon />
+    <div className="flex flex-col bg-neutral-100 text-foreground">
+      <ConsolePageHeader
+        actions={reportActions}
+        breadcrumbs={<ReportBreadcrumbs />}
+        className="border-b border-border"
+      />
+      <ResourcePageState
+        error={reportQuery.error}
+        errorMessage="Failed to load report"
+        isLoading={isPageLoading}
+        loadingMessage="Loading report"
+        notFoundMessage="Report not found"
+      >
+        {report ? (
+          <Form {...form}>
+            <div className="flex flex-col">
+              <div className="flex flex-col p-4">
+                <form
+                  className={`${reportSurfaceClassName} flex flex-col gap-4 rounded-2xl px-4 pb-8 pt-6 sm:px-8`}
+                  id={formId}
+                  onSubmit={form.handleSubmit(submitReport)}
+                >
+                  {activePdfStatus ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
+                      <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 p-6 text-center text-sm text-blue-950 shadow-lg">
+                        <div className="shrink-0 scale-150">
+                          <LoadingIcon />
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {activePdfStatus.title}
+                          </p>
+                          <p className="mt-2">{activePdfStatus.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {requiresOrganizationSwitch && !isPublished ? (
+                    <ActiveOrganizationWriteWarning
+                      visibility={report.visibility}
+                    />
+                  ) : null}
+
+                  {isPublished ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                      <p className="font-semibold">Published report</p>
+                      <p className="mt-1">
+                        Published {formatDateTime(report.publishedAt)}. This
+                        report is locked and can no longer be changed.
+                      </p>
+                      <p className="mt-2">
+                        The downloadable PDF is the canonical published report.
+                        This live view remains available for browsing,
+                        provenance, and link sharing.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-start justify-between gap-4">
+                    {isEditMode ? (
+                      <div className="flex w-full max-w-[462px] flex-col items-start gap-2">
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem className="w-full">
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="h-9 rounded-lg border-input bg-transparent px-3 py-1 text-xl font-semibold leading-7 shadow-none"
+                                  placeholder="Report name"
+                                  value={field.value ?? ''}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem className="w-full">
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  className="min-h-24 resize-y rounded-lg border-input bg-transparent px-3 py-2 text-sm leading-5 shadow-none"
+                                  placeholder="Description"
+                                  rows={3}
+                                  value={field.value ?? ''}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <ResourceVisibilitySelect
+                          canChange={canChangeVisibility}
+                          currentVisibility={report.visibility}
+                          isPending={
+                            previewReportVisibility.isPending ||
+                            updateReportVisibility.isPending
+                          }
+                          options={visibilityOptions}
+                          onPreviewChange={previewVisibilityChange}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex max-w-[720px] flex-1 flex-col gap-1">
+                        <h1 className="text-xl font-semibold leading-7 text-card-foreground">
+                          {report.name ?? 'Untitled report'}
+                        </h1>
+                        <p className="text-sm leading-5 text-muted-foreground">
+                          {report.description ?? 'No description'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium leading-5 text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <ResourceVisibilityIcon
+                              className="h-3 w-3"
+                              visibility={report.visibility}
+                            />
+                            {formatVisibility(report.visibility)}
+                          </span>
+                          {isPublished ? (
+                            <span>
+                              Published {formatDateTime(report.publishedAt)}
+                            </span>
+                          ) : (
+                            <span>Draft</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedTab === 'overview' ? (
+                    <div className="flex flex-col gap-4">
+                      {!isEditMode ? (
+                        <ReportTabs
+                          value={selectedTab}
+                          onValueChange={setActiveTab}
+                        />
+                      ) : null}
+                      <div className={reportEditorClassName}>
+                        <SimpleEditor
+                          key={`${report.id}:${report.updatedAt ?? 'unknown'}:${isEditMode ? 'editable' : 'readonly'}`}
+                          onUpdate={(json) => {
+                            if (!isEditMode) {
+                              return
+                            }
+
+                            const nextContent =
+                              reportTiptapDocumentSchema.safeParse(json)
+
+                            if (!nextContent.success) {
+                              return
+                            }
+
+                            const currentContent = getReportEditorContent(
+                              form.getValues('content'),
+                            )
+
+                            if (
+                              areReportContentsEqual(
+                                currentContent,
+                                nextContent.data,
+                              )
+                            ) {
+                              return
+                            }
+
+                            if (
+                              !form.formState.isDirty &&
+                              !isReportEditorInteraction() &&
+                              !chartDialogInteractionRef.current
+                            ) {
+                              return
+                            }
+
+                            form.setValue('content', nextContent.data, {
+                              shouldDirty: true,
+                              shouldTouch: true,
+                            })
+                          }}
+                          content={reportContent}
+                          chartFormBuilder={formBuilder}
+                          editable={isEditMode}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      <ReportTabs
+                        value={selectedTab}
+                        onValueChange={setActiveTab}
+                      />
+                      <ReportSources sources={report.sources} />
+                    </div>
+                  )}
+                </form>
+
+                {canDelete ? (
+                  <div
+                    className={`${reportSurfaceClassName} mt-4 flex shrink-0 justify-end border-t border-border px-4 pt-6 sm:px-8`}
+                  >
+                    <DeleteAlertDialog
+                      buttonIcon={<Trash2 className="h-4 w-4" />}
+                      buttonTitle="Delete Report"
+                      buttonVariant="destructive"
+                      confirmDialog={{
+                        title: 'Delete report?',
+                        description: `This action cannot be undone. This will permanently delete ${report.name ?? 'this report'}.`,
+                        buttonCancelTitle: 'Cancel',
+                        buttonConfirmTitle: 'Delete Report',
+                      }}
+                      mutation={deleteReport}
+                    />
+                  </div>
+                ) : null}
               </div>
-              <div>
-                <p className="font-semibold">{activePdfStatus.title}</p>
-                <p className="mt-2">{activePdfStatus.description}</p>
-              </div>
+
+              <ChartSelectedItem
+                selectedDataPoint={selectedDataPoint}
+                onSelect={setSelectedDataPoint}
+              />
+              <VisibilityImpactDialog
+                open={visibilityDialog !== null}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setVisibilityDialog(null)
+                  }
+                }}
+                title={visibilityDialog?.title ?? 'Change visibility'}
+                description={visibilityDialog?.description ?? ''}
+                impact={visibilityDialog?.impact ?? null}
+                closeLabel="Cancel"
+                confirmLabel="Confirm"
+                confirmDisabled={!visibilityDialog?.impact.canApply}
+                confirmLoading={updateReportVisibility.isPending}
+                onConfirm={confirmVisibilityChange}
+              />
+              <VisibilityImpactDialog
+                open={updateErrorDialog !== null}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setUpdateErrorDialog(null)
+                  }
+                }}
+                title={updateErrorDialog?.title ?? 'Update blocked'}
+                description={updateErrorDialog?.description ?? ''}
+                impact={updateErrorDialog?.impact ?? null}
+                closeLabel="Close"
+              />
             </div>
-          </div>
+          </Form>
         ) : null}
-        {requiresOrganizationSwitch && !isPublished ? (
-          <ActiveOrganizationWriteWarning visibility={report?.visibility} />
-        ) : null}
-        {isPublished ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-semibold">Published report</p>
-            <p className="mt-1">
-              Published {formatDateTime(report?.publishedAt ?? null)}. This
-              report is locked and can no longer be changed.
-            </p>
-            <p className="mt-2">
-              The downloadable PDF is the canonical published report. This live
-              view remains available for browsing, provenance, and link sharing.
-            </p>
-          </div>
-        ) : null}
-        <CrudForm
-          form={form}
-          mutation={updateReport}
-          deleteMutation={deleteReport}
-          actions={formActions}
-          entityName="Report"
-          entityNamePlural="reports"
-          onError={(error) => {
-            handleVisibilityImpactError({
-              error,
-              fallbackMessage: 'Failed to update report',
-              setDialogState: setUpdateErrorDialog,
-            })
-          }}
-          readOnly={!canEditDraft}
-          successMessage="Updated Report"
-        >
-          {report ? (
-            <SimpleEditor
-              key={`${report.id}:${report.updatedAt ?? 'unknown'}:${canEditDraft ? 'editable' : 'readonly'}`}
-              onUpdate={(json) => {
-                form.setValue('content', json, {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                })
-              }}
-              content={reportContent}
-              chartFormBuilder={formBuilder}
-              editable={canEditDraft}
-            />
-          ) : null}
-        </CrudForm>
-        {report ? <ReportSources sources={report.sources} /> : null}
-        <ChartSelectedItem
-          selectedDataPoint={selectedDataPoint}
-          onSelect={setSelectedDataPoint}
-        />
-        <VisibilityImpactDialog
-          open={updateErrorDialog !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setUpdateErrorDialog(null)
-            }
-          }}
-          title={updateErrorDialog?.title ?? 'Update blocked'}
-          description={updateErrorDialog?.description ?? ''}
-          impact={updateErrorDialog?.impact ?? null}
-          closeLabel="Close"
-        />
-      </div>
-    </ResourcePageState>
+      </ResourcePageState>
+    </div>
   )
 }
 

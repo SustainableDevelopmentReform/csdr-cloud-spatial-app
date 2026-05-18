@@ -10,8 +10,9 @@ const project = resolve(process.cwd(), 'tsconfig.json')
 
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
-  extends: ['eslint:recommended', 'turbo', 'plugin:react-hooks/recommended'],
-  plugins: ['only-warn', 'react-hooks'],
+  extends: ['eslint:recommended', 'turbo'],
+  parser: '@typescript-eslint/parser',
+  plugins: ['only-warn', 'react-hooks', '@typescript-eslint'],
   globals: {
     React: true,
     JSX: true,
@@ -39,5 +40,15 @@ module.exports = {
   rules: {
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': 'error',
+    'no-unused-vars': 'off',
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+        varsIgnorePattern: '^_',
+      },
+    ],
   },
 }

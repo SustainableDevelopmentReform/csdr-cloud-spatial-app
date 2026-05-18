@@ -74,6 +74,7 @@
     },
     "test:unit": {
       "inputs": [
+        "$TURBO_DEFAULT$",
         ".env*"
       ],
       "persistent": true
@@ -101,6 +102,7 @@
     "NODE_ENV",
     "PORT",
     "TRUSTED_ORIGINS",
+    "PMTILES_ALLOWED_ORIGINS",
     "DEV_USE_INTERNAL_BACKEND_URL_IN_FRONTEND",
     "DATABASE_HOST",
     "DATABASE_PORT",

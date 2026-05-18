@@ -141,7 +141,7 @@ Roles are scoped to a specific organization. Users may hold different roles in d
 
 - Can create `dashboard` and `report` in the organization.
 - Can edit/delete only the `dashboard` and `report` resources they created.
-- Can publish only the reports they created.
+- Cannot publish reports or generate report PDFs.
 - Read access to all resources in the active organization.
 - Cannot create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, or their child resources.
 - Cannot change visibility of any resource.
@@ -303,7 +303,8 @@ Notes:
 - Public reads are available anonymously (when enabled) only for `global` listing routes and `public`/`global` detail routes.
 - Visibility changes follow the transition matrix above (not shown in this table).
 - Reports are draft-editable only. Once published, edit/delete/visibility change/unpublish are no longer allowed.
-- Report publish permission follows report write permission: `org_creator` may publish own reports and `org_admin` may publish any report in the org.
+- Report publishing and draft PDF preview are restricted to `org_admin` and `super_admin`.
+- Published PDF downloads remain governed by report read access because they do not trigger server-side browser rendering.
 
 ## Logging Requirements
 
@@ -397,31 +398,32 @@ For resources created before org ACL fields exist, migration must:
 2. All top-level ACL resources require `organizationId`, a creator at creation time, and valid visibility (`private`/`public`/`global`); creator attribution may become null after user deletion.
 3. `org_viewer` cannot create, edit, or delete any resources.
 4. `org_creator` can create `dashboard` and `report`, and can edit/delete only their own dashboards and reports.
-5. `org_creator` cannot change visibility of any resource.
-6. `org_creator` cannot create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, or their child resources.
-7. `org_admin` can create/edit/delete all resource types within their organization.
-8. `org_admin` can invite/remove users and change roles within their organization.
-9. Only `super_admin` can move a resource into or out of `global`.
-10. Making a `product`, `derivedIndicator`, `dashboard`, or `report` externally visible fails if any required upstream dependency is `private`, with clear error messaging.
-11. Draft report publishing is allowed only for users who can write that report.
-12. Published reports reject update, delete, visibility-change, and re-publish requests.
-13. Published report PDF downloads use the same read authorization as report detail access.
-14. MFA is enforced for `super_admin` and `org_admin`.
-15. Console list queries are scoped to the active org plus `global` resources.
-16. Explorer list queries include active org resources + `global` resources from all orgs.
-17. Anonymous users can list `global` resources and read `public`/`global` details only (when anonymous access is enabled).
-18. Anonymous access is configurable at the platform level.
-19. Child resource access always follows parent access.
-20. Organization admin floor is enforced (cannot remove/demote last admin).
-21. Visibility transitions are enforced exactly per matrix in this document.
-22. Making an upstream dependency private returns a warning about externally visible dependents but does not block the change.
-23. Product external visibility requires a main run with an output summary.
-24. Any authenticated user can create and manage their own API keys.
-25. Migration/backfill is completed with idempotent fallback behavior and reporting.
-26. Audit log captures all write/security/authentication events listed above.
-27. Read log captures all read/list/export/download events (allow + deny) across all resource types.
-28. Log retention/privacy requirements are enforced.
-29. Standard resource routes reject anonymous writes and any access to org-management data.
+5. `org_creator` cannot publish reports or generate report PDFs.
+6. `org_creator` cannot change visibility of any resource.
+7. `org_creator` cannot create/edit/delete `dataset`, `geometries`, `product`, `indicatorCategory`, `indicator`, `derivedIndicator`, or their child resources.
+8. `org_admin` can create/edit/delete all resource types within their organization.
+9. `org_admin` can invite/remove users and change roles within their organization.
+10. Only `super_admin` can move a resource into or out of `global`.
+11. Making a `product`, `derivedIndicator`, `dashboard`, or `report` externally visible fails if any required upstream dependency is `private`, with clear error messaging.
+12. Draft report publishing and draft PDF preview are allowed only for `org_admin` and `super_admin`.
+13. Published reports reject update, delete, visibility-change, and re-publish requests.
+14. Published report PDF downloads use the same read authorization as report detail access.
+15. MFA is enforced for `super_admin` and `org_admin`.
+16. Console list queries are scoped to the active org plus `global` resources.
+17. Explorer list queries include active org resources + `global` resources from all orgs.
+18. Anonymous users can list `global` resources and read `public`/`global` details only (when anonymous access is enabled).
+19. Anonymous access is configurable at the platform level.
+20. Child resource access always follows parent access.
+21. Organization admin floor is enforced (cannot remove/demote last admin).
+22. Visibility transitions are enforced exactly per matrix in this document.
+23. Making an upstream dependency private returns a warning about externally visible dependents but does not block the change.
+24. Product external visibility requires a main run with an output summary.
+25. Any authenticated user can create and manage their own API keys.
+26. Migration/backfill is completed with idempotent fallback behavior and reporting.
+27. Audit log captures all write/security/authentication events listed above.
+28. Read log captures all read/list/export/download events (allow + deny) across all resource types.
+29. Log retention/privacy requirements are enforced.
+30. Standard resource routes reject anonymous writes and any access to org-management data.
 
 ## Deferred (Post-MVP)
 

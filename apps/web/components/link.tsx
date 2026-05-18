@@ -8,6 +8,7 @@ interface Props extends LinkProps {
   children?: React.ReactNode
   end?: boolean
   className?: string
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>
   tabIndex?: number
 }
 

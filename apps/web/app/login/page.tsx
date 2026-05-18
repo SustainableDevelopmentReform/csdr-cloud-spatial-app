@@ -1,5 +1,5 @@
 import Link from '../../components/link'
-import { getUserServerSession } from '~/utils/getUserServerSession'
+import { getUserServerSession } from '~/utils/get-user-server-session'
 import { redirect } from 'next/navigation'
 import AuthPageShell from '../_components/auth-page-shell'
 import LoginForm from './_components/form'

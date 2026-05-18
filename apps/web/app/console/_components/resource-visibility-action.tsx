@@ -85,7 +85,7 @@ export type VisibilityImpactDialogState = {
   title: string
 }
 
-export const getVisibilityImpactDialogStateFromError = (
+const getVisibilityImpactDialogStateFromError = (
   error: unknown,
 ): VisibilityImpactDialogState | null => {
   const visibilityImpactError = visibilityImpactErrorSchema.safeParse(error)
@@ -150,7 +150,7 @@ const formatResourceType = (
     case 'dataset':
       return 'Dataset'
     case 'geometries':
-      return 'Geometries'
+      return 'Boundaries'
     case 'product':
       return 'Product'
     case 'indicator':

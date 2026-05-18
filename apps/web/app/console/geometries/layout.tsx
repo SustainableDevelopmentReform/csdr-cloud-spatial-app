@@ -8,7 +8,10 @@ const GeometriesLayout: React.FC<{
   return (
     <DetailLayout
       breadcrumbs={<GeometriesBreadcrumbs />}
+      constrainContent={false}
+      showHeaderOnDetail={false}
       showHeaderOnIndex={false}
+      showHeaderOnNestedDetail={false}
     >
       {children}
     </DetailLayout>

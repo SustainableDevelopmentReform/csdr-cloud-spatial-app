@@ -10,12 +10,12 @@ import {
   TabsTrigger,
 } from '@repo/ui/components/ui/tabs'
 import { toast } from '@repo/ui/components/ui/sonner'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, KeyRound, Mail, Smartphone } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { OTPCodeInput } from '~/components/otp-code-input'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import { getAuthErrorMessage } from '~/utils/auth-errors'
 
 interface TwoFactorFormProps {
@@ -26,6 +26,7 @@ interface TwoFactorFormProps {
 export default function TwoFactorForm(props: TwoFactorFormProps) {
   const authClient = useAuthClient()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState('totp')
   const [totpCode, setTotpCode] = useState('')
   const [emailCode, setEmailCode] = useState('')
@@ -33,7 +34,9 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
   const [trustDevice, setTrustDevice] = useState(false)
   const [emailOtpSent, setEmailOtpSent] = useState(false)
 
-  const finishSuccess = () => {
+  const finishSuccess = async () => {
+    await queryClient.invalidateQueries()
+
     if (props.onSuccess) {
       props.onSuccess()
       return
@@ -70,7 +73,7 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
         throw res.error
       }
 
-      finishSuccess()
+      await finishSuccess()
     },
     onError(error) {
       toast.error(getAuthErrorMessage(error))
@@ -88,7 +91,7 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
         throw res.error
       }
 
-      finishSuccess()
+      await finishSuccess()
     },
     onError(error) {
       toast.error(getAuthErrorMessage(error))
@@ -106,7 +109,7 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
         throw res.error
       }
 
-      finishSuccess()
+      await finishSuccess()
     },
     onError(error) {
       toast.error(getAuthErrorMessage(error))
@@ -152,7 +155,7 @@ export default function TwoFactorForm(props: TwoFactorFormProps) {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full">
+        <TabsList className="mx-auto w-fit justify-center">
           <TabsTrigger value="totp">
             <Smartphone className="mr-2 h-4 w-4" />
             App

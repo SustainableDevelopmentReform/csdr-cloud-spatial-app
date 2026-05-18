@@ -8,6 +8,14 @@ import { CalendarIcon } from 'lucide-react'
 import { ChangeEvent, useState } from 'react'
 import { InputGroup, InputGroupButton, InputGroupInput } from './input-group'
 
+const toValidDate = (date: Date | undefined) => {
+  if (!date || !Number.isFinite(date.getTime())) {
+    return undefined
+  }
+
+  return date
+}
+
 export function CalendarSelect({
   value,
   onChange,
@@ -16,10 +24,11 @@ export function CalendarSelect({
   value: Date | undefined
   onChange: (date: Date | undefined) => void
 }) {
+  const selectedValue = toValidDate(value)
   const [open, setOpen] = useState(false)
 
   // Hold the month in state to control the calendar when the input changes
-  const [month, setMonth] = useState(new Date())
+  const [month, setMonth] = useState(selectedValue ?? new Date())
 
   // Hold the input value in state
   const [inputValue, setInputValue] = useState('')
@@ -29,9 +38,10 @@ export function CalendarSelect({
       setInputValue('')
       onChange(undefined)
     } else {
-      onChange(date)
-      setMonth(date)
-      setInputValue(formatDateTime(date))
+      const nativeDate = new Date(date.getTime())
+      onChange(nativeDate)
+      setMonth(nativeDate)
+      setInputValue(formatDateTime(nativeDate))
     }
     setOpen(false)
   }
@@ -61,9 +71,14 @@ export function CalendarSelect({
         Date.UTC(year, month, day, hours, minutes, seconds),
       )
 
+      if (!Number.isFinite(utcDate.getTime())) {
+        onChange(undefined)
+        return
+      }
+
       onChange(utcDate)
       setMonth(utcDate)
-    } catch (error) {
+    } catch (_error) {
       onChange(undefined)
     }
   }
@@ -98,9 +113,13 @@ export function CalendarSelect({
             onMonthChange={setMonth}
             mode="single"
             captionLayout="dropdown"
-            selected={value}
+            selected={selectedValue}
             onSelect={handleDayPickerSelect}
-            footer={value ? `Selected: ${formatDateTime(value)}` : undefined}
+            footer={
+              selectedValue
+                ? `Selected: ${formatDateTime(selectedValue)}`
+                : undefined
+            }
             className="w-full"
             timeZone="UTC"
           />

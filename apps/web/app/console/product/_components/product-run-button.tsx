@@ -1,20 +1,11 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { MainRunBadge } from '../../_components/main-run-badge'
+import { getConsoleSideDrawerOpenSource } from '../../_components/console-side-drawer'
+import { useRunVersionSidebar } from '../../_components/run-version-sidebar'
 import { ProductRunLinkParams, useProductRunLink } from '../_hooks'
-
-export const ProductRunButtons = ({
-  productRuns,
-}: {
-  productRuns: ProductRunLinkParams[]
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {productRuns?.map((productRun) => (
-        <ProductRunButton productRun={productRun} key={productRun.id} />
-      ))}
-    </div>
-  )
-}
+import { SquareFunctionIcon, Table2Icon } from 'lucide-react'
+import type { MouseEventHandler } from 'react'
+import { withDataLibrarySource } from '~/lib/paths'
 
 export const ProductRunButton = ({
   productRun,
@@ -22,13 +13,38 @@ export const ProductRunButton = ({
   productRun: ProductRunLinkParams
 }) => {
   const productRunLink = useProductRunLink()
+  const runVersionSidebar = useRunVersionSidebar()
+  const href = withDataLibrarySource(productRunLink(productRun))
+  const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
+    if (!runVersionSidebar) {
+      return
+    }
+
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    runVersionSidebar.openRunVersion(
+      { id: productRun.id, type: 'product' },
+      { source: getConsoleSideDrawerOpenSource(event.currentTarget) },
+    )
+  }
 
   return (
-    <BadgeLink href={productRunLink(productRun)} variant="productRun">
-      {productRun.product.mainRunId === productRun.id && (
-        <MainRunBadge size="xs" variant="product" />
-      )}
+    <BadgeLink href={href} icon={<Table2Icon />} onClick={handleClick}>
       {productRun.name}
+      <SquareFunctionIcon />
+      {productRun.product.mainRunId === productRun.id && (
+        <MainRunBadge size="xs" />
+      )}
     </BadgeLink>
   )
 }

@@ -12,8 +12,8 @@ import {
 import { Input } from '@repo/ui/components/ui/input'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '~/components/form/crud-form-dialog'
-import { useAccessControl } from '~/hooks/useAccessControl'
-import { useIsHydrated } from '~/hooks/useIsHydrated'
+import { useAccessControl } from '~/hooks/use-access-control'
+import { useIsHydrated } from '~/hooks/use-is-hydrated'
 import { canCreateConsoleResource } from '~/utils/access-control'
 import { useCreateGeometries } from '../_hooks'
 

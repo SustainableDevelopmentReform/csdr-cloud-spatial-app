@@ -12,6 +12,7 @@ import {
   updateIndicatorSchema,
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
+import { validateDerivedExpressionForIndicators } from '@repo/schemas/derived-expression'
 import {
   and,
   count,
@@ -26,14 +27,14 @@ import {
   ensureDerivedIndicatorNotUsedByCharts,
   ensureMeasuredIndicatorNotUsedByCharts,
   fetchChartUsageCounts,
-} from '~/lib/chartUsage'
+} from '~/lib/chart-usage'
 import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
+} from '~/lib/auth/authorization'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
@@ -91,7 +92,7 @@ export const baseDerivedIndicatorQuery = {
   },
 } satisfies QueryForTable<'derivedIndicator'>
 
-export const fullDerivedIndicatorQuery = {
+const fullDerivedIndicatorQuery = {
   ...baseDerivedIndicatorQuery,
   with: {
     ...baseDerivedIndicatorQuery.with,
@@ -116,6 +117,21 @@ const derivedIndicatorNotFoundError = () =>
     message: 'Failed to get derived indicator',
     description: "derived indicator you're looking for is not found",
   })
+
+const assertValidDerivedExpression = (options: {
+  expression: string
+  indicatorIds: readonly string[]
+}): void => {
+  const validationError = validateDerivedExpressionForIndicators(options)
+
+  if (validationError) {
+    throw new ServerError({
+      statusCode: 422,
+      message: 'Invalid derived indicator expression',
+      description: validationError,
+    })
+  }
+}
 
 const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
@@ -165,7 +181,7 @@ export const parseBaseDerivedIndicator = <
   return { ...record, type: 'derived' as const }
 }
 
-export const parseFullDerivedIndicator = <
+const parseFullDerivedIndicator = <
   T extends InferQueryModel<
     'derivedIndicator',
     typeof fullDerivedIndicatorQuery
@@ -209,7 +225,7 @@ const fetchFullDerivedIndicator = async (
       }
     : null
 }
-export const fetchFullDerivedIndicatorOrThrow = async (
+const fetchFullDerivedIndicatorOrThrow = async (
   id: string,
   organizationId: string,
 ) => {
@@ -222,7 +238,7 @@ export const fetchFullDerivedIndicatorOrThrow = async (
   return record
 }
 
-export const fetchFullMeasuredIndicatorOrThrow = async (
+const fetchFullMeasuredIndicatorOrThrow = async (
   id: string,
   organizationId: string,
 ) => {
@@ -246,7 +262,7 @@ const tryReadAccessibleIndicator = async (options: {
       c: options.c,
       resource: options.resource,
       resourceId: options.resourceId,
-      scope: 'explorer',
+      allowPublicRead: true,
       notFoundError: options.notFoundError,
     })
   } catch (error) {
@@ -293,7 +309,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:indicator', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:indicator', allowPublicRead: true }),
       ],
       request: {
         query: indicatorQuerySchema,
@@ -327,7 +343,7 @@ const app = createOpenAPIApp()
         normalizeFilterValues(excludeIndicatorIds)
       const categoryIdsArray = normalizeFilterValues(categoryId)
       const measuredBaseWhere = and(
-        buildExplorerReadScope(
+        buildResourceListReadScope(
           c,
           indicator.organizationId,
           indicator.visibility,
@@ -343,7 +359,7 @@ const app = createOpenAPIApp()
           : undefined,
       )
       const derivedBaseWhere = and(
-        buildExplorerReadScope(
+        buildResourceListReadScope(
           c,
           derivedIndicator.organizationId,
           derivedIndicator.visibility,
@@ -467,8 +483,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:indicator',
-          scope: 'explorer',
-          skipResourceCheck: true,
+          allowPublicRead: true,
         }),
       ],
       request: {
@@ -533,7 +548,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/measured/:id',
       middleware: [
-        authMiddleware({ permission: 'read:indicator', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:indicator', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -559,7 +574,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'indicator',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: indicatorNotFoundError,
       })
       const record = await fetchFullMeasuredIndicatorOrThrow(
@@ -579,9 +594,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:indicator',
-          scope: 'explorer',
-          skipResourceCheck: true,
-          targetResource: 'derivedIndicator',
+          allowPublicRead: true,
         }),
       ],
       request: {
@@ -608,7 +621,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'derivedIndicator',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: derivedIndicatorNotFoundError,
       })
       const record = await fetchFullDerivedIndicatorOrThrow(
@@ -739,10 +752,16 @@ const app = createOpenAPIApp()
           c,
           resource: 'indicator',
           resourceId: indicatorId,
-          scope: 'explorer',
+          allowPublicRead: true,
           notFoundError: derivedIndicatorNotFoundError,
         })
       }
+
+      assertValidDerivedExpression({
+        expression: payload.expression,
+        indicatorIds,
+      })
+
       const data = {
         ...payload,
         categoryId: payload.categoryId ?? null,
@@ -1027,7 +1046,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:indicator',
-          targetResource: 'derivedIndicator',
         }),
       ],
       request: {
@@ -1089,7 +1107,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:indicator',
-          targetResource: 'derivedIndicator',
         }),
       ],
       request: {
@@ -1127,6 +1144,42 @@ const app = createOpenAPIApp()
         resourceId: id,
         notFoundError: derivedIndicatorNotFoundError,
       })
+
+      if (payload.expression !== undefined) {
+        const existingDerivedIndicator =
+          await db.query.derivedIndicator.findFirst({
+            where: (derivedIndicator, { and, eq }) =>
+              and(
+                eq(derivedIndicator.id, id),
+                eq(
+                  derivedIndicator.organizationId,
+                  accessRecord.organizationId,
+                ),
+              ),
+            columns: {
+              id: true,
+            },
+            with: {
+              indicators: {
+                columns: {
+                  indicatorId: true,
+                },
+              },
+            },
+          })
+
+        if (!existingDerivedIndicator) {
+          throw derivedIndicatorNotFoundError()
+        }
+
+        assertValidDerivedExpression({
+          expression: payload.expression,
+          indicatorIds: existingDerivedIndicator.indicators.map(
+            (entry) => entry.indicatorId,
+          ),
+        })
+      }
+
       const data = {
         ...payload,
         ...(payload.categoryId !== undefined && {
@@ -1196,7 +1249,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:indicator',
-          targetResource: 'derivedIndicator',
         }),
       ],
       request: {
@@ -1345,7 +1397,6 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'write:indicator',
-          targetResource: 'derivedIndicator',
         }),
       ],
       request: {

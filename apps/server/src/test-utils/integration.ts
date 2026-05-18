@@ -20,7 +20,7 @@ import { hc } from 'hono/client'
 import { testClient } from 'hono/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import type { ApiRoutesType } from '~/app'
-import { ACTIVE_ORGANIZATION_HEADER } from '~/lib/request-actor'
+import { ACTIVE_ORGANIZATION_HEADER } from '~/lib/auth/request-actor'
 
 const FRONTEND_ORIGIN = 'http://localhost:3000'
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../drizzle/', import.meta.url))
@@ -57,7 +57,7 @@ type IntegrationTestModules = {
   db: DbModule['db']
 }
 
-type AppClient = ReturnType<typeof hc<ApiRoutesType>>
+export type AppClient = ReturnType<typeof hc<ApiRoutesType>>
 
 const createTypedAppClient = (
   app: ApiRoutesType,
@@ -774,6 +774,7 @@ export const setupIsolatedTestFile = async (
 
       const scopedHeaders = new Headers(headers)
       scopedHeaders.set(ACTIVE_ORGANIZATION_HEADER, organizationId)
+      scopedHeaders.set('origin', FRONTEND_ORIGIN)
 
       return scopedHeaders
     },

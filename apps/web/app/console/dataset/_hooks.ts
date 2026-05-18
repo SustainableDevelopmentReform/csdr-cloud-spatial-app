@@ -7,25 +7,41 @@ import {
   updateDatasetRunSchema,
 } from '@repo/schemas/crud'
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
-import { Client, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/api-client'
 import { useParams, useRouter } from 'next/navigation'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
-import { DATASETS_BASE_PATH, DATASETS_RUNS_BASE_PATH } from '../../../lib/paths'
+import { useApiClient } from '../../../hooks/use-api-client'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
+import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
+import {
+  DATASETS_BASE_PATH,
+  DATASETS_RUNS_BASE_PATH,
+  withResourceSection,
+} from '../../../lib/paths'
 import {
   ResourceVisibility,
   VisibilityImpact,
 } from '../../../utils/access-control'
 import { getSearchParams } from '../../../utils/browser'
+import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
+import { dataLibraryQueryKeys } from '../data-library/_hooks'
+
+const invalidateDataLibraryQueries = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({
+    queryKey: dataLibraryQueryKeys.all,
+  })
+}
 
 export type DatasetListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['dataset']['$get'], 200>['data']
@@ -150,18 +166,11 @@ export const useDatasets = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled ?? true,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -206,18 +215,11 @@ export const useDatasetRuns = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: !!datasetId,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -287,6 +289,9 @@ export const useCreateDataset = () => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -337,6 +342,9 @@ export const useUpdateDataset = (_datasetId?: string) => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -357,6 +365,9 @@ export const useUpdateDatasetVisibility = (_datasetId?: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -418,6 +429,7 @@ export const useUpdateDatasetRun = (_datasetRunId?: string) => {
       queryClient.invalidateQueries({
         queryKey: datasetRunQueryKeys.scope(datasetId),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -443,6 +455,9 @@ export const useSetDatasetMainRun = (run?: DatasetRunLinkParams | null) => {
       })
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.detail(run.dataset?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -478,6 +493,9 @@ export const useDeleteDataset = (
       }
       queryClient.invalidateQueries({
         queryKey: datasetQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -530,37 +548,52 @@ export type DatasetLinkParams = Pick<DatasetListItem, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
 }
 
-export const useDatasetsLink = () =>
-  useCallback(
-    (query?: z.infer<typeof datasetQuerySchema>) =>
-      `${DATASETS_BASE_PATH}?${getSearchParams(query ?? {})}`,
-    [],
-  )
+export const useDatasetLink = () => {
+  const withSource = useDataLibrarySourceHref()
 
-export const useDatasetLink = () =>
-  useCallback(
-    (dataset: DatasetLinkParams) => `${DATASETS_BASE_PATH}/${dataset.id}`,
-    [],
+  return useCallback(
+    (dataset: DatasetLinkParams) =>
+      withSource(`${DATASETS_BASE_PATH}/${dataset.id}`),
+    [withSource],
   )
+}
 
-export const useDatasetRunsLink = () =>
-  useCallback(
+export const useDatasetRunsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       dataset: DatasetLinkParams | null,
       query?: z.infer<typeof datasetRunQuerySchema>,
-    ) =>
-      `${DATASETS_BASE_PATH}/${dataset?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-    [],
+    ) => {
+      if (dataset) {
+        return withSource(
+          withResourceSection(
+            `${DATASETS_BASE_PATH}/${dataset.id}?${getSearchParams(query ?? {})}`,
+            'versions',
+          ),
+        )
+      }
+
+      return withSource(
+        `${DATASETS_BASE_PATH}/*/runs?${getSearchParams(query ?? {})}`,
+      )
+    },
+    [withSource],
   )
+}
 
 export type DatasetRunLinkParams = Pick<
   DatasetRunListItem,
   'id' | 'name' | 'dataset'
 >
 
-export const useDatasetRunLink = () =>
-  useCallback(
+export const useDatasetRunLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (datasetRun: DatasetRunLinkParams) =>
-      `${DATASETS_RUNS_BASE_PATH}/${datasetRun.id}`,
-    [],
+      withSource(`${DATASETS_RUNS_BASE_PATH}/${datasetRun.id}`),
+    [withSource],
   )
+}

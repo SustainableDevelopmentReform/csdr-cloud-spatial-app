@@ -1,0 +1,1 @@
+ALTER TABLE "product_run" ADD COLUMN "map_config" jsonb;

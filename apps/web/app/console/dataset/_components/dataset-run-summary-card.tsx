@@ -18,7 +18,9 @@ export const DatasetRunSummaryCard = ({
   return (
     <DetailCard
       title={`Created at ${formatDateTime(run?.createdAt)}`}
-      description={mainRun ? 'Dataset Main Run Summary' : 'Dataset Run Summary'}
+      description={
+        mainRun ? 'Latest Dataset Version Summary' : 'Dataset Run Summary'
+      }
       actionButton={
         run && mainRun ? <DatasetRunButton datasetRun={run} /> : undefined
       }

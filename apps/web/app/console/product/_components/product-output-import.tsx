@@ -46,7 +46,7 @@ import {
 } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { useUnsavedChangesWarning } from '~/hooks/useUnsavedChangesWarning'
+import { useUnsavedChangesWarning } from '~/hooks/use-unsaved-changes-warning'
 import { getUserFacingErrorMessage } from '~/utils/error-handling'
 import { useImportProductOutputs } from '../_hooks'
 import type { IndicatorListItem } from '../../indicator/_hooks'
@@ -140,11 +140,11 @@ const ColumnMappingRow = memo(function ColumnMappingRow({
   )
 
   return (
-    <div className="rounded-md border p-3 space-y-2 bg-card">
+    <div className="rounded-md bg-card p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="font-medium">{column}</div>
         {column === geometryColumn ? (
-          <Badge variant="outline">Geometry column</Badge>
+          <Badge variant="outline">Boundary column</Badge>
         ) : null}
       </div>
       <div className="text-xs text-muted-foreground">
@@ -160,7 +160,7 @@ const ColumnMappingRow = memo(function ColumnMappingRow({
         isClearable
         placeholder={
           column === geometryColumn
-            ? 'Geometry column selected above'
+            ? 'Boundary column selected above'
             : 'Map to a indicator (optional)'
         }
         creatable
@@ -472,6 +472,7 @@ const ProductOutputsImportForm = ({
           ...defaultValues,
           productRunId: productRunId ?? '',
         })
+        dirtyRef.current = false
         resetCsvState()
         onCompleted()
       },
@@ -532,7 +533,7 @@ const ProductOutputsImportForm = ({
                       Drag & drop your CSV file here
                     </p>
                     <p>
-                      Include one row per geometry with columns for each
+                      Include one row per boundary with columns for each
                       indicator.
                     </p>
                     <div className="flex gap-2">
@@ -599,7 +600,7 @@ const ProductOutputsImportForm = ({
             name="geometryColumn"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Geometry column</FormLabel>
+                <FormLabel>Boundary column</FormLabel>
                 <Select
                   value={field.value}
                   onValueChange={(value) => field.onChange(value)}
@@ -621,11 +622,11 @@ const ProductOutputsImportForm = ({
                 <FormDescription>
                   {geometriesRunId ? (
                     <>
-                      Note: the Geometry Output ID will be{' '}
-                      <code>{'$GEOMETRIES_RUN_ID-{column-value}'}</code>.
+                      Note: the Boundary Feature ID will be{' '}
+                      <code>{'<boundary-run-id>-{column-value}'}</code>.
                     </>
                   ) : (
-                    'Each geometry value will be prefixed with the geometries run ID.'
+                    'Each boundary value will be prefixed with the boundary run ID.'
                   )}
                 </FormDescription>
                 <FormMessage />
@@ -674,14 +675,14 @@ const ProductOutputsImportForm = ({
         {csvSummary ? (
           <div className="space-y-2">
             <FormLabel>Data preview</FormLabel>
-            <div className="min-w-0 overflow-x-auto rounded-md border">
-              <table className="w-full min-w-max text-sm">
-                <thead>
+            <div className="min-w-0 overflow-x-auto rounded-md border bg-white">
+              <table className="w-full min-w-max bg-white text-sm">
+                <thead className="bg-white">
                   <tr>
                     {csvSummary.columns.map((column) => (
                       <th
                         key={column}
-                        className="px-2 py-1 text-left font-medium bg-muted/50"
+                        className="bg-white px-2 py-1 text-left font-medium"
                       >
                         {column}
                       </th>
@@ -690,7 +691,7 @@ const ProductOutputsImportForm = ({
                 </thead>
                 <tbody>
                   {csvSummary.previewRows.map((row, index) => (
-                    <tr key={`preview-${index}`} className="odd:bg-muted/30">
+                    <tr key={`preview-${index}`}>
                       {csvSummary.columns.map((column) => (
                         <td key={`${column}-${index}`} className="px-2 py-1">
                           {row[column] ?? ''}

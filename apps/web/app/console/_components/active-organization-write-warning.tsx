@@ -14,7 +14,7 @@ export const ActiveOrganizationWriteWarning = ({
       : 'It is visible here because you can read it from another organization.'
 
   return (
-    <StatusMessage variant="warning">
+    <StatusMessage variant="info">
       {visibilitySentence} Switch to the owning organization in the org switcher
       to edit this resource.
     </StatusMessage>

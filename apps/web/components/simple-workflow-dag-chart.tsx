@@ -1,24 +1,33 @@
 'use client'
 
-export interface WorkflowDagSimple {
-  description: string
-  inputs: string[]
-  methods: string[]
-  outputs: string[]
-  indicators?: string[]
-}
+import { workflowDagSimpleSchema } from '@repo/schemas/crud'
+import {
+  DEFAULT_LINEAGE_EMPTY_MESSAGE,
+  LineageEmptyState,
+} from './workflow-dag-chart'
 
 export function SimpleWorkflowDagChart({
+  emptyMessage = DEFAULT_LINEAGE_EMPTY_MESSAGE,
   workflowDagSimple,
   onMethodClick,
 }: {
-  workflowDagSimple: WorkflowDagSimple
+  emptyMessage?: string
+  workflowDagSimple: unknown
   onMethodClick?: () => void
 }) {
+  const parsedWorkflowDagSimple =
+    workflowDagSimpleSchema.safeParse(workflowDagSimple)
+
+  if (!parsedWorkflowDagSimple.success) {
+    return <LineageEmptyState message={emptyMessage} />
+  }
+
+  const workflow = parsedWorkflowDagSimple.data
+
   return (
     <div className="flex flex-col gap-6">
       <div className="prose prose-sm dark:prose-invert max-w-none">
-        <p>{workflowDagSimple.description}</p>
+        <p>{workflow.description}</p>
       </div>
       <div className="rounded-xl p-6" style={{ background: '#D7D7D7' }}>
         <div className="grid grid-cols-[auto_1fr] gap-x-4">
@@ -27,7 +36,7 @@ export function SimpleWorkflowDagChart({
             Inputs
           </div>
           <div className="flex flex-wrap items-start justify-center gap-4">
-            {workflowDagSimple.inputs.map((input, i) => (
+            {workflow.inputs.map((input, i) => (
               <div
                 key={i}
                 className="max-w-[250px] rounded-lg border bg-background px-6 py-3 text-center text-sm font-medium shadow-sm"
@@ -39,10 +48,10 @@ export function SimpleWorkflowDagChart({
           {/* connector */}
           <div />
           <div className="flex justify-center">
-            {workflowDagSimple.inputs.length > 1 ? (
+            {workflow.inputs.length > 1 ? (
               <svg width="300" height="40">
-                {workflowDagSimple.inputs.map((_, i) => {
-                  const count = workflowDagSimple.inputs.length
+                {workflow.inputs.map((_, i) => {
+                  const count = workflow.inputs.length
                   const x1 = ((i + 0.5) / count) * 300
                   return (
                     <line
@@ -66,7 +75,7 @@ export function SimpleWorkflowDagChart({
             Methods
           </div>
           <div className="flex flex-wrap items-start justify-center gap-4">
-            {workflowDagSimple.methods.map((method, i) => (
+            {workflow.methods.map((method, i) => (
               <div
                 key={i}
                 onClick={onMethodClick}
@@ -87,10 +96,10 @@ export function SimpleWorkflowDagChart({
           {/* connector to outputs */}
           <div />
           <div className="flex justify-center">
-            {workflowDagSimple.outputs.length > 1 ? (
+            {workflow.outputs.length > 1 ? (
               <svg width="300" height="40">
-                {workflowDagSimple.outputs.map((_, i) => {
-                  const count = workflowDagSimple.outputs.length
+                {workflow.outputs.map((_, i) => {
+                  const count = workflow.outputs.length
                   const x2 = ((i + 0.5) / count) * 300
                   return (
                     <line
@@ -114,7 +123,7 @@ export function SimpleWorkflowDagChart({
             Outputs
           </div>
           <div className="flex flex-wrap items-start justify-center gap-4">
-            {workflowDagSimple.outputs.map((output, i) => (
+            {workflow.outputs.map((output, i) => (
               <div
                 key={i}
                 className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
@@ -124,28 +133,27 @@ export function SimpleWorkflowDagChart({
             ))}
           </div>
           {/* INDICATORS (if present) */}
-          {workflowDagSimple.indicators &&
-            workflowDagSimple.indicators.length > 0 && (
-              <>
-                <div />
-                <div className="flex justify-center">
-                  <div className="h-8 w-px" style={{ background: '#737373' }} />
-                </div>
-                <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
-                  Indicators
-                </div>
-                <div className="flex flex-wrap items-start justify-center gap-4">
-                  {workflowDagSimple.indicators.map((indicator, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
-                    >
-                      {indicator}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+          {workflow.indicators && workflow.indicators.length > 0 && (
+            <>
+              <div />
+              <div className="flex justify-center">
+                <div className="h-8 w-px" style={{ background: '#737373' }} />
+              </div>
+              <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider">
+                Indicators
+              </div>
+              <div className="flex flex-wrap items-start justify-center gap-4">
+                {workflow.indicators.map((indicator, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
+                  >
+                    {indicator}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

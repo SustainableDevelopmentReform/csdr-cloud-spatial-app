@@ -14,6 +14,7 @@ const nextConfig = {
       ...config.output,
       environment: {
         ...config.output?.environment,
+        asyncFunction: true,
         module: true,
       },
     }

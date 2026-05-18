@@ -45,7 +45,7 @@ export type SessionAccess = {
 
 export type ResourceVisibility = z.infer<typeof visibilitySchema>
 
-export const visibilityImpactResourceTypeSchema = z.enum([
+const visibilityImpactResourceTypeSchema = z.enum([
   'dataset',
   'geometries',
   'product',
@@ -66,12 +66,12 @@ export const visibilityImpactResourceSchema = z.object({
   visibility: visibilitySchema,
 })
 
-export const visibilityImpactExternalCountSchema = z.object({
+const visibilityImpactExternalCountSchema = z.object({
   resourceType: visibilityImpactResourceTypeSchema,
   count: z.number().int().min(1),
 })
 
-export const visibilityImpactCodeSchema = z.enum([
+const visibilityImpactCodeSchema = z.enum([
   'private_upstream_dependencies',
   'missing_main_run_output_summary',
   'externally_visible_dependents',
@@ -84,16 +84,6 @@ export const visibilityImpactEntrySchema = z.object({
   externalCounts: z.array(visibilityImpactExternalCountSchema),
 })
 
-export const visibilityImpactSchema = z.object({
-  canApply: z.boolean(),
-  blockingIssues: z.array(visibilityImpactEntrySchema),
-  warnings: z.array(visibilityImpactEntrySchema),
-})
-
-export const visibilityImpactResponseSchema = z.object({
-  data: visibilityImpactSchema,
-})
-
 export type VisibilityImpactResource = z.infer<
   typeof visibilityImpactResourceSchema
 >
@@ -101,7 +91,11 @@ export type VisibilityImpactExternalCount = z.infer<
   typeof visibilityImpactExternalCountSchema
 >
 export type VisibilityImpactEntry = z.infer<typeof visibilityImpactEntrySchema>
-export type VisibilityImpact = z.infer<typeof visibilityImpactSchema>
+export type VisibilityImpact = {
+  canApply: boolean
+  blockingIssues: VisibilityImpactEntry[]
+  warnings: VisibilityImpactEntry[]
+}
 
 export type ConsoleResource =
   | 'dashboard'
@@ -152,15 +146,6 @@ const getStringProperty = (value: unknown, key: string): string | undefined => {
   const property = getRecordProperty(value, key)
 
   return typeof property === 'string' ? property : undefined
-}
-
-export const getResourceVisibility = (
-  resource: unknown,
-): ResourceVisibility | undefined => {
-  const visibility = getStringProperty(resource, 'visibility')
-  const parsedVisibility = visibilitySchema.safeParse(visibility)
-
-  return parsedVisibility.success ? parsedVisibility.data : undefined
 }
 
 export const getResourceOrganizationId = (
@@ -255,7 +240,7 @@ export const buildSessionAccess = (input: {
   }
 }
 
-export const canAccessConsole = (access: SessionAccess): boolean =>
+const canAccessConsole = (access: SessionAccess): boolean =>
   access.isAuthenticated
 
 export const canManageWorkspace = (access: SessionAccess): boolean =>

@@ -25,24 +25,29 @@ import {
   persistAuthAuditLog,
   logTwoFactorRouteResult,
   resolveAuthAuditLogContext,
-} from './lib/auth-security'
+} from './lib/auth/security'
 import {
   ACTIVE_ORGANIZATION_HEADER,
   LEGACY_ACTIVE_ORGANIZATION_HEADER,
   loadRequestActor,
-} from './lib/request-actor'
+} from './lib/auth/request-actor'
 import { logger } from './middlewares/logger'
 import { rateLimiter } from './middlewares/rate-limiter'
+import {
+  csrfMiddleware,
+  requestBodyLimitMiddleware,
+} from './middlewares/request-security'
+import dataLibrary from './routes/data-library'
 import dataset from './routes/dataset'
-import datasetRun from './routes/datasetRun'
+import datasetRun from './routes/dataset-run'
 import geometries from './routes/geometries'
-import geometriesRun from './routes/geometriesRun'
-import geometryOutput from './routes/geometryOutput'
+import geometriesRun from './routes/geometries-run'
+import geometryOutput from './routes/geometry-output'
 import product from './routes/product'
-import productOutput from './routes/productOutput'
-import productRun from './routes/productRun'
+import productOutput from './routes/product-output'
+import productRun from './routes/product-run'
 import indicator from './routes/indicator'
-import indicatorCategory from './routes/indicatorCategory'
+import indicatorCategory from './routes/indicator-category'
 import report from './routes/report'
 import dashboard from './routes/dashboard'
 import logs from './routes/logs'
@@ -95,6 +100,8 @@ const toContentfulStatusCode = (statusCode: number): ContentfulStatusCode => {
       return 404
     case 409:
       return 409
+    case 413:
+      return 413
     case 422:
       return 422
     case 429:
@@ -137,6 +144,8 @@ app.use(
 )
 app.use('*', secureHeaders())
 app.use('*', rateLimiter())
+app.use('*', requestBodyLimitMiddleware)
+app.use('*', csrfMiddleware)
 
 app.use('*', async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers })
@@ -178,8 +187,9 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
 
   try {
     await enforceAuthRateLimit(c.req.raw, body)
-    enforceProtectedAuthRouteMfa({
+    await enforceProtectedAuthRouteMfa({
       actor,
+      body,
       request: c.req.raw,
     })
 
@@ -227,7 +237,7 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
 
 const v0ApiBase = app
   .basePath('/api/v0/')
-  // .route('/file', file)
+  .route('/data-library', dataLibrary)
   .route('/dataset', dataset)
   .route('/dataset-run', datasetRun)
   .route('/geometries', geometries)
@@ -252,7 +262,7 @@ v0ApiBase.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
 
 // TODO: add better auth responses here (eg 429 rate limit)
 
-const v0ApiRoutes = v0ApiBase
+export const v0ApiRoutes = v0ApiBase
   .openapi(
     createRoute({
       method: 'get',
@@ -451,6 +461,5 @@ app.notFound((c) =>
   ),
 )
 
-export const apiRoutes = v0ApiRoutes
-export type ApiRoutesType = typeof apiRoutes
+export type ApiRoutesType = typeof v0ApiRoutes
 export default app

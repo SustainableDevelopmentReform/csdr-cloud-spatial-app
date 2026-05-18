@@ -2,9 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { useApiClient } from '~/hooks/useApiClient'
-import { useAuthClient } from '~/hooks/useAuthClient'
-import { unwrapResponse } from '~/utils/apiClient'
+import { useApiClient } from '~/hooks/use-api-client'
+import { useAuthClient } from '~/hooks/use-auth-client'
+import { unwrapResponse } from '~/utils/api-client'
 import { organizationRoleSchema } from '~/utils/access-control'
 
 const memberSchema = z.object({

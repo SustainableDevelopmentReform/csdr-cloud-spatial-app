@@ -15,7 +15,7 @@ import {
 import { Input } from '@repo/ui/components/ui/input'
 import { useForm } from 'react-hook-form'
 import CrudFormDialog from '~/components/form/crud-form-dialog'
-import { useAccessControl } from '~/hooks/useAccessControl'
+import { useAccessControl } from '~/hooks/use-access-control'
 import { canCreateConsoleResource } from '~/utils/access-control'
 import {
   IndicatorListItem,

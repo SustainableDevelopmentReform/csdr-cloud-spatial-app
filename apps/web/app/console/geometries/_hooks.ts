@@ -8,6 +8,7 @@ import {
   importGeometryOutputsSchema,
 } from '@repo/schemas/crud'
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -15,22 +16,34 @@ import {
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
-import { Client, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/api-client'
 import { getSearchParams } from '~/utils/browser'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { useApiClient } from '../../../hooks/use-api-client'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
+import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import {
   GEOMETRIES_BASE_PATH,
   GEOMETRIES_RUNS_BASE_PATH,
   GEOMETRIES_RUNS_OUTPUTS_BASE_PATH,
+  withResourceSection,
 } from '../../../lib/paths'
 import {
   ResourceVisibility,
   VisibilityImpact,
 } from '../../../utils/access-control'
+import { useDataLibrarySourceHref } from '../_hooks/use-data-library-source-href'
+import { dataLibraryQueryKeys } from '../data-library/_hooks'
+
+const invalidateDataLibraryQueries = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({
+    queryKey: dataLibraryQueryKeys.all,
+  })
+}
 
 export type GeometriesListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['geometries']['$get'], 200>['data']
@@ -50,12 +63,6 @@ export type GeometriesRunListResponse = NonNullable<
   >['data']
 >
 export type GeometriesRunListItem = GeometriesRunListResponse['data'][0]
-export type GeometriesRunExportListItem = NonNullable<
-  InferResponseType<
-    Client['api']['v0']['geometries-run'][':id']['outputs']['export']['$get'],
-    200
-  >['data']
->['data'][0]
 export type GeometriesRunDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['geometries-run'][':id']['$get'],
@@ -190,7 +197,7 @@ const geometryOutputQueryKeys = {
     ] as const,
 }
 
-export const useGeometriesParams = (
+const useGeometriesParams = (
   _geometriesId?: string,
   _geometriesRunId?: string,
   _geometryOutputId?: string,
@@ -233,18 +240,11 @@ export const useAllGeometries = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled ?? true,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -289,18 +289,11 @@ export const useGeometriesRuns = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: !!geometriesId,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -351,18 +344,11 @@ export const useGeometryOutputs = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled && !!geometriesRun,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -513,6 +499,9 @@ export const useCreateGeometries = () => {
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -567,6 +556,7 @@ export const useCreateGeometryOutput = () => {
           response?.data?.geometriesRun?.geometries?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -598,6 +588,7 @@ export const useImportGeometryOutputs = () => {
           response?.data?.geometriesRun?.geometries?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
     },
   })
 }
@@ -619,6 +610,9 @@ export const useUpdateGeometries = (_geometriesId?: string) => {
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.all,
       })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
+      })
     },
   })
 }
@@ -639,6 +633,9 @@ export const useUpdateGeometriesVisibility = (_geometriesId?: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -736,6 +733,54 @@ export const useUpdateGeometryOutput = (_geometryOutputId?: string) => {
           response?.data?.geometriesRun?.id,
         ),
       })
+      invalidateDataLibraryQueries(queryClient)
+    },
+  })
+}
+
+export const useDeleteGeometryOutput = (
+  _geometryOutputId?: string,
+  redirect: string | null = null,
+) => {
+  const { geometryOutputId } = useGeometriesParams(
+    undefined,
+    undefined,
+    _geometryOutputId,
+  )
+  const queryClient = useQueryClient()
+  const router = useRouter()
+  const client = useApiClient()
+  return useMutation({
+    mutationFn: async () => {
+      if (!geometryOutputId) return
+      const res = client.api.v0['geometry-output'][':id'].$delete({
+        param: {
+          id: geometryOutputId,
+        },
+      })
+
+      return await unwrapResponse(res)
+    },
+    onSuccess: (response) => {
+      queryClient.removeQueries({
+        queryKey: geometryOutputQueryKeys.detail(response?.data?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometryOutputQueryKeys.scopeByGeometriesRun(
+          response?.data?.geometriesRun?.geometries?.id,
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: geometriesRunQueryKeys.detail(
+          response?.data?.geometriesRun?.id,
+        ),
+      })
+      invalidateDataLibraryQueries(queryClient)
+
+      if (redirect) {
+        router.push(redirect)
+      }
     },
   })
 }
@@ -765,6 +810,9 @@ export const useSetGeometriesMainRun = (
       })
       queryClient.invalidateQueries({
         queryKey: geometriesQueryKeys.detail(run.geometries?.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
     },
   })
@@ -808,6 +856,9 @@ export const useDeleteGeometries = (
       })
       queryClient.invalidateQueries({
         queryKey: geometryOutputQueryKeys.all,
+      })
+      queryClient.invalidateQueries({
+        queryKey: dataLibraryQueryKeys.all,
       })
       if (redirect) {
         router.push(redirect)
@@ -867,60 +918,83 @@ export type GeometriesLinkParams = Pick<GeometriesListItem, 'id' | 'name'> & {
   visibility?: ResourceVisibility | null
 }
 
-export const useAllGeometriesLink = () =>
-  useCallback(
-    (query?: z.infer<typeof geometriesQuerySchema>) =>
-      `${GEOMETRIES_BASE_PATH}?${getSearchParams(query ?? {})}`,
-    [],
-  )
+export const useGeometriesLink = () => {
+  const withSource = useDataLibrarySourceHref()
 
-export const useGeometriesLink = () =>
-  useCallback(
+  return useCallback(
     (geometries: GeometriesLinkParams) =>
-      `${GEOMETRIES_BASE_PATH}/${geometries.id}`,
-    [],
+      withSource(`${GEOMETRIES_BASE_PATH}/${geometries.id}`),
+    [withSource],
   )
+}
 
-export const useGeometriesRunsLink = () =>
-  useCallback(
+export const useGeometriesRunsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       geometries: GeometriesLinkParams | null,
       query?: z.infer<typeof geometriesRunQuerySchema>,
-    ) =>
-      `${GEOMETRIES_BASE_PATH}/${geometries?.id ?? '*'}/runs?${getSearchParams(query ?? {})}`,
-    [],
+    ) => {
+      if (geometries) {
+        return withSource(
+          withResourceSection(
+            `${GEOMETRIES_BASE_PATH}/${geometries.id}?${getSearchParams(query ?? {})}`,
+            'versions',
+          ),
+        )
+      }
+
+      return withSource(
+        `${GEOMETRIES_BASE_PATH}/*/runs?${getSearchParams(query ?? {})}`,
+      )
+    },
+    [withSource],
   )
+}
 
 export type GeometriesRunLinkParams = Pick<
   GeometriesRunDetail,
   'id' | 'name' | 'geometries'
 >
 
-export const useGeometriesRunLink = () =>
-  useCallback(
-    (geometriesRun: GeometriesRunLinkParams) =>
-      `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`,
-    [],
-  )
+export const useGeometriesRunLink = () => {
+  const withSource = useDataLibrarySourceHref()
 
-export const useGeometryRunOutputsLink = () =>
-  useCallback(
+  return useCallback(
+    (geometriesRun: GeometriesRunLinkParams) =>
+      withSource(`${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`),
+    [withSource],
+  )
+}
+
+export const useGeometryRunOutputsLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (
       geometriesRun: GeometriesRunLinkParams,
       query?: z.infer<typeof geometryOutputQuerySchema>,
     ) =>
-      `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}/outputs?${getSearchParams(query ?? {})}`,
-    [],
+      withSource(
+        withResourceSection(
+          `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}?${getSearchParams(query ?? {})}`,
+          'explore',
+          'table',
+        ),
+      ),
+    [withSource],
   )
+}
 
-export type GeometryOutputLinkParams = Pick<
-  GeometryOutputDetail,
-  'id' | 'geometriesRun' | 'name'
->
+export type GeometryOutputLinkParams = Pick<GeometryOutputDetail, 'id' | 'name'>
 
-export const useGeometryOutputLink = () =>
-  useCallback(
+export const useGeometryOutputLink = () => {
+  const withSource = useDataLibrarySourceHref()
+
+  return useCallback(
     (geometryOutput: GeometryOutputLinkParams) =>
-      `${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutput.id}`,
-    [],
+      withSource(`${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutput.id}`),
+    [withSource],
   )
+}

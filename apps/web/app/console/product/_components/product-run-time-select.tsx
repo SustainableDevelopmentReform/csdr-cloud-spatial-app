@@ -14,6 +14,8 @@ type ProductOutputTimeSelectProps = {
   disabled?: boolean
   placeholder?: string
   isClearable?: boolean
+  disabledTimePoints?: readonly string[]
+  disabledTimePointReason?: string
 } & (
   | {
       value: string[]
@@ -27,67 +29,97 @@ type ProductOutputTimeSelectProps = {
     }
 )
 
-export const ProductOutputTimeSelect = ({
-  productRunId,
-  disabled,
-  value,
-  onChange,
-  isMulti,
-  isClearable = true,
-  ...props
-}: ProductOutputTimeSelectProps) => {
+type TimePointOption = SelectOption & {
+  isDisabled: boolean
+}
+
+function toTimePointOption({
+  timePoint,
+  disabledTimePoints,
+  disabledTimePointReason,
+}: {
+  timePoint: string
+  disabledTimePoints: readonly string[]
+  disabledTimePointReason: string | undefined
+}): TimePointOption {
+  const isDisabled = disabledTimePoints.includes(timePoint)
+  const label = formatDateTime(timePoint)
+  return {
+    id: timePoint,
+    name:
+      isDisabled && disabledTimePointReason
+        ? `${label} (${disabledTimePointReason})`
+        : label,
+    isDisabled,
+  }
+}
+
+export const ProductOutputTimeSelect = (
+  props: ProductOutputTimeSelectProps,
+) => {
+  const {
+    productRunId,
+    disabled,
+    disabledTimePoints = [],
+    disabledTimePointReason,
+    isClearable = true,
+  } = props
   const { data: productRun } = useProductRun(productRunId ?? undefined)
 
   const options = useMemo(() => {
-    return productRun?.outputSummary?.timePoints?.map((timePoint) => ({
-      id: timePoint,
-      name: formatDateTime(timePoint),
-    }))
-  }, [productRun])
+    return productRun?.outputSummary?.timePoints?.map((timePoint) =>
+      toTimePointOption({
+        timePoint,
+        disabledTimePoints,
+        disabledTimePointReason,
+      }),
+    )
+  }, [disabledTimePointReason, disabledTimePoints, productRun])
 
-  const discriminatedProps = useMemo(() => {
-    if (isMulti === true) {
-      const values = value.map((timePoint) => ({
-        id: timePoint,
-        name: formatDateTime(timePoint),
-      }))
-      return {
-        isMulti: true,
-        value: values,
-        onChange: (nextValue: MultiValue<SelectOption>) =>
-          onChange(nextValue.map((value) => value.id)),
-      } as const
-    }
-    return {
-      isMulti: false,
-      value: value ? { id: value, name: formatDateTime(value) } : null,
-      onChange: (nextValue: SingleValue<SelectOption> | null) =>
-        onChange(nextValue?.id ?? null),
-    } as const
-  }, [value, isMulti, onChange])
+  const isOptionDisabled = (option: TimePointOption) => option.isDisabled
 
   return (
     <FieldGroup
       className="flex-1"
-      title={`Select Time Point${discriminatedProps.isMulti ? '(s)' : ''}`}
+      title={`Select Time Point${props.isMulti === true ? '(s)' : ''}`}
       disabled={!!(!productRun || disabled)}
     >
-      {discriminatedProps.isMulti ? (
-        <SelectWithSearch
+      {props.isMulti === true ? (
+        <SelectWithSearch<TimePointOption, true>
           placeholder={props.placeholder}
           options={options}
-          value={discriminatedProps.value}
-          onChange={discriminatedProps.onChange}
+          value={props.value.map((timePoint) =>
+            toTimePointOption({
+              timePoint,
+              disabledTimePoints,
+              disabledTimePointReason,
+            }),
+          )}
+          onChange={(nextValue: MultiValue<TimePointOption>) =>
+            props.onChange(nextValue.map((value) => value.id))
+          }
           isDisabled={!productRun || disabled}
+          isOptionDisabled={isOptionDisabled}
           isMulti
         />
       ) : (
-        <SelectWithSearch
+        <SelectWithSearch<TimePointOption, false>
           placeholder={props.placeholder}
           options={options}
-          value={discriminatedProps.value ?? null}
-          onChange={discriminatedProps.onChange}
+          value={
+            props.value
+              ? toTimePointOption({
+                  timePoint: props.value,
+                  disabledTimePoints,
+                  disabledTimePointReason,
+                })
+              : null
+          }
+          onChange={(nextValue: SingleValue<TimePointOption> | null) =>
+            props.onChange(nextValue?.id ?? null)
+          }
           isDisabled={!productRun || disabled}
+          isOptionDisabled={isOptionDisabled}
           isClearable={isClearable}
         />
       )}

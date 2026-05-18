@@ -42,10 +42,10 @@ export const DatasetRunSelect = ({
         }}
         formatOptionLabel={(option) => (
           <span className="flex items-center gap-1">
-            {option.dataset.mainRunId === option.id && (
-              <MainRunBadge size="xs" variant="dataset" />
-            )}
             {option.name ?? option.id}
+            {option.dataset.mainRunId === option.id && (
+              <MainRunBadge size="xs" />
+            )}
           </span>
         )}
         isDisabled={disabled}

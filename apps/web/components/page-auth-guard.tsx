@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getUserServerSession } from '../utils/getUserServerSession'
+import { getUserServerSession } from '../utils/get-user-server-session'
 import { buildSessionAccess, roleMatches } from '../utils/access-control'
 
 const PageAuthGuard = async ({

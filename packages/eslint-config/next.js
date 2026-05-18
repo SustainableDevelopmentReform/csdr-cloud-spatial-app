@@ -10,7 +10,6 @@ module.exports = {
     'plugin:@next/next/core-web-vitals',
     'turbo',
     'plugin:@typescript-eslint/recommended',
-    'plugin:react-hooks/recommended',
   ],
   globals: {
     React: true,

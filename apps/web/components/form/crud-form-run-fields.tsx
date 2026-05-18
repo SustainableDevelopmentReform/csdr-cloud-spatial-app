@@ -1,4 +1,7 @@
-import { baseCreateRunResourceSchema } from '@repo/schemas/crud'
+import {
+  baseCreateRunResourceSchema,
+  workflowDagSchema,
+} from '@repo/schemas/crud'
 import {
   FormControl,
   FormField,
@@ -42,6 +45,45 @@ export const CrudFormRunFields = <
   // Helper function to check if field is read-only
   const isReadOnlyField = (field: keyof Data): boolean => {
     return readOnlyFields === 'all' || !!readOnlyFields?.includes(field)
+  }
+
+  const parseWorkflowDagField = (
+    value: string,
+    fieldName: Path<Data>,
+    onChange: (_value: unknown) => void,
+  ) => {
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+      form.clearErrors(fieldName)
+      onChange(undefined)
+      return
+    }
+
+    let parsedJson: unknown
+    try {
+      parsedJson = JSON.parse(trimmed)
+    } catch {
+      form.setError(fieldName, {
+        type: 'validate',
+        message: 'Workflow DAG must be valid JSON.',
+      })
+      return
+    }
+
+    const parsedWorkflowDag = workflowDagSchema.safeParse(parsedJson)
+    if (!parsedWorkflowDag.success) {
+      form.setError(fieldName, {
+        type: 'validate',
+        message:
+          parsedWorkflowDag.error.issues[0]?.message ??
+          'Workflow DAG does not match the expected structure.',
+      })
+      return
+    }
+
+    form.clearErrors(fieldName)
+    onChange(parsedWorkflowDag.data)
   }
 
   return (
@@ -292,6 +334,15 @@ export const CrudFormRunFields = <
                     isReadOnlyField('workflowDag') ? 'bg-gray-100' : '',
                   )}
                   disabled={isReadOnlyField('workflowDag')}
+                  onBlur={(event) => {
+                    field.onBlur()
+                    parseWorkflowDagField(
+                      event.currentTarget.value,
+                      field.name,
+                      field.onChange,
+                    )
+                  }}
+                  onChange={(event) => field.onChange(event.target.value)}
                   value={
                     typeof field.value === 'object'
                       ? JSON.stringify(field.value, null, 2)

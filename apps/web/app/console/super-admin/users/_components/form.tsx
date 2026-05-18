@@ -1,14 +1,16 @@
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@repo/ui/components/ui/dialog'
+import { Button } from '@repo/ui/components/ui/button'
 import { useQueryClient } from '@tanstack/react-query'
 import React from 'react'
-import { QueryKey } from '~/utils/apiClient'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { QueryKey } from '~/utils/api-client'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import SignupForm from '~/app/sign-up/_components/form'
 
 interface UserFormProps {
@@ -31,9 +33,9 @@ const UserForm: React.FC<UserFormProps> = ({
       open={isOpen}
       onOpenChange={(open) => {
         if (open) {
-          onOpen && onOpen()
+          onOpen?.()
         } else {
-          onClose && onClose()
+          onClose?.()
         }
       }}
     >
@@ -58,10 +60,17 @@ const UserForm: React.FC<UserFormProps> = ({
                 queryClient.invalidateQueries({
                   queryKey: [QueryKey.Users],
                 })
-                onClose && onClose()
+                onClose?.()
               }
             }}
           />
+          <div className="mt-4 flex justify-end">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

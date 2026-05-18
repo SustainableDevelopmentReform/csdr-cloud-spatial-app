@@ -35,18 +35,20 @@ import {
   HomeIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
-  TriangleAlertIcon,
   SquareStackIcon,
   Table2Icon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import React, { useMemo, useState } from 'react'
 import { useConfig } from '~/components/providers'
+import { StatusMessage } from '~/components/status-message'
 import {
   DASHBOARDS_BASE_PATH,
+  DATA_LIBRARY_BASE_PATH,
+  DATA_LIBRARY_SOURCE_PARAM,
   DATASETS_BASE_PATH,
   GEOMETRIES_BASE_PATH,
   INDICATORS_BASE_PATH,
@@ -60,9 +62,12 @@ import {
   ACCOUNT_DETAILS_BASE_PATH,
   API_KEYS_BASE_PATH,
   TWO_FACTOR_BASE_PATH,
+  isDataLibrarySource,
 } from '~/lib/paths'
 import { ConsoleSidebarOrganizationMenu } from './console-sidebar-organization-menu'
 import { ConsoleSidebarUserSection } from './console-sidebar-user-section'
+import { ConsoleSideDrawerProvider } from './console-side-drawer'
+import { RunVersionSidebarProvider } from './run-version-sidebar'
 
 type ConsoleShellProps = {
   canManageWorkspace: boolean
@@ -121,21 +126,15 @@ const AccountSecurityWarning = ({
   label: string
 }) => {
   return (
-    <div
-      className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-      role="alert"
-    >
-      <div className="flex min-w-0 items-start gap-2">
-        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-700" />
-        <div className="leading-5">{children}</div>
-      </div>
+    <StatusMessage variant="error" className="shadow-sm" role="alert">
+      {children}{' '}
       <Link
-        className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white px-3 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100"
+        className="font-medium underline underline-offset-2 transition-colors hover:text-red-900 dark:hover:text-red-200"
         href={href}
       >
         {label}
       </Link>
-    </div>
+    </StatusMessage>
   )
 }
 
@@ -190,14 +189,41 @@ const isActiveRoute = (
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+const dataManagementBasePaths = new Set([
+  DATASETS_BASE_PATH,
+  GEOMETRIES_BASE_PATH,
+  PRODUCTS_BASE_PATH,
+])
+
+const isLinkItemActive = ({
+  fromLibrary,
+  item,
+  pathname,
+}: {
+  fromLibrary: boolean
+  item: NavLinkItem
+  pathname: string | null
+}) => {
+  if (fromLibrary && item.href === DATA_LIBRARY_BASE_PATH) {
+    return true
+  }
+
+  if (fromLibrary && dataManagementBasePaths.has(item.href)) {
+    return false
+  }
+
+  return isActiveRoute(pathname, item.href, item.exact)
+}
+
 const isDisclosureItemOpen = (
   pathname: string | null,
   item: NavDisclosureItem,
   expanded: Record<string, boolean>,
+  fromLibrary: boolean,
 ): boolean => {
   if (
     item.children.some((child) =>
-      isActiveRoute(pathname, child.href, child.exact),
+      isLinkItemActive({ pathname, item: child, fromLibrary }),
     )
   ) {
     return true
@@ -208,6 +234,10 @@ const isDisclosureItemOpen = (
 
 const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const fromLibrary = isDataLibrarySource(
+    searchParams.get(DATA_LIBRARY_SOURCE_PARAM),
+  )
   const { isMobile, open, setOpen } = useSidebar()
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     {},
@@ -225,7 +255,7 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
 
     setExpandedItems((current) => ({
       ...current,
-      [item.id]: !isDisclosureItemOpen(pathname, item, current),
+      [item.id]: !isDisclosureItemOpen(pathname, item, current, fromLibrary),
     }))
   }
 
@@ -246,11 +276,11 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={isActiveRoute(
+                        isActive={isLinkItemActive({
                           pathname,
-                          item.href,
-                          item.exact,
-                        )}
+                          item,
+                          fromLibrary,
+                        })}
                         tooltip={item.label}
                         className={topLevelItemClassName}
                       >
@@ -284,9 +314,10 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                   pathname,
                   item,
                   expandedItems,
+                  fromLibrary,
                 )
                 const isActive = item.children.some((child) =>
-                  isActiveRoute(pathname, child.href, child.exact),
+                  isLinkItemActive({ pathname, item: child, fromLibrary }),
                 )
 
                 return (
@@ -315,11 +346,11 @@ const ConsoleShellNavigation = ({ groups }: { groups: NavGroup[] }) => {
                             <SidebarMenuSubItem key={child.href}>
                               <SidebarMenuSubButton
                                 asChild
-                                isActive={isActiveRoute(
+                                isActive={isLinkItemActive({
                                   pathname,
-                                  child.href,
-                                  child.exact,
-                                )}
+                                  item: child,
+                                  fromLibrary,
+                                })}
                                 className={disclosureChildClassName}
                               >
                                 <Link href={child.href}>
@@ -445,29 +476,9 @@ export const ConsoleShell = ({
         label: 'Analysis',
       },
       {
-        kind: 'disclosure',
-        children: [
-          {
-            kind: 'link',
-            href: DATASETS_BASE_PATH,
-            icon: EarthIcon,
-            label: 'Datasets',
-          },
-          {
-            kind: 'link',
-            href: GEOMETRIES_BASE_PATH,
-            icon: SquareStackIcon,
-            label: 'Boundaries',
-          },
-          {
-            kind: 'link',
-            href: PRODUCTS_BASE_PATH,
-            icon: Table2Icon,
-            label: 'Products',
-          },
-        ],
+        kind: 'link',
+        href: DATA_LIBRARY_BASE_PATH,
         icon: DatabaseIcon,
-        id: 'data-library',
         label: 'Data Library',
       },
     ]
@@ -482,6 +493,32 @@ export const ConsoleShell = ({
     if (isAuthenticated) {
       if (canManageWorkspace) {
         const adminItems: NavItem[] = [
+          {
+            kind: 'disclosure',
+            children: [
+              {
+                kind: 'link',
+                href: DATASETS_BASE_PATH,
+                icon: EarthIcon,
+                label: 'Datasets',
+              },
+              {
+                kind: 'link',
+                href: GEOMETRIES_BASE_PATH,
+                icon: SquareStackIcon,
+                label: 'Boundaries',
+              },
+              {
+                kind: 'link',
+                href: PRODUCTS_BASE_PATH,
+                icon: Table2Icon,
+                label: 'Products',
+              },
+            ],
+            icon: DatabaseIcon,
+            id: 'data-management',
+            label: 'Data Management',
+          },
           {
             kind: 'link',
             href: INDICATORS_BASE_PATH,
@@ -572,16 +609,20 @@ export const ConsoleShell = ({
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen}>
-      <ConsoleShellFrame
-        groups={navGroups}
-        isAuthenticated={isAuthenticated}
-        showEmailVerificationWarning={showEmailVerificationWarning}
-        showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
-        userEmail={userEmail}
-        userRoleLabel={userRoleLabel}
-      >
-        {children}
-      </ConsoleShellFrame>
+      <ConsoleSideDrawerProvider>
+        <RunVersionSidebarProvider>
+          <ConsoleShellFrame
+            groups={navGroups}
+            isAuthenticated={isAuthenticated}
+            showEmailVerificationWarning={showEmailVerificationWarning}
+            showSuperAdminTwoFactorWarning={showSuperAdminTwoFactorWarning}
+            userEmail={userEmail}
+            userRoleLabel={userRoleLabel}
+          >
+            {children}
+          </ConsoleShellFrame>
+        </RunVersionSidebarProvider>
+      </ConsoleSideDrawerProvider>
     </SidebarProvider>
   )
 }

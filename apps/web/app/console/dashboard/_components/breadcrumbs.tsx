@@ -20,12 +20,6 @@ export const DashboardBreadcrumbs = () => {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/console">Home</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
             <Link href={DASHBOARDS_BASE_PATH}>Dashboards</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>

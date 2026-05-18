@@ -1,32 +1,23 @@
 import { BadgeLink } from '../../../../components/badge-link'
+import { withDataLibrarySource } from '~/lib/paths'
 import { GlobalVisibilityIndicator } from '~/app/console/_components/global-visibility-indicator'
 import { GeometriesLinkParams, useGeometriesLink } from '../_hooks'
-
-export const GeometriesButtons = ({
-  geometriesSets,
-}: {
-  geometriesSets: GeometriesLinkParams[] | undefined
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {geometriesSets?.map((geometries) => (
-        <GeometriesButton geometries={geometries} key={geometries.id} />
-      ))}
-    </div>
-  )
-}
+import { SquareStackIcon } from 'lucide-react'
 
 export const GeometriesButton = ({
+  fromLibrary = false,
   geometries,
 }: {
+  fromLibrary?: boolean
   geometries: GeometriesLinkParams
 }) => {
   const geometriesLink = useGeometriesLink()
+  const href = geometriesLink(geometries)
 
   return (
     <BadgeLink
-      href={geometriesLink(geometries)}
-      variant="geometries"
+      href={fromLibrary ? withDataLibrarySource(href) : href}
+      icon={<SquareStackIcon />}
       adornment={
         <GlobalVisibilityIndicator visibility={geometries.visibility} />
       }

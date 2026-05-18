@@ -7,15 +7,16 @@ import {
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
-import { Client, unwrapResponse } from '~/utils/apiClient'
-import { getSearchParams } from '~/utils/browser'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { Client, unwrapResponse } from '~/utils/api-client'
+import { useApiClient } from '../../../hooks/use-api-client'
 import {
-  INDICATORS_BASE_PATH,
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
+import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
+import {
   INDICATORS_DERIVED_BASE_PATH,
   INDICATORS_MEASURED_BASE_PATH,
 } from '../../../lib/paths'
@@ -29,13 +30,6 @@ export type IndicatorListResponse = NonNullable<
   InferResponseType<Client['api']['v0']['indicator']['$get'], 200>['data']
 >
 export type IndicatorListItem = IndicatorListResponse['data'][0]
-export type AnyIndicatorDetail = NonNullable<
-  InferResponseType<
-    Client['api']['v0']['indicator'][':id']['$get'],
-    200
-  >['data']
->
-
 export type MeasuredIndicatorDetail = NonNullable<
   InferResponseType<
     Client['api']['v0']['indicator']['measured'][':id']['$get'],
@@ -87,18 +81,6 @@ export type IndicatorCategoryListItem = NonNullable<
     200
   >['data']
 >['data'][0]
-export type IndicatorCategoryDetail = NonNullable<
-  InferResponseType<
-    Client['api']['v0']['indicator-category'][':id']['$get'],
-    200
-  >['data']
->
-
-export type UpdateIndicatorCategoryPayload = NonNullable<
-  InferRequestType<
-    Client['api']['v0']['indicator-category'][':id']['$patch']
-  >['json']
->
 
 export type CreateIndicatorCategoryPayload = NonNullable<
   InferRequestType<Client['api']['v0']['indicator-category']['$post']>['json']
@@ -107,7 +89,6 @@ export type CreateIndicatorCategoryPayload = NonNullable<
 const indicatorParamsSchema = z.object({
   measuredIndicatorId: z.string().optional(),
   derivedIndicatorId: z.string().optional(),
-  indicatorCategoryId: z.string().optional(),
 })
 
 export const indicatorQueryKeys = {
@@ -132,22 +113,18 @@ export const indicatorQueryKeys = {
 
 const indicatorCategoryQueryKeys = {
   all: ['indicatorCategory'] as const,
-  detail: (indicatorCategoryId: string | undefined) =>
-    [...indicatorCategoryQueryKeys.all, 'detail', indicatorCategoryId] as const,
 }
 
 const useIndicatorParams = (
   _measuredIndicatorId?: string,
   _derivedIndicatorId?: string,
-  _indicatorCategoryId?: string,
 ) => {
   const params = useParams()
-  const { measuredIndicatorId, indicatorCategoryId, derivedIndicatorId } =
+  const { measuredIndicatorId, derivedIndicatorId } =
     indicatorParamsSchema.parse(params)
 
   return {
     measuredIndicatorId: _measuredIndicatorId ?? measuredIndicatorId,
-    indicatorCategoryId: _indicatorCategoryId ?? indicatorCategoryId,
     derivedIndicatorId: _derivedIndicatorId ?? derivedIndicatorId,
   }
 }
@@ -179,18 +156,11 @@ export const useIndicators = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
     enabled: enabled ?? true,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -284,28 +254,6 @@ export const useDerivedIndicator = (id?: string) => {
     },
 
     enabled: !!derivedIndicatorId,
-  })
-}
-
-export const useIndicatorCategory = (id?: string) => {
-  const { indicatorCategoryId } = useIndicatorParams(undefined, undefined, id)
-  const client = useApiClient()
-  return useQuery({
-    queryKey: indicatorCategoryQueryKeys.detail(indicatorCategoryId),
-    queryFn: async () => {
-      if (!indicatorCategoryId) return null
-      const res = client.api.v0['indicator-category'][':id'].$get({
-        param: {
-          id: indicatorCategoryId,
-        },
-      })
-
-      const json = await unwrapResponse(res)
-
-      return json.data
-    },
-
-    enabled: !!indicatorCategoryId,
   })
 }
 
@@ -512,31 +460,6 @@ export const usePreviewDerivedIndicatorVisibility = (_indicatorId?: string) => {
   })
 }
 
-export const useUpdateIndicatorCategory = (_indicatorCategoryId?: string) => {
-  const { indicatorCategoryId } = useIndicatorParams(
-    undefined,
-    undefined,
-    _indicatorCategoryId,
-  )
-  const queryClient = useQueryClient()
-  const client = useApiClient()
-  return useMutation({
-    mutationFn: async (payload: UpdateIndicatorCategoryPayload) => {
-      if (!indicatorCategoryId) return
-      const res = client.api.v0['indicator-category'][':id'].$patch({
-        param: { id: indicatorCategoryId },
-        json: payload,
-      })
-      return await unwrapResponse(res)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: indicatorCategoryQueryKeys.all,
-      })
-    },
-  })
-}
-
 export const useDeleteMeasuredIndicator = (
   _indicatorId?: string,
   redirect: string | null = null,
@@ -616,45 +539,6 @@ export const useDeleteDerivedIndicator = (
   })
 }
 
-export const useDeleteIndicatorCategory = (
-  _indicatorCategoryId?: string,
-  redirect: string | null = null,
-) => {
-  const { indicatorCategoryId } = useIndicatorParams(
-    undefined,
-    undefined,
-    _indicatorCategoryId,
-  )
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  const client = useApiClient()
-  return useMutation({
-    mutationFn: async () => {
-      if (!indicatorCategoryId) return
-      const res = client.api.v0['indicator-category'][':id'].$delete({
-        param: {
-          id: indicatorCategoryId,
-        },
-      })
-
-      return await unwrapResponse(res)
-    },
-    onSuccess: () => {
-      if (indicatorCategoryId) {
-        queryClient.removeQueries({
-          queryKey: indicatorCategoryQueryKeys.detail(indicatorCategoryId),
-        })
-      }
-      queryClient.invalidateQueries({
-        queryKey: indicatorCategoryQueryKeys.all,
-      })
-      if (redirect) {
-        router.push(redirect)
-      }
-    },
-  })
-}
-
 export type IndicatorLinkParams = Pick<
   IndicatorListItem,
   'id' | 'name' | 'type'
@@ -666,23 +550,9 @@ export type IndicatorCategoryLinkParams = Pick<
   'id' | 'name'
 >
 
-export const useIndicatorsLink = () =>
-  useCallback(
-    (query?: z.infer<typeof indicatorQuerySchema>) =>
-      `${INDICATORS_BASE_PATH}?${getSearchParams(query ?? {})}`,
-    [],
-  )
-
 export const useIndicatorLink = () =>
   useCallback(
     (indicator: IndicatorLinkParams) =>
       `${indicator.type === 'derived' ? INDICATORS_DERIVED_BASE_PATH : INDICATORS_MEASURED_BASE_PATH}/${indicator.id}`,
-    [],
-  )
-
-export const useIndicatorCategoryLink = () =>
-  useCallback(
-    (indicatorCategory: IndicatorCategoryLinkParams) =>
-      `${INDICATORS_BASE_PATH}/categories/${indicatorCategory.id}`,
     [],
   )

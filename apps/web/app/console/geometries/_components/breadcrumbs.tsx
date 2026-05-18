@@ -1,27 +1,34 @@
 'use client'
+
+import { usePathname, useSearchParams } from 'next/navigation'
+import { ConsoleSimpleBreadcrumbs } from '../../_components/console-simple-breadcrumbs'
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from '@repo/ui/components/ui/breadcrumb'
-import { usePathname } from 'next/navigation'
-import Link from '../../../../components/link'
-import { GEOMETRIES_BASE_PATH } from '../../../../lib/paths'
+  DATA_LIBRARY_BASE_PATH,
+  DATA_LIBRARY_SOURCE_PARAM,
+  GEOMETRIES_BASE_PATH,
+  GEOMETRIES_RUNS_BASE_PATH,
+  GEOMETRIES_RUNS_OUTPUTS_BASE_PATH,
+  isDataLibrarySource,
+  withDataLibrarySource,
+} from '../../../../lib/paths'
 import {
   useGeometries,
   useGeometriesRun,
-  useGeometriesRunsLink,
   useGeometryOutput,
   useGeometryRunOutputsLink,
 } from '../_hooks'
-import { GeometriesButton } from './geometries-button'
-import { GeometriesRunButton } from './geometries-run-button'
-import { GeometryOutputButton } from './geometry-output-button'
+
+type BreadcrumbItem = {
+  href?: string
+  label: string
+}
 
 export const GeometriesBreadcrumbs = () => {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const fromLibrary = isDataLibrarySource(
+    searchParams.get(DATA_LIBRARY_SOURCE_PARAM),
+  )
 
   const { data: geometriesFromUrl } = useGeometries()
   const { data: geometriesRunFromUrl } = useGeometriesRun()
@@ -34,82 +41,54 @@ export const GeometriesBreadcrumbs = () => {
   const geometriesRun =
     geometriesRunFromUrl ?? geometryOutputFromUrl?.geometriesRun
 
-  const geometriesRunsLink = useGeometriesRunsLink()
   const geometryRunOutputsLink = useGeometryRunOutputsLink()
-  return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href="/console">Home</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={GEOMETRIES_BASE_PATH}>Boundaries</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        {geometries && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <GeometriesButton geometries={geometries} />
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
-        {geometries &&
-          (pathname?.includes('runs') ||
-            geometriesRunFromUrl ||
-            geometryOutputFromUrl) && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href={geometriesRunsLink(geometries)}>Runs</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-            </>
-          )}
 
-        {geometriesRun && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <div className="flex items-center gap-1">
-                  <GeometriesRunButton geometriesRun={geometriesRun} />
-                </div>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
-        {geometriesRun &&
-          (pathname?.includes('outputs') || geometryOutputFromUrl) && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href={geometryRunOutputsLink(geometriesRun)}>
-                    Outputs
-                  </Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-            </>
-          )}
-        {geometryOutputFromUrl && (
-          <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <GeometryOutputButton geometryOutput={geometryOutputFromUrl} />
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </>
-        )}
-      </BreadcrumbList>
-    </Breadcrumb>
-  )
+  const items: BreadcrumbItem[] = [
+    fromLibrary
+      ? { label: 'Data', href: DATA_LIBRARY_BASE_PATH }
+      : { label: 'Admin' },
+  ]
+
+  if (geometries) {
+    items.push({
+      label: geometries.name,
+      href: fromLibrary
+        ? withDataLibrarySource(`${GEOMETRIES_BASE_PATH}/${geometries.id}`)
+        : `${GEOMETRIES_BASE_PATH}/${geometries.id}`,
+    })
+  }
+
+  if (geometriesRun) {
+    items.push({
+      label: geometriesRun.name,
+      href: fromLibrary
+        ? withDataLibrarySource(
+            `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`,
+          )
+        : `${GEOMETRIES_RUNS_BASE_PATH}/${geometriesRun.id}`,
+    })
+  }
+
+  if (
+    geometriesRun &&
+    (pathname?.includes('outputs') || geometryOutputFromUrl)
+  ) {
+    items.push({
+      label: 'Outputs',
+      href: geometryRunOutputsLink(geometriesRun),
+    })
+  }
+
+  if (geometryOutputFromUrl) {
+    items.push({
+      label: geometryOutputFromUrl.name,
+      href: fromLibrary
+        ? withDataLibrarySource(
+            `${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutputFromUrl.id}`,
+          )
+        : `${GEOMETRIES_RUNS_OUTPUTS_BASE_PATH}/${geometryOutputFromUrl.id}`,
+    })
+  }
+
+  return <ConsoleSimpleBreadcrumbs items={items} />
 }

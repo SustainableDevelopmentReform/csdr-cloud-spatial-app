@@ -8,7 +8,7 @@ import pg from 'pg'
 import * as schema from '~/schemas/db'
 import { isEmail } from '~/utils'
 import { createDatabaseClientConfig } from '../src/lib/database-config'
-import { geomFromGeoJSON } from '../src/schemas/customTypes'
+import { geomFromGeoJSON } from '../src/schemas/custom-types'
 
 function getRequiredEnvValue(
   value: string | undefined,

@@ -1,5 +1,6 @@
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -9,8 +10,8 @@ import {
 import { toast } from '@repo/ui/components/ui/sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import React, { useState } from 'react'
-import { QueryKey } from '~/utils/apiClient'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { QueryKey } from '~/utils/api-client'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@repo/ui/components/ui/button'
@@ -93,9 +94,9 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
       open={isOpen}
       onOpenChange={(open) => {
         if (open) {
-          onOpen && onOpen()
+          onOpen?.()
         } else {
-          onClose && onClose()
+          onClose?.()
         }
       }}
     >
@@ -172,9 +173,16 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({
                       </FormItem>
                     )}
                   />
-                  <Button disabled={createApiKey.isPending} className="mt-1">
-                    {createApiKey.isPending ? 'Loading...' : 'Create API key'}
-                  </Button>
+                  <div className="mt-1 flex justify-end gap-2">
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline">
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <Button disabled={createApiKey.isPending}>
+                      {createApiKey.isPending ? 'Loading...' : 'Create API key'}
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </div>

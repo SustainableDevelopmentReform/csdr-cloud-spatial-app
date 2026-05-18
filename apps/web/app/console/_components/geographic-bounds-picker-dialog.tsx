@@ -70,7 +70,7 @@ const normalizeGeographicBounds = (
   }
 }
 
-const formatBoundsLabel = (bounds: GeographicBoundsLike) => {
+export const formatBoundsLabel = (bounds: GeographicBoundsLike) => {
   const normalizedBounds = normalizeGeographicBounds(bounds)
 
   if (!normalizedBounds) {

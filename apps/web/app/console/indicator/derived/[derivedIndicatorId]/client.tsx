@@ -10,7 +10,6 @@ import {
   FormMessage,
 } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
-import { Textarea } from '@repo/ui/components/ui/textarea'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { ActiveOrganizationWriteWarning } from '~/app/console/_components/active-organization-write-warning'
@@ -19,7 +18,7 @@ import { CrudForm } from '../../../../../components/form/crud-form'
 import {
   useAccessControl,
   useRequiresActiveOrganizationSwitchForWrite,
-} from '../../../../../hooks/useAccessControl'
+} from '../../../../../hooks/use-access-control'
 import { INDICATORS_BASE_PATH } from '../../../../../lib/paths'
 import { ResourcePageState } from '../../../_components/resource-page-state'
 import {
@@ -37,7 +36,10 @@ import {
   useUpdateDerivedIndicator,
   useUpdateDerivedIndicatorVisibility,
 } from '../../_hooks'
-import { ExpressionFieldDescription } from '../../_components/expression-field'
+import {
+  UpdateDerivedIndicatorFormValues,
+  UpdateExpressionField,
+} from '../../_components/expression-field'
 
 const IndicatorDetails = () => {
   const derivedIndicatorQuery = useDerivedIndicator()
@@ -51,7 +53,7 @@ const IndicatorDetails = () => {
   )
   const { access } = useAccessControl()
 
-  const form = useForm({
+  const form = useForm<UpdateDerivedIndicatorFormValues>({
     resolver: zodResolver(updateDerivedIndicatorSchema),
   })
 
@@ -178,19 +180,11 @@ const IndicatorDetails = () => {
             <FormMessage />
           </FormItem>
 
-          <FormItem>
-            <FormLabel>Expression</FormLabel>
-            <ExpressionFieldDescription
-              indicators={derivedIndicator?.indicators ?? []}
-            />
-            <FormControl>
-              <Textarea
-                className={'font-mono'}
-                disabled={true}
-                value={derivedIndicator?.expression}
-              />
-            </FormControl>
-          </FormItem>
+          <UpdateExpressionField
+            form={form}
+            indicators={derivedIndicator?.indicators ?? []}
+            disabled={!canEdit}
+          />
         </CrudForm>
       </div>
     </ResourcePageState>

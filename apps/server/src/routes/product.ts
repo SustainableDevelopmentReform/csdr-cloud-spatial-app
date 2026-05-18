@@ -23,16 +23,16 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
-import { fetchChartUsageCounts } from '~/lib/chartUsage'
+} from '~/lib/auth/authorization'
+import { fetchChartUsageCounts } from '~/lib/chart-usage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -68,9 +68,9 @@ import {
   fullProductRunQuery,
   parseBaseProductRun,
   parseFullProductRun,
-} from './productRun'
+} from './product-run'
 
-export const baseProductQuery = {
+const baseProductQuery = {
   columns: {
     ...baseAclColumns,
     mainRunId: true,
@@ -82,7 +82,7 @@ export const baseProductQuery = {
   },
 } satisfies QueryForTable<'product'>
 
-export const fullProductQuery = {
+const fullProductQuery = {
   columns: baseProductQuery.columns,
   with: {
     dataset: fullDatasetQuery,
@@ -95,14 +95,14 @@ const productNotFoundError = () =>
   new ServerError({
     statusCode: 404,
     message: 'Failed to get product',
-    description: "Product you're looking for is not found",
+    description: "product you're looking for is not found",
   })
 
 const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
 
-export const parseBaseProduct = <
+const parseBaseProduct = <
   T extends InferQueryModel<'product', typeof baseProductQuery>,
 >(
   record: T,
@@ -116,7 +116,7 @@ export const parseBaseProduct = <
   }
 }
 
-export const parseFullProduct = <
+const parseFullProduct = <
   T extends InferQueryModel<'product', typeof fullProductQuery>,
 >(
   record: T,
@@ -155,10 +155,7 @@ const fetchFullProduct = async (id: string, organizationId: string) => {
     : null
 }
 
-export const fetchFullProductOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
+const fetchFullProductOrThrow = async (id: string, organizationId: string) => {
   const fullProduct = await fetchFullProduct(id, organizationId)
 
   if (!fullProduct) {
@@ -175,7 +172,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:product', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:product', allowPublicRead: true }),
       ],
       request: {
         query: productQuerySchema,
@@ -225,7 +222,11 @@ const app = createOpenAPIApp()
         boundsMaxY,
       })
       const baseWhere = and(
-        buildExplorerReadScope(c, product.organizationId, product.visibility),
+        buildResourceListReadScope(
+          c,
+          product.organizationId,
+          product.visibility,
+        ),
         productIdsArray.length > 0
           ? inArray(product.id, productIdsArray)
           : undefined,
@@ -316,7 +317,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:product', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:product', allowPublicRead: true }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -342,7 +343,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'product',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: productNotFoundError,
       })
       const record = await fetchFullProductOrThrow(
@@ -363,8 +364,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:productRun',
-          scope: 'explorer',
-          skipResourceCheck: true,
+          allowPublicRead: true,
         }),
       ],
       request: {
@@ -401,7 +401,7 @@ const app = createOpenAPIApp()
           c,
           resource: 'product',
           resourceId: productId,
-          scope: 'explorer',
+          allowPublicRead: true,
           notFoundError: productNotFoundError,
         })
       }
@@ -417,7 +417,7 @@ const app = createOpenAPIApp()
                 .select({ id: product.id })
                 .from(product)
                 .where(
-                  buildExplorerReadScope(
+                  buildResourceListReadScope(
                     c,
                     product.organizationId,
                     product.visibility,

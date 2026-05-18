@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, type ReactNode } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { OTPCodeInput } from '~/components/otp-code-input'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import { getTotpSetupDetails } from '~/utils/totp'
 
 interface TwoFactorButtonProps {

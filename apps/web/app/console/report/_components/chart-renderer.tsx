@@ -1,24 +1,14 @@
 'use client'
 
-import { getPlotCodeSnippet } from '@repo/plot/Plot'
-import { getTablePlotCodeSnippet, TablePlot } from '@repo/plot/TablePlot'
+import type { ChartConfiguration, OnSelectCallback } from '@repo/plot/types'
 import {
-  ChartConfiguration,
-  KpiChartConfiguration,
-  MapChartConfiguration,
-  makeDateFormatter,
-  makeNumberFormatter,
-  OnSelectCallback,
-  PlotChartConfiguration,
-  TableChartConfiguration,
-} from '@repo/plot/types'
+  type ChartProductOutput,
+  getChartDefinitionForConfiguration,
+} from '@repo/plot/chart-definitions'
 import { ObservableCellsCopy } from '@repo/ui/components/ui/observable-cells-copy'
-import { PlotChart } from '@repo/ui/components/ui/plot-chart'
 import { cn } from '@repo/ui/lib/utils'
-import { useMemo } from 'react'
 import { usePrintRenderReadiness } from '~/components/print-readiness'
-import GeometriesMapViewer from '../../geometries/_components/geometries-map-viewer'
-import { useGeometriesRun } from '../../geometries/_hooks'
+import ChoroplethMapViewer from '../../geometries/_components/choropleth-map-viewer'
 import { useIndicator } from '../../indicator/_hooks'
 import {
   ProductOutputExportListItem,
@@ -26,9 +16,11 @@ import {
   useProductRun,
 } from '../../product/_hooks'
 
-const ChartPlaceholder = () => (
+const ChartPlaceholder = ({ readOnly }: { readOnly: boolean }) => (
   <div className="flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
-    No chart configured yet. Use the edit button to choose a chart type.
+    {readOnly
+      ? 'No chart configured.'
+      : 'No chart configured yet. Use the edit button to choose a chart type.'}
   </div>
 )
 
@@ -73,418 +65,221 @@ const UnavailableChart = ({
   </div>
 )
 
-export const getPlotChartGroupBy = ({
-  geometryOutputIds,
-  indicatorIds,
-  timePoints,
-}: Pick<
-  PlotChartConfiguration,
-  'geometryOutputIds' | 'indicatorIds' | 'timePoints'
->) => {
-  const geoMulti = !geometryOutputIds || geometryOutputIds.length > 1
-  const indMulti = !indicatorIds || indicatorIds.length > 1
-  const timeMulti = !timePoints || timePoints.length > 1
-
-  if (geoMulti) return 'geometryOutputName' as const
-  if (indMulti) return 'indicatorName' as const
-  if (timeMulti) return 'timePoint' as const
-  return 'indicatorName' as const
+interface ChartConfig {
+  showTitleAndDescription?: boolean
+  showCodeSnippet?: boolean
+  showSelectedPointDetails?: boolean
+  readOnly?: boolean
+  mapScrollZoom?: boolean
 }
 
-const PlotContainer = ({
+type TimeChangeSelectionMode = 'delta' | 'percentDelta'
+
+type TimeChangeSelectionMetadata = {
+  transformedValue?: number
+  rawValue?: number
+  baselineValue?: number
+  baselineTimePoint?: Date | string
+  baselineProductOutputId?: string
+  timeChangeMode?: TimeChangeSelectionMode
+}
+
+type SelectableProductOutput = ProductOutputExportListItem &
+  TimeChangeSelectionMetadata
+
+function readNumberMetadata(
+  dataPoint: ChartProductOutput,
+  key: string,
+): number | undefined {
+  const value = dataPoint[key]
+  return typeof value === 'number' ? value : undefined
+}
+
+function readStringMetadata(
+  dataPoint: ChartProductOutput,
+  key: string,
+): string | undefined {
+  const value = dataPoint[key]
+  return typeof value === 'string' ? value : undefined
+}
+
+function readTimePointMetadata(
+  dataPoint: ChartProductOutput,
+  key: string,
+): Date | string | undefined {
+  const value = dataPoint[key]
+  return value instanceof Date || typeof value === 'string' ? value : undefined
+}
+
+function readTimeChangeMode(
+  dataPoint: ChartProductOutput,
+): TimeChangeSelectionMode | undefined {
+  const value = dataPoint.timeChangeMode
+  return value === 'delta' || value === 'percentDelta' ? value : undefined
+}
+
+function withTimeChangeMetadata(
+  output: ProductOutputExportListItem,
+  dataPoint: ChartProductOutput,
+): SelectableProductOutput {
+  return {
+    ...output,
+    transformedValue: readNumberMetadata(dataPoint, 'value'),
+    rawValue: readNumberMetadata(dataPoint, 'rawValue'),
+    baselineValue: readNumberMetadata(dataPoint, 'baselineValue'),
+    baselineTimePoint: readTimePointMetadata(dataPoint, 'baselineTimePoint'),
+    baselineProductOutputId: readStringMetadata(
+      dataPoint,
+      'baselineProductOutputId',
+    ),
+    timeChangeMode: readTimeChangeMode(dataPoint),
+  }
+}
+
+const ChartDataRenderer = ({
   chart,
   config,
   className,
   onSelect,
 }: {
-  chart: PlotChartConfiguration
+  chart: ChartConfiguration
   config?: ChartConfig
   className?: string
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
-  const productRunQuery = useProductRun(chart.productRunId)
-  const productRun = productRunQuery.data
-  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
-    indicatorId: chart.indicatorIds,
-    geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoints,
-  })
-  const productOutputs = productOutputsQuery.data
-  const isLoadingPlotData =
-    productRunQuery.isPending ||
-    productRunQuery.isFetching ||
-    (!!productRun &&
-      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
+  const definition = getChartDefinitionForConfiguration(chart)
+  const dataRequirements = definition?.getDataRequirements(chart)
+  const hasDataRequirements =
+    dataRequirements !== undefined && dataRequirements !== null
 
-  usePrintRenderReadiness({
-    isReady: !isLoadingPlotData,
-  })
-
-  const groupBy = getPlotChartGroupBy(chart)
-
-  if (isLoadingPlotData) {
-    return <LoadingChart message="Loading chart..." className={className} />
-  }
-
-  if (!productRun) {
-    return (
-      <UnavailableChart
-        message="Chart data is unavailable."
-        className={className}
-      />
-    )
-  }
-
-  return (
-    <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
-      <div
-        className={cn(
-          'flex flex-col flex-1 min-h-0',
-          config?.showSelectedPointDetails &&
-            'grid grid-cols-2 grid-rows-1 gap-4',
-        )}
-      >
-        <PlotChart
-          data={productOutputs?.data ?? []}
-          x={'timePoint'}
-          y={'value'}
-          groupBy={groupBy}
-          type={chart.subType}
-          appearance={chart.appearance}
-          onSelect={onSelect}
-        />
-      </div>
-      {config?.showCodeSnippet && (
-        <ObservableCellsCopy
-          cells={getPlotCodeSnippet({
-            data: productOutputs?.data ?? [],
-            x: 'timePoint',
-            y: 'value',
-          })}
-        />
-      )}
-    </div>
+  const productRunQuery = useProductRun(
+    dataRequirements?.productRunId,
+    hasDataRequirements,
   )
-}
-
-const MapContainer = ({
-  chart,
-  config,
-  className,
-  onSelect,
-}: {
-  chart: MapChartConfiguration
-  config?: ChartConfig
-  className?: string
-  onSelect?: OnSelectCallback<ProductOutputExportListItem>
-}) => {
-  void config
-
-  const productRunQuery = useProductRun(chart.productRunId)
   const productRun = productRunQuery.data
-  const shouldFetchGeometriesRun = !!productRun?.geometriesRun?.id
-  const geometriesRunQuery = useGeometriesRun(
-    productRun?.geometriesRun?.id,
-    shouldFetchGeometriesRun,
+  const productOutputsQuery = useProductOutputsExport(
+    dataRequirements?.productRunId,
+    dataRequirements?.productOutputQuery ?? undefined,
+    false,
   )
-  const geometriesRun = geometriesRunQuery.data
-
-  const indicatorQuery = useIndicator(chart.indicatorId)
+  const productOutputs = productOutputsQuery.data?.data ?? []
+  const chartProductOutputs: ChartProductOutput[] = productOutputs.map(
+    (output) => ({
+      ...output,
+      id: output.id,
+      value: output.value,
+      timePoint: output.timePoint,
+      indicatorName: output.indicatorName,
+      geometryOutputName: output.geometryOutputName,
+    }),
+  )
+  const indicatorQuery = useIndicator(dataRequirements?.indicatorId)
   const indicator = indicatorQuery.data
-
-  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
-    indicatorId: chart.indicatorId,
-    timePoint: chart.timePoint,
-  })
-  const productOutputs = productOutputsQuery.data
-  const shouldWaitForProductOutputs = !!productRun
-  const isLoadingMapDependencies =
-    productRunQuery.isPending ||
-    productRunQuery.isFetching ||
-    (shouldFetchGeometriesRun &&
-      (geometriesRunQuery.isPending || geometriesRunQuery.isFetching)) ||
-    indicatorQuery.isPending ||
-    indicatorQuery.isFetching ||
-    (shouldWaitForProductOutputs &&
-      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
-
-  usePrintRenderReadiness({
-    isReady: !isLoadingMapDependencies,
-  })
-
-  if (isLoadingMapDependencies) {
-    return (
-      <div className={cn('flex h-full items-center justify-center', className)}>
-        <div className="px-4 text-center text-sm text-muted-foreground">
-          Loading map...
-        </div>
-      </div>
-    )
+  const handleChartSelect: OnSelectCallback<ChartProductOutput> = ({
+    dataPoint,
+    event,
+  }) => {
+    if (!onSelect) return
+    const matchingOutput = dataPoint
+      ? (productOutputs.find((output) => output.id === dataPoint.id) ?? null)
+      : null
+    const selectedOutput =
+      matchingOutput && dataPoint
+        ? withTimeChangeMetadata(matchingOutput, dataPoint)
+        : null
+    onSelect({ dataPoint: selectedOutput, event })
   }
 
-  if (!productRun || !geometriesRun) {
-    return (
-      <div className={cn('flex h-full items-center justify-center', className)}>
-        <div className="px-4 text-center text-sm text-muted-foreground">
-          Map data is unavailable for this chart.
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={cn('flex flex-col gap-2 h-full', className)}>
-      <GeometriesMapViewer
-        geometriesRun={geometriesRun}
-        indicator={indicator}
-        productRun={productRun}
-        productOutputs={productOutputs?.data}
-        zoomToGeometryOutputIds={chart.geometryOutputIds}
-        appearance={chart.appearance}
-        onSelect={onSelect}
-      />
-    </div>
-  )
-}
-
-const KpiContainer = ({
-  chart,
-  className,
-  onSelect,
-}: {
-  chart: KpiChartConfiguration
-  className?: string
-  onSelect?: OnSelectCallback<ProductOutputExportListItem>
-}) => {
-  const geometryOutputId = chart.geometryOutputIds?.[0]
-  const productRunQuery = useProductRun(chart.productRunId)
-  const productRun = productRunQuery.data
-
-  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
-    indicatorId: chart.indicatorId,
-    geometryOutputId,
-    timePoint: chart.timePoint,
-  })
-  const productOutputs = productOutputsQuery.data
   const isLoading =
     productRunQuery.isPending ||
     productRunQuery.isFetching ||
-    (!!productRun &&
-      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
+    productOutputsQuery.isPending ||
+    productOutputsQuery.isFetching ||
+    (dataRequirements?.indicatorId !== undefined &&
+      (indicatorQuery.isPending || indicatorQuery.isFetching))
 
   usePrintRenderReadiness({
     isReady: !isLoading,
   })
 
-  const numberFormatter = useMemo(
-    () =>
-      makeNumberFormatter(
-        chart.appearance?.decimalPlaces,
-        chart.appearance?.compactNumbers,
-      ),
-    [chart.appearance?.compactNumbers, chart.appearance?.decimalPlaces],
-  )
-  const dateFormatter = useMemo(
-    () => makeDateFormatter(chart.appearance?.datePrecision),
-    [chart.appearance?.datePrecision],
-  )
-
-  const outputs = productOutputs?.data ?? []
-
-  if (isLoading && outputs.length === 0) {
-    return <LoadingChart message="Loading KPI value..." className={className} />
+  if (!definition) {
+    return <UnsupportedChart type={chart.type} />
   }
 
-  if (!productRun) {
+  if (isLoading) {
     return (
-      <UnavailableChart
-        message="KPI data is unavailable."
+      <LoadingChart
+        message={dataRequirements?.loadingMessage ?? 'Loading chart...'}
         className={className}
       />
     )
   }
 
-  if (outputs.length === 0) {
+  if (!productRun) {
     return (
-      <div
-        className={cn(
-          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
-          className,
-        )}
-      >
-        No value for selected filters.
-      </div>
+      <UnavailableChart
+        message={
+          dataRequirements?.unavailableMessage ?? 'Chart data is unavailable.'
+        }
+        className={className}
+      />
     )
   }
-
-  if (outputs.length > 1) {
-    return (
-      <div
-        className={cn(
-          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-destructive',
-          className,
-        )}
-      >
-        KPI requires exactly one product output. Narrow your selections to a
-        single indicator, geometry, and time point.
-      </div>
-    )
-  }
-
-  const dataPoint = outputs[0]
-
-  if (!dataPoint) {
-    return (
-      <div
-        className={cn(
-          'flex h-full min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground',
-          className,
-        )}
-      >
-        No value for selected filters.
-      </div>
-    )
-  }
-  const contextParts = [
-    dataPoint.indicatorName ?? 'Indicator',
-    dataPoint.geometryOutputName ?? 'Geometry',
-    dateFormatter.format(new Date(dataPoint.timePoint)),
-  ]
 
   return (
-    <button
-      type="button"
-      className={cn(
-        'flex h-full w-full flex-col items-center justify-center gap-2 rounded-md px-3 py-4 text-center',
-        'hover:bg-muted/20',
+    <>
+      {definition.renderer.render({
+        chart,
+        productRun,
+        productSummary: productRun?.outputSummary ?? null,
+        productOutputs: chartProductOutputs,
+        appearance: chart.appearance,
+        indicator,
         className,
-      )}
-      onClick={(event) => onSelect?.({ dataPoint, event })}
-    >
-      <div className="text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
-        {numberFormatter.format(dataPoint.value)}
-      </div>
-      <div className="max-w-full truncate text-xs text-muted-foreground sm:text-sm">
-        {contextParts.join(' · ')}
-      </div>
-    </button>
+        onSelect: handleChartSelect,
+        options: {
+          showCodeSnippet: config?.showCodeSnippet,
+          showSelectedPointDetails: config?.showSelectedPointDetails,
+          mapScrollZoom: config?.mapScrollZoom,
+        },
+        adapters: {
+          renderObservableCellsCopy: (cells) => (
+            <ObservableCellsCopy cells={cells} />
+          ),
+          renderMap: (renderContext) => {
+            if (
+              renderContext.chart.type !== 'map' ||
+              !productRun?.geometriesRun
+            ) {
+              return (
+                <UnavailableChart
+                  message={
+                    dataRequirements?.unavailableMessage ??
+                    'Chart data is unavailable.'
+                  }
+                  className={className}
+                />
+              )
+            }
+
+            return (
+              <ChoroplethMapViewer
+                geometriesRun={productRun.geometriesRun}
+                indicator={indicator}
+                productRun={productRun}
+                productOutputs={renderContext.productOutputs}
+                zoomToGeometryOutputIds={renderContext.chart.geometryOutputIds}
+                appearance={renderContext.chart.appearance}
+                onSelect={renderContext.onSelect}
+                scrollZoom={config?.mapScrollZoom}
+                className={className}
+              />
+            )
+          },
+        },
+      })}
+    </>
   )
-}
-
-const TablePlotContainer = ({
-  chart,
-  config,
-  className,
-  onSelect,
-}: {
-  chart: TableChartConfiguration
-  config?: ChartConfig
-  className?: string
-  onSelect?: OnSelectCallback<ProductOutputExportListItem>
-}) => {
-  const productRunQuery = useProductRun(chart.productRunId)
-  const productRun = productRunQuery.data
-  const productOutputsQuery = useProductOutputsExport(chart.productRunId, {
-    indicatorId: chart.indicatorIds,
-    geometryOutputId: chart.geometryOutputIds,
-    timePoint: chart.timePoints,
-  })
-  const isLoadingTableData =
-    productRunQuery.isPending ||
-    productRunQuery.isFetching ||
-    (!!productRun &&
-      (productOutputsQuery.isPending || productOutputsQuery.isFetching))
-
-  usePrintRenderReadiness({
-    isReady: !isLoadingTableData,
-  })
-
-  if (isLoadingTableData) {
-    return <LoadingChart message="Loading table..." className={className} />
-  }
-
-  if (!productRun) {
-    return (
-      <UnavailableChart
-        message="Table data is unavailable."
-        className={className}
-      />
-    )
-  }
-
-  return (
-    <div className={cn('flex flex-1 min-h-0 flex-col gap-2', className)}>
-      <TablePlot
-        data={productOutputsQuery.data?.data ?? []}
-        xDimension={chart.xDimension}
-        yDimension={chart.yDimension}
-        appearance={chart.appearance}
-        onSelect={onSelect}
-      />
-
-      {config?.showCodeSnippet && (
-        <ObservableCellsCopy cells={getTablePlotCodeSnippet()} />
-      )}
-    </div>
-  )
-}
-
-interface ChartConfig {
-  showTitleAndDescription?: boolean
-  showCodeSnippet?: boolean
-  showSelectedPointDetails?: boolean
-}
-
-const ChartDiscriminator = ({
-  chart,
-  config,
-  onSelect,
-  className,
-}: {
-  chart: ChartConfiguration
-  config?: ChartConfig
-  onSelect?: OnSelectCallback<ProductOutputExportListItem>
-  className?: string
-}) => {
-  switch (chart.type) {
-    case 'plot': {
-      return (
-        <PlotContainer
-          chart={chart}
-          config={config}
-          className={className}
-          onSelect={onSelect}
-        />
-      )
-    }
-    case 'map': {
-      return (
-        <MapContainer
-          chart={chart}
-          config={config}
-          className={className}
-          onSelect={onSelect}
-        />
-      )
-    }
-    case 'kpi': {
-      return (
-        <KpiContainer chart={chart} className={className} onSelect={onSelect} />
-      )
-    }
-    case 'table': {
-      return (
-        <TablePlotContainer
-          chart={chart}
-          config={config}
-          className={className}
-          onSelect={onSelect}
-        />
-      )
-    }
-    default:
-      return <UnsupportedChart type="unknown" />
-  }
 }
 
 export const ChartRenderer = ({
@@ -499,7 +294,7 @@ export const ChartRenderer = ({
   onSelect?: OnSelectCallback<ProductOutputExportListItem>
 }) => {
   if (!chart) {
-    return <ChartPlaceholder />
+    return <ChartPlaceholder readOnly={config?.readOnly === true} />
   }
 
   return (
@@ -519,7 +314,7 @@ export const ChartRenderer = ({
             )}
           </div>
         )}
-      <ChartDiscriminator
+      <ChartDataRenderer
         chart={chart}
         config={config}
         onSelect={onSelect}

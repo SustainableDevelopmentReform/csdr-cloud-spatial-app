@@ -2,11 +2,57 @@
   "name": "@repo/plot",
   "version": "0.2.0",
   "private": true,
+  "type": "module",
   "exports": {
+    "./chart-core": "./src/chart-core.ts",
+    "./chart-definitions": "./src/chart-definitions.tsx",
+    "./chart-definitions/*.schema": "./src/chart-definitions/*.schema.ts",
+    "./chart-definitions/schema-helpers": "./src/chart-definitions/schema-helpers.ts",
+    "./chart-primitives": "./src/chart-primitives.ts",
+    "./chart-schemas": "./src/chart-schemas.ts",
+    "./chart-title": "./src/chart-title.ts",
+    "./chart-template": "./src/chart-template.tsx",
+    "./time-change-transform": "./src/time-change-transform.ts",
     "./*": "./src/*.tsx"
   },
+  "typesVersions": {
+    "*": {
+      "chart-core": [
+        "src/chart-core.ts"
+      ],
+      "chart-definitions": [
+        "src/chart-definitions.tsx"
+      ],
+      "chart-definitions/*.schema": [
+        "src/chart-definitions/*.schema.ts"
+      ],
+      "chart-definitions/schema-helpers": [
+        "src/chart-definitions/schema-helpers.ts"
+      ],
+      "chart-primitives": [
+        "src/chart-primitives.ts"
+      ],
+      "chart-schemas": [
+        "src/chart-schemas.ts"
+      ],
+      "chart-title": [
+        "src/chart-title.ts"
+      ],
+      "chart-template": [
+        "src/chart-template.tsx"
+      ],
+      "time-change-transform": [
+        "src/time-change-transform.ts"
+      ],
+      "*": [
+        "src/*.tsx"
+      ]
+    }
+  },
   "scripts": {
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint ."
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "test:unit": "vitest run"
   },
   "peerDependencies": {
     "react": "^19"
@@ -14,23 +60,26 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/d3": "catalog:",
     "@types/d3-array": "catalog:",
     "@types/d3-color": "catalog:",
     "@types/d3-scale": "catalog:",
     "@types/d3-scale-chromatic": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:react19",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "^8.0.8",
+    "vitest": "4.1.4"
   },
   "dependencies": {
     "@observablehq/plot": "^0.6.17",
-    "@repo/schemas": "workspace:*",
+    "@hono/zod-openapi": "catalog:",
     "clsx": "catalog:",
-    "d3": "catalog:",
     "d3-array": "catalog:",
     "d3-color": "catalog:",
     "d3-scale": "catalog:",
-    "d3-scale-chromatic": "catalog:"
+    "d3-scale-chromatic": "catalog:",
+    "lucide-react": "catalog:",
+    "recharts": "2.15.4",
+    "zod": "catalog:"
   }
 }

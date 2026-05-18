@@ -1,4 +1,9 @@
 export const DASHBOARDS_BASE_PATH = '/console/dashboard'
+export const DATA_LIBRARY_BASE_PATH = '/console/library'
+export const DATA_LIBRARY_SOURCE_PARAM = 'from'
+const DATA_LIBRARY_SOURCE_VALUE = 'library'
+export const RESOURCE_SECTION_PARAM = 'section'
+export const RESOURCE_SUB_SECTION_PARAM = 'sub'
 export const DATASETS_BASE_PATH = '/console/dataset'
 export const DATASETS_RUNS_BASE_PATH = '/console/dataset/run'
 export const GEOMETRIES_BASE_PATH = '/console/geometries'
@@ -18,7 +23,85 @@ export const SUPER_ADMIN_ORGANIZATIONS_BASE_PATH =
 export const USERS_BASE_PATH = '/console/super-admin/users'
 export const WORKSPACE_BASE_PATH = '/console/workspace'
 export const LOGS_BASE_PATH = '/console/logs'
-export const LOGIN_BASE_PATH = '/login'
 export const ACCOUNT_DETAILS_BASE_PATH = '/console/me/account'
 export const API_KEYS_BASE_PATH = '/console/me/api-keys'
 export const TWO_FACTOR_BASE_PATH = '/console/me/two-factor'
+
+export const isDataLibrarySource = (value: string | null | undefined) =>
+  value === DATA_LIBRARY_SOURCE_VALUE
+
+export const withQueryParams = (
+  href: string,
+  params: Record<string, string | null | undefined>,
+) => {
+  const hashIndex = href.indexOf('#')
+  const hrefWithoutHash = hashIndex === -1 ? href : href.slice(0, hashIndex)
+  const hash = hashIndex === -1 ? '' : href.slice(hashIndex)
+  const queryIndex = hrefWithoutHash.indexOf('?')
+  const path =
+    queryIndex === -1 ? hrefWithoutHash : hrefWithoutHash.slice(0, queryIndex)
+  const query = queryIndex === -1 ? '' : hrefWithoutHash.slice(queryIndex + 1)
+  const searchParams = new URLSearchParams(query)
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === '') {
+      searchParams.delete(key)
+      return
+    }
+
+    searchParams.set(key, value)
+  })
+
+  const nextQuery = searchParams.toString()
+
+  return `${path}${nextQuery ? `?${nextQuery}` : ''}${hash}`
+}
+
+export type PageSearchParams = Record<string, string | string[] | undefined>
+
+export const getPageSearchParams = (searchParams: PageSearchParams) => {
+  const nextSearchParams = new URLSearchParams()
+
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => nextSearchParams.append(key, entry))
+      return
+    }
+
+    if (value !== undefined) {
+      nextSearchParams.set(key, value)
+    }
+  })
+
+  return nextSearchParams.toString()
+}
+
+export const withPageSearchParams = (
+  href: string,
+  searchParams: PageSearchParams,
+  params: Record<string, string | null | undefined>,
+) => {
+  const query = getPageSearchParams(searchParams)
+  return withQueryParams(query ? `${href}?${query}` : href, params)
+}
+
+export const withDataLibrarySource = (href: string) =>
+  withQueryParams(href, {
+    [DATA_LIBRARY_SOURCE_PARAM]: DATA_LIBRARY_SOURCE_VALUE,
+  })
+
+export const withResourceSection = (
+  href: string,
+  section: string,
+  subSection?: string | null,
+) => {
+  const params: Record<string, string | null | undefined> = {
+    [RESOURCE_SECTION_PARAM]: section,
+  }
+
+  if (subSection !== undefined) {
+    params[RESOURCE_SUB_SECTION_PARAM] = subSection
+  }
+
+  return withQueryParams(href, params)
+}

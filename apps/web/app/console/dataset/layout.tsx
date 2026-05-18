@@ -8,7 +8,10 @@ const DatasetLayout: React.FC<{
   return (
     <DetailLayout
       breadcrumbs={<DatasetBreadcrumbs />}
+      constrainContent={false}
+      showHeaderOnDetail={false}
       showHeaderOnIndex={false}
+      showHeaderOnNestedDetail={false}
     >
       {children}
     </DetailLayout>

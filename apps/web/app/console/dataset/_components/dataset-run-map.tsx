@@ -1,4 +1,5 @@
 'use client' // Redundant but explicit.
+import type { DatasetStyle } from '@repo/schemas/crud'
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { Map, Source, Layer } from '@vis.gl/react-maplibre'
 import maplibregl from 'maplibre-gl'
@@ -6,7 +7,7 @@ import { Protocol } from 'pmtiles'
 import DeckGL from '@deck.gl/react'
 import { MapViewState, LayersList, WebMercatorViewport } from '@deck.gl/core'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import initParquetWasm, { readParquet } from 'parquet-wasm'
+import { readParquet } from 'parquet-wasm/bundler'
 import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useQuery } from '@tanstack/react-query'
@@ -15,50 +16,6 @@ import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import { DatasetRunListItem } from '../_hooks'
 
 // --- Types ---
-
-/**
- * Visualization style for a dataset. Stored as a nullable JSON column on the
- * dataset model.
- *
- * Raster / COG (STAC-GeoParquet) example:
- * ```json
- * {
- *   "asset": "mangroves",
- *   "type": "raster",
- *   "display": "categorical",
- *   "values": {
- *     "1": { "color": "rgba(86, 173, 60, 1)", "label": "Mangrove (Open)" },
- *     "2": { "color": "rgba(46, 139, 87, 1)", "label": "Mangrove (Closed)" }
- *   }
- * }
- * ```
- *
- * Vector / PMTiles (GeoParquet) example:
- * ```json
- * {
- *   "type": "vector-polygon",
- *   "display": "simple",
- *   "color": "rgba(209, 255, 93, 1)",
- *   "label": "Reef"
- * }
- * ```
- *
- * When null/undefined the map falls back to rendering with the default blue.
- */
-export type DatasetStyle = {
-  /** Which STAC asset to render (raster only). */
-  asset?: string
-  /** "raster" for COG/STAC-GeoParquet, "vector-polygon" for PMTiles. */
-  type?: 'raster' | 'vector-polygon'
-  /** "categorical" (pixel-value map) or "simple" (single colour). */
-  display?: 'categorical' | 'simple'
-  /** CSS colour for simple/single-colour rendering (PMTiles fill, COG fallback). */
-  color?: string
-  /** Human-readable label for simple/single-colour rendering. */
-  label?: string
-  /** Pixel-value → {label, CSS colour} for categorical COG rendering. Keys are string-encoded integers. */
-  values?: Record<string, { label: string; color: string }>
-}
 
 type ResolvedCategory = {
   value: number
@@ -259,18 +216,20 @@ class ColorMappedCOGLayer extends COGLayer {
 
 // --- Component ---
 
-export const DatasetRunMap = ({
-  dataType,
-  dataUrl,
-  dataPmtilesUrl,
-  datasetStyle,
-}: {
+export type DatasetRunMapProps = {
   dataType: DatasetRunListItem['dataType']
   dataUrl: Exclude<DatasetRunListItem['dataUrl'], null>
   dataPmtilesUrl: DatasetRunListItem['dataPmtilesUrl']
   /** Visualization style. If omitted, for raster data, all valid pixels render as the default blue. For vector data, all features render as the default blue. */
   datasetStyle?: DatasetStyle | null
-}) => {
+}
+
+export const DatasetRunMap = ({
+  dataType,
+  dataUrl,
+  dataPmtilesUrl,
+  datasetStyle,
+}: DatasetRunMapProps) => {
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
@@ -344,7 +303,6 @@ export const DatasetRunMap = ({
     queryFn: async () => {
       if (!dataUrl) return null
       const parquetArrowUrl = s3UrlToHttps(dataUrl)
-      await initParquetWasm()
       const resp = await fetch(parquetArrowUrl)
       if (!resp.ok) {
         throw new Error(
@@ -408,7 +366,7 @@ export const DatasetRunMap = ({
   // --- Year filtering and mosaic sources ---
 
   // TODO: Let user select year to visualise.
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const selectedYear: number | null = null
 
   const { availableYears, mosaicSources } = useMemo(() => {
     if (!parquetArrowTable || cogUrls.length === 0) {
@@ -440,7 +398,7 @@ export const DatasetRunMap = ({
       .map(({ url, bbox }) => ({ url, bbox }))
 
     return { availableYears, mosaicSources }
-  }, [parquetArrowTable, cogUrls, selectedYear])
+  }, [parquetArrowTable, cogUrls])
 
   // --- Map bounds ---
 

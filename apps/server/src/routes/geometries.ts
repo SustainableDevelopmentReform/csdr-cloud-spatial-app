@@ -14,16 +14,16 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
-import { fetchChartUsageCounts } from '~/lib/chartUsage'
+} from '~/lib/auth/authorization'
+import { fetchChartUsageCounts } from '~/lib/chart-usage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -50,9 +50,12 @@ import {
   updatePayload,
 } from '../schemas/util'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
-import { baseGeometriesRunQuery } from './geometriesRun'
+import {
+  baseGeometriesRunQuery,
+  parseBaseGeometriesRun,
+} from './geometries-run'
 
-export const baseGeometriesQuery = {
+const baseGeometriesQuery = {
   columns: {
     ...baseAclColumns,
     mainRunId: true,
@@ -76,7 +79,7 @@ export const parseFullGeometries = <
   ...record,
   mainRun:
     record.mainRun && record.mainRun.geometries.id === record.id
-      ? record.mainRun
+      ? parseBaseGeometriesRun(record.mainRun)
       : null,
 })
 
@@ -84,7 +87,7 @@ const geometriesNotFoundError = () =>
   new ServerError({
     statusCode: 404,
     message: 'Failed to get geometries',
-    description: "Geometries you're looking for is not found",
+    description: "geometries you're looking for is not found",
   })
 
 const visibilityImpactQuerySchema = z.object({
@@ -116,7 +119,7 @@ const fetchFullGeometries = async (id: string, organizationId: string) => {
   }
 }
 
-export const fetchFullGeometriesOrThrow = async (
+const fetchFullGeometriesOrThrow = async (
   id: string,
   organizationId: string,
 ) => {
@@ -136,7 +139,10 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/',
       middleware: [
-        authMiddleware({ permission: 'read:geometries', scope: 'explorer' }),
+        authMiddleware({
+          permission: 'read:geometries',
+          allowPublicRead: true,
+        }),
       ],
       request: {
         query: geometriesQuerySchema,
@@ -169,7 +175,7 @@ const app = createOpenAPIApp()
         normalizeFilterValues(excludeGeometriesIds)
       const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
-        buildExplorerReadScope(
+        buildResourceListReadScope(
           c,
           geometries.organizationId,
           geometries.visibility,
@@ -222,7 +228,10 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:geometries', scope: 'explorer' }),
+        authMiddleware({
+          permission: 'read:geometries',
+          allowPublicRead: true,
+        }),
       ],
       request: {
         params: z.object({ id: z.string().min(1) }),
@@ -248,7 +257,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'geometries',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: geometriesNotFoundError,
       })
       const record = await fetchFullGeometriesOrThrow(
@@ -268,8 +277,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:geometriesRun',
-          scope: 'explorer',
-          skipResourceCheck: true,
+          allowPublicRead: true,
         }),
       ],
       request: {
@@ -306,7 +314,7 @@ const app = createOpenAPIApp()
           c,
           resource: 'geometries',
           resourceId: geometriesId,
-          scope: 'explorer',
+          allowPublicRead: true,
           notFoundError: geometriesNotFoundError,
         })
       }
@@ -323,7 +331,7 @@ const app = createOpenAPIApp()
                   .select({ id: geometries.id })
                   .from(geometries)
                   .where(
-                    buildExplorerReadScope(
+                    buildResourceListReadScope(
                       c,
                       geometries.organizationId,
                       geometries.visibility,
@@ -356,7 +364,7 @@ const app = createOpenAPIApp()
         c,
         {
           ...meta,
-          data,
+          data: data.map(parseBaseGeometriesRun),
         },
         200,
       )

@@ -3,7 +3,9 @@
 import { Button } from '@repo/ui/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -66,7 +68,7 @@ const DependencyMappingRow = ({
   // Fetch the selected product run to check geometriesRunId
   const { data: selectedProductRun } = useProductRun(productRunId ?? undefined)
 
-  // Check if geometries run differs from current
+  // Check if boundary run differs from current
   const hasDifferentGeometriesRun = useMemo(() => {
     if (!selectedProductRun || !currentGeometriesRunId) return false
     return selectedProductRun.geometriesRun?.id !== currentGeometriesRunId
@@ -127,7 +129,7 @@ const DependencyMappingRow = ({
       </div>
       {hasDifferentGeometriesRun && (
         <StatusMessage variant="warning">
-          This product run uses a different geometries run. Geometry output IDs
+          This product run uses a different boundary run. Boundary feature IDs
           must match for derived indicators to compute correctly.
         </StatusMessage>
       )}
@@ -137,7 +139,7 @@ const DependencyMappingRow = ({
         </StatusMessage>
       )}
       {indicatorSummary && (
-        <StatusMessage variant="primary">
+        <StatusMessage variant="info">
           {indicatorSummary.count} outputs - Data range:
           {<Value value={indicatorSummary.minValue} indicator={indicator} />} to
           {<Value value={indicatorSummary.maxValue} indicator={indicator} />} -
@@ -238,6 +240,22 @@ export const AssignDerivedIndicatorsDialog = ({
     !allDependenciesMapped ||
     assignDerivedIndicator.isPending
 
+  const resetDialogState = useCallback(() => {
+    setSelectedIndicatorId(null)
+    setDependencyMappings([])
+    setWarnings([])
+  }, [])
+
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open)
+      if (!open) {
+        resetDialogState()
+      }
+    },
+    [resetDialogState],
+  )
+
   const handleDependencyMappingChange = useCallback(
     (
       indicatorId: string,
@@ -285,15 +303,10 @@ export const AssignDerivedIndicatorsDialog = ({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <span>
-          <Button
-            disabled={!run?.id}
-            className="bg-indicator text-indicator-foreground hover:bg-indicator/70"
-          >
-            Assign Derived Indicators
-          </Button>
+          <Button disabled={!run?.id}>Assign Derived Indicators</Button>
         </span>
       </DialogTrigger>
       <DialogContent className="w-[900px] max-w-full max-h-[90vh] overflow-y-auto">
@@ -402,7 +415,6 @@ export const AssignDerivedIndicatorsDialog = ({
                         href={productRunOutputsLink(run, {
                           indicatorId: assigned.derivedIndicator.id,
                         })}
-                        variant="outline"
                       >
                         {outputSummaryIndicator?.count ?? 'See'} outputs
                       </BadgeLink>
@@ -524,6 +536,13 @@ export const AssignDerivedIndicatorsDialog = ({
             </div>
           </FieldGroup>
         </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Close
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -1,11 +1,14 @@
 import { flexRender, type Table as TableType } from '@tanstack/react-table'
 import React from 'react'
+import { cn } from '@repo/ui/lib/utils'
 
 interface Props<T> {
   table: TableType<T>
   isLoading?: boolean
   emptyStateLabel?: string
   loadingStateLabel?: string
+  selectedRowId?: string | null
+  stickyColumnClassName?: string
 }
 
 const Table = <T,>({
@@ -13,22 +16,35 @@ const Table = <T,>({
   isLoading = false,
   emptyStateLabel = 'No items found',
   loadingStateLabel = 'Loading...',
+  selectedRowId = null,
+  stickyColumnClassName = 'bg-white',
 }: Props<T>) => {
   const rows = table.getRowModel().rows
-  const totalWidth = table.getTotalSize()
+  const visibleColumnCount = table.getAllColumns().length
+  const tableMinWidth = table
+    .getAllColumns()
+    .reduce((total, column) => total + column.getSize(), 0)
 
   return (
-    <div className="w-full max-w-full min-w-0 overflow-x-auto">
+    <div className="w-full max-w-full min-w-0 overflow-x-auto bg-white">
       <table
-        className="w-full min-w-full border-collapse"
-        style={totalWidth > 0 ? { minWidth: `${totalWidth}px` } : undefined}
+        className="min-w-full table-fixed border-collapse bg-white text-left"
+        style={{ minWidth: tableMinWidth, width: '100%' }}
       >
-        <thead>
+        <thead className="bg-white">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
-                  className="text-left py-3 px-2 font-normal border-b border-gray-200 text-gray-500"
+                  className={cn(
+                    'h-10 border-b border-border px-2 text-left align-middle text-sm font-medium leading-5 text-muted-foreground',
+                    header.column.id !== 'action' && 'min-w-20',
+                    header.column.id === 'name' &&
+                      cn('sticky left-0 z-20', stickyColumnClassName),
+                    header.column.id === 'action' && 'text-right',
+                    header.column.id === 'action' &&
+                      cn('sticky right-0 z-20', stickyColumnClassName),
+                  )}
                   key={header.id}
                   style={{ width: header.getSize() }}
                 >
@@ -45,26 +61,56 @@ const Table = <T,>({
           {rows.length === 0 && (
             <tr>
               <td
-                colSpan={table.getAllColumns().length}
-                className="text-center py-4"
+                colSpan={visibleColumnCount}
+                className="h-20 border-b border-border px-2 text-center text-sm text-muted-foreground"
               >
                 {isLoading ? loadingStateLabel : emptyStateLabel}
               </td>
             </tr>
           )}
-          {rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  className="py-3 px-2 text-sm border-b border-gray-200"
-                  key={cell.id}
-                  style={{ width: cell.column.getSize() }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const isSelected = selectedRowId === row.id
+            const visibleCells = row.getVisibleCells()
+
+            return (
+              <tr
+                aria-selected={isSelected}
+                className={cn(isSelected && 'bg-neutral-50')}
+                data-state={isSelected ? 'selected' : undefined}
+                key={row.id}
+              >
+                {visibleCells.map((cell) => (
+                  <td
+                    className={cn(
+                      'h-12 border-b border-neutral-200 px-2 py-2 align-middle text-sm leading-5 text-foreground transition-colors',
+                      cell.column.id !== 'action' && 'min-w-20',
+                      cell.column.id === 'name' &&
+                        cn('sticky left-0 z-10', stickyColumnClassName),
+                      cell.column.id === 'action' && 'text-right',
+                      cell.column.id === 'action' &&
+                        cn('sticky right-0 z-10', stickyColumnClassName),
+                      isSelected && 'bg-neutral-50',
+                    )}
+                    key={cell.id}
+                    style={{ width: cell.column.getSize() }}
+                  >
+                    <div
+                      className={cn(
+                        cell.column.id === 'action'
+                          ? 'flex w-max min-w-max justify-end overflow-visible whitespace-nowrap'
+                          : 'min-w-0 overflow-visible',
+                      )}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

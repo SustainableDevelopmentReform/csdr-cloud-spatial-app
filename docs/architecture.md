@@ -32,8 +32,9 @@ The current domain model centers on datasets, geometries, products, and reportin
 
 The older internal model notes are still useful references:
 
-- [docs/MODEL.md](./MODEL.md)
-- [docs/REQUIREMENTS.md](./REQUIREMENTS.md)
+- [docs/model.md](./model.md)
+- [docs/requirements.md](./requirements.md)
+- [docs/chart-development.md](./chart-development.md)
 - [docs/requirements/access-control.md](./requirements/access-control.md)
 - [docs/requirements/report-publishing.md](./requirements/report-publishing.md)
 
@@ -43,7 +44,7 @@ Typical read/write flow:
 
 1. A Next.js route renders a console page in `apps/web/app`.
 2. The page calls a hook from the relevant feature folder, for example `apps/web/app/console/product/_hooks.tsx`.
-3. The hook uses the Hono client created in `apps/web/utils/apiClient.ts`.
+3. The hook uses the Hono client created in `apps/web/utils/api-client.ts`.
 4. The API request hits the Hono app in `apps/server/src/app.ts`.
 5. Route handlers validate input, apply auth and rate-limiting middleware, and read/write through Drizzle.
 6. Responses are shaped with shared schemas and returned to the frontend.
@@ -64,7 +65,7 @@ Important backend areas:
 - `apps/server/src/lib/`: auth, email, response helpers, OpenAPI helpers, report PDF rendering/storage, and other shared server logic
 - `apps/server/src/schemas/`: Drizzle schema definitions and database custom types
 - `apps/server/drizzle/`: SQL migrations
-- `apps/server/src/routes/__tests__/`: integration tests backed by Testcontainers
+- `apps/server/src/**/*.test.ts` and `apps/server/drizzle/*.test.ts`: backend tests live beside the code they exercise; shared test setup lives in `apps/server/src/test-utils/`
 
 Technology choices in the backend today:
 

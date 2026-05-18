@@ -2,7 +2,7 @@
 
 import { Badge } from '@repo/ui/components/ui/badge'
 import { ShieldCheckIcon, ShieldOffIcon } from 'lucide-react'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 import TwoFactorButton from '../../_components/two-factor-dialog'
 
 const TwoFactorPageClient = () => {
@@ -14,7 +14,7 @@ const TwoFactorPageClient = () => {
   const StatusIcon = isEnabled ? ShieldCheckIcon : ShieldOffIcon
 
   return (
-    <div className="max-w-xl rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+    <div className="max-w-xl rounded-lg bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <StatusIcon

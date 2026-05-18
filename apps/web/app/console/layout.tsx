@@ -1,6 +1,6 @@
 import React from 'react'
 import { cookies } from 'next/headers'
-import { getUserServerSession } from '../../utils/getUserServerSession'
+import { getUserServerSession } from '../../utils/get-user-server-session'
 import {
   buildSessionAccess,
   canManageWorkspace,

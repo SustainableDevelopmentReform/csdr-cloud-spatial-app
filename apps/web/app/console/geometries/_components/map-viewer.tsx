@@ -29,17 +29,19 @@ export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
   }, [])
 
   return (
-    <Map
-      // initialViewState={{
-      //   bounds: geometryBbox as [number, number, number, number],
-      //   fitBoundsOptions: { padding: 100 },
-      // }}
-      ref={props.ref}
-      {...restProps}
-      style={{ width: '100%', height: '100%' }}
-      mapStyle={resolvedMapStyle}
-      canvasContextAttributes={resolvedCanvasContextAttributes}
-      attributionControl={{ compact: false }}
-    />
+    <div className="h-full w-full outline-none [&_.maplibregl-canvas-container]:outline-none [&_.maplibregl-canvas]:outline-none [&_.maplibregl-map]:outline-none">
+      <Map
+        // initialViewState={{
+        //   bounds: geometryBbox as [number, number, number, number],
+        //   fitBoundsOptions: { padding: 100 },
+        // }}
+        ref={props.ref}
+        {...restProps}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle={resolvedMapStyle}
+        canvasContextAttributes={resolvedCanvasContextAttributes}
+        attributionControl={{ compact: false }}
+      />
+    </div>
   )
 }

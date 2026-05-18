@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from '@repo/ui/components/ui/sonner'
 import { LogOutIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useAuthClient } from '~/hooks/useAuthClient'
+import { useAuthClient } from '~/hooks/use-auth-client'
 
 export const SignOutButton = ({
   className,
@@ -29,7 +29,7 @@ export const SignOutButton = ({
         if (res.error) {
           toast.error(res.error.message)
         } else {
-          queryClient.invalidateQueries()
+          await queryClient.invalidateQueries()
           router.push('/')
           onClick?.()
         }

@@ -2,11 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Table, tableFromIPC } from 'apache-arrow'
-import initParquetWasm, { readParquet } from 'parquet-wasm'
+import { readParquet } from 'parquet-wasm/bundler'
 import { useMemo, useState } from 'react'
 import { Input } from '@repo/ui/components/ui/input'
 import { Button } from '@repo/ui/components/ui/button'
 import { SearchIcon } from 'lucide-react'
+import { EmptyPlaceholder } from '~/components/empty-placeholder'
 
 function s3UrlToHttps(s3Url: string): string {
   if (!s3Url.startsWith('s3://')) return s3Url
@@ -17,13 +18,15 @@ function s3UrlToHttps(s3Url: string): string {
 
 const PAGE_SIZE = 100
 
+export type DatasetExploreTableProps = {
+  dataUrl: string
+  dataType: string
+}
+
 export function DatasetExploreTable({
   dataUrl,
   dataType,
-}: {
-  dataUrl: string
-  dataType: string
-}) {
+}: DatasetExploreTableProps) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
@@ -35,7 +38,6 @@ export function DatasetExploreTable({
     queryKey: ['parquet-arrow-table', dataUrl],
     queryFn: async () => {
       const url = s3UrlToHttps(dataUrl)
-      await initParquetWasm()
       const resp = await fetch(url)
       const arrayBuffer = await resp.arrayBuffer()
       const wasmTable = readParquet(new Uint8Array(arrayBuffer))
@@ -105,11 +107,7 @@ export function DatasetExploreTable({
   }
 
   if (!arrowTable || arrowTable.numRows === 0) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        No data available.
-      </div>
-    )
+    return <EmptyPlaceholder>No data available.</EmptyPlaceholder>
   }
 
   return (
@@ -132,9 +130,9 @@ export function DatasetExploreTable({
         </span>
       </div>
 
-      <div className="rounded-md border overflow-auto max-h-[600px]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background border-b">
+      <div className="max-h-[600px] overflow-auto rounded-md border bg-white">
+        <table className="w-full bg-white text-sm">
+          <thead className="sticky top-0 border-b bg-white">
             <tr>
               {displayColumns.map((col) => (
                 <th

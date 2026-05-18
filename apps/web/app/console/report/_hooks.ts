@@ -13,13 +13,16 @@ import {
 } from '@tanstack/react-query'
 import { InferRequestType, InferResponseType } from 'hono/client'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
-import { Client, unwrapResponse } from '~/utils/apiClient'
+import { Client, unwrapResponse } from '~/utils/api-client'
 import { getSearchParams } from '~/utils/browser'
-import { useApiClient } from '../../../hooks/useApiClient'
-import { mergePaginatedInfiniteData } from '../../../hooks/mergePaginatedInfiniteData'
-import { useQueryWithSearchParams } from '../../../hooks/useSearchParams'
+import { useApiClient } from '../../../hooks/use-api-client'
+import {
+  getNextPaginatedPageParam,
+  useMergedPaginatedInfiniteData,
+} from '../../../hooks/merge-paginated-infinite-data'
+import { useQueryWithSearchParams } from '../../../hooks/use-search-params'
 import { REPORTS_BASE_PATH } from '../../../lib/paths'
 import {
   ResourceVisibility,
@@ -50,8 +53,9 @@ const reportParamsSchema = z.object({
 
 const reportQueryKeys = {
   all: ['report'] as const,
+  lists: () => [...reportQueryKeys.all, 'list'] as const,
   list: (query: z.infer<typeof reportQuerySchema> | undefined) =>
-    [...reportQueryKeys.all, 'list', { query }] as const,
+    [...reportQueryKeys.lists(), { query }] as const,
   detail: (reportId: string | undefined) =>
     [...reportQueryKeys.all, 'detail', reportId] as const,
 }
@@ -92,17 +96,10 @@ export const useReports = (
       return json.data
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage) return undefined
-      const nextPage = allPages.length + 1
-      return nextPage <= lastPage.pageCount ? nextPage : undefined
-    },
+    getNextPageParam: getNextPaginatedPageParam,
   })
 
-  const aggregatedData = useMemo(
-    () => mergePaginatedInfiniteData(queryResult.data),
-    [queryResult.data],
-  )
+  const aggregatedData = useMergedPaginatedInfiniteData(queryResult.data)
 
   return {
     ...queryResult,
@@ -313,13 +310,13 @@ export const useDeleteReport = (
       return await unwrapResponse(res)
     },
     onSuccess: async () => {
-      if (reportId) {
+      if (reportId && !redirect) {
         queryClient.removeQueries({
           queryKey: reportQueryKeys.detail(reportId),
         })
       }
       await queryClient.invalidateQueries({
-        queryKey: reportQueryKeys.all,
+        queryKey: reportQueryKeys.lists(),
       })
       await invalidateChartUsageDependencyQueries(queryClient)
       if (redirect) {

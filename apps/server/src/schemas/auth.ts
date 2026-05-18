@@ -1,4 +1,5 @@
 import { relations } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import {
   pgTable,
   text,
@@ -192,6 +193,9 @@ export const invitation = pgTable(
   (table) => [
     index('invitation_organizationId_idx').on(table.organizationId),
     index('invitation_email_idx').on(table.email),
+    uniqueIndex('invitation_pending_org_email_uidx')
+      .on(table.organizationId, sql`lower(${table.email})`)
+      .where(sql`${table.status} = 'pending'`),
   ],
 )
 

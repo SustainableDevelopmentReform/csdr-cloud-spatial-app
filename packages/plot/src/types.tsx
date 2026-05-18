@@ -1,6 +1,6 @@
-import type { AppearanceConfig, ChartConfiguration } from '@repo/schemas/chart'
+import type { AppearanceConfig } from './chart-core'
 import { rgb } from 'd3-color'
-import { MouseEvent as ReactMouseEvent } from 'react'
+import type { Dispatch, MouseEvent as ReactMouseEvent } from 'react'
 
 // ---------------------------------------------------------------------------
 // INVARIANT — 1:1 mapping from chart elements to product outputs
@@ -24,7 +24,7 @@ import { MouseEvent as ReactMouseEvent } from 'react'
 // For maps:
 //   - A single indicator and single time point are selected.
 //
-// Validation (shared chart schemas in @repo/schemas) and the pivotData
+// Validation (chart-owned schemas composed by @repo/plot/chart-core) and the pivotData
 // function enforce this invariant. If pivotData detects a collision
 // (duplicate (x, groupBy) combination) it returns an error — no values are
 // ever summarised, aggregated, or silently dropped.
@@ -34,7 +34,14 @@ export type {
   AppearanceConfig,
   BaseChartConfiguration,
   CategoricalColorScheme,
+  ChartConfigurationDraft,
   ChartConfiguration,
+  ChartDataDimension,
+  ChartIndicatorSelection,
+  ChartTitleGeometry,
+  ChartTitleIndicator,
+  ChartTransformConfig,
+  ChartType,
   CurveType,
   DatePrecision,
   DivergingColorScheme,
@@ -42,20 +49,63 @@ export type {
   LegendPosition,
   MapChartConfiguration,
   PlotChartConfiguration,
+  PlotGroupBy,
   PlotSubType,
   SequentialColorScheme,
   TableChartConfiguration,
   TableChartDimension,
-} from '@repo/schemas/chart'
+  TimeChangeBaseline,
+  TimeChangeCapability,
+  TimeChangeMode,
+  TimeChangeRecord,
+  TimeChangeSupportedMode,
+  TimeChangeTransformedRecord,
+  TimeChangeTransformConfig,
+  TimeChangeTransformOptions,
+} from './chart-core'
+
+export {
+  appearanceConfigSchema,
+  baseChartConfigurationSchema,
+  categoricalColorSchemeValues,
+  chartTransformConfigSchema,
+  chartConfigurationSchema,
+  chartDataDimensionValues,
+  curveTypeValues,
+  datePrecisionValues,
+  divergingColorSchemeValues,
+  extractChartIndicatorSelection,
+  filterRecordsForTimePoint,
+  getChartConfigKey,
+  getChartSeriesGroupBy,
+  getPlotChartGroupBy,
+  getSuggestedChartTitle,
+  getTimeChangeBaseline,
+  groupRecordsForTimeChange,
+  isSameTimePoint,
+  isTimeChangeMode,
+  kpiChartConfigurationSchema,
+  legendPositionValues,
+  mapChartConfigurationSchema,
+  plotChartConfigurationSchema,
+  plotSubTypeValues,
+  sequentialColorSchemeValues,
+  supportsTimeChangeTransform,
+  applyTimeChangeTransform,
+  tableChartConfigurationSchema,
+  tableChartDimensionMetadata,
+  tableChartDimensionValues,
+  timeChangeBaselineValues,
+  timeChangeModeValues,
+  timeChangeTransformConfigSchema,
+} from './chart-core'
 
 export type SelectedDataPoint<T> = {
   dataPoint: T | null
   event: MouseEvent | ReactMouseEvent
 }
 
-export type OnSelectCallback<T> = (
-  selectedDataPoint: SelectedDataPoint<T>,
-) => void
+export type OnSelectCallback<T> = Dispatch<SelectedDataPoint<T>>
 
 // ---------------------------------------------------------------------------
 // Shared formatters
@@ -110,13 +160,15 @@ const LIGHT_TEXT_COLOR = '#F9FAFB'
 const DARK_TEXT_COLOR = '#111827'
 
 function getRelativeLuminance(r: number, g: number, b: number) {
-  const values: [number, number, number] = [r, g, b].map((channel) => {
+  const linearize = (channel: number) => {
     if (channel <= 0.04045) {
       return channel / 12.92
     }
     return Math.pow((channel + 0.055) / 1.055, 2.4)
-  }) as [number, number, number]
-  const [linearR, linearG, linearB] = values
+  }
+  const linearR = linearize(r)
+  const linearG = linearize(g)
+  const linearB = linearize(b)
   return 0.2126 * linearR + 0.7152 * linearG + 0.0722 * linearB
 }
 

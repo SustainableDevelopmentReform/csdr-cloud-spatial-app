@@ -1,22 +1,6 @@
 import { BadgeLink } from '../../../../components/badge-link'
 import { ProductOutputLinkParams, useProductOutputLink } from '../_hooks'
-
-export const ProductOutputButtons = ({
-  productOutputs,
-}: {
-  productOutputs: ProductOutputLinkParams[]
-}) => {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {productOutputs?.map((productOutput) => (
-        <ProductOutputButton
-          productOutput={productOutput}
-          key={productOutput.id}
-        />
-      ))}
-    </div>
-  )
-}
+import { Table2Icon } from 'lucide-react'
 
 export const ProductOutputButton = ({
   productOutput,
@@ -26,11 +10,7 @@ export const ProductOutputButton = ({
   const productOutputLink = useProductOutputLink()
 
   return (
-    <BadgeLink
-      href={productOutputLink(productOutput)}
-      variant="outline"
-      className="border-product"
-    >
+    <BadgeLink href={productOutputLink(productOutput)} icon={<Table2Icon />}>
       {productOutput.name}
     </BadgeLink>
   )

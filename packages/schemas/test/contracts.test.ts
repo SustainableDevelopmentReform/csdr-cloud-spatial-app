@@ -7,13 +7,17 @@ import {
 import {
   dashboardQuerySchema,
   dashboardContentSchema,
+  datasetStyleSchema,
   fullDatasetRunSchema,
   fullMeasuredIndicatorSchema,
   fullProductSchema,
   fullDashboardSchema,
   fullReportSchema,
+  productRunMapConfigSchema,
   reportQuerySchema,
   reportStoredContentSchema,
+  workflowDagSchema,
+  workflowDagSimpleSchema,
 } from '../src/crud'
 import {
   extractReportChartReferences,
@@ -23,11 +27,14 @@ import {
   reportTiptapDocumentSchema,
 } from '../src/report-content'
 
+const timePoint2024 = '2024-01-01T00:00:00.000Z'
+const timePoint2025 = '2025-01-01T00:00:00.000Z'
+
 const basePlotSelections = {
   productRunId: 'run-1',
   indicatorIds: ['indicator-1'],
   geometryOutputIds: ['geometry-1'],
-  timePoints: ['2024'],
+  timePoints: [timePoint2024],
 }
 
 const issuesFor = (
@@ -51,7 +58,7 @@ describe('chartConfigurationSchema', () => {
         type: 'plot',
         subType: 'line',
         ...basePlotSelections,
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -60,7 +67,7 @@ describe('chartConfigurationSchema', () => {
         type: 'plot',
         subType: 'area',
         ...basePlotSelections,
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -70,7 +77,7 @@ describe('chartConfigurationSchema', () => {
         subType: 'stacked-area',
         ...basePlotSelections,
         indicatorIds: ['indicator-1', 'indicator-2'],
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -80,7 +87,7 @@ describe('chartConfigurationSchema', () => {
         subType: 'stacked-bar',
         ...basePlotSelections,
         geometryOutputIds: ['geometry-1', 'geometry-2'],
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -107,7 +114,7 @@ describe('chartConfigurationSchema', () => {
         type: 'plot',
         subType: 'dot',
         ...basePlotSelections,
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
       },
     ],
     [
@@ -125,7 +132,7 @@ describe('chartConfigurationSchema', () => {
         type: 'map',
         productRunId: 'run-1',
         indicatorId: 'indicator-1',
-        timePoint: '2024',
+        timePoint: timePoint2024,
         geometryOutputIds: ['geometry-1'],
       },
     ],
@@ -135,7 +142,7 @@ describe('chartConfigurationSchema', () => {
         type: 'table',
         ...basePlotSelections,
         indicatorIds: ['indicator-1', 'indicator-2'],
-        timePoints: ['2024', '2025'],
+        timePoints: [timePoint2024, timePoint2025],
         xDimension: 'indicatorName',
         yDimension: 'timePoint',
       },
@@ -146,12 +153,70 @@ describe('chartConfigurationSchema', () => {
         type: 'kpi',
         productRunId: 'run-1',
         indicatorId: 'indicator-1',
-        timePoint: '2024',
+        timePoint: timePoint2024,
         geometryOutputIds: ['geometry-1'],
       },
     ],
   ])('accepts %s chart configurations', (_label, chart) => {
-    expect(chartConfigurationSchema.parse(chart)).toMatchObject(chart)
+    const parsed = chartConfigurationSchema.parse(chart)
+
+    expect(parsed).toMatchObject({
+      productRunId: chart.productRunId,
+      type: chart.type,
+    })
+  })
+
+  it('keeps existing valid chart JSON unchanged when transform is omitted', () => {
+    const input = {
+      type: 'plot',
+      subType: 'line',
+      ...basePlotSelections,
+      timePoints: [timePoint2024, timePoint2025],
+    }
+
+    expect(chartConfigurationSchema.parse(input)).toEqual(input)
+  })
+
+  it('normalizes ISO chart time values to UTC ISO datetimes', () => {
+    const parsedPlot = chartConfigurationSchema.parse({
+      type: 'plot',
+      subType: 'line',
+      productRunId: 'run-1',
+      indicatorIds: ['indicator-1'],
+      geometryOutputIds: ['geometry-1'],
+      timePoints: ['2024-01-01T00:00:00Z', '2024-05-20T00:00:00Z'],
+    })
+    const parsedMap = chartConfigurationSchema.parse({
+      type: 'map',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024-05-01T00:00:00Z',
+      geometryOutputIds: ['geometry-1'],
+    })
+
+    expect(parsedPlot).toMatchObject({
+      timePoints: ['2024-01-01T00:00:00.000Z', '2024-05-20T00:00:00.000Z'],
+    })
+    expect(parsedMap).toMatchObject({
+      timePoint: '2024-05-01T00:00:00.000Z',
+    })
+  })
+
+  it('rejects invalid chart time values', () => {
+    const result = chartConfigurationSchema.safeParse({
+      type: 'kpi',
+      productRunId: 'run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024',
+      geometryOutputIds: ['geometry-1'],
+    })
+
+    expect(issuesFor(result)).toEqual([
+      {
+        path: 'timePoint',
+        message: 'Invalid ISO datetime',
+      },
+    ])
   })
 
   it('strips deprecated productId fields from persisted chart output', () => {
@@ -171,7 +236,7 @@ describe('chartConfigurationSchema', () => {
       subType: 'donut',
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     })
 
     expect(issuesFor(result)).toEqual([
@@ -194,14 +259,14 @@ describe('chartConfigurationSchema', () => {
       subType: 'ranked-bar',
       ...basePlotSelections,
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     })
 
     expect(issuesFor(result)).toEqual([
       {
         path: 'geometryOutputIds',
         message:
-          'Ranked bar chart can only vary one dimension — select a single geometry',
+          'Ranked bar chart can only vary one dimension — select a single boundary',
       },
       {
         path: 'timePoints',
@@ -218,7 +283,7 @@ describe('chartConfigurationSchema', () => {
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
     })
 
     expect(issuesFor(result)).toEqual([
@@ -230,7 +295,7 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'geometryOutputIds',
         message:
-          'Each chart element must map to one product output — select a single geometry',
+          'Each chart element must map to one product output — select a single boundary',
       },
       {
         path: 'timePoints',
@@ -253,12 +318,12 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'indicatorIds',
         message:
-          'Each chart element must map to one product output — select a single indicator or a single geometry',
+          'Each chart element must map to one product output — select a single indicator or a single boundary',
       },
       {
         path: 'geometryOutputIds',
         message:
-          'Each chart element must map to one product output — select a single indicator or a single geometry',
+          'Each chart element must map to one product output — select a single indicator or a single boundary',
       },
     ])
   })
@@ -269,7 +334,7 @@ describe('chartConfigurationSchema', () => {
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
       geometryOutputIds: ['geometry-1', 'geometry-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
       xDimension: 'timePoint',
       yDimension: 'indicatorName',
     })
@@ -278,7 +343,7 @@ describe('chartConfigurationSchema', () => {
       {
         path: 'geometryOutputIds',
         message:
-          'Geometry output is not used as a table axis, one must be selected.',
+          'Boundary feature is not used as a table axis, one must be selected.',
       },
     ])
   })
@@ -288,7 +353,7 @@ describe('chartConfigurationSchema', () => {
       type: 'table',
       ...basePlotSelections,
       indicatorIds: ['indicator-1', 'indicator-2'],
-      timePoints: ['2024', '2025'],
+      timePoints: [timePoint2024, timePoint2025],
       xDimension: 'indicatorName',
       yDimension: 'geometryOutputName',
     })
@@ -307,33 +372,111 @@ describe('chartConfigurationSchema', () => {
       type: 'kpi',
       productRunId: 'run-1',
       indicatorId: 'indicator-1',
-      timePoint: '2024',
+      timePoint: timePoint2024,
       geometryOutputIds: [],
     })
     const tooManyGeometries = chartConfigurationSchema.safeParse({
       type: 'kpi',
       productRunId: 'run-1',
       indicatorId: 'indicator-1',
-      timePoint: '2024',
+      timePoint: timePoint2024,
       geometryOutputIds: ['geometry-1', 'geometry-2'],
     })
 
     expect(issuesFor(missingGeometry)).toEqual([
       {
         path: 'geometryOutputIds',
-        message: 'KPI requires a selected geometry',
+        message: 'KPI requires a selected boundary',
       },
     ])
     expect(issuesFor(tooManyGeometries)).toEqual([
       {
         path: 'geometryOutputIds',
-        message: 'KPI requires exactly one geometry',
+        message: 'KPI requires exactly one boundary',
       },
     ])
   })
 })
 
 describe('crud schemas', () => {
+  it('accepts workflow DAG payloads from runs', () => {
+    expect(
+      workflowDagSchema.parse([
+        {
+          label: 'Load source raster',
+          order: 1,
+          inputs: {
+            source: 's3://bucket/source.tif',
+          },
+          outputs: {
+            raster: 's3://bucket/processed.tif',
+          },
+          source: {
+            github: 'https://example.com/repo/blob/main/workflow.py',
+            function: 'load_source_raster',
+          },
+          command: 'python workflow.py',
+          completed_at: '2024-01-01T00:00:00.000Z',
+        },
+      ]),
+    ).toHaveLength(1)
+
+    expect(
+      workflowDagSimpleSchema.parse({
+        description: 'Summarise mangrove area by boundary.',
+        inputs: ['Mangrove raster', 'Tonga EEZ'],
+        methods: ['Clip raster to EEZ', 'Calculate area by pixel class'],
+        outputs: ['Mangrove area'],
+        indicators: ['Mangrove Area'],
+      }).methods,
+    ).toEqual(['Clip raster to EEZ', 'Calculate area by pixel class'])
+  })
+
+  it('accepts dataset style payloads', () => {
+    expect(
+      datasetStyleSchema.parse({
+        asset: 'mangroves',
+        type: 'raster',
+        display: 'categorical',
+        values: {
+          '1': {
+            color: 'rgba(86, 173, 60, 1)',
+            label: 'Mangrove',
+          },
+        },
+      }).values?.['1']?.label,
+    ).toBe('Mangrove')
+
+    expect(
+      datasetStyleSchema.parse({
+        type: 'vector-polygon',
+        display: 'simple',
+        color: 'rgba(209, 255, 93, 1)',
+        label: 'Reef',
+      }).label,
+    ).toBe('Reef')
+  })
+
+  it('accepts product run map config payloads', () => {
+    const mapConfig = {
+      type: 'map',
+      productRunId: 'product-run-1',
+      indicatorId: 'indicator-1',
+      timePoint: '2024-01-01T00:00:00.000Z',
+      geometryOutputIds: ['geometry-output-1'],
+      title: 'Default map',
+      description: 'Saved map defaults',
+      appearance: {
+        compactNumbers: true,
+        datePrecision: 'year-month',
+        sequentialScheme: 'viridis',
+      },
+    }
+
+    expect(productRunMapConfigSchema.parse(mapConfig)).toMatchObject(mapConfig)
+    expect(productRunMapConfigSchema.nullable().parse(null)).toBeNull()
+  })
+
   it('accepts usage counts on full detail schemas', () => {
     const measuredIndicator = fullMeasuredIndicatorSchema.parse({
       id: 'indicator-1',
@@ -395,6 +538,8 @@ describe('crud schemas', () => {
         dataType: null,
         dataSize: null,
         dataEtag: null,
+        workflowDag: null,
+        workflowDagSimple: null,
         dataset: {
           id: 'dataset-1',
           name: 'Dataset',
@@ -417,6 +562,7 @@ describe('crud schemas', () => {
         datasetRunId: 'dataset-run-1',
         geometriesId: ['geometries-1'],
         geometriesRunId: 'geometries-run-1',
+        published: 'published',
       }),
     ).toMatchObject({
       indicatorId: ['indicator-1'],
@@ -426,6 +572,7 @@ describe('crud schemas', () => {
       datasetRunId: 'dataset-run-1',
       geometriesId: ['geometries-1'],
       geometriesRunId: 'geometries-run-1',
+      published: 'published',
     })
 
     expect(
@@ -484,7 +631,7 @@ describe('extractChartIndicatorSelection', () => {
         type: 'map',
         productRunId: 'run-1',
         indicatorId: 'indicator-1',
-        timePoint: '2024',
+        timePoint: timePoint2024,
       }),
     ).toEqual({
       productRunId: 'run-1',
@@ -501,7 +648,7 @@ describe('explicit indicator requirements', () => {
         subType: 'line',
         productRunId: 'run-1',
         geometryOutputIds: ['geometry-1'],
-        timePoints: ['2024'],
+        timePoints: [timePoint2024],
       }).success,
     ).toBe(false)
 
@@ -512,7 +659,7 @@ describe('explicit indicator requirements', () => {
         xDimension: 'timePoint',
         yDimension: 'indicatorName',
         geometryOutputIds: ['geometry-1'],
-        timePoints: ['2024'],
+        timePoints: [timePoint2024],
       }).success,
     ).toBe(false)
   })
@@ -570,7 +717,7 @@ describe('reportTiptapDocumentSchema', () => {
                       type: 'kpi',
                       productRunId: 'run-2',
                       indicatorId: 'indicator-2',
-                      timePoint: '2024',
+                      timePoint: timePoint2024,
                       geometryOutputIds: ['geometry-2'],
                     },
                   },
@@ -650,7 +797,7 @@ describe('reportTiptapDocumentSchema', () => {
               subType: 'donut',
               ...basePlotSelections,
               indicatorIds: ['indicator-1', 'indicator-2'],
-              timePoints: ['2024', '2025'],
+              timePoints: [timePoint2024, timePoint2025],
             },
           },
         },

@@ -4,16 +4,16 @@ import {
   assertCanSetVisibility,
   assertResourceReadable,
   assertResourceWritable,
-  buildExplorerReadScope,
+  buildResourceListReadScope,
   requireOwnedInsertContext,
-} from '~/lib/authorization'
-import { fetchChartUsageCounts } from '~/lib/chartUsage'
+} from '~/lib/auth/authorization'
+import { fetchChartUsageCounts } from '~/lib/chart-usage'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
 import {
   buildGeometryIntersectsFilter,
   getBoundsFilterEnvelope,
-} from '~/lib/geographicBounds'
+} from '~/lib/geographic-bounds'
 import {
   createOpenAPIApp,
   createResponseSchema,
@@ -38,16 +38,17 @@ import {
   baseDatasetRunSchema,
   baseDatasetSchema,
   createDatasetSchema,
+  datasetStyleSchema,
   datasetQuerySchema,
   datasetRunQuerySchema,
   fullDatasetSchema,
   updateDatasetSchema,
   updateVisibilitySchema,
 } from '@repo/schemas/crud'
-import { baseDatasetRunQuery, parseBaseDatasetRun } from './datasetRun'
+import { baseDatasetRunQuery, parseBaseDatasetRun } from './dataset-run'
 import { normalizeFilterValues, parseQuery } from '../utils/query'
 
-export const baseDatasetQuery = {
+const baseDatasetQuery = {
   columns: {
     ...baseAclColumns,
     mainRunId: true,
@@ -68,25 +69,28 @@ const datasetNotFoundError = () =>
   new ServerError({
     statusCode: 404,
     message: 'Failed to get dataset',
-    description: "Dataset you're looking for is not found",
+    description: "dataset you're looking for is not found",
   })
 
 const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
 
-export const parseBaseDataset = <
+const parseBaseDataset = <
   T extends InferQueryModel<'dataset', typeof baseDatasetQuery>,
 >(
   record: T,
-) => record
+) => ({
+  ...record,
+  style: datasetStyleSchema.nullable().parse(record.style),
+})
 
 export const parseFullDataset = <
   T extends InferQueryModel<'dataset', typeof fullDatasetQuery>,
 >(
   record: T,
 ) => ({
-  ...record,
+  ...parseBaseDataset(record),
   mainRun:
     record.mainRun && record.mainRun.dataset.id === record.id
       ? parseBaseDatasetRun(record.mainRun)
@@ -118,10 +122,7 @@ const fetchFullDataset = async (id: string, organizationId: string) => {
   }
 }
 
-export const fetchFullDatasetOrThrow = async (
-  id: string,
-  organizationId: string,
-) => {
+const fetchFullDatasetOrThrow = async (id: string, organizationId: string) => {
   const fullDataset = await fetchFullDataset(id, organizationId)
 
   if (!fullDataset) {
@@ -140,7 +141,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:dataset',
-          scope: 'explorer',
+          allowPublicRead: true,
         }),
       ],
       request: {
@@ -173,7 +174,11 @@ const app = createOpenAPIApp()
       const excludeDatasetIdsArray = normalizeFilterValues(excludeDatasetIds)
       const boundsEnvelope = getBoundsFilterEnvelope(queryParams)
       const baseWhere = and(
-        buildExplorerReadScope(c, dataset.organizationId, dataset.visibility),
+        buildResourceListReadScope(
+          c,
+          dataset.organizationId,
+          dataset.visibility,
+        ),
         datasetIdsArray.length > 0
           ? inArray(dataset.id, datasetIdsArray)
           : undefined,
@@ -210,7 +215,7 @@ const app = createOpenAPIApp()
         c,
         {
           ...meta,
-          data,
+          data: data.map(parseBaseDataset),
         },
         200,
       )
@@ -222,7 +227,7 @@ const app = createOpenAPIApp()
       method: 'get',
       path: '/:id',
       middleware: [
-        authMiddleware({ permission: 'read:dataset', scope: 'explorer' }),
+        authMiddleware({ permission: 'read:dataset', allowPublicRead: true }),
       ],
       request: {
         params: z.object({
@@ -250,7 +255,7 @@ const app = createOpenAPIApp()
         c,
         resource: 'dataset',
         resourceId: id,
-        scope: 'explorer',
+        allowPublicRead: true,
         notFoundError: datasetNotFoundError,
       })
       const record = await fetchFullDatasetOrThrow(
@@ -270,8 +275,7 @@ const app = createOpenAPIApp()
       middleware: [
         authMiddleware({
           permission: 'read:datasetRun',
-          scope: 'explorer',
-          skipResourceCheck: true,
+          allowPublicRead: true,
         }),
       ],
       request: {
@@ -310,7 +314,7 @@ const app = createOpenAPIApp()
           c,
           resource: 'dataset',
           resourceId: datasetId,
-          scope: 'explorer',
+          allowPublicRead: true,
           notFoundError: datasetNotFoundError,
         })
       }
@@ -327,7 +331,7 @@ const app = createOpenAPIApp()
                   .select({ id: dataset.id })
                   .from(dataset)
                   .where(
-                    buildExplorerReadScope(
+                    buildResourceListReadScope(
                       c,
                       dataset.organizationId,
                       dataset.visibility,
