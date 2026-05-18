@@ -1,6 +1,13 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/ui/components/ui/select'
 import { normalizeFilterValues } from '~/utils'
 import Pagination from '~/components/table/pagination'
 import {
@@ -135,8 +142,8 @@ const ReportFeature = () => {
     selectedGeometriesIds.length > 0,
   )
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof ReportListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     const filters: ActiveTableFilter[] = []
@@ -225,9 +232,19 @@ const ReportFeature = () => {
       })
     }
 
+    if (query?.published) {
+      filters.push({
+        id: 'published',
+        label: 'Status',
+        value: query.published === 'published' ? 'Published' : 'Draft',
+        onClear: () => setSearchParams({ published: undefined }),
+      })
+    }
+
     return filters
   }, [
     geographicBounds,
+    query?.published,
     query?.datasetRunId,
     query?.geometriesRunId,
     query?.productRunId,
@@ -384,6 +401,26 @@ const ReportFeature = () => {
                 }
                 onClear={() => setSearchParams(toGeographicBoundsQuery(null))}
               />
+              <Select
+                value={query?.published ?? 'all'}
+                onValueChange={(value) =>
+                  setSearchParams({
+                    published:
+                      value === 'draft' || value === 'published'
+                        ? value
+                        : undefined,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All reports</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
             </TableFilterPopover>
           </div>
         }

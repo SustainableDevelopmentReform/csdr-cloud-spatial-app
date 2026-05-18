@@ -6,19 +6,34 @@ import {
 } from '@tanstack/react-table'
 import React from 'react'
 import Link from '~/components/link'
+import { SortButton } from '~/components/table/crud-table'
+import {
+  createManualSortingChangeHandler,
+  createSortResolver,
+  getManualSortingState,
+} from '~/components/table/sorting'
 import Table from '~/components/table/table'
 import { USERS_BASE_PATH } from '~/lib/paths'
 import {
   formatGlobalUserRole,
   globalUserRoleSchema,
 } from '~/utils/access-control'
-import { AdminUser } from '../_hooks'
+import { AdminUser, AdminUserSort, AdminUserSortOrder } from '../_hooks'
 
 interface UsersTableProps {
   data: AdminUser[]
+  sort?: AdminUserSort
+  order?: AdminUserSortOrder
+  onSortChange?: (sort?: AdminUserSort, order?: AdminUserSortOrder) => void
 }
 
 const columnHelper = createColumnHelper<AdminUser>()
+const userSortOptions: readonly AdminUserSort[] = [
+  'name',
+  'email',
+  'role',
+  'createdAt',
+]
 
 const StatusBadge = ({
   status,
@@ -36,17 +51,38 @@ const StatusBadge = ({
 
 const columns = [
   columnHelper.accessor('name', {
-    header: () => <span>Name</span>,
+    header: ({ column }) => (
+      <SortButton
+        order={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Name
+      </SortButton>
+    ),
     cell: (info) => info.getValue(),
     minSize: 160,
   }),
   columnHelper.accessor('email', {
-    header: () => <span>Email</span>,
+    header: ({ column }) => (
+      <SortButton
+        order={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Email
+      </SortButton>
+    ),
     cell: (info) => info.getValue(),
     minSize: 160,
   }),
   columnHelper.accessor('role', {
-    header: () => <span>Role</span>,
+    header: ({ column }) => (
+      <SortButton
+        order={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Role
+      </SortButton>
+    ),
     cell: (info) => {
       const parsedRole = globalUserRoleSchema.safeParse(info.getValue())
       return formatGlobalUserRole(parsedRole.success ? parsedRole.data : 'user')
@@ -77,7 +113,14 @@ const columns = [
   }),
 
   columnHelper.accessor('createdAt', {
-    header: () => <span>Date added</span>,
+    header: ({ column }) => (
+      <SortButton
+        order={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Date added
+      </SortButton>
+    ),
     cell: (info) => {
       const value = info.getValue()
       if (!value) return null
@@ -100,11 +143,28 @@ const columns = [
   }),
 ]
 
-const UsersTable: React.FC<UsersTableProps> = ({ data }) => {
+const UsersTable: React.FC<UsersTableProps> = ({
+  data,
+  sort,
+  order,
+  onSortChange,
+}) => {
+  const sortingState = getManualSortingState(sort, order)
+  const resolveSort = createSortResolver(userSortOptions)
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
+    state: {
+      sorting: sortingState,
+    },
+    enableMultiSort: false,
+    onSortingChange: createManualSortingChangeHandler({
+      sortingState,
+      resolveSort,
+      onSortChange,
+    }),
   })
 
   return <Table table={table} />

@@ -47,6 +47,8 @@ const toLogListQuery = (
     requestKind: query.requestKind,
     search: query.search,
     size: query.size,
+    sort: query.sort,
+    order: query.order,
   }
 }
 
@@ -59,6 +61,8 @@ const toLogRouteQuery = (
   requestKind: query?.requestKind,
   search: query?.search,
   size: query?.size,
+  sort: query?.sort,
+  order: query?.order,
 })
 
 const toLogSearchParams = (query: LogPageQuery | undefined): string => {
@@ -83,6 +87,14 @@ const toLogSearchParams = (query: LogPageQuery | undefined): string => {
 
   if (routeQuery.size) {
     searchParams.set('size', String(routeQuery.size))
+  }
+
+  if (routeQuery.sort) {
+    searchParams.set('sort', routeQuery.sort)
+  }
+
+  if (routeQuery.order) {
+    searchParams.set('order', routeQuery.order)
   }
 
   return searchParams.toString()

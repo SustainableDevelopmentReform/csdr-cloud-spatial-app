@@ -4,7 +4,7 @@ import {
   auditLogQuerySchema,
   type AuditLogQuery,
 } from '@repo/schemas/audit-log'
-import { and, desc, eq, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
 import { authMiddleware } from '~/middlewares/auth'
 import { db } from '~/lib/db'
 import { ServerError } from '~/lib/error'
@@ -100,6 +100,20 @@ const buildRequestKindFilter = (requestKind: AuditLogQuery['requestKind']) => {
   return undefined
 }
 
+const buildAuditLogOrderBy = (query: AuditLogQuery) => {
+  const direction = query.order === 'asc' ? asc : desc
+
+  switch (query.sort) {
+    case 'action':
+      return direction(auditLog.action)
+    case 'resourceType':
+      return direction(auditLog.resourceType)
+    case 'createdAt':
+    default:
+      return direction(auditLog.createdAt)
+  }
+}
+
 const excludeGetSessionAuditLogs = () =>
   and(
     ne(auditLog.action, 'get_session'),
@@ -144,7 +158,7 @@ const app = createOpenAPIApp()
         const totalCount = await db.$count(auditLog, filters)
         const data = await db.query.auditLog.findMany({
           where: filters,
-          orderBy: desc(auditLog.createdAt),
+          orderBy: buildAuditLogOrderBy(query),
           limit: size,
           offset,
           with: {
@@ -238,7 +252,7 @@ const app = createOpenAPIApp()
       const totalCount = await db.$count(auditLog, filters)
       const data = await db.query.auditLog.findMany({
         where: filters,
-        orderBy: desc(auditLog.createdAt),
+        orderBy: buildAuditLogOrderBy(query),
         limit: size,
         offset,
         with: {

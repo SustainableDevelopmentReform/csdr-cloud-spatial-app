@@ -382,6 +382,7 @@ export const dataLibraryResourceSchema = baseAclResourceSchema
 export const dataLibraryQuerySchema = geographicBoundsQuerySchema.extend({
   search: z.string().trim().max(200).optional(),
   size: z.coerce.number().int().positive().max(100).optional(),
+  sort: z.enum(['name', 'createdAt', 'updatedAt', 'resourceType']).optional(),
   resourceType: z
     .union([
       dataLibraryResourceTypeSchema,
@@ -918,7 +919,9 @@ const presentationResourceQuerySchema = geographicBoundsQuerySchema.extend({
   geometriesRunId: z.string().optional(),
 })
 
-export const reportQuerySchema = presentationResourceQuerySchema
+export const reportQuerySchema = presentationResourceQuerySchema.extend({
+  published: z.enum(['draft', 'published']).optional(),
+})
 export const createReportSchema = baseCreateResourceSchema
 export const updateReportSchema = baseUpdateResourceSchema.extend({
   content: reportStoredContentSchema.nullable().optional(),

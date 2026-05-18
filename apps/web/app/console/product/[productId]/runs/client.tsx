@@ -102,8 +102,8 @@ const ProductRunFeature = ({ embedded = false }: { embedded?: boolean }) => {
     Boolean(query?.geometriesRunId),
   )
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof ProductRunListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
 
   const columns = useMemo(() => {

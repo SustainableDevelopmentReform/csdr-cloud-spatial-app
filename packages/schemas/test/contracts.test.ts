@@ -551,6 +551,7 @@ describe('crud schemas', () => {
         datasetRunId: 'dataset-run-1',
         geometriesId: ['geometries-1'],
         geometriesRunId: 'geometries-run-1',
+        published: 'published',
       }),
     ).toMatchObject({
       indicatorId: ['indicator-1'],
@@ -560,6 +561,7 @@ describe('crud schemas', () => {
       datasetRunId: 'dataset-run-1',
       geometriesId: ['geometries-1'],
       geometriesRunId: 'geometries-run-1',
+      published: 'published',
     })
 
     expect(

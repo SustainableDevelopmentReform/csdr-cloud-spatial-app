@@ -152,8 +152,10 @@ export function GeometriesMainRunOutputsTable({
     form.setValue('geometriesRunId', geometriesRunId)
   }, [form, geometriesRunId])
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<
+    ReadonlyArray<keyof GeometryOutputListItem>
+  >(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
 
   const columns = useMemo(() => [] as ColumnDef<GeometryOutputListItem>[], [])

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useAuthClient } from '~/hooks/use-auth-client'
 import { QueryKey } from '~/utils/api-client'
+import { globalUserRoleSchema } from '~/utils/access-control'
 
 const adminUserSchema = z.object({
   banned: z.boolean().optional(),
@@ -27,6 +28,9 @@ const listUsersResponseSchema = z.object({
 })
 
 export type AdminUser = z.infer<typeof adminUserSchema>
+export type AdminUserSort = 'name' | 'email' | 'role' | 'createdAt'
+export type AdminUserSortOrder = 'asc' | 'desc'
+export type AdminUserRoleFilter = z.infer<typeof globalUserRoleSchema>
 
 export const userIdSchema = z.object({
   userId: z.string().optional(),
@@ -65,18 +69,26 @@ export const useUsers = () => {
   const [isOpen, setOpen] = useState(false)
   const pageSize = 10
   const [search, setSearch] = useState('')
+  const [role, setRole] = useState<AdminUserRoleFilter | undefined>()
+  const [sort, setSort] = useState<AdminUserSort | undefined>()
+  const [order, setOrder] = useState<AdminUserSortOrder | undefined>()
   // const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(
   //   undefined,
   // )
 
   const queryResult = useInfiniteQuery({
-    queryKey: [QueryKey.Users, search],
+    queryKey: [QueryKey.Users, search, role, sort, order],
     queryFn: async ({ pageParam = 0 }) => {
       const res = await authClient.admin.listUsers({
         query: {
           searchValue: search,
           limit: pageSize,
           offset: pageParam,
+          sortBy: sort,
+          sortDirection: order,
+          filterField: role ? 'role' : undefined,
+          filterOperator: role ? 'eq' : undefined,
+          filterValue: role,
           // organizationId: selectedOrgId,
         },
       })
@@ -117,6 +129,12 @@ export const useUsers = () => {
     setOpen,
     search,
     setSearch,
+    role,
+    setRole,
+    sort,
+    setSort,
+    order,
+    setOrder,
     pageSize,
     data: aggregatedData,
   }

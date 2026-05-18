@@ -105,6 +105,8 @@ const buildDataLibraryOrderBy = (
       return sql`data_library_resources."createdAt" ${direction}, data_library_resources."resourceType" asc, data_library_resources.id asc`
     case 'updatedAt':
       return sql`data_library_resources."updatedAt" ${direction}, data_library_resources."resourceType" asc, data_library_resources.id asc`
+    case 'resourceType':
+      return sql`data_library_resources."resourceType" ${direction}, data_library_resources.name asc, data_library_resources.id asc`
   }
 }
 

@@ -236,8 +236,10 @@ export function ProductMainRunOutputsTable({
     form.setValue('productRunId', productRunId)
   }, [form, productRunId])
 
-  const baseColumns = useMemo(() => {
-    return ['updatedAt'] as const
+  const baseColumns = useMemo<
+    ReadonlyArray<keyof ProductOutputListItem>
+  >(() => {
+    return ['createdAt', 'updatedAt']
   }, [])
 
   const columns = useMemo(

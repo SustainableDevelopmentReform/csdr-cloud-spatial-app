@@ -8,6 +8,8 @@ export const auditLogQuerySchema = z.object({
   search: z.string().optional(),
   decision: z.enum(['allow', 'deny']).optional(),
   requestKind: z.enum(['mutating', 'read']).optional(),
+  sort: z.enum(['createdAt', 'action', 'resourceType']).optional(),
+  order: z.enum(['asc', 'desc']).optional(),
 })
 
 export const auditLogEntrySchema = z.object({

@@ -44,8 +44,8 @@ const IndicatorFeature = () => {
   )
   const { data: indicatorCategories } = useIndicatorCategories()
 
-  const baseColumns = useMemo(() => {
-    return ['description', 'updatedAt'] as const
+  const baseColumns = useMemo<ReadonlyArray<keyof IndicatorListItem>>(() => {
+    return ['description', 'createdAt', 'updatedAt']
   }, [])
   const activeFilters = useMemo<ActiveTableFilter[]>(() => {
     if (selectedCategoryIds.length === 0) {
