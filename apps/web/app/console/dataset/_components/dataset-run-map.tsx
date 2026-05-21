@@ -7,7 +7,6 @@ import { Protocol } from 'pmtiles'
 import DeckGL from '@deck.gl/react'
 import { MapViewState, LayersList, WebMercatorViewport } from '@deck.gl/core'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import { readParquet } from 'parquet-wasm/bundler'
 import { Table, tableFromIPC } from 'apache-arrow'
 import { PMTiles, Header as PMTilesHeader } from 'pmtiles'
 import { useQuery } from '@tanstack/react-query'
@@ -310,7 +309,9 @@ export const DatasetRunMap = ({
         )
       }
       const arrayBuffer = await resp.arrayBuffer()
-      const wasmTable = readParquet(new Uint8Array(arrayBuffer))
+      const parquetWasm = await import('parquet-wasm/esm/parquet_wasm.js')
+      await parquetWasm.default()
+      const wasmTable = parquetWasm.readParquet(new Uint8Array(arrayBuffer))
       return tableFromIPC(wasmTable.intoIPCStream())
     },
     enabled: dataType === 'stac-geoparquet' && !!dataUrl,
