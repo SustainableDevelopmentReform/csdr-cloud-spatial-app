@@ -439,10 +439,27 @@ describe('crud schemas', () => {
     expect(
       workflowDagSimpleSchema.parse({
         description: 'Summarise mangrove area by boundary.',
-        inputs: ['Mangrove raster', 'Tonga EEZ'],
+        inputs: [
+          {
+            description: 'Mangrove raster',
+            type: 'dataset',
+            run_id: 'dataset-run-1',
+          },
+          {
+            description: 'Tonga EEZ',
+            type: 'geometry',
+            run_id: 'geometry-run-1',
+          },
+        ],
         methods: ['Clip raster to EEZ', 'Calculate area by pixel class'],
         outputs: ['Mangrove area'],
-        indicators: ['Mangrove Area'],
+        indicators: [
+          {
+            description: 'Mangrove Area',
+            indicator_id: 'indicator-1',
+            product_run_id: 'product-run-1',
+          },
+        ],
       }).methods,
     ).toEqual(['Clip raster to EEZ', 'Calculate area by pixel class'])
   })
