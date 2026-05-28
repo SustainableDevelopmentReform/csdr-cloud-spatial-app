@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Table, tableFromIPC } from 'apache-arrow'
-import { readParquet } from 'parquet-wasm/bundler'
 import { useMemo, useState } from 'react'
 import { Input } from '@repo/ui/components/ui/input'
 import { Button } from '@repo/ui/components/ui/button'
@@ -40,7 +39,9 @@ export function DatasetExploreTable({
       const url = s3UrlToHttps(dataUrl)
       const resp = await fetch(url)
       const arrayBuffer = await resp.arrayBuffer()
-      const wasmTable = readParquet(new Uint8Array(arrayBuffer))
+      const parquetWasm = await import('parquet-wasm/esm/parquet_wasm.js')
+      await parquetWasm.default()
+      const wasmTable = parquetWasm.readParquet(new Uint8Array(arrayBuffer))
       return tableFromIPC(wasmTable.intoIPCStream())
     },
     enabled:
