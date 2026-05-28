@@ -347,6 +347,7 @@ async function main(): Promise<void> {
           datasetRunId: datasetRun.id,
           geometriesRunId: geometriesRun.id,
           metadata: '{ "some product run": "parameters" }',
+          // TODO: Add seed data e.g. worflowDag, workflowDagSimple.
         })
         .onConflictDoNothing()
         .returning(),

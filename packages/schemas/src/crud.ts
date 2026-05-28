@@ -61,10 +61,27 @@ export const workflowDagSchema = z
 export const workflowDagSimpleSchema = z
   .object({
     description: z.string(),
-    inputs: z.array(z.string()),
+    inputs: z.array(
+      z.union([
+        z.string(), // Dataset and geometry don't have links.
+        z.object({
+          description: z.string(),
+          type: z.enum(['dataset', 'geometry']),
+          run_id: z.string(),
+        }), // Product does.
+      ]),
+    ),
     methods: z.array(z.string()),
     outputs: z.array(z.string()),
-    indicators: z.array(z.string()).optional(),
+    indicators: z
+      .array(
+        z.object({
+          description: z.string(),
+          indicator_id: z.string(),
+          product_run_id: z.string(),
+        }),
+      )
+      .optional(),
   })
   .openapi('WorkflowDagSimpleSchema')
 

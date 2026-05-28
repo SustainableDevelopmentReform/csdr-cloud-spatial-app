@@ -1,6 +1,7 @@
 'use client'
 
 import { workflowDagSimpleSchema } from '@repo/schemas/crud'
+import { EarthIcon, SquareStackIcon } from 'lucide-react'
 import {
   DEFAULT_LINEAGE_EMPTY_MESSAGE,
   LineageEmptyState,
@@ -36,14 +37,40 @@ export function SimpleWorkflowDagChart({
             Inputs
           </div>
           <div className="flex flex-wrap items-start justify-center gap-4">
-            {workflow.inputs.map((input, i) => (
-              <div
-                key={i}
-                className="max-w-[250px] rounded-lg border bg-background px-6 py-3 text-center text-sm font-medium shadow-sm"
-              >
-                {input}
-              </div>
-            ))}
+            {workflow.inputs.map((input, i) => {
+              const label =
+                typeof input === 'string' ? input : input.description
+              const inputType = typeof input !== 'string' ? input.type : null
+              const href =
+                typeof input !== 'string' && input.run_id
+                  ? `/console/${input.type === 'dataset' ? 'dataset' : 'geometries'}/run/${input.run_id}?from=library`
+                  : null
+              const Icon =
+                inputType === 'dataset'
+                  ? EarthIcon
+                  : inputType === 'geometry'
+                    ? SquareStackIcon
+                    : null
+              return href ? (
+                <a
+                  key={i}
+                  href={href}
+                  title={`Go to this ${inputType === 'geometry' ? 'boundary' : 'dataset'} run`}
+                  className="flex max-w-[250px] items-center gap-2 rounded-lg border bg-background px-6 py-3 text-center text-sm font-medium shadow-sm transition-colors hover:border-primary hover:text-primary"
+                >
+                  {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                  {label} →
+                </a>
+              ) : (
+                <div
+                  key={i}
+                  className="flex max-w-[250px] items-center gap-2 rounded-lg border bg-background px-6 py-3 text-center text-sm font-medium shadow-sm"
+                >
+                  {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                  {label}
+                </div>
+              )
+            })}
           </div>
           {/* connector */}
           <div />
@@ -143,14 +170,20 @@ export function SimpleWorkflowDagChart({
                 Indicators
               </div>
               <div className="flex flex-wrap items-start justify-center gap-4">
-                {workflow.indicators.map((indicator, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm"
-                  >
-                    {indicator}
-                  </div>
-                ))}
+                {workflow.indicators.map((indicator, i) => {
+                  const label = indicator.description
+                  const href = `/console/product/run/${indicator.product_run_id}?from=library&section=explore&sub=table&indicatorId=${indicator.indicator_id}`
+                  return (
+                    <a
+                      key={i}
+                      href={href}
+                      title="Go to this indicator's data"
+                      className="cursor-pointer rounded-lg border bg-background px-6 py-3 text-sm font-medium shadow-sm transition-colors hover:border-primary hover:text-primary"
+                    >
+                      {label} →
+                    </a>
+                  )
+                })}
               </div>
             </>
           )}
