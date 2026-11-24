@@ -225,6 +225,8 @@ const assertReportMutable = (record: { publishedAt: Date | null }) => {
   }
 }
 
+const nullableReportStoredContentSchema = reportStoredContentSchema.nullable()
+
 const fetchFullReportOrThrow = async (id: string, organizationId: string) => {
   const record = await fetchFullReport(id, organizationId)
 
@@ -235,7 +237,7 @@ const fetchFullReportOrThrow = async (id: string, organizationId: string) => {
   return {
     ...serializeBaseReport(record),
     content: parseStoredReportContentOrThrow(
-      reportStoredContentSchema.nullable().parse(record.content),
+      nullableReportStoredContentSchema.parse(record.content),
     ),
     sources: await deriveReportSources(db, record.id),
   }

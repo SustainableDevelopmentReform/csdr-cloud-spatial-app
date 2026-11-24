@@ -238,6 +238,12 @@ const parseBaseProductRunOutputSummary = <
   }
 }
 
+// The OpenAPI metadata registry retains schema modifiers. Build these once,
+// rather than retaining fresh schemas for every catalogue read or export row.
+const nullableWorkflowDagSchema = workflowDagSchema.nullable()
+const nullableWorkflowDagSimpleSchema = workflowDagSimpleSchema.nullable()
+const nullableProductRunMapConfigSchema = productRunMapConfigSchema.nullable()
+
 export const parseBaseProductRun = <
   T extends InferQueryModel<'productRun', typeof baseProductRunQuery>,
 >(
@@ -245,11 +251,11 @@ export const parseBaseProductRun = <
 ) => {
   return {
     ...record,
-    workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
-    workflowDagSimple: workflowDagSimpleSchema
-      .nullable()
-      .parse(record.workflowDagSimple),
-    mapConfig: productRunMapConfigSchema.nullable().parse(record.mapConfig),
+    workflowDag: nullableWorkflowDagSchema.parse(record.workflowDag),
+    workflowDagSimple: nullableWorkflowDagSimpleSchema.parse(
+      record.workflowDagSimple,
+    ),
+    mapConfig: nullableProductRunMapConfigSchema.parse(record.mapConfig),
     // Note that record.outputSummary is nullable, but the type is incorrect - see https://github.com/drizzle-team/drizzle-orm/issues/1066
     outputSummary: record.outputSummary
       ? parseBaseProductRunOutputSummary(record.outputSummary)
@@ -264,11 +270,11 @@ export const parseFullProductRun = <
 ) => {
   return {
     ...record,
-    workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
-    workflowDagSimple: workflowDagSimpleSchema
-      .nullable()
-      .parse(record.workflowDagSimple),
-    mapConfig: productRunMapConfigSchema.nullable().parse(record.mapConfig),
+    workflowDag: nullableWorkflowDagSchema.parse(record.workflowDag),
+    workflowDagSimple: nullableWorkflowDagSimpleSchema.parse(
+      record.workflowDagSimple,
+    ),
+    mapConfig: nullableProductRunMapConfigSchema.parse(record.mapConfig),
     datasetRun: record.datasetRun
       ? parseBaseDatasetRun(record.datasetRun)
       : null,

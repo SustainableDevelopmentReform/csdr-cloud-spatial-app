@@ -38,6 +38,10 @@ import {
   workflowDagSimpleSchema,
 } from '@repo/schemas/crud'
 
+const nullableWorkflowDagSchema = workflowDagSchema.nullable()
+const nullableWorkflowDagSimpleSchema = workflowDagSimpleSchema.nullable()
+const nullableDatasetStyleSchema = datasetStyleSchema.nullable()
+
 export const baseDatasetRunQuery = {
   columns: {
     ...baseRunColumns,
@@ -64,14 +68,14 @@ export const parseBaseDatasetRun = <
   record: T,
 ) => ({
   ...record,
-  workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
-  workflowDagSimple: workflowDagSimpleSchema
-    .nullable()
-    .parse(record.workflowDagSimple),
+  workflowDag: nullableWorkflowDagSchema.parse(record.workflowDag),
+  workflowDagSimple: nullableWorkflowDagSimpleSchema.parse(
+    record.workflowDagSimple,
+  ),
   bounds: toResourceBounds(record.bounds),
   dataset: {
     ...record.dataset,
-    style: datasetStyleSchema.nullable().parse(record.dataset.style),
+    style: nullableDatasetStyleSchema.parse(record.dataset.style),
   },
 })
 

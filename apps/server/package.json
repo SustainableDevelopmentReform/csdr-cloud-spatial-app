@@ -39,6 +39,7 @@
     "test:unit": "AUTH_USE_TESTCONTAINERS=true tsx scripts/pretest.ts && vitest run"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "8.5.0",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@testcontainers/postgresql": "^11.14.0",

@@ -100,6 +100,8 @@ type BaseProductOutputRecord = InferQueryModel<
   'productOutput',
   typeof baseProductOutputQuery
 >
+const nullableDatasetStyleSchema = datasetStyleSchema.nullable()
+
 const parseProductOutputProductRun = (
   productRunRecord: BaseProductOutputRecord['productRun'],
 ) => ({
@@ -109,9 +111,9 @@ const parseProductOutputProductRun = (
         ...productRunRecord.datasetRun,
         dataset: {
           ...productRunRecord.datasetRun.dataset,
-          style: datasetStyleSchema
-            .nullable()
-            .parse(productRunRecord.datasetRun.dataset.style),
+          style: nullableDatasetStyleSchema.parse(
+            productRunRecord.datasetRun.dataset.style,
+          ),
         },
       }
     : null,

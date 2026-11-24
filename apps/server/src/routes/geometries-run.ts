@@ -67,16 +67,19 @@ export const baseGeometriesRunQuery = {
 
 const fullGeometriesRunQuery = baseGeometriesRunQuery
 
+const nullableWorkflowDagSchema = workflowDagSchema.nullable()
+const nullableWorkflowDagSimpleSchema = workflowDagSimpleSchema.nullable()
+
 export const parseBaseGeometriesRun = <
   T extends InferQueryModel<'geometriesRun', typeof baseGeometriesRunQuery>,
 >(
   record: T,
 ) => ({
   ...record,
-  workflowDag: workflowDagSchema.nullable().parse(record.workflowDag),
-  workflowDagSimple: workflowDagSimpleSchema
-    .nullable()
-    .parse(record.workflowDagSimple),
+  workflowDag: nullableWorkflowDagSchema.parse(record.workflowDag),
+  workflowDagSimple: nullableWorkflowDagSimpleSchema.parse(
+    record.workflowDagSimple,
+  ),
 })
 
 const TILE_EXTENT = 4096

@@ -76,13 +76,15 @@ const visibilityImpactQuerySchema = z.object({
   targetVisibility: updateVisibilitySchema.shape.visibility,
 })
 
+const nullableDatasetStyleSchema = datasetStyleSchema.nullable()
+
 const parseBaseDataset = <
   T extends InferQueryModel<'dataset', typeof baseDatasetQuery>,
 >(
   record: T,
 ) => ({
   ...record,
-  style: datasetStyleSchema.nullable().parse(record.style),
+  style: nullableDatasetStyleSchema.parse(record.style),
 })
 
 export const parseFullDataset = <
