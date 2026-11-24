@@ -13,6 +13,8 @@ import { useQuery } from '@tanstack/react-query'
 
 import { COGLayer, MosaicLayer } from '@developmentseed/deck.gl-geotiff'
 import { DatasetRunListItem } from '../_hooks'
+import { useConfig } from '~/components/providers'
+import { REMOTE_MAP_STYLE_URL } from '../../geometries/_components/map-viewer'
 
 // --- Types ---
 
@@ -229,6 +231,7 @@ export const DatasetRunMap = ({
   dataPmtilesUrl,
   datasetStyle,
 }: DatasetRunMapProps) => {
+  const config = useConfig()
   const [viewState, setViewState] = useState<MapViewState | undefined>(
     undefined,
   )
@@ -612,7 +615,7 @@ export const DatasetRunMap = ({
         >
           <Map
             style={{ width: '100%', height: '100%' }}
-            mapStyle="https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004"
+            mapStyle={config.mapStyleUrl ?? REMOTE_MAP_STYLE_URL}
           >
             {renderPMTiles && pmTilesHttpsUrl && pmtilesHeader && (
               <>

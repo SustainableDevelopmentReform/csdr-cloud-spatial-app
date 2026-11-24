@@ -5,7 +5,7 @@ import { Protocol } from 'pmtiles'
 import { useEffect } from 'react'
 import { useConfig } from '../../../../components/providers'
 
-const REMOTE_MAP_STYLE_URL =
+export const REMOTE_MAP_STYLE_URL =
   'https://api.protomaps.com/styles/v5/white/en.json?key=51cf1275231eb004'
 
 export const MapViewer = (props: MapProps & { ref?: React.Ref<MapRef> }) => {
