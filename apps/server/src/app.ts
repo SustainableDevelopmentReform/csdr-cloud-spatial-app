@@ -10,7 +10,7 @@ import { env } from './env'
 import { auth, AuthType } from './lib/auth'
 import { buildInfo } from './lib/build-info'
 import { checkDatabaseConnection, db } from './lib/db'
-import { ServerError } from './lib/error'
+import { foreignKeyConflictError, ServerError } from './lib/error'
 import { appLogger } from './lib/logger'
 import {
   createOpenAPIApp,
@@ -133,6 +133,7 @@ app.use(
     allowHeaders: [
       'Content-Type',
       'Authorization',
+      'x-api-key',
       ACTIVE_ORGANIZATION_HEADER,
       LEGACY_ACTIVE_ORGANIZATION_HEADER,
       'x-organization-id',
@@ -428,6 +429,13 @@ app.onError(async (err, c) => {
       { ...err.body, statusCode: err.statusCode },
       toContentfulStatusCode(err.statusCode),
     )
+  }
+
+  const foreignKeyConflict = foreignKeyConflictError(err, {
+    includeDetail: !isProduction,
+  })
+  if (foreignKeyConflict) {
+    return c.json(foreignKeyConflict.response, 409)
   }
 
   if (err instanceof Error) {
