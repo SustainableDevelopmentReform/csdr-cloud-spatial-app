@@ -39,6 +39,34 @@ describe('app routes', () => {
     expect(scalarHtml).toContain('/api/v0/doc')
   })
 
+  it('allows API key and organization headers in CORS preflight from a trusted origin', async () => {
+    const response = await app.request(
+      new Request('http://localhost/api/v0/dataset', {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'http://localhost:3000',
+          'access-control-request-method': 'GET',
+          'access-control-request-headers':
+            'x-api-key,x-sdf-active-organization-id',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('access-control-allow-origin')).toBe(
+      'http://localhost:3000',
+    )
+    const allowHeaders = (
+      response.headers.get('access-control-allow-headers') ?? ''
+    )
+      .toLowerCase()
+      .split(',')
+      .map((header) => header.trim())
+    expect(allowHeaders).toEqual(
+      expect.arrayContaining(['x-api-key', 'x-sdf-active-organization-id']),
+    )
+  })
+
   it('returns the global not-found response for unknown endpoints', async () => {
     const missingRouteJson = await expectJsonResponse<null>(
       await app.request(new Request('http://localhost/api/v0/does-not-exist')),

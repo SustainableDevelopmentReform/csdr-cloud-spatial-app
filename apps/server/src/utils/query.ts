@@ -2,6 +2,7 @@ import { z } from '@hono/zod-openapi'
 import { baseQuerySchema } from '@repo/schemas/crud'
 import {
   AnyColumn,
+  Column,
   SQL,
   ValueOrArray,
   and,
@@ -9,6 +10,7 @@ import {
   count,
   desc,
   ilike,
+  is,
   or,
   sql,
 } from 'drizzle-orm'
@@ -125,6 +127,15 @@ export const parseQuery = async <
       const direction = params.order ?? 'desc'
       orderBy = direction === 'asc' ? asc(column) : desc(column)
     }
+  }
+
+  // Sort columns such as createdAt are not unique (bulk inserts share one
+  // timestamp), and Postgres does not keep ties in a stable order across
+  // LIMIT/OFFSET queries, so pages could overlap or skip rows. Always end with
+  // the unique id as a tie-breaker.
+  const idColumn = (table as unknown as { id?: unknown }).id
+  if (is(idColumn, Column)) {
+    orderBy = [...asOrderByArray(orderBy), desc(idColumn)]
   }
 
   return {

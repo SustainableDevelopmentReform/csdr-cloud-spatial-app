@@ -204,6 +204,34 @@ describe('geometries-run route', () => {
     )
   })
 
+  it('pages outputs that share a createdAt without overlap, ordered by id', async () => {
+    // The seeded outputs are inserted together and share one createdAt.
+    const pageIds: string[] = []
+    for (const page of [1, 2]) {
+      const pageJson = await expectJsonResponse<{
+        data: { id: string }[]
+        totalCount: number
+      }>(
+        await memberClient.api.v0['geometries-run'][':id'].outputs.$get({
+          param: { id: seededIds.geometriesRun },
+          query: { page, size: 1 },
+        }),
+        {
+          status: 200,
+          message: 'OK',
+        },
+      )
+      expect(pageJson.data.data).toHaveLength(1)
+      pageIds.push(...pageJson.data.data.map((item) => item.id))
+    }
+
+    // desc(createdAt) ties are broken by desc(id).
+    expect(pageIds).toEqual([
+      seededIds.tasmaniaGeometryOutput,
+      seededIds.mainlandGeometryOutput,
+    ])
+  })
+
   it('filters geometry outputs by intersecting geometry bounds', async () => {
     const matchingOutputsJson = await expectJsonResponse<{
       data: { id: string }[]
