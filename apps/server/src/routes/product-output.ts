@@ -800,7 +800,8 @@ const app = createOpenAPIApp()
           const timePointDate = new Date(mapping.timePoint)
           const normalizedValue = normalizeCsvValue(rawValue)
           const numericValue = Number(normalizedValue)
-          if (!Number.isFinite(numericValue)) {
+          // Blank cells represent missing measurements, not zero.
+          if (normalizedValue.length === 0 || !Number.isFinite(numericValue)) {
             warnings.push({
               message: `Row ${rowIndex + 1} value in column "${mapping.column}" was missing or could not be converted to a number. Value: "${normalizedValue}"`,
               description: 'Row: ' + JSON.stringify(row, null, 2),

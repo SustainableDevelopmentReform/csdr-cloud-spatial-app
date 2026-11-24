@@ -147,6 +147,100 @@ beforeEach(async () => {
 })
 
 describe('product-output route', () => {
+  it('keeps missing CSV measurements absent while retaining an explicit zero', async () => {
+    const before = await db.query.productOutput.findMany()
+    const result = await expectJsonResponse<{
+      insertedCount: number
+      warnings: { message: string }[]
+    }>(
+      await adminClient.api.v0['product-output'].import.$post({
+        form: {
+          productRunId: seededIds.productRun,
+          geometryColumn: 'geometryId',
+          indicatorMappings: JSON.stringify([
+            {
+              column: 'first',
+              indicatorId: seededIds.indicator,
+              timePoint: '2024-01-01T00:00:00.000Z',
+            },
+            {
+              column: 'second',
+              indicatorId: seededIds.indicator,
+              timePoint: '2025-01-01T00:00:00.000Z',
+            },
+          ]),
+          csvFile: new File(
+            ['geometryId,first,second\ntasmania,,0.25\nmainland,0,"   "'],
+            'missing-values.csv',
+            { type: 'text/csv' },
+          ),
+        },
+      }),
+      { status: 201, message: 'Product outputs imported successfully' },
+    )
+    expect(result.data.insertedCount).toBe(2)
+    expect(result.data.warnings).toHaveLength(2)
+    const after = await db.query.productOutput.findMany()
+    expect(
+      after.filter((row) => before.some((old) => old.id === row.id)),
+    ).toEqual(expect.arrayContaining(before))
+    const inserted = after.filter(
+      (row) => !before.some((old) => old.id === row.id),
+    )
+    expect(
+      inserted.map((row) => ({
+        geometryOutputId: row.geometryOutputId,
+        timePoint: row.timePoint.toISOString(),
+        value: row.value,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        {
+          geometryOutputId: seededIds.tasmaniaGeometryOutput,
+          timePoint: '2025-01-01T00:00:00.000Z',
+          value: 0.25,
+        },
+        {
+          geometryOutputId: seededIds.mainlandGeometryOutput,
+          timePoint: '2024-01-01T00:00:00.000Z',
+          value: 0,
+        },
+      ]),
+    )
+    expect(inserted).toHaveLength(2)
+  })
+
+  it('does not write outputs when every mapped CSV measurement is missing', async () => {
+    const before = await db.query.productOutput.findMany()
+    await expectJsonResponse(
+      await adminClient.api.v0['product-output'].import.$post({
+        form: {
+          productRunId: seededIds.productRun,
+          geometryColumn: 'geometryId',
+          indicatorMappings: JSON.stringify([
+            {
+              column: 'value',
+              indicatorId: seededIds.indicator,
+              timePoint: '2025-01-01T00:00:00.000Z',
+            },
+          ]),
+          csvFile: new File(
+            ['geometryId,value\ntasmania,\nmainland,"   "'],
+            'all-missing.csv',
+            { type: 'text/csv' },
+          ),
+        },
+      }),
+      {
+        status: 400,
+        message: 'Failed to import product outputs',
+        description:
+          'No product outputs were imported. Please review the warnings and adjust the CSV or mappings.',
+      },
+    )
+    expect(await db.query.productOutput.findMany()).toEqual(before)
+  })
+
   it('returns read responses with expected messages', async () => {
     await expectJsonResponse(
       await createAppClient().api.v0['product-output'][':id'].$get({
